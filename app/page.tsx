@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
+import { PageHeader } from '@/components/page-header'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { SummaryRow } from '@/components/summary-row'
@@ -35,6 +36,12 @@ type SidebarItem = {
   path?: string
   roles: Role[]
   enabled?: boolean
+}
+
+type QuickAction = {
+  key: WorkspaceKey
+  label: string
+  primary?: boolean
 }
 
 const highlights = [
@@ -242,6 +249,18 @@ export default function HomePage() {
       'الرئيسية'
     )
   }, [allSidebarItems, activeWorkspace])
+
+  const activeWorkspaceSubtitle = useMemo(() => {
+    if (activeWorkspace === 'home') {
+      return 'نقطة الانطلاق الرئيسية للنظام'
+    }
+
+    if (activeWorkspace === 'dashboard-system-summary') {
+      return 'ملخص سريع لحالة النظام والتشغيل'
+    }
+
+    return 'المحتوى يفتح هنا داخل نفس الصفحة'
+  }, [activeWorkspace])
 
   const getEmbeddedDashboardSectionTitle = (
     key: WorkspaceKey
@@ -528,6 +547,42 @@ export default function HomePage() {
   }
 
   const renderHomeContent = () => {
+    const quickActions: QuickAction[] = []
+
+    if (role === 'admin') {
+      quickActions.push({
+        key: 'dashboard-system-summary',
+        label: 'ملخص النظام',
+        primary: true,
+      })
+    }
+
+    if ((role === 'admin' || role === 'employee') && (settings?.enable_orders ?? true)) {
+      quickActions.push({
+        key: 'orders',
+        label: 'إدارة الطلبات',
+      })
+    }
+
+    if (settings?.enable_invoices ?? true) {
+      quickActions.push({
+        key: 'invoice',
+        label: 'بدء فاتورة جديدة',
+      })
+    }
+
+    quickActions.push({
+      key: 'customers',
+      label: 'العملاء',
+    })
+
+    if (role === 'admin' && (settings?.enable_reports ?? true)) {
+      quickActions.push({
+        key: 'reports-summary',
+        label: 'التقارير',
+      })
+    }
+
     return (
       <div className="space-y-5 text-right">
         <div className="page-hero overflow-hidden text-right">
@@ -545,103 +600,20 @@ export default function HomePage() {
               <div className="mt-3 flex flex-wrap justify-end gap-2">
                 <span className="badge badge-blue">{storeName}</span>
                 <span className="badge badge-slate">{displayedBranchName}</span>
-                <button
-                  onClick={() => openWorkspace('customers')}
-                  className="secondary-btn"
-                  type="button"
-                >
-                  العملاء
-                </button>
+                <span className="badge badge-green">الصلاحية: {roleLabel || 'غير معروفة'}</span>
               </div>
 
-              {isSystemAdmin ? (
-                <div className="mt-4 flex justify-end">
-                  <AdminBranchFilter
-                    branches={branches}
-                    selectedBranchId={selectedBranchId}
-                    loading={loadingBranches}
-                    onChange={setSelectedBranchId}
-                    className="min-w-[240px]"
-                  />
-                </div>
-              ) : null}
-
               <div className="mt-6 flex flex-wrap justify-end gap-3">
-                {role === 'admin' && (
-                  <>
-                    <button
-                      onClick={openDashboardMenu}
-                      className="primary-btn"
-                      type="button"
-                    >
-                      دخول لوحة التحكم
-                    </button>
-
-                    {(settings?.enable_reports ?? true) && (
-                      <button
-                        onClick={openReportsMenu}
-                        className="secondary-btn"
-                        type="button"
-                      >
-                        فتح التقارير
-                      </button>
-                    )}
-
-                    {(settings?.enable_users ?? true) && (
-                      <button
-                        onClick={() => openWorkspace('users')}
-                        className="secondary-btn"
-                        type="button"
-                      >
-                        إدارة المستخدمين
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => openWorkspace('branches')}
-                      className="secondary-btn"
-                      type="button"
-                    >
-                      إدارة الفروع
-                    </button>
-
-                    <button
-                      onClick={() => openWorkspace('settings')}
-                      className="secondary-btn"
-                      type="button"
-                    >
-                      إعدادات النظام
-                    </button>
-                  </>
-                )}
-
-                {(role === 'admin' || role === 'employee') &&
-                  (settings?.enable_orders ?? true) && (
-                    <button
-                      onClick={openOrdersMenu}
-                      className="secondary-btn"
-                      type="button"
-                    >
-                      فتح الطلبات
-                    </button>
-                  )}
-
-                {(settings?.enable_invoices ?? true) && (
+                {quickActions.map((action) => (
                   <button
-                    onClick={() => openWorkspace('invoice')}
-                    className="secondary-btn"
+                    key={action.key}
+                    onClick={() => openWorkspace(action.key)}
+                    className={action.primary ? 'primary-btn' : 'secondary-btn'}
                     type="button"
                   >
-                    بدء فاتورة جديدة
+                    {action.label}
                   </button>
-                )}
-                <button
-                  onClick={() => openWorkspace('customers')}
-                  className="secondary-btn"
-                  type="button"
-                >
-                  العملاء
-                </button>
+                ))}
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -658,14 +630,14 @@ export default function HomePage() {
 
             <div className="grid gap-4 text-right">
               <div className="page-card bg-slate-900 text-right text-white ring-0 shadow-none">
-                <p className="text-sm font-bold text-slate-300">المشروع</p>
+                <p className="text-sm font-bold text-slate-300">مساحة العمل</p>
                 <h2 className="mt-2 text-2xl font-extrabold">{storeName}</h2>
                 <p className="mt-2 text-sm font-semibold text-slate-300">
                   {displayedBranchName}
                 </p>
                 <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-                  تصميم موحد وسريع للآيباد والكمبيوتر مع سهولة الوصول لكل أقسام
-                  النظام من الصفحة الرئيسية.
+                  الشريط الجانبي هو وسيلة التنقل الأساسية، وهذه المساحة تعرض
+                  أقسام العمل السريعة والملخص العام فقط.
                 </p>
               </div>
 
@@ -757,38 +729,6 @@ export default function HomePage() {
   return (
     <div className="app-shell" dir="rtl">
       <div className="page-wrap text-right">
-        <div className="mb-4 flex flex-wrap items-center justify-end gap-2 text-right">
-          <span className="badge badge-slate">{storeName}</span>
-          <span className="badge badge-green">{displayedBranchName}</span>
-
-          {isSystemAdmin ? (
-            <AdminBranchFilter
-              branches={branches}
-              selectedBranchId={selectedBranchId}
-              loading={loadingBranches}
-              onChange={setSelectedBranchId}
-            />
-          ) : null}
-
-          {roleLabel ? (
-            <span className="badge badge-blue">الصلاحية: {roleLabel}</span>
-          ) : (
-            <span className="badge badge-slate">الصلاحية: غير معروفة</span>
-          )}
-
-          <button
-            onClick={() => openWorkspace('home')}
-            className="secondary-btn"
-            type="button"
-          >
-            الصفحة الرئيسية
-          </button>
-
-          <button onClick={handleLogout} className="secondary-btn" type="button">
-            تسجيل الخروج
-          </button>
-        </div>
-
         <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="w-full xl:w-[280px] xl:min-w-[280px]">
             <div className="page-card !p-4 text-right" dir="rtl">
@@ -800,6 +740,24 @@ export default function HomePage() {
                 <p className="mt-2 text-sm leading-7 text-slate-500">
                   {displayedBranchName}
                 </p>
+              </div>
+
+              <div className="mb-4 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                {roleLabel ? (
+                  <span className="badge badge-blue">الصلاحية: {roleLabel}</span>
+                ) : (
+                  <span className="badge badge-slate">الصلاحية: غير معروفة</span>
+                )}
+
+                {isSystemAdmin ? (
+                  <AdminBranchFilter
+                    branches={branches}
+                    selectedBranchId={selectedBranchId}
+                    loading={loadingBranches}
+                    onChange={setSelectedBranchId}
+                    className="w-full"
+                  />
+                ) : null}
               </div>
 
               <div className="space-y-2 text-right">
@@ -1092,33 +1050,37 @@ export default function HomePage() {
                   </button>
                 ) : null}
               </div>
+
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <button
+                  onClick={handleLogout}
+                  className="secondary-btn w-full"
+                  type="button"
+                >
+                  تسجيل الخروج
+                </button>
+              </div>
             </div>
           </aside>
 
           <div className="min-w-0 space-y-5 text-right">
             <div className="page-card !p-5 md:!p-6 text-right">
-              <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="text-right">
-                  <h2 className="text-right text-2xl font-extrabold text-slate-900">
-                    {activeWorkspaceTitle}
-                  </h2>
-                  <p className="mt-1 text-right text-sm text-slate-500">
-                    {activeWorkspace === 'home'
-                      ? 'الواجهة الرئيسية للنظام'
-                      : 'المحتوى يفتح هنا داخل نفس الصفحة'}
-                  </p>
-                </div>
-
-                {activeWorkspace !== 'home' ? (
-                  <button
-                    type="button"
-                    onClick={() => openWorkspace('home')}
-                    className="secondary-btn"
-                  >
-                    الرجوع للرئيسية
-                  </button>
-                ) : null}
-              </div>
+              <PageHeader
+                className="mb-4"
+                title={activeWorkspaceTitle}
+                subtitle={activeWorkspaceSubtitle}
+                actions={
+                  activeWorkspace !== 'home' ? (
+                    <button
+                      type="button"
+                      onClick={() => openWorkspace('home')}
+                      className="secondary-btn"
+                    >
+                      الرجوع للرئيسية
+                    </button>
+                  ) : null
+                }
+              />
 
               {activeWorkspace === 'home' ? (
                 renderHomeContent()
