@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -42,7 +42,7 @@ export default function InvoiceItemsPage() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState('Ø§Ù„ÙƒÙ„')
+  const [activeFilter, setActiveFilter] = useState('الكل')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash')
   const [discount, setDiscount] = useState(0)
   const [tax, setTax] = useState(0)
@@ -158,12 +158,12 @@ export default function InvoiceItemsPage() {
     if (loading) return
 
     if (invoiceItems.length === 0) {
-      setErrorMessage('Ø£Ø¶Ù Ø¹Ù†ØµØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„')
+      setErrorMessage('أضف عنصرًا واحدًا على الأقل')
       return
     }
 
     if (paymentMethod === 'cash' && numericCashReceived <= 0) {
-      setErrorMessage('Ø§ÙƒØªØ¨ Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø³ØªÙ„Ù… Ù…Ù† Ø§Ù„Ø¹Ù…ÙŠÙ„')
+      setErrorMessage('اكتب المبلغ المستلم من العميل')
       return
     }
 
@@ -209,8 +209,8 @@ export default function InvoiceItemsPage() {
     setLastOrderNumber(result?.order_number || '')
     printInvoice(result?.invoice_number, result?.order_number)
 
-    // Temporary feature flag: keep invoice creation/print active while
-    // disabling the post-create PDF and WhatsApp flow.
+    // Temporary feature flag: keep invoice creation and printing active while
+    // the post-create PDF and WhatsApp flow stays disabled.
     if (!INVOICE_PDF_WHATSAPP_ENABLED) {
       setSuccessMessage(`تم إنشاء الفاتورة ${result?.invoice_number || ''} بنجاح`)
     }
@@ -226,7 +226,7 @@ export default function InvoiceItemsPage() {
     return (
       <div className="app-shell">
         <div className="page-wrap">
-          <div className="page-card">Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ©...</div>
+          <div className="page-card">جاري التحقق من الصلاحية...</div>
         </div>
       </div>
     )
@@ -236,7 +236,7 @@ export default function InvoiceItemsPage() {
     return (
       <div className="app-shell">
         <div className="page-wrap">
-          <div className="page-card">Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„...</div>
+          <div className="page-card">جاري التحميل...</div>
         </div>
       </div>
     )
@@ -251,7 +251,7 @@ export default function InvoiceItemsPage() {
         <div className="page-hero">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="page-title">Ø´Ø§Ø´Ø© Ø§Ù„Ø¨ÙŠØ¹ Ø§Ù„Ø³Ø±ÙŠØ¹ POS</h1>
+              <h1 className="page-title">شاشة البيع السريع POS</h1>
               <p className="page-subtitle">Leather Fix ERP</p>
             </div>
 
@@ -261,7 +261,7 @@ export default function InvoiceItemsPage() {
                 className="secondary-btn"
                 type="button"
               >
-                Ø§Ù„Ø¹ÙˆØ¯Ø© Ø¥Ù„Ù‰ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø³Ø§Ø¨Ù‚Ø©
+                العودة إلى القائمة السابقة
               </button>
 
               <button
@@ -269,14 +269,14 @@ export default function InvoiceItemsPage() {
                 className="secondary-btn"
                 type="button"
               >
-                Ø§Ù„Ø¹ÙˆØ¯Ø© Ø¥Ù„Ù‰ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ©
+                العودة إلى القائمة الرئيسية
               </button>
 
               <div className="badge badge-slate px-4 py-3 text-sm">
-                {customerName} â€¢ {customerPhone}
+                {customerName} • {customerPhone}
               </div>
 
-              <span className="badge badge-green">Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ©: {roleLabel}</span>
+              <span className="badge badge-green">الصلاحية: {roleLabel}</span>
             </div>
           </div>
         </div>
@@ -284,7 +284,7 @@ export default function InvoiceItemsPage() {
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
           <section className="page-card">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <h2 className="section-title">Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª ÙˆØ§Ù„Ø®Ø¯Ù…Ø§Øª</h2>
+              <h2 className="section-title">المنتجات والخدمات</h2>
 
               <div className="flex flex-wrap gap-2">
                 {INVOICE_FILTERS.map((filter) => (
@@ -305,7 +305,7 @@ export default function InvoiceItemsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù† Ù…Ù†ØªØ¬ Ø£Ùˆ Ø®Ø¯Ù…Ø©"
+              placeholder="ابحث عن منتج أو خدمة"
               className="field-input mb-4"
             />
 
@@ -322,17 +322,17 @@ export default function InvoiceItemsPage() {
                         {product.name}
                       </h3>
                       <p className="mt-1 text-sm text-slate-500">
-                        {product.type === 'service' ? 'Ø®Ø¯Ù…Ø©' : 'Ù…Ù†ØªØ¬'} â€¢ {product.category}
+                        {product.type === 'service' ? 'خدمة' : 'منتج'} • {product.category}
                       </p>
                     </div>
 
                     <span className="badge badge-slate">
-                      {product.price} Ø±.Ø³
+                      {product.price} ر.س
                     </span>
                   </div>
 
                   <div className="mt-4 rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-bold text-white">
-                    Ø¥Ø¶Ø§ÙØ© Ø¥Ù„Ù‰ Ø§Ù„ÙØ§ØªÙˆØ±Ø©
+                    إضافة إلى الفاتورة
                   </div>
                 </button>
               ))}
@@ -342,15 +342,15 @@ export default function InvoiceItemsPage() {
           <aside className="space-y-5">
             <section className="page-card">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="section-title">Ø¹Ù†Ø§ØµØ± Ø§Ù„ÙØ§ØªÙˆØ±Ø©</h2>
+                <h2 className="section-title">عناصر الفاتورة</h2>
                 <button onClick={clearInvoice} className="secondary-btn" type="button">
-                  ØªÙØ±ÙŠØº
+                  تفريغ
                 </button>
               </div>
 
               {invoiceItems.length === 0 ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                  Ù„Ù… ÙŠØªÙ… Ø¥Ø¶Ø§ÙØ© Ø£ÙŠ Ø¹Ù†ØµØ± Ø¨Ø¹Ø¯
+                  لم يتم إضافة أي عنصر بعد
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -365,7 +365,7 @@ export default function InvoiceItemsPage() {
                             {item.item_name}
                           </h3>
                           <p className="mt-1 text-xs text-slate-500">
-                            {item.item_type === 'service' ? 'Ø®Ø¯Ù…Ø©' : 'Ù…Ù†ØªØ¬'}
+                            {item.item_type === 'service' ? 'خدمة' : 'منتج'}
                           </p>
                         </div>
 
@@ -374,7 +374,7 @@ export default function InvoiceItemsPage() {
                           className="secondary-btn"
                           type="button"
                         >
-                          Ø­Ø°Ù
+                          حذف
                         </button>
                       </div>
 
@@ -403,10 +403,10 @@ export default function InvoiceItemsPage() {
 
                         <div className="text-left">
                           <p className="text-sm text-slate-500">
-                            Ø§Ù„ÙˆØ­Ø¯Ø©: {formatCurrency(item.unit_price)}
+                            الوحدة: {formatCurrency(item.unit_price)}
                           </p>
                           <p className="mt-1 text-sm font-bold text-slate-900">
-                            Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ: {formatCurrency(item.quantity * item.unit_price)}
+                            الإجمالي: {formatCurrency(item.quantity * item.unit_price)}
                           </p>
                         </div>
                       </div>
@@ -417,11 +417,11 @@ export default function InvoiceItemsPage() {
             </section>
 
             <section className="page-card">
-              <h2 className="section-title">Ø§Ù„Ø¯ÙØ¹ ÙˆØ§Ù„Ø­Ø³Ø§Ø¨Ø§Øª</h2>
+              <h2 className="section-title">الدفع والحسابات</h2>
 
               <div className="mt-4 space-y-4">
                 <div>
-                  <label className="field-label">Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ø¯ÙØ¹</label>
+                  <label className="field-label">طريقة الدفع</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) =>
@@ -429,15 +429,15 @@ export default function InvoiceItemsPage() {
                     }
                     className="field-select"
                   >
-                    <option value="cash">ÙƒØ§Ø´</option>
-                    <option value="card">Ø´Ø¨ÙƒØ©</option>
-                    <option value="transfer">ØªØ­ÙˆÙŠÙ„</option>
+                    <option value="cash">كاش</option>
+                    <option value="card">شبكة</option>
+                    <option value="transfer">تحويل</option>
                   </select>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="field-label">Ø§Ù„Ø®ØµÙ…</label>
+                    <label className="field-label">الخصم</label>
                     <input
                       type="number"
                       value={discount}
@@ -447,7 +447,7 @@ export default function InvoiceItemsPage() {
                   </div>
 
                   <div>
-                    <label className="field-label">Ø§Ù„Ø¶Ø±ÙŠØ¨Ø©</label>
+                    <label className="field-label">الضريبة</label>
                     <input
                       type="number"
                       value={tax}
@@ -459,45 +459,45 @@ export default function InvoiceItemsPage() {
 
                 {paymentMethod === 'cash' && (
                   <div>
-                    <label className="field-label">Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø³ØªÙ„Ù… Ù…Ù† Ø§Ù„Ø¹Ù…ÙŠÙ„</label>
+                    <label className="field-label">المبلغ المستلم من العميل</label>
                     <input
                       type="number"
                       value={cashReceived}
                       onChange={(e) => setCashReceived(e.target.value)}
                       className="field-input"
-                      placeholder="Ø§ÙƒØªØ¨ Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø³ØªÙ„Ù…"
+                      placeholder="اكتب المبلغ المستلم"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="field-label">Ù…Ù„Ø§Ø­Ø¸Ø©</label>
+                  <label className="field-label">ملاحظة</label>
                   <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     className="field-input min-h-[110px]"
-                    placeholder="Ø§ÙƒØªØ¨ Ù…Ù„Ø§Ø­Ø¸Ø© Ø¥Ù† ÙˆØ¬Ø¯Øª"
+                    placeholder="اكتب ملاحظة إن وجدت"
                   />
                 </div>
 
                 <div className="inner-card space-y-3">
-                  <SummaryRow label="Ø§Ù„Ù…Ø¬Ù…ÙˆØ¹ Ø§Ù„ÙØ±Ø¹ÙŠ" value={formatCurrency(subtotal)} />
-                  <SummaryRow label="Ø§Ù„Ø®ØµÙ…" value={formatCurrency(discount)} />
-                  <SummaryRow label="Ø§Ù„Ø¶Ø±ÙŠØ¨Ø©" value={formatCurrency(tax)} />
-                  <SummaryRow label="Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ" value={formatCurrency(finalTotal)} />
+                  <SummaryRow label="المجموع الفرعي" value={formatCurrency(subtotal)} />
+                  <SummaryRow label="الخصم" value={formatCurrency(discount)} />
+                  <SummaryRow label="الضريبة" value={formatCurrency(tax)} />
+                  <SummaryRow label="الإجمالي النهائي" value={formatCurrency(finalTotal)} />
 
                   {paymentMethod === 'cash' && (
                     <>
                       <SummaryRow
-                        label="Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø³ØªÙ„Ù…"
+                        label="المبلغ المستلم"
                         value={formatCurrency(numericCashReceived)}
                       />
                       <SummaryRow
-                        label="Ø§Ù„Ù…ØªØ¨Ù‚ÙŠ Ù…Ù† Ø§Ù„Ø¹Ù…ÙŠÙ„"
+                        label="المتبقي من العميل"
                         value={formatCurrency(remainingFromCustomer)}
                       />
                       <SummaryRow
-                        label="Ø§Ù„Ø¨Ø§Ù‚ÙŠ Ù„Ù„Ø¹Ù…ÙŠÙ„"
+                        label="الباقي للعميل"
                         value={formatCurrency(cashChange)}
                       />
                     </>
@@ -510,13 +510,13 @@ export default function InvoiceItemsPage() {
                   className="primary-btn w-full"
                   type="button"
                 >
-                  {loading ? 'Ø¬Ø§Ø±ÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ§ØªÙˆØ±Ø©...' : 'Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ§ØªÙˆØ±Ø©'}
+                  {loading ? 'جاري إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
                 </button>
 
                 {(lastInvoiceNumber || lastOrderNumber) && (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    <div>Ø¢Ø®Ø± ÙØ§ØªÙˆØ±Ø©: {lastInvoiceNumber || 'â€”'}</div>
-                    <div className="mt-1">Ø¢Ø®Ø± Ø·Ù„Ø¨: {lastOrderNumber || 'â€”'}</div>
+                    <div>آخر فاتورة: {lastInvoiceNumber || '—'}</div>
+                    <div className="mt-1">آخر طلب: {lastOrderNumber || '—'}</div>
                   </div>
                 )}
               </div>
