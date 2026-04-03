@@ -29,6 +29,29 @@ import {
   getDateInputValue,
 } from '@/lib/orders/format'
 
+function ReportsShellPlaceholder() {
+  return (
+    <div className="app-shell">
+      <div className="page-wrap">
+        <div className="page-hero min-h-[140px] animate-pulse bg-slate-100" />
+        <div className="page-card mt-5 min-h-[260px] animate-pulse bg-slate-100" />
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div
+              key={index}
+              className="stat-card min-h-[120px] animate-pulse bg-slate-100"
+            />
+          ))}
+        </div>
+        <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="page-card min-h-[320px] animate-pulse bg-slate-100" />
+          <div className="page-card min-h-[320px] animate-pulse bg-slate-100" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ReportsPage() {
   const access = usePageAccess(['admin'])
   const authLoading = access.loading
@@ -431,13 +454,7 @@ export default function ReportsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="app-shell">
-        <div className="page-wrap">
-          <div className="page-card">جاري تحميل التقارير...</div>
-        </div>
-      </div>
-    )
+    return <ReportsShellPlaceholder />
   }
 
   return (

@@ -48,6 +48,37 @@ function buildDashboardOrderComparisonSignature(orders: DashboardOrderRecord[]) 
     .join('||')
 }
 
+function DashboardShellPlaceholder() {
+  return (
+    <div className="app-shell">
+      <div className="page-wrap">
+        <div className="grid gap-5 xl:grid-cols-[320px_1fr]">
+          <aside className="space-y-5 xl:order-1">
+            <div className="page-card min-h-[220px] animate-pulse bg-slate-100 ring-0 shadow-none" />
+            <div className="page-card min-h-[220px] animate-pulse bg-slate-100" />
+          </aside>
+
+          <main className="space-y-5 xl:order-2">
+            <div className="page-hero min-h-[220px] animate-pulse bg-slate-100" />
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="stat-card min-h-[120px] animate-pulse bg-slate-100"
+                />
+              ))}
+            </div>
+            <div className="grid gap-5 lg:grid-cols-[1.25fr_0.95fr]">
+              <div className="page-card min-h-[320px] animate-pulse bg-slate-100" />
+              <div className="page-card min-h-[320px] animate-pulse bg-slate-100" />
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DashboardPageContent() {
   const searchParams = useSearchParams()
 
@@ -255,13 +286,7 @@ function DashboardPageContent() {
   }
 
   if (loading) {
-    return (
-      <div className="app-shell">
-        <div className="page-wrap">
-          <div className="page-card">جاري تحميل لوحة التحكم...</div>
-        </div>
-      </div>
-    )
+    return <DashboardShellPlaceholder />
   }
 
   const latestOrdersCard = (
@@ -600,15 +625,7 @@ function DashboardPageContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="app-shell">
-          <div className="page-wrap">
-            <div className="page-card">جاري تحميل لوحة التحكم...</div>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<DashboardShellPlaceholder />}>
       <DashboardPageContent />
     </Suspense>
   )

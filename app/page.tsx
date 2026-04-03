@@ -53,6 +53,7 @@ const highlights = [
 
 export default function HomePage() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const previousIframePathRef = useRef<string | null>(null)
   const access = usePageAccess(['admin', 'employee', 'cashier'])
 
   const authLoading = access.loading
@@ -273,13 +274,19 @@ export default function HomePage() {
     return null
   }
 
-  const isolateIframeDashboardSection = () => {
+  const embeddedDashboardSectionTitle = useMemo(
+    () => getEmbeddedDashboardSectionTitle(activeWorkspace),
+    [activeWorkspace]
+  )
+
+  const shouldIsolateIframeDashboardSection = Boolean(
+    activeWorkspacePath?.startsWith('/admin/dashboard') &&
+      embeddedDashboardSectionTitle
+  )
+
+  const isolateIframeDashboardSection = (targetTitle: string) => {
     const iframe = iframeRef.current
     if (!iframe) return
-    if (!activeWorkspacePath?.startsWith('/admin/dashboard')) return
-
-    const targetTitle = getEmbeddedDashboardSectionTitle(activeWorkspace)
-    if (!targetTitle) return
 
     const doc =
       iframe.contentDocument || iframe.contentWindow?.document || null
@@ -338,6 +345,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (activeWorkspace === 'home') {
+      previousIframePathRef.current = null
       const timeoutId = window.setTimeout(() => {
         setIframeLoading(false)
       }, 0)
@@ -345,11 +353,17 @@ export default function HomePage() {
     }
 
     if (activeWorkspacePath) {
+      const nextPath = activeWorkspacePath
+      const pathChanged = previousIframePathRef.current !== nextPath
+      previousIframePathRef.current = nextPath
+
       const timeoutId = window.setTimeout(() => {
-        setIframeLoading(true)
+        setIframeLoading(pathChanged)
       }, 0)
+
       return () => window.clearTimeout(timeoutId)
     } else {
+      previousIframePathRef.current = null
       const timeoutId = window.setTimeout(() => {
         setIframeLoading(false)
       }, 0)
@@ -709,7 +723,7 @@ export default function HomePage() {
   if (authLoading) {
     return (
       <div className="app-shell" dir="rtl">
-        <div className="page-wrap">
+        <div className="page-wrap text-right">
           <div className="page-card text-right">جاري التحقق من الصلاحية...</div>
         </div>
       </div>
@@ -719,7 +733,7 @@ export default function HomePage() {
   if (!allowed) {
     return (
       <div className="app-shell" dir="rtl">
-        <div className="page-wrap">
+        <div className="page-wrap text-right">
           <div className="page-card text-right">جارٍ التحويل...</div>
         </div>
       </div>
@@ -1098,13 +1112,18 @@ export default function HomePage() {
 
                   <iframe
                     ref={iframeRef}
-                    key={`${activeWorkspace}-${activeWorkspacePath}`}
+                    key={activeWorkspacePath}
                     src={activeWorkspacePath}
                     title={activeWorkspaceTitle}
                     className="h-[1150px] w-full bg-white"
                     onLoad={() => {
                       setIframeLoading(false)
-                      isolateIframeDashboardSection()
+
+                      if (shouldIsolateIframeDashboardSection) {
+                        isolateIframeDashboardSection(
+                          embeddedDashboardSectionTitle as string
+                        )
+                      }
                     }}
                   />
                 </div>
