@@ -4,6 +4,7 @@ export type InvoiceCatalogItem = {
   type: 'product' | 'service'
   category: string
   price: number
+  image_url: string | null
 }
 
 export type InvoiceLineItem = {
@@ -24,10 +25,10 @@ export type CreatedInvoiceRecord = {
 }
 
 export const INVOICE_PRODUCTS: InvoiceCatalogItem[] = [
-  { id: '1', name: 'تنظيف فاخر', type: 'service', category: 'تنظيف', price: 120 },
-  { id: '2', name: 'إصلاح شنطة جلد', type: 'service', category: 'إصلاح', price: 240 },
-  { id: '3', name: 'بخاخ حماية جلد', type: 'product', category: 'عناية', price: 85 },
-  { id: '4', name: 'صبغة جلد بني', type: 'product', category: 'ألوان', price: 65 },
+  { id: '1', name: 'تنظيف فاخر', type: 'service', category: 'تنظيف', price: 120, image_url: null },
+  { id: '2', name: 'إصلاح شنطة جلد', type: 'service', category: 'إصلاح', price: 240, image_url: null },
+  { id: '3', name: 'بخاخ حماية جلد', type: 'product', category: 'عناية', price: 85, image_url: null },
+  { id: '4', name: 'صبغة جلد بني', type: 'product', category: 'ألوان', price: 65, image_url: null },
 ]
 
 export const INVOICE_FILTERS = [

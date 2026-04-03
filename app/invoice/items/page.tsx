@@ -63,6 +63,7 @@ export default function InvoiceItemsPage() {
   const [lastOrderNumber, setLastOrderNumber] = useState('')
   const [catalogProducts, setCatalogProducts] =
     useState<InvoiceCatalogItem[]>(INVOICE_PRODUCTS)
+  const [failedCatalogImageIds, setFailedCatalogImageIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!allowed) return
@@ -94,12 +95,14 @@ export default function InvoiceItemsPage() {
 
         if (!cancelled) {
           setCatalogProducts(nextProducts)
+          setFailedCatalogImageIds([])
         }
       } catch (error) {
         console.error('Load branch invoice catalog error:', error)
 
         if (!cancelled) {
           setCatalogProducts(INVOICE_PRODUCTS)
+          setFailedCatalogImageIds([])
         }
       }
     }
@@ -415,8 +418,37 @@ export default function InvoiceItemsPage() {
                     onClick={() => addItem(product)}
                     className="inner-card text-right transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
                   >
+                    <div className="mb-4 overflow-hidden rounded-[20px] border border-slate-200 bg-slate-100">
+                      {product.image_url &&
+                      !failedCatalogImageIds.includes(product.id) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="h-40 w-full object-cover"
+                          loading="lazy"
+                          onError={() =>
+                            setFailedCatalogImageIds((prev) =>
+                              prev.includes(product.id) ? prev : [...prev, product.id]
+                            )
+                          }
+                        />
+                      ) : (
+                        <div className="flex h-40 w-full items-center justify-center bg-slate-100 text-center">
+                          <div className="space-y-2 px-4">
+                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-black text-slate-400">
+                              {product.type === 'service' ? 'خ' : 'م'}
+                            </div>
+                            <p className="text-xs font-bold text-slate-500">
+                              لا توجد صورة متاحة
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="text-base font-bold text-slate-900">
                           {product.name}
                         </h3>

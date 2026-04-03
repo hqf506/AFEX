@@ -7,6 +7,7 @@ type CatalogItemRow = {
   category: string
   item_type: 'product' | 'service'
   default_price: number
+  image_url: string | null
   is_active: boolean
 }
 
@@ -62,6 +63,7 @@ export function mapBranchCatalogToInvoiceProducts(
         type: item.item_type,
         category: item.category,
         price: override?.price ?? item.default_price,
+        image_url: item.image_url,
         displayOrder: override?.display_order ?? null,
       }
     })
@@ -79,6 +81,7 @@ export function mapBranchCatalogToInvoiceProducts(
       type: item.type,
       category: item.category,
       price: item.price,
+      image_url: item.image_url,
     }))
 }
 
@@ -92,7 +95,7 @@ export async function loadBranchInvoiceCatalog(
 
   const { data: catalogItems, error: catalogError } = await supabase
     .from('catalog_items')
-    .select('id, name, category, item_type, default_price, is_active')
+    .select('id, name, category, item_type, default_price, image_url, is_active')
     .eq('is_active', true)
 
   if (catalogError || !Array.isArray(catalogItems) || catalogItems.length === 0) {
