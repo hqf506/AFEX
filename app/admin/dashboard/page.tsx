@@ -136,9 +136,14 @@ function DashboardPageContent() {
 
   const recentOrders = useMemo(() => orders.slice(0, 6), [orders])
 
-  const statusItems = getDashboardStatusItems(stats)
+  const { statusItems, maxStatusCount } = useMemo(() => {
+    const nextStatusItems = getDashboardStatusItems(stats)
 
-  const maxStatusCount = Math.max(...statusItems.map((item) => item.count), 1)
+    return {
+      statusItems: nextStatusItems,
+      maxStatusCount: Math.max(...nextStatusItems.map((item) => item.count), 1),
+    }
+  }, [stats])
 
   const quickActions = DASHBOARD_QUICK_ACTIONS
 

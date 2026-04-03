@@ -72,11 +72,9 @@ export default function InvoiceItemsPage() {
     }, 0)
   }, [allowed, router])
 
-  const filteredProducts = filterInvoiceProducts(
-    INVOICE_PRODUCTS,
-    activeFilter,
-    search
-  )
+  const filteredProducts = useMemo(() => {
+    return filterInvoiceProducts(INVOICE_PRODUCTS, activeFilter, search)
+  }, [activeFilter, search])
 
   const subtotal = useMemo(() => {
     return calculateInvoiceSubtotal(invoiceItems)

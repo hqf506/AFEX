@@ -126,17 +126,15 @@ export default function ReportsPage() {
     return () => window.clearTimeout(timeoutId)
   }, [allowed, fetchReportsData])
 
-  const filteredOrders = useMemo(() => {
-    return orders
-  }, [orders])
+  const filteredOrders = orders
 
   const stats = useMemo(() => {
-    return buildReportOrderSummary(filteredOrders)
-  }, [filteredOrders])
+    return buildReportOrderSummary(orders)
+  }, [orders])
 
   const topServices = useMemo(() => {
-    return getReportTopServices(filteredOrders)
-  }, [filteredOrders])
+    return getReportTopServices(orders)
+  }, [orders])
 
   const exportExcel = () => {
     const headers = [
@@ -158,7 +156,7 @@ export default function ReportsPage() {
       'الملاحظة',
     ]
 
-    const rows = filteredOrders.map((order) => [
+    const rows = orders.map((order) => [
       order.order_number,
       order.invoice_number,
       order.customer_name,
@@ -198,9 +196,9 @@ export default function ReportsPage() {
     if (!printWindow) return
 
     const rowsHtml =
-      filteredOrders.length === 0
+      orders.length === 0
         ? `<tr><td colspan="7" style="text-align:center;padding:16px;">لا توجد بيانات</td></tr>`
-        : filteredOrders
+        : orders
             .map(
               (order) => `
                 <tr>
@@ -615,13 +613,13 @@ export default function ReportsPage() {
               <span className="badge badge-slate">{filteredOrders.length} طلب</span>
             </div>
 
-            {filteredOrders.length === 0 ? (
+            {orders.length === 0 ? (
               <div className="py-10 text-center text-sm text-slate-500">
                 لا توجد بيانات في هذه الفترة
               </div>
             ) : (
               <div className="table-list">
-                {filteredOrders.slice(0, 12).map((order) => (
+                {orders.slice(0, 12).map((order) => (
                   <div key={order.id} className="list-row">
                     <div className="space-y-1">
                       <p className="text-sm font-bold text-slate-900">
