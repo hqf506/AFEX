@@ -183,7 +183,7 @@ export async function PATCH(
       })
       .eq('id', itemId)
       .select(
-        'id, code, name, category, item_type, default_price, is_active, created_at, updated_at'
+        'id, code, name, category, item_type, default_price, image_url, is_active, created_at, updated_at'
       )
       .single()
 

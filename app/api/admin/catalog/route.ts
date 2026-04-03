@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('catalog_items')
       .select(
-        'id, code, name, category, item_type, default_price, is_active, created_at, updated_at'
+        'id, code, name, category, item_type, default_price, image_url, is_active, created_at, updated_at'
       )
       .order('created_at', { ascending: true })
 
@@ -185,12 +185,13 @@ export async function POST(request: NextRequest) {
         category,
         item_type: itemType,
         default_price: defaultPrice,
+        image_url: null,
         is_active: true,
         created_at: timestamp,
         updated_at: timestamp,
       })
       .select(
-        'id, code, name, category, item_type, default_price, is_active, created_at, updated_at'
+        'id, code, name, category, item_type, default_price, image_url, is_active, created_at, updated_at'
       )
       .single()
 

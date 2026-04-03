@@ -9,6 +9,7 @@ export type AdminCatalogItemRecord = {
   category: string
   item_type: CatalogItemType
   default_price: number
+  image_url: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -23,6 +24,7 @@ export type AdminCatalogFormPayload = {
 }
 
 export const CATALOG_CODE_PATTERN = /^[a-z0-9-]{2,64}$/
+export const CATALOG_IMAGE_BUCKET = 'catalog-images'
 
 export const CATALOG_ITEM_TYPE_OPTIONS: Array<{
   value: CatalogItemType
@@ -97,4 +99,9 @@ export function canSubmitCatalogForm(payload: AdminCatalogFormPayload) {
 
 export function isSystemScopedCatalogAdmin(scopeType: AuthScopeType) {
   return scopeType === 'system'
+}
+
+export function getCatalogImagePath(itemId: string, extension: string) {
+  const safeExtension = extension.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png'
+  return `catalog-items/${itemId}/image.${safeExtension}`
 }

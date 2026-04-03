@@ -31,6 +31,9 @@ export default function AdminCatalogPage() {
   const [loadingItems, setLoadingItems] = useState(false)
   const [saving, setSaving] = useState(false)
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
+  const [uploadingImageItemId, setUploadingImageItemId] = useState<string | null>(
+    null
+  )
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -200,6 +203,46 @@ export default function AdminCatalogPage() {
       )
     } finally {
       setUpdatingItemId(null)
+    }
+  }
+
+  async function handleImageUpload(
+    item: AdminCatalogItemRecord,
+    file: File | null
+  ) {
+    if (!file) return
+
+    try {
+      setUploadingImageItemId(item.id)
+      setSuccessMessage('')
+      setErrorMessage('')
+
+      const formData = new FormData()
+      formData.append('itemId', item.id)
+      formData.append('file', file)
+
+      const response = await fetch('/api/admin/catalog/upload-image', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          result?.details || result?.error || 'فشل رفع صورة العنصر'
+        )
+      }
+
+      setSuccessMessage(result?.message || 'تم رفع صورة العنصر بنجاح')
+      await loadItems()
+    } catch (error) {
+      console.error('Upload catalog image error:', error)
+      setErrorMessage(
+        error instanceof Error ? error.message : 'تعذر رفع صورة العنصر'
+      )
+    } finally {
+      setUploadingImageItemId(null)
     }
   }
 
@@ -461,36 +504,72 @@ export default function AdminCatalogPage() {
                     className="rounded-[24px] border border-slate-200 bg-slate-50 p-4"
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="space-y-2 text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <span className="text-base font-black text-slate-900">
-                            {item.name}
-                          </span>
-                          <span
-                            className={
-                              item.is_active ? 'badge badge-green' : 'badge badge-slate'
-                            }
-                          >
-                            {item.is_active ? 'نشط' : 'معطل'}
-                          </span>
+                      <div className="flex gap-4">
+                        <div className="shrink-0">
+                          {item.image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="h-24 w-24 rounded-[20px] border border-slate-200 bg-white object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-24 w-24 items-center justify-center rounded-[20px] border border-dashed border-slate-300 bg-white text-center text-xs font-bold text-slate-400">
+                              بدون صورة
+                            </div>
+                          )}
                         </div>
 
-                        <p className="text-sm text-slate-600">
-                          {item.item_type === 'service' ? 'خدمة' : 'منتج'} •{' '}
-                          {item.category}
-                        </p>
+                        <div className="space-y-2 text-right">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <span className="text-base font-black text-slate-900">
+                              {item.name}
+                            </span>
+                            <span
+                              className={
+                                item.is_active ? 'badge badge-green' : 'badge badge-slate'
+                              }
+                            >
+                              {item.is_active ? 'نشط' : 'معطل'}
+                            </span>
+                          </div>
 
-                        <div className="flex flex-wrap justify-end gap-2 text-xs">
-                          <span className="badge badge-slate" dir="ltr">
-                            {item.code}
-                          </span>
-                          <span className="badge badge-slate">
-                            {formatCurrency(item.default_price)}
-                          </span>
+                          <p className="text-sm text-slate-600">
+                            {item.item_type === 'service' ? 'خدمة' : 'منتج'} •{' '}
+                            {item.category}
+                          </p>
+
+                          <div className="flex flex-wrap justify-end gap-2 text-xs">
+                            <span className="badge badge-slate" dir="ltr">
+                              {item.code}
+                            </span>
+                            <span className="badge badge-slate">
+                              {formatCurrency(item.default_price)}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null
+                              void handleImageUpload(item, file)
+                              e.currentTarget.value = ''
+                            }}
+                          />
+                          <span className="secondary-btn inline-flex items-center justify-center">
+                            {uploadingImageItemId === item.id
+                              ? 'جارٍ رفع الصورة...'
+                              : item.image_url
+                                ? 'تغيير الصورة'
+                                : 'رفع الصورة'}
+                          </span>
+                        </label>
                         <AdminButton onClick={() => startEdit(item)}>
                           تعديل
                         </AdminButton>
