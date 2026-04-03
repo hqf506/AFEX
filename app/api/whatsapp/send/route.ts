@@ -9,14 +9,19 @@ import {
   releaseWhatsAppOrderStatusNotificationLock,
 } from '@/lib/whatsapp/notification-log'
 import {
+  sendWhatsAppFile,
   sendWhatsAppTestMessage,
   sendWhatsAppText,
 } from '@/lib/whatsapp/service'
 
 type SendWhatsAppBody = {
+  type?: 'text' | 'file'
   to?: string
   text?: string
   mode?: 'text' | 'test'
+  fileUrl?: string
+  filename?: string
+  caption?: string
   notification?: {
     orderId?: string
     status?: string
@@ -26,14 +31,19 @@ type SendWhatsAppBody = {
 
 export async function POST(req: NextRequest) {
   let to = ''
+  let type: 'text' | 'file' = 'text'
   let mode: 'text' | 'test' = 'text'
 
   try {
     const body = (await req.json()) as SendWhatsAppBody
 
+    type = body.type === 'file' ? 'file' : 'text'
     to = getTrimmedString(body.to)
     const text = getTrimmedString(body.text)
     mode = body.mode === 'test' ? 'test' : 'text'
+    const fileUrl = getTrimmedString(body.fileUrl)
+    const filename = getTrimmedString(body.filename)
+    const caption = getTrimmedString(body.caption)
     const notificationOrderId = getTrimmedString(body.notification?.orderId)
     const notificationStatus = getTrimmedString(body.notification?.status)
     const notificationChannel = body.notification?.channel || 'whatsapp'
@@ -56,11 +66,21 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (mode === 'text' && !text) {
+    if (type === 'text' && mode === 'text' && !text) {
       return jsonResponse(
         {
           success: false,
           error: 'Message text is required',
+        },
+        400
+      )
+    }
+
+    if (type === 'file' && !fileUrl) {
+      return jsonResponse(
+        {
+          success: false,
+          error: 'File URL is required',
         },
         400
       )
@@ -89,21 +109,40 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        const result = await sendWhatsAppText(
-          {
-            to,
-            text: text || '',
-            metadata: {
-              type: 'order_status',
-              orderId: notificationOrderId,
-              status: notificationStatus,
-            },
-          },
-          {
-            mode: 'text',
-            messageType: 'text',
-          }
-        )
+        const result =
+          type === 'file'
+            ? await sendWhatsAppFile(
+                {
+                  to,
+                  fileUrl,
+                  filename: filename || undefined,
+                  caption: caption || undefined,
+                  metadata: {
+                    type: 'order_status',
+                    orderId: notificationOrderId,
+                    status: notificationStatus,
+                  },
+                },
+                {
+                  mode: 'file',
+                  messageType: 'file',
+                }
+              )
+            : await sendWhatsAppText(
+                {
+                  to,
+                  text: text || '',
+                  metadata: {
+                    type: 'order_status',
+                    orderId: notificationOrderId,
+                    status: notificationStatus,
+                  },
+                },
+                {
+                  mode: 'text',
+                  messageType: 'text',
+                }
+              )
 
         if (!result.success) {
           return jsonResponse(
@@ -135,13 +174,29 @@ export async function POST(req: NextRequest) {
     const result =
       mode === 'test'
         ? await sendWhatsAppTestMessage(to, text || undefined)
-        : await sendWhatsAppText({
-            to,
-            text: text || '',
-          }, {
-            mode: 'text',
-            messageType: 'text',
-          })
+        : type === 'file'
+        ? await sendWhatsAppFile(
+            {
+              to,
+              fileUrl,
+              filename: filename || undefined,
+              caption: caption || undefined,
+            },
+            {
+              mode: 'file',
+              messageType: 'file',
+            }
+          )
+        : await sendWhatsAppText(
+            {
+              to,
+              text: text || '',
+            },
+            {
+              mode: 'text',
+              messageType: 'text',
+            }
+          )
 
     if (!result.success) {
       return jsonResponse(
@@ -164,8 +219,8 @@ export async function POST(req: NextRequest) {
     logWhatsAppSend({
       provider: process.env.WHATSAPP_PROVIDER?.trim() || 'ultramsg',
       phone: to || 'unknown',
-      messageType: 'text',
-      mode,
+      messageType: type,
+      mode: type === 'file' ? 'file' : mode,
       success: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     })

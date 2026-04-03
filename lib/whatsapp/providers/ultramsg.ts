@@ -2,6 +2,7 @@ import type { WhatsAppProviderAdapter } from '@/lib/whatsapp/providers/base'
 import type {
   UltraMsgProviderConfig,
   WhatsAppProviderSendResult,
+  WhatsAppSendFileInput,
   WhatsAppSendTextInput,
 } from '@/lib/whatsapp/types'
 
@@ -44,6 +45,53 @@ export class UltraMsgProviderAdapter
         token: config.token,
         to: normalizeUltraMsgPhone(input.to),
         body: input.text,
+      }),
+    })
+
+    const raw = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      return {
+        success: false,
+        providerStatus: String(response.status),
+        raw,
+        errorMessage: 'UltraMsg request failed',
+      }
+    }
+
+    return {
+      success: true,
+      providerMessageId:
+        typeof raw?.id === 'string'
+          ? raw.id
+          : typeof raw?.data?.id === 'string'
+          ? raw.data.id
+          : undefined,
+      providerStatus:
+        typeof raw?.sent === 'string'
+          ? raw.sent
+          : typeof raw?.status === 'string'
+          ? raw.status
+          : String(response.status),
+      raw,
+    }
+  }
+
+  async sendFile(
+    input: WhatsAppSendFileInput,
+    config: UltraMsgProviderConfig
+  ): Promise<WhatsAppProviderSendResult> {
+    const response = await fetch(`${config.apiUrl}/messages/document`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        token: config.token,
+        to: normalizeUltraMsgPhone(input.to),
+        document: input.fileUrl,
+        filename: input.filename,
+        caption: input.caption,
       }),
     })
 

@@ -6,6 +6,14 @@ export type WhatsAppSendTextInput = {
   metadata?: Record<string, unknown>
 }
 
+export type WhatsAppSendFileInput = {
+  to: string
+  fileUrl: string
+  filename?: string
+  caption?: string
+  metadata?: Record<string, unknown>
+}
+
 export type WhatsAppProviderSendResult = {
   success: boolean
   providerMessageId?: string
