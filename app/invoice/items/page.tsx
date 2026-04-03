@@ -29,6 +29,7 @@ import {
   type CreatedInvoiceRecord,
   type InvoiceCatalogItem,
 } from '@/lib/invoices/items'
+import { loadBranchInvoiceCatalog } from '@/lib/invoices/catalog'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { formatCurrency } from '@/lib/orders/format'
@@ -41,6 +42,7 @@ export default function InvoiceItemsPage() {
   const access = usePageAccess(['admin', 'employee', 'cashier'])
   const authLoading = access.loading
   const allowed = access.allowed
+  const branchId = access.branchId
   const roleLabel = getRoleLabel(access.userRole)
 
   const [ready, setReady] = useState(false)
@@ -59,6 +61,8 @@ export default function InvoiceItemsPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [lastInvoiceNumber, setLastInvoiceNumber] = useState('')
   const [lastOrderNumber, setLastOrderNumber] = useState('')
+  const [catalogProducts, setCatalogProducts] =
+    useState<InvoiceCatalogItem[]>(INVOICE_PRODUCTS)
 
   useEffect(() => {
     if (!allowed) return
@@ -79,9 +83,37 @@ export default function InvoiceItemsPage() {
     }, 0)
   }, [allowed, router])
 
+  useEffect(() => {
+    if (!allowed || !ready) return
+
+    let cancelled = false
+
+    const loadCatalog = async () => {
+      try {
+        const nextProducts = await loadBranchInvoiceCatalog(supabase, branchId)
+
+        if (!cancelled) {
+          setCatalogProducts(nextProducts)
+        }
+      } catch (error) {
+        console.error('Load branch invoice catalog error:', error)
+
+        if (!cancelled) {
+          setCatalogProducts(INVOICE_PRODUCTS)
+        }
+      }
+    }
+
+    void loadCatalog()
+
+    return () => {
+      cancelled = true
+    }
+  }, [allowed, ready, branchId])
+
   const filteredProducts = useMemo(() => {
-    return filterInvoiceProducts(INVOICE_PRODUCTS, activeFilter, search)
-  }, [activeFilter, search])
+    return filterInvoiceProducts(catalogProducts, activeFilter, search)
+  }, [catalogProducts, activeFilter, search])
 
   const subtotal = useMemo(() => {
     return calculateInvoiceSubtotal(invoiceItems)
