@@ -3,6 +3,12 @@ import { jsonResponse } from '@/lib/api/responses'
 import { getTrimmedString } from '@/lib/api/validation'
 import { logWhatsAppSend } from '@/lib/whatsapp/logging'
 import {
+  acquireWhatsAppOrderStatusNotificationLock,
+  hasSentWhatsAppOrderStatusNotification,
+  markWhatsAppOrderStatusNotificationSent,
+  releaseWhatsAppOrderStatusNotificationLock,
+} from '@/lib/whatsapp/notification-log'
+import {
   sendWhatsAppTestMessage,
   sendWhatsAppText,
 } from '@/lib/whatsapp/service'
@@ -11,15 +17,34 @@ type SendWhatsAppBody = {
   to?: string
   text?: string
   mode?: 'text' | 'test'
+  notification?: {
+    orderId?: string
+    status?: string
+    channel?: 'whatsapp'
+  }
 }
 
 export async function POST(req: NextRequest) {
+  let to = ''
+  let mode: 'text' | 'test' = 'text'
+
   try {
     const body = (await req.json()) as SendWhatsAppBody
 
-    const to = getTrimmedString(body.to)
+    to = getTrimmedString(body.to)
     const text = getTrimmedString(body.text)
-    const mode = body.mode === 'test' ? 'test' : 'text'
+    mode = body.mode === 'test' ? 'test' : 'text'
+    const notificationOrderId = getTrimmedString(body.notification?.orderId)
+    const notificationStatus = getTrimmedString(body.notification?.status)
+    const notificationChannel = body.notification?.channel || 'whatsapp'
+    const notificationKey =
+      notificationOrderId && notificationStatus
+        ? {
+            orderId: notificationOrderId,
+            status: notificationStatus,
+            channel: notificationChannel,
+          }
+        : null
 
     if (!to) {
       return jsonResponse(
@@ -39,6 +64,72 @@ export async function POST(req: NextRequest) {
         },
         400
       )
+    }
+
+    if (notificationKey) {
+      if (await hasSentWhatsAppOrderStatusNotification(notificationKey)) {
+        return jsonResponse({
+          success: true,
+          skipped: true,
+          providerKey: process.env.WHATSAPP_PROVIDER?.trim() || 'ultramsg',
+          result: null,
+        })
+      }
+
+      const lockAcquired =
+        await acquireWhatsAppOrderStatusNotificationLock(notificationKey)
+
+      if (!lockAcquired) {
+        return jsonResponse({
+          success: true,
+          skipped: true,
+          providerKey: process.env.WHATSAPP_PROVIDER?.trim() || 'ultramsg',
+          result: null,
+        })
+      }
+
+      try {
+        const result = await sendWhatsAppText(
+          {
+            to,
+            text: text || '',
+            metadata: {
+              type: 'order_status',
+              orderId: notificationOrderId,
+              status: notificationStatus,
+            },
+          },
+          {
+            mode: 'text',
+            messageType: 'text',
+          }
+        )
+
+        if (!result.success) {
+          return jsonResponse(
+            {
+              success: false,
+              providerKey: result.providerKey,
+              error: result.errorMessage || 'WhatsApp send failed',
+              result: result.raw ?? null,
+            },
+            500
+          )
+        }
+
+        await markWhatsAppOrderStatusNotificationSent(notificationKey, {
+          providerKey: result.providerKey,
+          phone: to,
+        })
+
+        return jsonResponse({
+          success: true,
+          providerKey: result.providerKey,
+          result: result.raw ?? null,
+        })
+      } finally {
+        await releaseWhatsAppOrderStatusNotificationLock(notificationKey)
+      }
     }
 
     const result =
@@ -72,9 +163,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     logWhatsAppSend({
       provider: process.env.WHATSAPP_PROVIDER?.trim() || 'ultramsg',
-      phone: 'unknown',
+      phone: to || 'unknown',
       messageType: 'text',
-      mode: 'text',
+      mode,
       success: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     })

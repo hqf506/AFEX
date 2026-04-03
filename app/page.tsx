@@ -10,6 +10,7 @@ type WorkspaceKey =
   | 'home'
   | 'dashboard'
   | 'dashboard-system-summary'
+  | 'customers'
   | 'orders'
   | 'orders-latest'
   | 'orders-status'
@@ -151,6 +152,13 @@ export default function HomePage() {
         path: '/invoice/new',
         roles: ['admin', 'employee', 'cashier'],
         enabled: settings?.enable_invoices ?? true,
+      },
+      {
+        key: 'customers',
+        label: 'العملاء',
+        path: '/customers',
+        roles: ['admin', 'employee', 'cashier'],
+        enabled: true,
       },
       {
         key: 'orders',
@@ -539,6 +547,13 @@ export default function HomePage() {
               <div className="mt-3 flex flex-wrap justify-end gap-2">
                 <span className="badge badge-blue">{storeName}</span>
                 <span className="badge badge-slate">{branchName}</span>
+                <button
+                  onClick={() => openWorkspace('customers')}
+                  className="secondary-btn"
+                  type="button"
+                >
+                  العملاء
+                </button>
               </div>
 
               <div className="mt-6 flex flex-wrap justify-end gap-3">
@@ -602,6 +617,13 @@ export default function HomePage() {
                     بدء فاتورة جديدة
                   </button>
                 )}
+                <button
+                  onClick={() => openWorkspace('customers')}
+                  className="secondary-btn"
+                  type="button"
+                >
+                  العملاء
+                </button>
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -804,6 +826,21 @@ export default function HomePage() {
                   >
                     <span className="shrink-0">•</span>
                     <span className="flex-1 text-right">الفواتير</span>
+                  </button>
+                ) : null}
+
+                {visibleSidebarItems.some((item) => item.key === 'customers') ? (
+                  <button
+                    type="button"
+                    onClick={() => openWorkspace('customers')}
+                    className={`flex w-full flex-row-reverse items-center justify-between rounded-2xl px-4 py-3 text-right text-sm font-bold transition ${
+                      activeWorkspace === 'customers'
+                        ? 'bg-slate-950 text-white'
+                        : 'bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    <span className="shrink-0">•</span>
+                    <span className="flex-1 text-right">العملاء</span>
                   </button>
                 ) : null}
 

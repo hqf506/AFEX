@@ -349,6 +349,11 @@ export default function OrdersPage() {
               orderNumber: order.order_number,
               total: order.total,
             }),
+            notification: {
+              orderId: order.id,
+              status,
+              channel: 'whatsapp',
+            },
           }),
         })
 
