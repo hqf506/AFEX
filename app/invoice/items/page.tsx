@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AdminButton } from '@/components/admin-button'
+import { AdminInput, AdminTextarea } from '@/components/admin-input'
+import { AdminSelect } from '@/components/admin-select'
 import { PageHero } from '@/components/page-hero'
 import { SummaryRow } from '@/components/summary-row'
 import { getRoleLabel } from '@/lib/app-roles'
@@ -82,6 +85,10 @@ export default function InvoiceItemsPage() {
 
   const subtotal = useMemo(() => {
     return calculateInvoiceSubtotal(invoiceItems)
+  }, [invoiceItems])
+
+  const invoiceItemCount = useMemo(() => {
+    return invoiceItems.reduce((total, item) => total + item.quantity, 0)
   }, [invoiceItems])
 
   const finalTotal = subtotal - discount + tax
@@ -253,99 +260,165 @@ export default function InvoiceItemsPage() {
             <div>
               <h1 className="page-title">شاشة البيع السريع POS</h1>
               <p className="page-subtitle">Leather Fix ERP</p>
+              <p className="mt-2 text-sm text-slate-500">
+                أنشئ الفاتورة للعميل الحالي ثم راجع العناصر والدفع من نفس الشاشة.
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button
+              <AdminButton
                 onClick={() => router.push('/invoice/new')}
-                className="secondary-btn"
                 type="button"
               >
                 العودة إلى القائمة السابقة
-              </button>
+              </AdminButton>
 
-              <button
+              <AdminButton
                 onClick={() => router.push('/')}
-                className="secondary-btn"
                 type="button"
               >
                 العودة إلى القائمة الرئيسية
-              </button>
-
-              <div className="badge badge-slate px-4 py-3 text-sm">
-                {customerName} • {customerPhone}
-              </div>
+              </AdminButton>
 
               <span className="badge badge-green">الصلاحية: {roleLabel}</span>
             </div>
           </div>
         </PageHero>
 
+        <div className="mb-5 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+          <section className="page-card">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="section-title">سياق الفاتورة الحالية</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  راجع بيانات العميل وملخص الفاتورة قبل الإكمال.
+                </p>
+              </div>
+
+              <span className="badge badge-slate">
+                {invoiceItemCount} عنصر داخل الفاتورة
+              </span>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="inner-card">
+                <h3 className="mb-3 text-sm font-bold text-slate-900">بيانات العميل</h3>
+                <div className="space-y-3">
+                  <SummaryRow label="اسم العميل" value={customerName} />
+                  <SummaryRow label="رقم الجوال" value={customerPhone} />
+                </div>
+              </div>
+
+              <div className="inner-card">
+                <h3 className="mb-3 text-sm font-bold text-slate-900">ملخص الفاتورة</h3>
+                <div className="space-y-3">
+                  <SummaryRow label="عدد العناصر" value={invoiceItemCount.toString()} />
+                  <SummaryRow label="المجموع الفرعي" value={formatCurrency(subtotal)} />
+                  <SummaryRow label="الإجمالي الحالي" value={formatCurrency(finalTotal)} />
+                </div>
+              </div>
+
+              <div className="inner-card">
+                <h3 className="mb-3 text-sm font-bold text-slate-900">آخر عملية</h3>
+                <div className="space-y-3">
+                  <SummaryRow label="آخر فاتورة" value={lastInvoiceNumber || '—'} />
+                  <SummaryRow label="آخر طلب" value={lastOrderNumber || '—'} />
+                  <SummaryRow
+                    label="طريقة الدفع الحالية"
+                    value={
+                      paymentMethod === 'cash'
+                        ? 'كاش'
+                        : paymentMethod === 'card'
+                          ? 'شبكة'
+                          : 'تحويل'
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
           <section className="page-card">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <h2 className="section-title">المنتجات والخدمات</h2>
-
-              <div className="flex flex-wrap gap-2">
-                {INVOICE_FILTERS.map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setActiveFilter(filter)}
-                    className={
-                      activeFilter === filter ? 'primary-btn' : 'secondary-btn'
-                    }
-                  >
-                    {filter}
-                  </button>
-                ))}
+              <div>
+                <h2 className="section-title">المنتجات والخدمات</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  اختر العناصر التي تريد إضافتها، ثم انتقل إلى تفاصيل الفاتورة والدفع.
+                </p>
               </div>
             </div>
 
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ابحث عن منتج أو خدمة"
-              className="field-input mb-4"
-            />
+            <div className="mb-4 rounded-[24px] border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {INVOICE_FILTERS.map((filter) => (
+                  <AdminButton
+                    key={filter}
+                    onClick={() => setActiveFilter(filter)}
+                    variant={activeFilter === filter ? 'primary' : 'secondary'}
+                  >
+                    {filter}
+                  </AdminButton>
+                ))}
+              </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => addItem(product)}
-                  className="inner-card text-right transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900">
-                        {product.name}
-                      </h3>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {product.type === 'service' ? 'خدمة' : 'منتج'} • {product.category}
-                      </p>
+              <AdminInput
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ابحث عن منتج أو خدمة"
+              />
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                لا توجد منتجات أو خدمات مطابقة للبحث الحالي.
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => addItem(product)}
+                    className="inner-card text-right transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900">
+                          {product.name}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {product.type === 'service' ? 'خدمة' : 'منتج'} • {product.category}
+                        </p>
+                      </div>
+
+                      <span className="badge badge-slate">
+                        {product.price} ر.س
+                      </span>
                     </div>
 
-                    <span className="badge badge-slate">
-                      {product.price} ر.س
-                    </span>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-bold text-white">
-                    إضافة إلى الفاتورة
-                  </div>
-                </button>
-              ))}
-            </div>
+                    <div className="mt-4 rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-bold text-white">
+                      إضافة إلى الفاتورة
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
 
           <aside className="space-y-5">
             <section className="page-card">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="section-title">عناصر الفاتورة</h2>
-                <button onClick={clearInvoice} className="secondary-btn" type="button">
+                <div>
+                  <h2 className="section-title">عناصر الفاتورة</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    راجع الكميات واحذف العناصر غير المطلوبة قبل إنشاء الفاتورة.
+                  </p>
+                </div>
+                <AdminButton onClick={clearInvoice} type="button">
                   تفريغ
-                </button>
+                </AdminButton>
               </div>
 
               {invoiceItems.length === 0 ? (
@@ -369,36 +442,33 @@ export default function InvoiceItemsPage() {
                           </p>
                         </div>
 
-                        <button
+                        <AdminButton
                           onClick={() => removeItem(item.item_name)}
-                          className="secondary-btn"
                           type="button"
                         >
                           حذف
-                        </button>
+                        </AdminButton>
                       </div>
 
                       <div className="mt-4 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
-                          <button
+                          <AdminButton
                             onClick={() => decreaseQty(item.item_name)}
-                            className="secondary-btn"
                             type="button"
                           >
                             -
-                          </button>
+                          </AdminButton>
 
                           <div className="min-w-[48px] rounded-2xl border border-slate-200 bg-white px-4 py-2 text-center font-bold text-slate-900">
                             {item.quantity}
                           </div>
 
-                          <button
+                          <AdminButton
                             onClick={() => increaseQty(item.item_name)}
-                            className="secondary-btn"
                             type="button"
                           >
                             +
-                          </button>
+                          </AdminButton>
                         </div>
 
                         <div className="text-left">
@@ -417,42 +487,45 @@ export default function InvoiceItemsPage() {
             </section>
 
             <section className="page-card">
-              <h2 className="section-title">الدفع والحسابات</h2>
+              <div className="mb-4">
+                <h2 className="section-title">الدفع والحسابات</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  أكمل وسيلة الدفع والمبالغ، ثم راجع الإجمالي النهائي قبل الإنشاء.
+                </p>
+              </div>
 
-              <div className="mt-4 space-y-4">
+              <div className="space-y-4">
                 <div>
                   <label className="field-label">طريقة الدفع</label>
-                  <select
+                  <AdminSelect
                     value={paymentMethod}
                     onChange={(e) =>
                       setPaymentMethod(e.target.value as 'cash' | 'card' | 'transfer')
                     }
-                    className="field-select"
+                    className="w-full min-w-0"
                   >
                     <option value="cash">كاش</option>
                     <option value="card">شبكة</option>
                     <option value="transfer">تحويل</option>
-                  </select>
+                  </AdminSelect>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="field-label">الخصم</label>
-                    <input
+                    <AdminInput
                       type="number"
                       value={discount}
                       onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                      className="field-input"
                     />
                   </div>
 
                   <div>
                     <label className="field-label">الضريبة</label>
-                    <input
+                    <AdminInput
                       type="number"
                       value={tax}
                       onChange={(e) => setTax(Number(e.target.value) || 0)}
-                      className="field-input"
                     />
                   </div>
                 </div>
@@ -460,11 +533,10 @@ export default function InvoiceItemsPage() {
                 {paymentMethod === 'cash' && (
                   <div>
                     <label className="field-label">المبلغ المستلم من العميل</label>
-                    <input
+                    <AdminInput
                       type="number"
                       value={cashReceived}
                       onChange={(e) => setCashReceived(e.target.value)}
-                      className="field-input"
                       placeholder="اكتب المبلغ المستلم"
                     />
                   </div>
@@ -472,10 +544,10 @@ export default function InvoiceItemsPage() {
 
                 <div>
                   <label className="field-label">ملاحظة</label>
-                  <textarea
+                  <AdminTextarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    className="field-input min-h-[110px]"
+                    className="min-h-[110px]"
                     placeholder="اكتب ملاحظة إن وجدت"
                   />
                 </div>
@@ -504,21 +576,16 @@ export default function InvoiceItemsPage() {
                   )}
                 </div>
 
-                <button
+                <AdminButton
                   onClick={createInvoice}
                   disabled={loading}
-                  className="primary-btn w-full"
+                  variant="primary"
+                  className="w-full"
                   type="button"
                 >
                   {loading ? 'جاري إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
-                </button>
+                </AdminButton>
 
-                {(lastInvoiceNumber || lastOrderNumber) && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    <div>آخر فاتورة: {lastInvoiceNumber || '—'}</div>
-                    <div className="mt-1">آخر طلب: {lastOrderNumber || '—'}</div>
-                  </div>
-                )}
               </div>
             </section>
           </aside>
