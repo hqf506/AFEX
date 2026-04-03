@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { jsonResponse } from '@/lib/api/responses'
 import { getTrimmedString } from '@/lib/api/validation'
+import { logWhatsAppSend } from '@/lib/whatsapp/logging'
 import {
   sendWhatsAppTestMessage,
   sendWhatsAppText,
@@ -46,6 +47,9 @@ export async function POST(req: NextRequest) {
         : await sendWhatsAppText({
             to,
             text: text || '',
+          }, {
+            mode: 'text',
+            messageType: 'text',
           })
 
     if (!result.success) {
@@ -66,7 +70,14 @@ export async function POST(req: NextRequest) {
       result: result.raw ?? null,
     })
   } catch (error) {
-    console.error('[whatsapp] route error', error)
+    logWhatsAppSend({
+      provider: process.env.WHATSAPP_PROVIDER?.trim() || 'ultramsg',
+      phone: 'unknown',
+      messageType: 'text',
+      mode: 'text',
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    })
 
     return jsonResponse(
       {

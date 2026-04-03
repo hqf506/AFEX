@@ -1,4 +1,5 @@
 import { getWhatsAppProvider } from '@/lib/whatsapp/provider-registry'
+import { logWhatsAppSend } from '@/lib/whatsapp/logging'
 import type {
   UltraMsgProviderConfig,
   WhatsAppProviderKey,
@@ -28,49 +29,68 @@ function buildTextMessage(input: WhatsAppSendTextInput) {
   return input.text.trim()
 }
 
+type SendWhatsAppTextOptions = {
+  mode?: 'text' | 'test'
+  messageType?: 'text'
+}
+
 export async function sendWhatsAppText(
-  input: WhatsAppSendTextInput
+  input: WhatsAppSendTextInput,
+  options: SendWhatsAppTextOptions = {}
 ): Promise<WhatsAppServiceResult> {
+  const mode = options.mode || 'text'
+  const messageType = options.messageType || 'text'
   const providerKey = resolveProviderKey()
-  const provider = getWhatsAppProvider(providerKey)
 
-  if (providerKey !== 'ultramsg') {
-    throw new Error(`WhatsApp provider "${providerKey}" is not configured for MVP`)
-  }
+  try {
+    const provider = getWhatsAppProvider(providerKey)
 
-  const config = resolveUltraMsgConfig()
-  const validation = provider.validateConfig(config)
+    if (providerKey !== 'ultramsg') {
+      throw new Error(`WhatsApp provider "${providerKey}" is not configured for MVP`)
+    }
 
-  if (!validation.valid) {
-    throw new Error(validation.errors.join(', '))
-  }
+    const config = resolveUltraMsgConfig()
+    const validation = provider.validateConfig(config)
 
-  const result = await provider.sendText(
-    {
-      ...input,
-      text: buildTextMessage(input),
-    },
-    config
-  )
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(', '))
+    }
 
-  if (result.success) {
-    console.log('[whatsapp] send success', {
-      providerKey,
-      to: input.to,
-      providerMessageId: result.providerMessageId,
+    const result = await provider.sendText(
+      {
+        ...input,
+        text: buildTextMessage(input),
+      },
+      config
+    )
+
+    logWhatsAppSend({
+      provider: providerKey,
+      phone: input.to,
+      messageType,
+      mode,
+      success: result.success,
+      errorMessage: result.success ? undefined : result.errorMessage,
     })
-  } else {
-    console.error('[whatsapp] send failed', {
-      providerKey,
-      to: input.to,
-      errorMessage: result.errorMessage,
-      raw: result.raw,
-    })
-  }
 
-  return {
-    providerKey,
-    ...result,
+    return {
+      providerKey,
+      ...result,
+    }
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown WhatsApp send error'
+
+    logWhatsAppSend({
+      provider: providerKey,
+      phone: input.to,
+      messageType,
+      mode,
+      success: false,
+      errorMessage,
+    })
+
+    throw error
   }
 }
 
@@ -86,5 +106,8 @@ export async function sendWhatsAppTestMessage(
     metadata: {
       type: 'test',
     },
+  }, {
+    mode: 'test',
+    messageType: 'text',
   })
 }
