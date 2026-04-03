@@ -216,7 +216,7 @@ export default function AdminBranchesPage() {
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:p-7">
           <div className="mb-6 text-right">
-            <h2 className="text-2xl font-black text-slate-900">إنشاء فرع جديد</h2>
+            <h2 className="text-2xl font-black text-slate-900">إضافة فرع جديد</h2>
           </div>
 
           <form onSubmit={handleCreateBranch} className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -264,7 +264,7 @@ export default function AdminBranchesPage() {
                 disabled={!canCreate || creating}
                 className="h-11 min-w-[160px] rounded-2xl bg-slate-950 px-6 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {creating ? 'جاري إنشاء الفرع...' : 'إنشاء الفرع'}
+                {creating ? 'جاري إضافة الفرع...' : 'إضافة فرع'}
               </button>
             </div>
           </form>

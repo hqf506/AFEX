@@ -25,6 +25,7 @@ type WorkspaceKey =
   | 'reports-daily'
   | 'reports-monthly'
   | 'users'
+  | 'branches'
   | 'invoice'
   | 'settings'
 
@@ -254,6 +255,13 @@ export default function HomePage() {
         path: '/admin/users',
         roles: ['admin'],
         enabled: settings?.enable_users ?? true,
+      },
+      {
+        key: 'branches',
+        label: 'إدارة الفروع',
+        path: '/admin/branches',
+        roles: ['admin'],
+        enabled: true,
       },
       {
         key: 'settings',
@@ -617,6 +625,14 @@ export default function HomePage() {
                         إدارة المستخدمين
                       </button>
                     )}
+
+                    <button
+                      onClick={() => openWorkspace('branches')}
+                      className="secondary-btn"
+                      type="button"
+                    >
+                      إدارة الفروع
+                    </button>
 
                     <button
                       onClick={() => openWorkspace('settings')}
@@ -1063,6 +1079,20 @@ export default function HomePage() {
                   >
                     <span className="shrink-0">•</span>
                     <span className="flex-1 text-right">المستخدمون</span>
+                  </button>
+                ) : null}
+
+                {visibleSidebarItems.some((item) => item.key === 'branches') ? (
+                  <button
+                    type="button"
+                    onClick={() => openWorkspace('branches')}
+                    className={`flex w-full flex-row-reverse items-center justify-between rounded-2xl px-4 py-3 text-right text-sm font-bold transition ${
+                      activeWorkspace === 'branches'
+                        ? 'bg-slate-950 text-white'
+                        : 'bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    <span className="flex-1 text-right">إدارة الفروع</span>
                   </button>
                 ) : null}
 
