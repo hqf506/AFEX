@@ -181,6 +181,13 @@ export default function AdminUsersPage() {
     return true
   }, [username, password, confirmPassword, role, branchIdForCreate])
 
+  const activeUsersCount = useMemo(
+    () => users.filter((user) => user.is_active).length,
+    [users]
+  )
+
+  const inactiveUsersCount = users.length - activeUsersCount
+
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault()
 
@@ -518,8 +525,22 @@ export default function AdminUsersPage() {
         ) : null}
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:p-7">
-          <div className="mb-6 text-right">
-            <h2 className="text-2xl font-black text-slate-900">إنشاء مستخدم جديد</h2>
+          <div className="mb-6 flex flex-col gap-3 text-right md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">إنشاء مستخدم جديد</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                أنشئ حسابًا جديدًا وحدد الصلاحية والفرع من نفس القسم.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <span className="badge badge-slate">إعداد الحساب</span>
+              {requiresAssignedBranch(role) ? (
+                <span className="badge badge-blue">يتطلب فرعًا</span>
+              ) : (
+                <span className="badge badge-green">يمكن بدون فرع</span>
+              )}
+            </div>
           </div>
 
           <form onSubmit={handleCreateUser} className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -619,11 +640,18 @@ export default function AdminUsersPage() {
               ) : null}
             </div>
 
-            <div className="md:col-span-2">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="md:col-span-2 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="text-right">
-                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                  <p className="mb-2 text-sm font-bold text-slate-700">
                     الصلاحية
+                  </p>
+                  <p className="mb-3 text-xs text-slate-500">
+                    اختر نوع الحساب قبل الإرسال. بعض الصلاحيات تتطلب تعيين فرع.
+                  </p>
+
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    نوع الحساب
                   </label>
                   <AdminSelect
                     value={role}
@@ -637,8 +665,12 @@ export default function AdminUsersPage() {
                   </AdminSelect>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 lg:self-end">
-                  <AdminButton onClick={resetForm} className="min-w-[140px]">
+                <div className="flex flex-wrap items-center justify-end gap-3 lg:self-end">
+                  <AdminButton
+                    onClick={resetForm}
+                    className="min-w-[140px]"
+                    variant="soft"
+                  >
                     مسح الحقول
                   </AdminButton>
 
@@ -657,9 +689,19 @@ export default function AdminUsersPage() {
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:p-7">
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-2xl font-black text-slate-900">المستخدمون الحاليون</h2>
+            <div className="text-right">
+              <h2 className="text-2xl font-black text-slate-900">المستخدمون الحاليون</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                راجع الحسابات الحالية وعدّل الصلاحيات والفرع وإعدادات الوصول من مكان واحد.
+              </p>
+            </div>
 
-            <AdminButton onClick={loadUsers}>تحديث</AdminButton>
+            <div className="flex flex-wrap justify-end gap-2">
+              <span className="badge badge-green">نشط: {activeUsersCount}</span>
+              <span className="badge badge-slate">معطل: {inactiveUsersCount}</span>
+              <span className="badge badge-blue">الإجمالي: {users.length}</span>
+              <AdminButton onClick={loadUsers}>تحديث</AdminButton>
+            </div>
           </div>
 
           {loadingUsers ? (
@@ -667,140 +709,186 @@ export default function AdminUsersPage() {
           ) : users.length === 0 ? (
             <p className="text-slate-500">لا يوجد مستخدمون حاليًا.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-slate-200 text-right">
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">الاسم الكامل</th>
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">اسم المستخدم</th>
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">الصلاحية</th>
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">النطاق</th>
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">الفرع</th>
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">الحالة</th>
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">تغيير الصلاحية</th>
-                    {isSystemAdmin ? (
-                      <th className="px-3 py-3 text-sm font-bold text-slate-700">تعيين الفرع</th>
-                    ) : null}
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">إعادة كلمة المرور</th>
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">تعطيل / تفعيل</th>
-                    <th className="px-3 py-3 text-sm font-bold text-slate-700">حذف</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => {
-                    const isBusy = updatingUserId === user.id
-                    const isMainAdmin = isPrimaryAdminUsername(user.username)
-                    const scopeLabel =
-                      resolveAuthScopeType(user.role, user.branch_id) === 'system'
-                        ? 'نظام'
-                        : 'فرع'
+            <div className="space-y-4">
+              {users.map((user) => {
+                const isBusy = updatingUserId === user.id
+                const isMainAdmin = isPrimaryAdminUsername(user.username)
+                const scopeLabel =
+                  resolveAuthScopeType(user.role, user.branch_id) === 'system'
+                    ? 'نظام'
+                    : 'فرع'
 
-                    return (
-                      <tr key={user.id} className="border-b border-slate-100 align-top">
-                        <td className="px-3 py-4 text-slate-700">{user.full_name || '-'}</td>
-                        <td className="px-3 py-4 text-slate-700">{user.username || '-'}</td>
-                        <td className="px-3 py-4 text-slate-700">{user.role}</td>
-                        <td className="px-3 py-4 text-slate-700">{scopeLabel}</td>
-                        <td className="px-3 py-4 text-slate-700">
-                          {getBranchName(branches, user.branch_id)}
-                        </td>
-                        <td className="px-3 py-4">
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                              user.is_active
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            {user.is_active ? 'نشط' : 'معطل'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-4">
-                          <AdminSelect
-                            value={user.role}
-                            onChange={(e) =>
-                              handleRoleChange(user.id, e.target.value as AppRole)
-                            }
-                            disabled={isBusy || isMainAdmin}
-                            title={
-                              isMainAdmin
-                                ? 'غير مسموح التعديل على الحساب الرئيسي'
-                                : ''
-                            }
-                            className="min-w-[180px] px-3"
-                          >
-                            {ADMIN_ROLE_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </AdminSelect>
-                        </td>
-                        {isSystemAdmin ? (
-                          <td className="px-3 py-4">
-                            <div className="flex min-w-[240px] flex-col gap-2">
+                return (
+                  <div
+                    key={user.id}
+                    className="rounded-[24px] border border-slate-200 bg-slate-50 p-4 md:p-5"
+                  >
+                    <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-right">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-lg font-black text-slate-900">
+                              {user.full_name || '-'}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
+                              {user.username || '-'}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <span
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                                user.is_active
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {user.is_active ? 'نشط' : 'معطل'}
+                            </span>
+                            {isMainAdmin ? (
+                              <span className="badge badge-slate">الحساب الرئيسي</span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <p className="text-xs font-bold text-slate-500">الصلاحية الحالية</p>
+                            <p className="mt-1 text-sm font-bold text-slate-900">{user.role}</p>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <p className="text-xs font-bold text-slate-500">النطاق</p>
+                            <p className="mt-1 text-sm font-bold text-slate-900">{scopeLabel}</p>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:col-span-2">
+                            <p className="text-xs font-bold text-slate-500">الفرع الحالي</p>
+                            <p className="mt-1 text-sm font-bold text-slate-900">
+                              {getBranchName(branches, user.branch_id)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-right">
+                          <div className="mb-3">
+                            <h3 className="text-sm font-black text-slate-900">
+                              الصلاحية والفرع
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                              حدّث نطاق المستخدم وصلاحيته وربطه بالفرع من هذا القسم.
+                            </p>
+                          </div>
+
+                          <div className="grid gap-3 lg:grid-cols-2">
+                            <div>
+                              <label className="mb-2 block text-xs font-bold text-slate-500">
+                                تغيير الصلاحية
+                              </label>
                               <AdminSelect
-                                value={branchSelections[user.id] || ''}
+                                value={user.role}
                                 onChange={(e) =>
-                                  setBranchSelections((prev) => ({
-                                    ...prev,
-                                    [user.id]: e.target.value,
-                                  }))
+                                  handleRoleChange(user.id, e.target.value as AppRole)
                                 }
                                 disabled={isBusy || isMainAdmin}
-                                className="min-w-0 px-3"
+                                title={
+                                  isMainAdmin
+                                    ? 'غير مسموح التعديل على الحساب الرئيسي'
+                                    : ''
+                                }
+                                className="min-w-0 w-full px-3"
                               >
-                                <option value="">
-                                  {user.role === 'admin' ? 'بدون فرع' : 'اختر فرعًا'}
-                                </option>
-                                {branches.map((branch) => (
-                                  <option key={branch.id} value={branch.id}>
-                                    {branch.name}
-                                    {!branch.is_active ? ' - معطل' : ''}
+                                {ADMIN_ROLE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
                                   </option>
                                 ))}
                               </AdminSelect>
-
-                              <AdminButton
-                                onClick={() => handleUserBranchUpdate(user)}
-                                disabled={isBusy || isMainAdmin}
-                              >
-                                حفظ الفرع
-                              </AdminButton>
                             </div>
-                          </td>
-                        ) : null}
-                        <td className="px-3 py-4">
-                          <AdminButton
-                            onClick={() => openResetPasswordModal(user)}
-                            disabled={isBusy}
-                          >
-                            إعادة التعيين
-                          </AdminButton>
-                        </td>
-                        <td className="px-3 py-4">
-                          <AdminButton
-                            onClick={() => handleToggleStatus(user)}
-                            disabled={isBusy || isMainAdmin}
-                            variant={user.is_active ? 'active' : 'inactive'}
-                          >
-                            {user.is_active ? 'تعطيل' : 'تفعيل'}
-                          </AdminButton>
-                        </td>
-                        <td className="px-3 py-4">
-                          <AdminButton
-                            onClick={() => handleDeleteUser(user)}
-                            disabled={isBusy || isMainAdmin}
-                            variant="danger"
-                          >
-                            حذف
-                          </AdminButton>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+
+                            {isSystemAdmin ? (
+                              <div>
+                                <label className="mb-2 block text-xs font-bold text-slate-500">
+                                  تعيين الفرع
+                                </label>
+                                <div className="flex flex-col gap-2">
+                                  <AdminSelect
+                                    value={branchSelections[user.id] || ''}
+                                    onChange={(e) =>
+                                      setBranchSelections((prev) => ({
+                                        ...prev,
+                                        [user.id]: e.target.value,
+                                      }))
+                                    }
+                                    disabled={isBusy || isMainAdmin}
+                                    className="min-w-0 w-full px-3"
+                                  >
+                                    <option value="">
+                                      {user.role === 'admin' ? 'بدون فرع' : 'اختر فرعًا'}
+                                    </option>
+                                    {branches.map((branch) => (
+                                      <option key={branch.id} value={branch.id}>
+                                        {branch.name}
+                                        {!branch.is_active ? ' - معطل' : ''}
+                                      </option>
+                                    ))}
+                                  </AdminSelect>
+
+                                  <AdminButton
+                                    onClick={() => handleUserBranchUpdate(user)}
+                                    disabled={isBusy || isMainAdmin}
+                                    className="w-full"
+                                  >
+                                    حفظ الفرع
+                                  </AdminButton>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-right">
+                          <div className="mb-3">
+                            <h3 className="text-sm font-black text-slate-900">
+                              إجراءات الحساب
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                              إدارة الوصول، إعادة كلمة المرور، أو حذف الحساب عند الحاجة.
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <AdminButton
+                              onClick={() => openResetPasswordModal(user)}
+                              disabled={isBusy}
+                            >
+                              إعادة التعيين
+                            </AdminButton>
+
+                            <AdminButton
+                              onClick={() => handleToggleStatus(user)}
+                              disabled={isBusy || isMainAdmin}
+                              variant={user.is_active ? 'active' : 'inactive'}
+                            >
+                              {user.is_active ? 'تعطيل' : 'تفعيل'}
+                            </AdminButton>
+
+                            <AdminButton
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={isBusy || isMainAdmin}
+                              variant="danger"
+                            >
+                              حذف
+                            </AdminButton>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </section>
