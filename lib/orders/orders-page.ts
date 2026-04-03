@@ -140,19 +140,40 @@ export function buildOrdersPageSummary(
   filteredOrders: OrderRecord[],
   todayOrders: OrderRecord[]
 ): OrdersPageSummary {
+  let newCount = 0
+  let inProgressCount = 0
+  let readyCount = 0
+  let deliveredCount = 0
+  let revenue = 0
+
+  for (const order of filteredOrders) {
+    revenue += order.total
+
+    if (order.status === 'new') {
+      newCount += 1
+    } else if (order.status === 'in_progress') {
+      inProgressCount += 1
+    } else if (order.status === 'ready') {
+      readyCount += 1
+    } else if (order.status === 'delivered') {
+      deliveredCount += 1
+    }
+  }
+
+  let todayRevenue = 0
+
+  for (const order of todayOrders) {
+    todayRevenue += order.total
+  }
+
   return {
     totalOrders: filteredOrders.length,
-    newCount: filteredOrders.filter((order) => order.status === 'new').length,
-    inProgressCount: filteredOrders.filter(
-      (order) => order.status === 'in_progress'
-    ).length,
-    readyCount: filteredOrders.filter((order) => order.status === 'ready')
-      .length,
-    deliveredCount: filteredOrders.filter(
-      (order) => order.status === 'delivered'
-    ).length,
-    revenue: filteredOrders.reduce((sum, order) => sum + order.total, 0),
+    newCount,
+    inProgressCount,
+    readyCount,
+    deliveredCount,
+    revenue,
     todayOrdersCount: todayOrders.length,
-    todayRevenue: todayOrders.reduce((sum, order) => sum + order.total, 0),
+    todayRevenue,
   }
 }

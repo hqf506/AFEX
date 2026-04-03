@@ -153,52 +153,58 @@ export function buildDashboardOrderSummary(
   rangeOrders: DashboardOrderRecord[],
   todayOrders: DashboardOrderRecord[]
 ): DashboardOrderSummary {
-  const cashTotal = rangeOrders
-    .filter((order) => order.payment_method === 'cash')
-    .reduce((sum, order) => sum + order.total, 0)
+  let totalRevenue = 0
+  let cashTotal = 0
+  let cardTotal = 0
+  let transferTotal = 0
+  let outstandingFromCustomers = 0
+  let changeForCustomers = 0
+  let cashReceived = 0
+  let newCount = 0
+  let inProgressCount = 0
+  let readyCount = 0
+  let deliveredCount = 0
 
-  const cardTotal = rangeOrders
-    .filter((order) => order.payment_method === 'card')
-    .reduce((sum, order) => sum + order.total, 0)
+  for (const order of rangeOrders) {
+    totalRevenue += order.total
+    outstandingFromCustomers += order.remaining_from_customer
+    changeForCustomers += order.cash_change
+    cashReceived += order.cash_received
 
-  const transferTotal = rangeOrders
-    .filter((order) => order.payment_method === 'transfer')
-    .reduce((sum, order) => sum + order.total, 0)
+    if (order.payment_method === 'cash') {
+      cashTotal += order.total
+    } else if (order.payment_method === 'card') {
+      cardTotal += order.total
+    } else if (order.payment_method === 'transfer') {
+      transferTotal += order.total
+    }
 
-  const outstandingFromCustomers = rangeOrders.reduce(
-    (sum, order) => sum + order.remaining_from_customer,
-    0
-  )
-
-  const changeForCustomers = rangeOrders.reduce(
-    (sum, order) => sum + order.cash_change,
-    0
-  )
-
-  const cashReceived = rangeOrders.reduce(
-    (sum, order) => sum + order.cash_received,
-    0
-  )
+    if (order.status === 'new') {
+      newCount += 1
+    } else if (order.status === 'in_progress') {
+      inProgressCount += 1
+    } else if (order.status === 'ready') {
+      readyCount += 1
+    } else if (order.status === 'delivered') {
+      deliveredCount += 1
+    }
+  }
 
   return {
     totalOrders: orders.length,
     rangeOrdersCount: rangeOrders.length,
     todayOrdersCount: todayOrders.length,
-    totalRevenue: rangeOrders.reduce((sum, order) => sum + order.total, 0),
+    totalRevenue,
     cashTotal,
     cardTotal,
     transferTotal,
     outstandingFromCustomers,
     changeForCustomers,
     cashReceived,
-    newCount: rangeOrders.filter((order) => order.status === 'new').length,
-    inProgressCount: rangeOrders.filter(
-      (order) => order.status === 'in_progress'
-    ).length,
-    readyCount: rangeOrders.filter((order) => order.status === 'ready').length,
-    deliveredCount: rangeOrders.filter(
-      (order) => order.status === 'delivered'
-    ).length,
+    newCount,
+    inProgressCount,
+    readyCount,
+    deliveredCount,
   }
 }
 

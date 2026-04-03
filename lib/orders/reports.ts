@@ -153,43 +153,48 @@ export function buildReportDateRange(
 }
 
 export function buildReportOrderSummary(filteredOrders: ReportOrderRecord[]): ReportOrderSummary {
-  const totalSales = filteredOrders.reduce((sum, order) => sum + order.total, 0)
-  const totalSubtotal = filteredOrders.reduce(
-    (sum, order) => sum + order.subtotal,
-    0
-  )
-  const totalDiscount = filteredOrders.reduce(
-    (sum, order) => sum + order.discount,
-    0
-  )
-  const totalTax = filteredOrders.reduce((sum, order) => sum + order.tax, 0)
+  let totalSales = 0
+  let totalSubtotal = 0
+  let totalDiscount = 0
+  let totalTax = 0
+  let cashTotal = 0
+  let cardTotal = 0
+  let transferTotal = 0
+  let cashReceived = 0
+  let outstandingFromCustomers = 0
+  let changeForCustomers = 0
+  let newCount = 0
+  let inProgressCount = 0
+  let readyCount = 0
+  let deliveredCount = 0
 
-  const cashTotal = filteredOrders
-    .filter((order) => order.payment_method === 'cash')
-    .reduce((sum, order) => sum + order.total, 0)
+  for (const order of filteredOrders) {
+    totalSales += order.total
+    totalSubtotal += order.subtotal
+    totalDiscount += order.discount
+    totalTax += order.tax
+    cashReceived += order.cash_received
+    outstandingFromCustomers += order.remaining_from_customer
+    changeForCustomers += order.cash_change
 
-  const cardTotal = filteredOrders
-    .filter((order) => order.payment_method === 'card')
-    .reduce((sum, order) => sum + order.total, 0)
+    if (order.payment_method === 'cash') {
+      cashTotal += order.total
+    } else if (order.payment_method === 'card') {
+      cardTotal += order.total
+    } else if (order.payment_method === 'transfer') {
+      transferTotal += order.total
+    }
 
-  const transferTotal = filteredOrders
-    .filter((order) => order.payment_method === 'transfer')
-    .reduce((sum, order) => sum + order.total, 0)
-
-  const cashReceived = filteredOrders.reduce(
-    (sum, order) => sum + order.cash_received,
-    0
-  )
-
-  const outstandingFromCustomers = filteredOrders.reduce(
-    (sum, order) => sum + order.remaining_from_customer,
-    0
-  )
-
-  const changeForCustomers = filteredOrders.reduce(
-    (sum, order) => sum + order.cash_change,
-    0
-  )
+    if (order.status === 'new') {
+      newCount += 1
+    } else if (order.status === 'in_progress') {
+      inProgressCount += 1
+    } else if (order.status === 'ready') {
+      readyCount += 1
+    } else if (order.status === 'delivered') {
+      deliveredCount += 1
+    }
+  }
 
   return {
     totalOrders: filteredOrders.length,
@@ -203,12 +208,10 @@ export function buildReportOrderSummary(filteredOrders: ReportOrderRecord[]): Re
     cashReceived,
     outstandingFromCustomers,
     changeForCustomers,
-    newCount: filteredOrders.filter((o) => o.status === 'new').length,
-    inProgressCount: filteredOrders.filter((o) => o.status === 'in_progress')
-      .length,
-    readyCount: filteredOrders.filter((o) => o.status === 'ready').length,
-    deliveredCount: filteredOrders.filter((o) => o.status === 'delivered')
-      .length,
+    newCount,
+    inProgressCount,
+    readyCount,
+    deliveredCount,
   }
 }
 
