@@ -46,6 +46,11 @@ export default function AdminSettingsPage() {
   )
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [testPhone, setTestPhone] = useState('')
+  const [testMessage, setTestMessage] = useState('')
+  const [testSending, setTestSending] = useState(false)
+  const [testSuccessMessage, setTestSuccessMessage] = useState('')
+  const [testErrorMessage, setTestErrorMessage] = useState('')
 
   const fetchSettings = useCallback(async () => {
     setLoading(true)
@@ -102,6 +107,54 @@ export default function AdminSettingsPage() {
 
   const resetForm = () => {
     setForm(createSystemSettingsPayload(settings))
+  }
+
+  const sendWhatsAppTestMessage = async () => {
+    if (testSending) return
+
+    const finalPhone = testPhone.trim() || form.whatsapp_phone.trim()
+
+    if (!finalPhone) {
+      setTestErrorMessage('اكتب رقم جوال لإرسال رسالة الاختبار')
+      setTestSuccessMessage('')
+      return
+    }
+
+    setTestSending(true)
+    setTestErrorMessage('')
+    setTestSuccessMessage('')
+
+    try {
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: finalPhone,
+          mode: 'test',
+          text: testMessage.trim() || undefined,
+        }),
+      })
+
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success) {
+        setTestErrorMessage(result?.error || 'فشل إرسال رسالة الاختبار')
+        setTestSending(false)
+        return
+      }
+
+      setTestSuccessMessage('تم إرسال رسالة الاختبار بنجاح')
+      setTestErrorMessage('')
+      setTimeout(() => setTestSuccessMessage(''), 3000)
+      setTestSending(false)
+    } catch (error) {
+      setTestErrorMessage(
+        error instanceof Error ? error.message : 'فشل إرسال رسالة الاختبار'
+      )
+      setTestSending(false)
+    }
   }
 
   const saveSettings = async () => {
@@ -462,6 +515,68 @@ export default function AdminSettingsPage() {
                     className="field-input"
                     placeholder={providerMeta.thirdFieldPlaceholder}
                   />
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      اختبار إرسال واتساب
+                    </h3>
+                    <p className="mt-1 text-sm leading-7 text-slate-500">
+                      أرسل رسالة اختبار سريعة للتأكد أن الربط الحالي يعمل بشكل صحيح.
+                    </p>
+                  </div>
+                  <span className="badge badge-slate">MVP</span>
+                </div>
+
+                {testSuccessMessage ? (
+                  <div className="success-alert mb-4">{testSuccessMessage}</div>
+                ) : null}
+
+                {testErrorMessage ? (
+                  <div className="error-alert mb-4">{testErrorMessage}</div>
+                ) : null}
+
+                <div className="grid gap-4">
+                  <div>
+                    <label className="field-label">رقم الجوال للاختبار</label>
+                    <input
+                      type="text"
+                      value={testPhone}
+                      onChange={(e) => setTestPhone(e.target.value)}
+                      className="field-input"
+                      placeholder={form.whatsapp_phone || '9665xxxxxxxx'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="field-label">
+                      رسالة اختبار مخصصة (اختياري)
+                    </label>
+                    <textarea
+                      value={testMessage}
+                      onChange={(e) => setTestMessage(e.target.value)}
+                      className="field-input min-h-[110px]"
+                      placeholder="اتركها فارغة لاستخدام رسالة الاختبار الافتراضية"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={sendWhatsAppTestMessage}
+                      disabled={testSending}
+                      className="secondary-btn"
+                      type="button"
+                    >
+                      {testSending ? 'جاري الإرسال...' : 'إرسال رسالة اختبار'}
+                    </button>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+                      سيتم استخدام الرقم المدخل هنا أو رقم الواتساب الحالي إذا تُرك الحقل فارغًا.
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
