@@ -2,121 +2,29 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { getRoleLabel } from '@/lib/app-roles'
+import {
+  buildOrdersPageStats,
+  filterOrders,
+  getTodayOrders,
+  mapOrderRecordToOrder,
+  ORDER_FILTERS,
+  ORDERS_FETCH_LIMIT,
+  ORDER_STATUS_MAP,
+  type Order,
+  type OrderFilter,
+} from '@/lib/orders/orders-page'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
-import {
-  isSameDay,
-  normalizeOrderRecord,
-  type NormalizedOrderRecord,
-  type OrderStatus,
-  type RawOrder,
-} from '@/lib/orders/normalize'
-import {
-  formatCurrency,
-  formatDateTime,
-  formatPaymentMethod,
-} from '@/lib/orders/format'
-
-type OrderFilter = 'all' | 'today' | OrderStatus
-
-type OrderItem = {
-  item_name: string
-  item_type: string
-  quantity: number
-  unit_price: number
-  line_total: number
-}
-
-type Order = {
-  id: string
-  order_number: string
-  customer_name: string
-  customer_phone: string
-  total: number
-  status: OrderStatus
-  created_at: string
-  invoice_number: string
-  payment_method: string
-  payment_status: string
-  note: string
-  cash_received: number
-  remaining_from_customer: number
-  cash_change: number
-  items: OrderItem[]
-}
-
-const statusMap: Record<OrderStatus, { label: string; className: string }> = {
-  new: {
-    label: 'جديد',
-    className: 'badge badge-blue',
-  },
-  in_progress: {
-    label: 'قيد التنفيذ',
-    className: 'badge badge-amber',
-  },
-  ready: {
-    label: 'جاهز',
-    className: 'badge badge-green',
-  },
-  delivered: {
-    label: 'مستلم',
-    className: 'badge badge-slate',
-  },
-}
-
-const filters: { key: OrderFilter; label: string }[] = [
-  { key: 'all', label: 'الكل' },
-  { key: 'today', label: 'اليوم' },
-  { key: 'new', label: 'جديد' },
-  { key: 'in_progress', label: 'قيد التنفيذ' },
-  { key: 'ready', label: 'جاهز' },
-  { key: 'delivered', label: 'مستلم' },
-]
-
-const ORDERS_FETCH_LIMIT = 100
-
-function mapOrderRecordToOrder(record: NormalizedOrderRecord): Order {
-  return {
-    id: record.id,
-    order_number: record.orderNumber,
-    customer_name: record.customerName,
-    customer_phone: record.customerPhone,
-    total: record.total,
-    status: record.status,
-    created_at: record.createdAt,
-    invoice_number: record.invoiceNumber,
-    payment_method: formatPaymentMethod(
-      record.paymentMethod,
-      record.paymentMethodRaw
-    ),
-    payment_status: record.paymentStatus,
-    note: record.note,
-    cash_received: record.cashReceived,
-    remaining_from_customer: record.remainingFromCustomer,
-    cash_change: record.cashChange,
-    items: record.items.map((item) => ({
-      item_name: item.name,
-      item_type: item.type,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-      line_total: item.lineTotal,
-    })),
-  }
-}
+import { normalizeOrderRecord, type OrderStatus, type RawOrder } from '@/lib/orders/normalize'
+import { formatCurrency, formatDateTime } from '@/lib/orders/format'
 
 export default function OrdersPage() {
   const access = usePageAccess(['admin', 'employee'])
   const authLoading = access.loading
   const allowed = access.allowed
   const role = access.userRole
-  const roleLabel =
-    role === 'admin'
-      ? 'أدمن'
-      : role === 'employee'
-      ? 'موظف'
-      : role === 'cashier'
-      ? 'كاشير'
-      : ''
+  const roleLabel = getRoleLabel(role)
 
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -327,47 +235,15 @@ export default function OrdersPage() {
   }, [allowed, fetchOrders])
 
   const todayOrders = useMemo(() => {
-    return orders.filter((order) => isSameDay(order.created_at))
+    return getTodayOrders(orders)
   }, [orders])
 
   const filteredOrders = useMemo(() => {
-    const normalizedSearch = search.trim()
-
-    return orders.filter((order) => {
-      const matchesSearch =
-        normalizedSearch === '' ||
-        order.customer_name.includes(normalizedSearch) ||
-        order.customer_phone.includes(normalizedSearch) ||
-        order.order_number.includes(normalizedSearch) ||
-        order.invoice_number.includes(normalizedSearch)
-
-      const matchesFilter =
-        filter === 'all'
-          ? true
-          : filter === 'today'
-          ? isSameDay(order.created_at)
-          : order.status === filter
-
-      return matchesSearch && matchesFilter
-    })
+    return filterOrders(orders, search, filter)
   }, [orders, search, filter])
 
   const stats = useMemo(() => {
-    return {
-      totalOrders: filteredOrders.length,
-      newCount: filteredOrders.filter((order) => order.status === 'new').length,
-      inProgressCount: filteredOrders.filter(
-        (order) => order.status === 'in_progress'
-      ).length,
-      readyCount: filteredOrders.filter((order) => order.status === 'ready')
-        .length,
-      deliveredCount: filteredOrders.filter(
-        (order) => order.status === 'delivered'
-      ).length,
-      revenue: filteredOrders.reduce((sum, order) => sum + order.total, 0),
-      todayOrdersCount: todayOrders.length,
-      todayRevenue: todayOrders.reduce((sum, order) => sum + order.total, 0),
-    }
+    return buildOrdersPageStats(filteredOrders, todayOrders)
   }, [filteredOrders, todayOrders])
 
   const updateStatus = async (order: Order, status: OrderStatus) => {
@@ -458,7 +334,7 @@ export default function OrdersPage() {
             .join('')
         : `<div class="empty">لا توجد عناصر</div>`
 
-    const statusLabel = statusMap[order.status]?.label || '—'
+    const statusLabel = ORDER_STATUS_MAP[order.status]?.label || '—'
     const printedAt = new Date().toLocaleString('ar-SA')
 
     printWindow.document.write(`
@@ -698,7 +574,7 @@ export default function OrdersPage() {
             />
 
             <div className="flex flex-wrap gap-2">
-              {filters.map((item) => (
+              {ORDER_FILTERS.map((item) => (
                 <button
                   key={item.key}
                   onClick={() => setFilter(item.key)}
@@ -743,8 +619,8 @@ export default function OrdersPage() {
                           <span className="text-base font-bold text-slate-900">
                             {order.order_number}
                           </span>
-                          <span className={statusMap[order.status].className}>
-                            {statusMap[order.status].label}
+                          <span className={ORDER_STATUS_MAP[order.status].className}>
+                            {ORDER_STATUS_MAP[order.status].label}
                           </span>
                         </div>
 
@@ -969,7 +845,7 @@ export default function OrdersPage() {
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="section-title">ملخص التصفية الحالية</h2>
                 <span className="badge badge-slate">
-                  {filters.find((f) => f.key === filter)?.label}
+                  {ORDER_FILTERS.find((f) => f.key === filter)?.label}
                 </span>
               </div>
 
@@ -1041,3 +917,4 @@ function Row({
     </div>
   )
 }
+

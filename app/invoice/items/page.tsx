@@ -2,43 +2,31 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { getRoleLabel } from '@/lib/app-roles'
+import {
+  INVOICE_CUSTOMER_STORAGE_KEY,
+  parseStoredInvoiceCustomer,
+} from '@/lib/invoices/customer'
+import {
+  addInvoiceItem,
+  calculateCashChange,
+  calculateInvoiceSubtotal,
+  calculateRemainingFromCustomer,
+  createInvoicePrintHtml,
+  decreaseInvoiceItemQuantity,
+  filterInvoiceProducts,
+  getNumericCashReceived,
+  increaseInvoiceItemQuantity,
+  INVOICE_FILTERS,
+  INVOICE_PRODUCTS,
+  removeInvoiceItem,
+  type InvoiceItem,
+  type InvoiceResult,
+  type Product,
+} from '@/lib/invoices/items'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { formatCurrency } from '@/lib/orders/format'
-
-type Product = {
-  id: string
-  name: string
-  type: 'product' | 'service'
-  category: string
-  price: number
-}
-
-type InvoiceItem = {
-  item_id: string | null
-  item_name: string
-  item_type: 'product' | 'service'
-  quantity: number
-  unit_price: number
-}
-
-type InvoiceResult = {
-  customer_id: string
-  order_id: string
-  order_number: string
-  invoice_id: string
-  invoice_number: string
-  status: string
-}
-
-const products: Product[] = [
-  { id: '1', name: 'تنظيف فاخر', type: 'service', category: 'تنظيف', price: 120 },
-  { id: '2', name: 'إصلاح شنطة جلد', type: 'service', category: 'إصلاح', price: 240 },
-  { id: '3', name: 'بخاخ حماية جلد', type: 'product', category: 'عناية', price: 85 },
-  { id: '4', name: 'صبغة جلد بني', type: 'product', category: 'ألوان', price: 65 },
-]
-
-const filters = ['الكل', 'الخدمات', 'المنتجات', 'تنظيف', 'إصلاح', 'عناية']
 
 export default function InvoiceItemsPage() {
   const router = useRouter()
@@ -46,14 +34,7 @@ export default function InvoiceItemsPage() {
   const access = usePageAccess(['admin', 'employee', 'cashier'])
   const authLoading = access.loading
   const allowed = access.allowed
-  const roleLabel =
-    access.userRole === 'admin'
-      ? 'أدمن'
-      : access.userRole === 'employee'
-      ? 'موظف'
-      : access.userRole === 'cashier'
-      ? 'كاشير'
-      : ''
+  const roleLabel = getRoleLabel(access.userRole)
 
   const [ready, setReady] = useState(false)
   const [customerName, setCustomerName] = useState('')
@@ -75,118 +56,64 @@ export default function InvoiceItemsPage() {
   useEffect(() => {
     if (!allowed) return
 
-    const raw = localStorage.getItem('invoice_customer')
+    const parsed = parseStoredInvoiceCustomer(
+      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
+    )
 
-    if (!raw) {
+    if (!parsed) {
       router.replace('/invoice/new')
       return
     }
 
-    try {
-      const parsed = JSON.parse(raw)
-
-      if (!parsed?.name || !parsed?.phone) {
-        router.replace('/invoice/new')
-        return
-      }
-
-      window.setTimeout(() => {
-        setCustomerName(parsed.name)
-        setCustomerPhone(parsed.phone)
-        setReady(true)
-      }, 0)
-    } catch {
-      router.replace('/invoice/new')
-    }
+    window.setTimeout(() => {
+      setCustomerName(parsed.name)
+      setCustomerPhone(parsed.phone)
+      setReady(true)
+    }, 0)
   }, [allowed, router])
 
-  const filteredProducts = products.filter((product) => {
-    const matchesFilter =
-      activeFilter === 'الكل' ||
-      (activeFilter === 'الخدمات' && product.type === 'service') ||
-      (activeFilter === 'المنتجات' && product.type === 'product') ||
-      product.category === activeFilter
-
-    const normalizedSearch = search.trim()
-    const matchesSearch =
-      normalizedSearch === '' ||
-      product.name.includes(normalizedSearch) ||
-      product.category.includes(normalizedSearch)
-
-    return matchesFilter && matchesSearch
-  })
+  const filteredProducts = filterInvoiceProducts(
+    INVOICE_PRODUCTS,
+    activeFilter,
+    search
+  )
 
   const subtotal = useMemo(() => {
-    return invoiceItems.reduce(
-      (sum, item) => sum + item.quantity * item.unit_price,
-      0
-    )
+    return calculateInvoiceSubtotal(invoiceItems)
   }, [invoiceItems])
 
   const finalTotal = subtotal - discount + tax
 
   const numericCashReceived = useMemo(() => {
-    const value = Number(cashReceived)
-    return Number.isNaN(value) ? 0 : value
+    return getNumericCashReceived(cashReceived)
   }, [cashReceived])
 
   const remainingFromCustomer = useMemo(() => {
-    if (paymentMethod !== 'cash') return 0
-    return Math.max(finalTotal - numericCashReceived, 0)
+    return calculateRemainingFromCustomer(
+      paymentMethod,
+      finalTotal,
+      numericCashReceived
+    )
   }, [paymentMethod, finalTotal, numericCashReceived])
 
   const cashChange = useMemo(() => {
-    if (paymentMethod !== 'cash') return 0
-    return Math.max(numericCashReceived - finalTotal, 0)
+    return calculateCashChange(paymentMethod, numericCashReceived, finalTotal)
   }, [paymentMethod, numericCashReceived, finalTotal])
 
   const addItem = (product: Product) => {
-    setInvoiceItems((prev) => {
-      const existing = prev.find((item) => item.item_name === product.name)
-
-      if (existing) {
-        return prev.map((item) =>
-          item.item_name === product.name
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      }
-
-      return [
-        ...prev,
-        {
-          item_id: null,
-          item_name: product.name,
-          item_type: product.type,
-          quantity: 1,
-          unit_price: product.price,
-        },
-      ]
-    })
+    setInvoiceItems((prev) => addInvoiceItem(prev, product))
   }
 
   const increaseQty = (itemName: string) => {
-    setInvoiceItems((prev) =>
-      prev.map((item) =>
-        item.item_name === itemName
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      )
-    )
+    setInvoiceItems((prev) => increaseInvoiceItemQuantity(prev, itemName))
   }
 
   const decreaseQty = (itemName: string) => {
-    setInvoiceItems((prev) =>
-      prev.map((item) =>
-        item.item_name === itemName
-          ? { ...item, quantity: Math.max(1, item.quantity - 1) }
-          : item
-      )
-    )
+    setInvoiceItems((prev) => decreaseInvoiceItemQuantity(prev, itemName))
   }
 
   const removeItem = (itemName: string) => {
-    setInvoiceItems((prev) => prev.filter((item) => item.item_name !== itemName))
+    setInvoiceItems((prev) => removeInvoiceItem(prev, itemName))
   }
 
   const clearInvoice = () => {
@@ -204,147 +131,25 @@ export default function InvoiceItemsPage() {
 
     if (!printWindow) return
 
-    const itemsHtml = invoiceItems
-      .map(
-        (item) => `
-          <tr>
-            <td>${item.item_name}</td>
-            <td>${item.quantity}</td>
-            <td>${item.unit_price} ر.س</td>
-            <td>${item.quantity * item.unit_price} ر.س</td>
-          </tr>
-        `
-      )
-      .join('')
-
-    printWindow.document.write(`
-      <html lang="ar" dir="rtl">
-        <head>
-          <title>فاتورة ${invoiceNumber || ''}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 24px;
-              color: #111827;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              margin-bottom: 24px;
-            }
-            .title {
-              font-size: 28px;
-              font-weight: bold;
-            }
-            .muted {
-              color: #6b7280;
-              font-size: 14px;
-            }
-            .box {
-              border: 1px solid #e5e7eb;
-              border-radius: 16px;
-              padding: 16px;
-              margin-bottom: 16px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 12px;
-            }
-            th, td {
-              border-bottom: 1px solid #e5e7eb;
-              padding: 12px;
-              text-align: right;
-            }
-            th {
-              background: #f8fafc;
-            }
-            .totals {
-              margin-top: 20px;
-            }
-            .totals div {
-              display: flex;
-              justify-content: space-between;
-              padding: 8px 0;
-            }
-            .final {
-              font-size: 20px;
-              font-weight: bold;
-              border-top: 2px solid #111827;
-              margin-top: 10px;
-              padding-top: 10px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <div class="title">Leather Fix ERP</div>
-              <div class="muted">فاتورة عميل</div>
-            </div>
-            <div>
-              <div><strong>رقم الفاتورة:</strong> ${invoiceNumber || '—'}</div>
-              <div><strong>رقم الطلب:</strong> ${orderNumber || '—'}</div>
-              <div><strong>التاريخ:</strong> ${now.toLocaleDateString('ar-SA')}</div>
-              <div><strong>الوقت:</strong> ${now.toLocaleTimeString('ar-SA')}</div>
-            </div>
-          </div>
-
-          <div class="box">
-            <div><strong>اسم العميل:</strong> ${customerName}</div>
-            <div><strong>رقم الجوال:</strong> ${customerPhone}</div>
-            <div><strong>طريقة الدفع:</strong> ${
-              paymentMethod === 'cash' ? 'كاش' : paymentMethod === 'card' ? 'شبكة' : 'تحويل'
-            }</div>
-            ${
-              paymentMethod === 'cash'
-                ? `
-                  <div><strong>المبلغ المستلم:</strong> ${numericCashReceived} ر.س</div>
-                  <div><strong>المتبقي من العميل:</strong> ${remainingFromCustomer} ر.س</div>
-                  <div><strong>الباقي للعميل:</strong> ${cashChange} ر.س</div>
-                `
-                : ''
-            }
-          </div>
-
-          <div class="box">
-            <table>
-              <thead>
-                <tr>
-                  <th>العنصر</th>
-                  <th>الكمية</th>
-                  <th>سعر الوحدة</th>
-                  <th>الإجمالي</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml}
-              </tbody>
-            </table>
-
-            <div class="totals">
-              <div><span>المجموع الفرعي</span><span>${subtotal} ر.س</span></div>
-              <div><span>الخصم</span><span>${discount} ر.س</span></div>
-              <div><span>الضريبة</span><span>${tax} ر.س</span></div>
-              <div class="final"><span>الإجمالي النهائي</span><span>${finalTotal} ر.س</span></div>
-            </div>
-          </div>
-
-          ${
-            note.trim()
-              ? `<div class="box"><strong>ملاحظة:</strong> ${note}</div>`
-              : ''
-          }
-
-          <script>
-            window.onload = function() {
-              window.print();
-            }
-          </script>
-        </body>
-      </html>
-    `)
+    printWindow.document.write(
+      createInvoicePrintHtml({
+        invoiceItems,
+        invoiceNumber,
+        orderNumber,
+        customerName,
+        customerPhone,
+        paymentMethod,
+        numericCashReceived,
+        remainingFromCustomer,
+        cashChange,
+        subtotal,
+        discount,
+        tax,
+        finalTotal,
+        note,
+        now,
+      })
+    )
 
     printWindow.document.close()
   }
@@ -513,7 +318,7 @@ export default function InvoiceItemsPage() {
               <h2 className="section-title">المنتجات والخدمات</h2>
 
               <div className="flex flex-wrap gap-2">
-                {filters.map((filter) => (
+                {INVOICE_FILTERS.map((filter) => (
                   <button
                     key={filter}
                     onClick={() => setActiveFilter(filter)}

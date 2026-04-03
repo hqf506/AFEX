@@ -3,6 +3,11 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  INVOICE_CUSTOMER_STORAGE_KEY,
+  isInvoiceCustomerValid,
+  serializeInvoiceCustomer,
+} from '@/lib/invoices/customer'
 import { usePageAccess } from '@/hooks/use-page-access'
 
 export default function NewInvoiceCustomerPage() {
@@ -15,8 +20,7 @@ export default function NewInvoiceCustomerPage() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
 
-  const isValid =
-    customerName.trim().length > 1 && customerPhone.trim().length >= 9
+  const isValid = isInvoiceCustomerValid(customerName, customerPhone)
 
   const handleNext = () => {
     if (!isValid) {
@@ -25,8 +29,8 @@ export default function NewInvoiceCustomerPage() {
     }
 
     localStorage.setItem(
-      'invoice_customer',
-      JSON.stringify({
+      INVOICE_CUSTOMER_STORAGE_KEY,
+      serializeInvoiceCustomer({
         name: customerName,
         phone: customerPhone,
       })
