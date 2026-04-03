@@ -2,6 +2,11 @@ import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import {
+  normalizeAdminBranchId,
+  requiresAssignedBranch,
+  resolveManagedUserBranchId,
+} from '@/lib/admin/branches'
+import {
   hasValidAdminPasswordLength,
   isValidAdminRole,
   normalizeAdminFullName,
@@ -15,6 +20,7 @@ type CreateUserBody = {
   password?: string
   full_name?: string
   role?: AppRole
+  branch_id?: string | null
 }
 
 export async function POST(request: NextRequest) {
@@ -32,10 +38,15 @@ export async function POST(request: NextRequest) {
       typeof body.password === 'string' ? body.password.trim() : ''
     const fullName = normalizeAdminFullName(body.full_name)
     const role: AppRole = body.role || 'employee'
+    const requestedBranchId = normalizeAdminBranchId(body.branch_id)
+    const resolvedBranchId = resolveManagedUserBranchId(
+      auth.profile.scope_type,
+      auth.profile.branch_id,
+      requestedBranchId || null
+    )
 
     if (!username) {
-      const response = jsonResponse(
-        { error: 'اسم المستخدم مطلوب' }, 400)
+      const response = jsonResponse({ error: 'اسم المستخدم مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -43,37 +54,80 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'اسم المستخدم غير صالح',
-          details: 'استخدم حروف إنجليزية صغيرة أو أرقام أو . أو _ أو - فقط',
-        }, 400)
+          details:
+            'استخدم أحرف إنجليزية صغيرة أو أرقام أو . أو _ أو - فقط',
+        },
+        400
+      )
       return withAuthCookies(auth.response, response)
     }
 
     if (!hasValidAdminPasswordLength(password)) {
       const response = jsonResponse(
-        { error: 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر' }, 400)
+        { error: 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر' },
+        400
+      )
       return withAuthCookies(auth.response, response)
     }
 
     if (!isValidAdminRole(role)) {
-      const response = jsonResponse(
-        { error: 'الصلاحية غير صالحة' }, 400)
+      const response = jsonResponse({ error: 'الصلاحية غير صالحة' }, 400)
       return withAuthCookies(auth.response, response)
+    }
+
+    if (requiresAssignedBranch(role) && !resolvedBranchId) {
+      const response = jsonResponse(
+        { error: 'يجب تعيين فرع للمستخدمين غير الأدمن' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (resolvedBranchId) {
+      const { data: existingBranch, error: existingBranchError } =
+        await supabaseAdmin
+          .from('branches')
+          .select('id')
+          .eq('id', resolvedBranchId)
+          .maybeSingle()
+
+      if (existingBranchError) {
+        const response = jsonResponse(
+          {
+            error: 'تعذر التحقق من الفرع',
+            details: existingBranchError.message,
+          },
+          500
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      if (!existingBranch) {
+        const response = jsonResponse(
+          { error: 'الفرع المحدد غير موجود' },
+          404
+        )
+        return withAuthCookies(auth.response, response)
+      }
     }
 
     const internalEmail = usernameToInternalEmail(username)
 
-    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, username')
-      .eq('username', username)
-      .maybeSingle()
+    const { data: existingProfile, error: existingProfileError } =
+      await supabaseAdmin
+        .from('profiles')
+        .select('id, username')
+        .eq('username', username)
+        .maybeSingle()
 
     if (existingProfileError) {
       const response = jsonResponse(
         {
           error: 'فشل التحقق من اسم المستخدم في profiles',
           details: existingProfileError.message,
-        }, 500)
+        },
+        500
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -82,7 +136,9 @@ export async function POST(request: NextRequest) {
         {
           error: 'اسم المستخدم مستخدم بالفعل',
           details: `username "${username}" موجود مسبقًا`,
-        }, 409)
+        },
+        409
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -94,7 +150,9 @@ export async function POST(request: NextRequest) {
         {
           error: 'فشل قراءة مستخدمي auth',
           details: listUsersError.message,
-        }, 500)
+        },
+        500
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -107,7 +165,9 @@ export async function POST(request: NextRequest) {
         {
           error: 'المستخدم موجود مسبقًا في auth',
           details: `email "${internalEmail}" موجود مسبقًا في auth.users`,
-        }, 409)
+        },
+        409
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -128,7 +188,9 @@ export async function POST(request: NextRequest) {
         {
           error: 'فشل إنشاء المستخدم في auth',
           details: createAuthError?.message || 'Unknown auth error',
-        }, 400)
+        },
+        400
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -142,6 +204,7 @@ export async function POST(request: NextRequest) {
         full_name: fullName || username,
         role,
         is_active: true,
+        branch_id: resolvedBranchId || null,
       })
 
     if (profileInsertError) {
@@ -151,7 +214,9 @@ export async function POST(request: NextRequest) {
         {
           error: 'تم إنشاء المستخدم في auth لكن فشل حفظه في profiles',
           details: profileInsertError.message,
-        }, 400)
+        },
+        400
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -164,6 +229,7 @@ export async function POST(request: NextRequest) {
         full_name: fullName || username,
         role,
         email: internalEmail,
+        branch_id: resolvedBranchId || null,
       },
     })
 
@@ -173,7 +239,9 @@ export async function POST(request: NextRequest) {
       {
         error: 'حدث خطأ غير متوقع',
         details: error instanceof Error ? error.message : 'Unknown error',
-      }, 500)
+      },
+      500
+    )
 
     return withAuthCookies(auth.response, response)
   }

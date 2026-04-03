@@ -9,6 +9,7 @@ export type AdminUserCreatePayload = {
   password: string
   confirmPassword: string
   role: AppRole
+  branchId: string
 }
 
 export function createEmptyAdminUserPayload(): AdminUserCreatePayload {
@@ -18,6 +19,7 @@ export function createEmptyAdminUserPayload(): AdminUserCreatePayload {
     password: '',
     confirmPassword: '',
     role: 'employee',
+    branchId: '',
   }
 }
 

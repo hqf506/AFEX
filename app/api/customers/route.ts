@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
+import { normalizeAdminBranchId } from '@/lib/admin/branches'
 import {
   isBranchScopedWithoutBranchId,
   shouldFilterByBranch,
@@ -20,6 +21,9 @@ export async function GET(request: NextRequest) {
   const search = normalizeCustomerSearchTerm(
     request.nextUrl.searchParams.get('q')
   )
+  const requestedBranchId = normalizeAdminBranchId(
+    request.nextUrl.searchParams.get('branch_id')
+  )
 
   let query = auth.supabase
     .from('customers')
@@ -36,6 +40,8 @@ export async function GET(request: NextRequest) {
 
   if (shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)) {
     query = query.eq('branch_id', auth.profile.branch_id as string)
+  } else if (auth.profile.scope_type === 'system' && requestedBranchId) {
+    query = query.eq('branch_id', requestedBranchId)
   }
 
   const searchFilter = buildCustomerSearchFilter(search)

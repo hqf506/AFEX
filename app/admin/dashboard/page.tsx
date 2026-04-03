@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { getRoleLabel } from '@/lib/app-roles'
+import { AdminBranchFilter } from '@/components/admin-branch-filter'
+import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import {
   isBranchScopedWithoutBranchId,
   shouldFilterByBranch,
@@ -52,6 +54,14 @@ function DashboardPageContent() {
   const roleLabel = getRoleLabel(access.userRole)
   const branchId = access.branchId
   const scopeType = access.scopeType
+  const {
+    isSystemAdmin,
+    branches,
+    loadingBranches,
+    selectedBranchId,
+    effectiveBranchId,
+    setSelectedBranchId,
+  } = useAdminBranchFilter(scopeType, branchId, allowed)
 
   const section = useMemo<DashboardSection>(() => {
     return resolveDashboardSection(searchParams.get('section'))
@@ -120,6 +130,8 @@ function DashboardPageContent() {
 
       if (shouldFilterByBranch(scopeType, branchId)) {
         query = query.eq('branch_id', branchId as string)
+      } else if (effectiveBranchId) {
+        query = query.eq('branch_id', effectiveBranchId)
       }
 
       const { data, error } = await query
@@ -150,7 +162,7 @@ function DashboardPageContent() {
     } finally {
       isFetchInFlightRef.current = false
     }
-  }, [scopeType, branchId])
+  }, [scopeType, branchId, effectiveBranchId])
 
   useEffect(() => {
     if (!allowed) return
@@ -468,6 +480,18 @@ function DashboardPageContent() {
               <div className="mt-4">
                 <span className="badge badge-green">الصلاحية: {roleLabel}</span>
               </div>
+
+              {isSystemAdmin ? (
+                <div className="mt-4">
+                  <AdminBranchFilter
+                    branches={branches}
+                    selectedBranchId={selectedBranchId}
+                    loading={loadingBranches}
+                    onChange={setSelectedBranchId}
+                    allLabel="كل الفروع"
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="page-card !p-4">

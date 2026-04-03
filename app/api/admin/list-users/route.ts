@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { shouldFilterByBranch } from '@/lib/branch-access'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
@@ -10,10 +11,29 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { data, error } = await supabaseAdmin
+    if (auth.profile.scope_type === 'branch' && !auth.profile.branch_id) {
+      const response = NextResponse.json({
+        success: true,
+        users: [],
+      })
+
+      return withAuthCookies(auth.response, response)
+    }
+
+    let query = supabaseAdmin
       .from('profiles')
-      .select('id, full_name, username, role, is_active, created_at, updated_at')
+      .select(
+        'id, full_name, username, role, is_active, branch_id, created_at, updated_at'
+      )
       .order('username', { ascending: true })
+
+    if (
+      shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)
+    ) {
+      query = query.eq('branch_id', auth.profile.branch_id as string)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       const response = NextResponse.json(

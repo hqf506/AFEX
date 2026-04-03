@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { canManageBranchScopedTarget } from '@/lib/admin/branches'
 import {
   hasValidAdminPasswordLength,
   normalizeAdminPassword,
@@ -22,40 +23,58 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as ResetUserPasswordBody
-
     const userId = normalizeAdminUserId(body.userId)
     const newPassword = normalizeAdminPassword(body.newPassword)
 
     if (!userId) {
-      const response = jsonResponse(
-        { error: 'معرف المستخدم مطلوب' }, 400)
+      const response = jsonResponse({ error: 'معرف المستخدم مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
     if (!newPassword || !hasValidAdminPasswordLength(newPassword)) {
       const response = jsonResponse(
-        { error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أكثر' }, 400)
+        { error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أكثر' },
+        400
+      )
       return withAuthCookies(auth.response, response)
     }
 
-    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, username')
-      .eq('id', userId)
-      .maybeSingle()
+    const { data: existingProfile, error: existingProfileError } =
+      await supabaseAdmin
+        .from('profiles')
+        .select('id, username, branch_id')
+        .eq('id', userId)
+        .maybeSingle()
 
     if (existingProfileError) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
           details: existingProfileError.message,
-        }, 500)
+        },
+        500
+      )
       return withAuthCookies(auth.response, response)
     }
 
     if (!existingProfile) {
+      const response = jsonResponse({ error: 'المستخدم غير موجود' }, 404)
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (
+      !canManageBranchScopedTarget(
+        auth.profile.scope_type,
+        auth.profile.branch_id,
+        typeof existingProfile.branch_id === 'string'
+          ? existingProfile.branch_id
+          : null
+      )
+    ) {
       const response = jsonResponse(
-        { error: 'المستخدم غير موجود' }, 404)
+        { error: 'لا تملك صلاحية تعديل هذا المستخدم' },
+        403
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -71,7 +90,9 @@ export async function POST(request: NextRequest) {
         {
           error: 'فشل إعادة تعيين كلمة المرور',
           details: updateAuthError.message,
-        }, 400)
+        },
+        400
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -86,7 +107,9 @@ export async function POST(request: NextRequest) {
       {
         error: 'حدث خطأ غير متوقع',
         details: error instanceof Error ? error.message : 'Unknown error',
-      }, 500)
+      },
+      500
+    )
 
     return withAuthCookies(auth.response, response)
   }

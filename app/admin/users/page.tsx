@@ -1,7 +1,11 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  type AdminBranchRecord,
+  requiresAssignedBranch,
+} from '@/lib/admin/branches'
 import {
   ADMIN_ROLE_OPTIONS,
   canSubmitAdminUserCreatePayload,
@@ -9,6 +13,7 @@ import {
   hasValidAdminPasswordLength,
   isPrimaryAdminUsername,
 } from '@/lib/admin/users'
+import { resolveAuthScopeType } from '@/lib/auth-profile'
 import { AppRole, usePageAccess } from '@/hooks/use-page-access'
 
 type ProfileRow = {
@@ -17,6 +22,7 @@ type ProfileRow = {
   username: string | null
   role: AppRole
   is_active: boolean
+  branch_id: string | null
   created_at?: string
   updated_at?: string
 }
@@ -108,11 +114,25 @@ function ActionButton({
   )
 }
 
+function getBranchName(
+  branches: AdminBranchRecord[],
+  branchId: string | null | undefined
+) {
+  if (!branchId) return 'بدون فرع'
+  return branches.find((branch) => branch.id === branchId)?.name || 'فرع غير معروف'
+}
+
 export default function AdminUsersPage() {
-  const { loading: accessLoading, allowed } = usePageAccess(['admin'])
+  const access = usePageAccess(['admin'])
+  const { loading: accessLoading, allowed, scopeType, branchId: actorBranchId } =
+    access
+  const isSystemAdmin = scopeType === 'system'
 
   const [users, setUsers] = useState<ProfileRow[]>([])
+  const [branches, setBranches] = useState<AdminBranchRecord[]>([])
+  const [branchSelections, setBranchSelections] = useState<Record<string, string>>({})
   const [loadingUsers, setLoadingUsers] = useState(false)
+  const [loadingBranches, setLoadingBranches] = useState(false)
   const [creating, setCreating] = useState(false)
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
 
@@ -121,6 +141,7 @@ export default function AdminUsersPage() {
   const [password, setPassword] = useState(emptyForm.password)
   const [confirmPassword, setConfirmPassword] = useState(emptyForm.confirmPassword)
   const [role, setRole] = useState<AppRole>(emptyForm.role)
+  const [createBranchId, setCreateBranchId] = useState(emptyForm.branchId)
 
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -133,13 +154,14 @@ export default function AdminUsersPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
 
-  function resetForm() {
+  const resetForm = useCallback(() => {
     setUsername('')
     setFullName('')
     setPassword('')
     setConfirmPassword('')
     setRole('employee')
-  }
+    setCreateBranchId(isSystemAdmin ? '' : actorBranchId || '')
+  }, [actorBranchId, isSystemAdmin])
 
   function closeResetModal() {
     setResetModal({
@@ -149,6 +171,29 @@ export default function AdminUsersPage() {
     })
     setNewPassword('')
     setConfirmNewPassword('')
+  }
+
+  async function loadBranches() {
+    try {
+      setLoadingBranches(true)
+
+      const response = await fetch('/api/admin/branches', {
+        method: 'GET',
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+      }
+
+      setBranches(result.branches || [])
+    } catch (error) {
+      console.error('Load branches error:', error)
+      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل الفروع')
+    } finally {
+      setLoadingBranches(false)
+    }
   }
 
   async function loadUsers() {
@@ -166,10 +211,19 @@ export default function AdminUsersPage() {
         throw new Error(result?.details || result?.error || 'تعذر تحميل المستخدمين')
       }
 
-      setUsers(result.users || [])
+      const nextUsers = (result.users || []) as ProfileRow[]
+      setUsers(nextUsers)
+      setBranchSelections(
+        nextUsers.reduce<Record<string, string>>((acc, user) => {
+          acc[user.id] = user.branch_id || ''
+          return acc
+        }, {})
+      )
     } catch (error) {
       console.error('Load users error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل المستخدمين')
+      setErrorMessage(
+        error instanceof Error ? error.message : 'تعذر تحميل المستخدمين'
+      )
     } finally {
       setLoadingUsers(false)
     }
@@ -177,18 +231,30 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (!accessLoading && allowed) {
-      loadUsers()
+      void Promise.all([loadUsers(), loadBranches()])
       resetForm()
     }
-  }, [accessLoading, allowed])
+  }, [accessLoading, allowed, resetForm])
+
+  const branchIdForCreate = isSystemAdmin ? createBranchId : actorBranchId || ''
 
   const canSubmitCreate = useMemo(() => {
-    return canSubmitAdminUserCreatePayload({
+    const baseValid = canSubmitAdminUserCreatePayload({
       username,
       password,
       confirmPassword,
     })
-  }, [username, password, confirmPassword])
+
+    if (!baseValid) {
+      return false
+    }
+
+    if (requiresAssignedBranch(role)) {
+      return Boolean(branchIdForCreate)
+    }
+
+    return true
+  }, [username, password, confirmPassword, role, branchIdForCreate])
 
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault()
@@ -210,6 +276,10 @@ export default function AdminUsersPage() {
         throw new Error('تأكيد كلمة المرور غير مطابق')
       }
 
+      if (requiresAssignedBranch(role) && !branchIdForCreate) {
+        throw new Error('يجب اختيار فرع لهذا المستخدم')
+      }
+
       const response = await fetch('/api/admin/create-user', {
         method: 'POST',
         headers: {
@@ -220,6 +290,7 @@ export default function AdminUsersPage() {
           full_name: fullName,
           password,
           role,
+          branch_id: branchIdForCreate || null,
         }),
       })
 
@@ -234,7 +305,9 @@ export default function AdminUsersPage() {
       await loadUsers()
     } catch (error) {
       console.error('Create user error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'حدث خطأ أثناء إنشاء المستخدم')
+      setErrorMessage(
+        error instanceof Error ? error.message : 'حدث خطأ أثناء إنشاء المستخدم'
+      )
     } finally {
       setCreating(false)
     }
@@ -267,7 +340,52 @@ export default function AdminUsersPage() {
       await loadUsers()
     } catch (error) {
       console.error('Update role error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحديث الصلاحية')
+      setErrorMessage(
+        error instanceof Error ? error.message : 'تعذر تحديث الصلاحية'
+      )
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
+  async function handleUserBranchUpdate(user: ProfileRow) {
+    try {
+      setUpdatingUserId(user.id)
+      setSuccessMessage('')
+      setErrorMessage('')
+
+      const selectedBranchId = branchSelections[user.id] || ''
+
+      if (requiresAssignedBranch(user.role) && !selectedBranchId) {
+        throw new Error('يجب تعيين فرع للمستخدمين غير الأدمن')
+      }
+
+      const response = await fetch('/api/admin/update-user-branch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          branch_id: selectedBranchId || null,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          result?.details || result?.error || 'فشل تحديث فرع المستخدم'
+        )
+      }
+
+      setSuccessMessage(result.message || 'تم تحديث فرع المستخدم بنجاح')
+      await loadUsers()
+    } catch (error) {
+      console.error('Update user branch error:', error)
+      setErrorMessage(
+        error instanceof Error ? error.message : 'تعذر تحديث فرع المستخدم'
+      )
     } finally {
       setUpdatingUserId(null)
     }
@@ -293,14 +411,18 @@ export default function AdminUsersPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل تحديث حالة المستخدم')
+        throw new Error(
+          result?.details || result?.error || 'فشل تحديث حالة المستخدم'
+        )
       }
 
       setSuccessMessage(result.message || 'تم تحديث حالة المستخدم بنجاح')
       await loadUsers()
     } catch (error) {
       console.error('Toggle user status error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحديث حالة المستخدم')
+      setErrorMessage(
+        error instanceof Error ? error.message : 'تعذر تحديث حالة المستخدم'
+      )
     } finally {
       setUpdatingUserId(null)
     }
@@ -346,14 +468,18 @@ export default function AdminUsersPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل إعادة تعيين كلمة المرور')
+        throw new Error(
+          result?.details || result?.error || 'فشل إعادة تعيين كلمة المرور'
+        )
       }
 
       setSuccessMessage(result.message || 'تمت إعادة تعيين كلمة المرور بنجاح')
       closeResetModal()
     } catch (error) {
       console.error('Reset password error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر إعادة تعيين كلمة المرور')
+      setErrorMessage(
+        error instanceof Error ? error.message : 'تعذر إعادة تعيين كلمة المرور'
+      )
     } finally {
       setUpdatingUserId(null)
     }
@@ -389,7 +515,9 @@ export default function AdminUsersPage() {
       await loadUsers()
     } catch (error) {
       console.error('Delete user error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر حذف المستخدم')
+      setErrorMessage(
+        error instanceof Error ? error.message : 'تعذر حذف المستخدم'
+      )
     } finally {
       setUpdatingUserId(null)
     }
@@ -440,12 +568,23 @@ export default function AdminUsersPage() {
             </p>
           </div>
 
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
-          >
-            العودة إلى القائمة الرئيسية
-          </Link>
+          <div className="flex flex-wrap justify-end gap-3">
+            {isSystemAdmin ? (
+              <Link
+                href="/admin/branches"
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+              >
+                إدارة الفروع
+              </Link>
+            ) : null}
+
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
+            >
+              العودة إلى القائمة الرئيسية
+            </Link>
+          </div>
         </div>
 
         {successMessage ? (
@@ -474,7 +613,7 @@ export default function AdminUsersPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="مثال: Faisal"
+                placeholder="مثال: faisal"
                 className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
                 autoComplete="off"
               />
@@ -523,6 +662,46 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="md:col-span-2">
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                الفرع
+              </label>
+
+              {isSystemAdmin ? (
+                <select
+                  value={createBranchId}
+                  onChange={(e) => setCreateBranchId(e.target.value)}
+                  disabled={loadingBranches}
+                  className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500 disabled:opacity-60"
+                >
+                  <option value="">
+                    {role === 'admin'
+                      ? 'بدون فرع (أدمن على مستوى النظام)'
+                      : 'اختر فرعًا'}
+                  </option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name} ({branch.code})
+                      {!branch.is_active ? ' - معطل' : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-right text-sm text-slate-700">
+                  سيتم ربط المستخدم بفرعك الحالي:
+                  <span className="mr-2 font-bold">
+                    {getBranchName(branches, actorBranchId)}
+                  </span>
+                </div>
+              )}
+
+              {requiresAssignedBranch(role) && !branchIdForCreate ? (
+                <p className="mt-2 text-sm font-medium text-amber-700">
+                  يجب اختيار فرع لهذا المستخدم قبل الإنشاء.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="md:col-span-2">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="text-right">
                   <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -552,7 +731,7 @@ export default function AdminUsersPage() {
         </section>
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:p-7">
-          <div className="mb-5 flex items-center justify-between">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <h2 className="text-2xl font-black text-slate-900">المستخدمون الحاليون</h2>
 
             <ActionButton label="تحديث" onClick={loadUsers} />
@@ -570,8 +749,13 @@ export default function AdminUsersPage() {
                     <th className="px-3 py-3 text-sm font-bold text-slate-700">الاسم الكامل</th>
                     <th className="px-3 py-3 text-sm font-bold text-slate-700">اسم المستخدم</th>
                     <th className="px-3 py-3 text-sm font-bold text-slate-700">الصلاحية</th>
+                    <th className="px-3 py-3 text-sm font-bold text-slate-700">النطاق</th>
+                    <th className="px-3 py-3 text-sm font-bold text-slate-700">الفرع</th>
                     <th className="px-3 py-3 text-sm font-bold text-slate-700">الحالة</th>
                     <th className="px-3 py-3 text-sm font-bold text-slate-700">تغيير الصلاحية</th>
+                    {isSystemAdmin ? (
+                      <th className="px-3 py-3 text-sm font-bold text-slate-700">تعيين الفرع</th>
+                    ) : null}
                     <th className="px-3 py-3 text-sm font-bold text-slate-700">إعادة كلمة المرور</th>
                     <th className="px-3 py-3 text-sm font-bold text-slate-700">تعطيل / تفعيل</th>
                     <th className="px-3 py-3 text-sm font-bold text-slate-700">حذف</th>
@@ -581,12 +765,20 @@ export default function AdminUsersPage() {
                   {users.map((user) => {
                     const isBusy = updatingUserId === user.id
                     const isMainAdmin = isPrimaryAdminUsername(user.username)
+                    const scopeLabel =
+                      resolveAuthScopeType(user.role, user.branch_id) === 'system'
+                        ? 'نظام'
+                        : 'فرع'
 
                     return (
                       <tr key={user.id} className="border-b border-slate-100 align-top">
                         <td className="px-3 py-4 text-slate-700">{user.full_name || '-'}</td>
                         <td className="px-3 py-4 text-slate-700">{user.username || '-'}</td>
                         <td className="px-3 py-4 text-slate-700">{user.role}</td>
+                        <td className="px-3 py-4 text-slate-700">{scopeLabel}</td>
+                        <td className="px-3 py-4 text-slate-700">
+                          {getBranchName(branches, user.branch_id)}
+                        </td>
                         <td className="px-3 py-4">
                           <span
                             className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
@@ -608,6 +800,39 @@ export default function AdminUsersPage() {
                             }
                           />
                         </td>
+                        {isSystemAdmin ? (
+                          <td className="px-3 py-4">
+                            <div className="flex min-w-[240px] flex-col gap-2">
+                              <select
+                                value={branchSelections[user.id] || ''}
+                                onChange={(e) =>
+                                  setBranchSelections((prev) => ({
+                                    ...prev,
+                                    [user.id]: e.target.value,
+                                  }))
+                                }
+                                disabled={isBusy || isMainAdmin}
+                                className="h-11 rounded-2xl border border-slate-300 bg-white px-3 text-right outline-none focus:border-slate-500 disabled:opacity-60"
+                              >
+                                <option value="">
+                                  {user.role === 'admin' ? 'بدون فرع' : 'اختر فرعًا'}
+                                </option>
+                                {branches.map((branch) => (
+                                  <option key={branch.id} value={branch.id}>
+                                    {branch.name}
+                                    {!branch.is_active ? ' - معطل' : ''}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <ActionButton
+                                label="حفظ الفرع"
+                                onClick={() => handleUserBranchUpdate(user)}
+                                disabled={isBusy || isMainAdmin}
+                              />
+                            </div>
+                          </td>
+                        ) : null}
                         <td className="px-3 py-4">
                           <ActionButton
                             label="إعادة التعيين"

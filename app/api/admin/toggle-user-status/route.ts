@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { canManageBranchScopedTarget } from '@/lib/admin/branches'
 import {
   isPrimaryAdminUsername,
   normalizeAdminUserId,
@@ -22,46 +23,63 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as ToggleUserStatusBody
-
     const userId = normalizeAdminUserId(body.userId)
     const isActive = body.is_active
 
     if (!userId) {
-      const response = jsonResponse(
-        { error: 'معرف المستخدم مطلوب' }, 400)
+      const response = jsonResponse({ error: 'معرف المستخدم مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
     if (!isBooleanValue(isActive)) {
-      const response = jsonResponse(
-        { error: 'قيمة is_active غير صالحة' }, 400)
+      const response = jsonResponse({ error: 'قيمة is_active غير صالحة' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
-    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, username, is_active')
-      .eq('id', userId)
-      .maybeSingle()
+    const { data: existingProfile, error: existingProfileError } =
+      await supabaseAdmin
+        .from('profiles')
+        .select('id, username, is_active, branch_id')
+        .eq('id', userId)
+        .maybeSingle()
 
     if (existingProfileError) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
           details: existingProfileError.message,
-        }, 500)
+        },
+        500
+      )
       return withAuthCookies(auth.response, response)
     }
 
     if (!existingProfile) {
+      const response = jsonResponse({ error: 'المستخدم غير موجود' }, 404)
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (
+      !canManageBranchScopedTarget(
+        auth.profile.scope_type,
+        auth.profile.branch_id,
+        typeof existingProfile.branch_id === 'string'
+          ? existingProfile.branch_id
+          : null
+      )
+    ) {
       const response = jsonResponse(
-        { error: 'المستخدم غير موجود' }, 404)
+        { error: 'لا تملك صلاحية تعديل هذا المستخدم' },
+        403
+      )
       return withAuthCookies(auth.response, response)
     }
 
     if (isPrimaryAdminUsername(existingProfile.username)) {
       const response = jsonResponse(
-        { error: 'لا يمكن تعطيل أو تفعيل حساب admin الرئيسي' }, 400)
+        { error: 'لا يمكن تعطيل أو تفعيل حساب admin الرئيسي' },
+        400
+      )
       return withAuthCookies(auth.response, response)
     }
 
@@ -78,13 +96,17 @@ export async function POST(request: NextRequest) {
         {
           error: 'فشل تحديث حالة المستخدم',
           details: updateError.message,
-        }, 400)
+        },
+        400
+      )
       return withAuthCookies(auth.response, response)
     }
 
     const response = jsonResponse({
       success: true,
-      message: isActive ? 'تم تفعيل المستخدم بنجاح' : 'تم تعطيل المستخدم بنجاح',
+      message: isActive
+        ? 'تم تفعيل المستخدم بنجاح'
+        : 'تم تعطيل المستخدم بنجاح',
       user: {
         id: existingProfile.id,
         username: existingProfile.username,
@@ -98,7 +120,9 @@ export async function POST(request: NextRequest) {
       {
         error: 'حدث خطأ غير متوقع',
         details: error instanceof Error ? error.message : 'Unknown error',
-      }, 500)
+      },
+      500
+    )
 
     return withAuthCookies(auth.response, response)
   }

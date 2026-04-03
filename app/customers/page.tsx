@@ -2,13 +2,24 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { AdminBranchFilter } from '@/components/admin-branch-filter'
+import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import type { CustomerListItem } from '@/lib/customers'
 
 export default function CustomersPage() {
-  const { authLoading, allowed, roleLabel } = usePageAccess({
+  const access = usePageAccess({
     allowedRoles: ['admin', 'employee', 'cashier'],
   })
+  const { authLoading, allowed, roleLabel, branchId, scopeType } = access
+  const {
+    isSystemAdmin,
+    branches,
+    loadingBranches,
+    selectedBranchId,
+    effectiveBranchId,
+    setSelectedBranchId,
+  } = useAdminBranchFilter(scopeType, branchId, allowed)
 
   const [search, setSearch] = useState('')
   const [customers, setCustomers] = useState<CustomerListItem[]>([])
@@ -23,13 +34,17 @@ export default function CustomersPage() {
       setErrorMessage('')
 
       try {
-        const response = await fetch(
-          `/api/customers?q=${encodeURIComponent(search.trim())}`,
-          {
-            method: 'GET',
-            credentials: 'include',
-          }
-        )
+        const params = new URLSearchParams()
+        params.set('q', search.trim())
+
+        if (effectiveBranchId) {
+          params.set('branch_id', effectiveBranchId)
+        }
+
+        const response = await fetch(`/api/customers?${params.toString()}`, {
+          method: 'GET',
+          credentials: 'include',
+        })
 
         const result = await response.json().catch(() => null)
 
@@ -56,7 +71,7 @@ export default function CustomersPage() {
     }, 250)
 
     return () => window.clearTimeout(timeoutId)
-  }, [allowed, search])
+  }, [allowed, search, effectiveBranchId])
 
   if (authLoading) {
     return (
@@ -91,6 +106,16 @@ export default function CustomersPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {isSystemAdmin ? (
+                <AdminBranchFilter
+                  branches={branches}
+                  selectedBranchId={selectedBranchId}
+                  loading={loadingBranches}
+                  onChange={setSelectedBranchId}
+                  className="min-w-[220px]"
+                />
+              ) : null}
+
               <Link href="/" className="secondary-btn">
                 العودة إلى القائمة الرئيسية
               </Link>

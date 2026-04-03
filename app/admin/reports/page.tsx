@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getRoleLabel } from '@/lib/app-roles'
+import { AdminBranchFilter } from '@/components/admin-branch-filter'
+import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import {
   isBranchScopedWithoutBranchId,
   shouldFilterByBranch,
@@ -34,6 +36,14 @@ export default function ReportsPage() {
   const roleLabel = getRoleLabel(access.userRole)
   const branchId = access.branchId
   const scopeType = access.scopeType
+  const {
+    isSystemAdmin,
+    branches,
+    loadingBranches,
+    selectedBranchId,
+    effectiveBranchId,
+    setSelectedBranchId,
+  } = useAdminBranchFilter(scopeType, branchId, allowed)
 
   const today = new Date()
   const todayString = getDateInputValue(today)
@@ -114,6 +124,8 @@ export default function ReportsPage() {
 
     if (shouldFilterByBranch(scopeType, branchId)) {
       query = query.eq('branch_id', branchId as string)
+    } else if (effectiveBranchId) {
+      query = query.eq('branch_id', effectiveBranchId)
     }
 
     const { data, error } = await query
@@ -134,7 +146,7 @@ export default function ReportsPage() {
     setLastUpdated(new Date().toLocaleTimeString('en-GB'))
     setLoading(false)
     setRefreshing(false)
-  }, [range, dateFrom, dateTo, scopeType, branchId])
+  }, [range, dateFrom, dateTo, scopeType, branchId, effectiveBranchId])
 
   useEffect(() => {
     if (!allowed) return
@@ -447,6 +459,15 @@ export default function ReportsPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {isSystemAdmin ? (
+                <AdminBranchFilter
+                  branches={branches}
+                  selectedBranchId={selectedBranchId}
+                  loading={loadingBranches}
+                  onChange={setSelectedBranchId}
+                  className="min-w-[220px]"
+                />
+              ) : null}
               <Link href="/" className="secondary-btn">
                 العودة إلى القائمة الرئيسية
               </Link>

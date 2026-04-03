@@ -1,7 +1,10 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AdminBranchFilter } from '@/components/admin-branch-filter'
+import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
+import { resolveAuthScopeType, type AuthScopeType } from '@/lib/auth-profile'
 import { supabase } from '@/lib/supabase/client'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 
@@ -45,6 +48,8 @@ export default function HomePage() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
 
   const [role, setRole] = useState<Role | null>(null)
+  const [branchId, setBranchId] = useState<string | null>(null)
+  const [scopeType, setScopeType] = useState<AuthScopeType | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceKey>('home')
   const [iframeLoading, setIframeLoading] = useState(false)
@@ -54,6 +59,14 @@ export default function HomePage() {
   const [reportsMenuOpen, setReportsMenuOpen] = useState(false)
 
   const { settings, loading: settingsLoading } = useSystemSettings(!authLoading)
+  const {
+    isSystemAdmin,
+    branches,
+    loadingBranches,
+    selectedBranchId,
+    selectedBranchName,
+    setSelectedBranchId,
+  } = useAdminBranchFilter(scopeType, branchId, !authLoading)
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -70,7 +83,7 @@ export default function HomePage() {
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role, is_active')
+          .select('role, is_active, branch_id')
           .eq('id', user.id)
           .single()
 
@@ -85,7 +98,12 @@ export default function HomePage() {
           return
         }
 
+        const resolvedBranchId =
+          typeof profile.branch_id === 'string' ? profile.branch_id : null
+
         setRole(profile.role as Role)
+        setBranchId(resolvedBranchId)
+        setScopeType(resolveAuthScopeType(profile.role as Role, resolvedBranchId))
       } catch (error) {
         console.error('Home auth error:', error)
         router.replace('/login')
@@ -111,6 +129,7 @@ export default function HomePage() {
 
   const storeName = settings?.store_name?.trim() || 'Leather Fix ERP'
   const branchName = settings?.branch_name?.trim() || 'الفرع الرئيسي'
+  const displayedBranchName = isSystemAdmin ? selectedBranchName : branchName
 
   const systemStatus = useMemo<Record<string, boolean>>(
     () => ({
@@ -546,7 +565,7 @@ export default function HomePage() {
 
               <div className="mt-3 flex flex-wrap justify-end gap-2">
                 <span className="badge badge-blue">{storeName}</span>
-                <span className="badge badge-slate">{branchName}</span>
+                <span className="badge badge-slate">{displayedBranchName}</span>
                 <button
                   onClick={() => openWorkspace('customers')}
                   className="secondary-btn"
@@ -555,6 +574,18 @@ export default function HomePage() {
                   العملاء
                 </button>
               </div>
+
+              {isSystemAdmin ? (
+                <div className="mt-4 flex justify-end">
+                  <AdminBranchFilter
+                    branches={branches}
+                    selectedBranchId={selectedBranchId}
+                    loading={loadingBranches}
+                    onChange={setSelectedBranchId}
+                    className="min-w-[240px]"
+                  />
+                </div>
+              ) : null}
 
               <div className="mt-6 flex flex-wrap justify-end gap-3">
                 {role === 'admin' && (
@@ -643,7 +674,7 @@ export default function HomePage() {
                 <p className="text-sm font-bold text-slate-300">المشروع</p>
                 <h2 className="mt-2 text-2xl font-extrabold">{storeName}</h2>
                 <p className="mt-2 text-sm font-semibold text-slate-300">
-                  {branchName}
+                  {displayedBranchName}
                 </p>
                 <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
                   تصميم موحد وسريع للآيباد والكمبيوتر مع سهولة الوصول لكل أقسام
@@ -678,7 +709,7 @@ export default function HomePage() {
 
           <div className="mb-4 grid gap-3 sm:grid-cols-2">
             <SummaryRow label="اسم المحل" value={storeName} />
-            <SummaryRow label="اسم الفرع" value={branchName} />
+            <SummaryRow label="اسم الفرع" value={displayedBranchName} />
           </div>
 
           <div className="space-y-3">
@@ -731,7 +762,16 @@ export default function HomePage() {
       <div className="page-wrap text-right">
         <div className="mb-4 flex flex-wrap items-center justify-end gap-2 text-right">
           <span className="badge badge-slate">{storeName}</span>
-          <span className="badge badge-green">{branchName}</span>
+          <span className="badge badge-green">{displayedBranchName}</span>
+
+          {isSystemAdmin ? (
+            <AdminBranchFilter
+              branches={branches}
+              selectedBranchId={selectedBranchId}
+              loading={loadingBranches}
+              onChange={setSelectedBranchId}
+            />
+          ) : null}
 
           {roleLabel ? (
             <span className="badge badge-blue">الصلاحية: {roleLabel}</span>
@@ -761,7 +801,7 @@ export default function HomePage() {
                   {storeName}
                 </h3>
                 <p className="mt-2 text-sm leading-7 text-slate-500">
-                  {branchName}
+                  {displayedBranchName}
                 </p>
               </div>
 
