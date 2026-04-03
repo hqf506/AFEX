@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
 import type { AppRole } from '@/lib/app-roles'
+import {
+  resolveAuthScopeType,
+  type AuthScopeType,
+  type BranchAwareProfileFields,
+} from '@/lib/auth-profile'
 
 export type ApiAuthProfile = {
   id: string
@@ -9,7 +14,7 @@ export type ApiAuthProfile = {
   is_active: boolean
   username: string | null
   full_name: string | null
-}
+} & BranchAwareProfileFields
 
 type ApiAuthSuccess = {
   ok: true
@@ -88,7 +93,7 @@ export async function requireApiAuth(
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, role, is_active, username, full_name')
+      .select('id, role, is_active, username, full_name, branch_id')
       .eq('id', user.id)
       .single()
 
@@ -105,7 +110,14 @@ export async function requireApiAuth(
       }
     }
 
-    const typedProfile = profile as ApiAuthProfile
+    const branchId =
+      typeof profile.branch_id === 'string' ? profile.branch_id : null
+
+    const typedProfile = {
+      ...(profile as Omit<ApiAuthProfile, 'branch_id' | 'scope_type'>),
+      branch_id: branchId,
+      scope_type: resolveAuthScopeType(profile.role as AppRole, branchId),
+    } as ApiAuthProfile
 
     if (!typedProfile.is_active) {
       return {
@@ -167,3 +179,5 @@ export function withAuthCookies(
 
   return finalResponse
 }
+
+export type { AuthScopeType, BranchAwareProfileFields }

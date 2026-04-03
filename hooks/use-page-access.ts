@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { getRoleLabel, type AppRole } from '@/lib/app-roles'
+import {
+  resolveAuthScopeType,
+  type AuthScopeType,
+} from '@/lib/auth-profile'
 import { supabase } from '@/lib/supabase/client'
 
 export type { AppRole }
@@ -18,6 +22,8 @@ export type UsePageAccessResult = {
   authLoading: boolean
   allowed: boolean
   userRole: AppRole | null
+  branchId: string | null
+  scopeType: AuthScopeType | null
   roleLabel: string
 }
 
@@ -66,6 +72,8 @@ export function usePageAccess(
   const [loading, setLoading] = useState(true)
   const [allowed, setAllowed] = useState(false)
   const [userRole, setUserRole] = useState<AppRole | null>(null)
+  const [branchId, setBranchId] = useState<string | null>(null)
+  const [scopeType, setScopeType] = useState<AuthScopeType | null>(null)
 
   useEffect(() => {
     mountedRef.current = true
@@ -97,7 +105,7 @@ export function usePageAccess(
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role, is_active')
+          .select('role, is_active, branch_id')
           .eq('id', session.user.id)
           .single()
 
@@ -105,6 +113,8 @@ export function usePageAccess(
           if (mountedRef.current) {
             setAllowed(false)
             setUserRole(null)
+            setBranchId(null)
+            setScopeType(null)
             setLoading(false)
             await supabase.auth.signOut()
             router.replace(resolvedRedirectIfNoUser)
@@ -118,6 +128,8 @@ export function usePageAccess(
           if (mountedRef.current) {
             setAllowed(false)
             setUserRole(null)
+            setBranchId(null)
+            setScopeType(null)
             setLoading(false)
             router.replace('/login')
           }
@@ -130,6 +142,8 @@ export function usePageAccess(
           if (mountedRef.current) {
             setAllowed(false)
             setUserRole(null)
+            setBranchId(null)
+            setScopeType(null)
             setLoading(false)
             router.replace(resolvedRedirectIfForbidden)
           }
@@ -143,14 +157,28 @@ export function usePageAccess(
           if (mountedRef.current) {
             setAllowed(false)
             setUserRole(role)
+            setBranchId(
+              typeof profile.branch_id === 'string' ? profile.branch_id : null
+            )
+            setScopeType(
+              resolveAuthScopeType(
+                role,
+                typeof profile.branch_id === 'string' ? profile.branch_id : null
+              )
+            )
             setLoading(false)
             router.replace(resolvedRedirectIfForbidden)
           }
           return
         }
 
+        const resolvedBranchId =
+          typeof profile.branch_id === 'string' ? profile.branch_id : null
+
         if (mountedRef.current) {
           setUserRole(role)
+          setBranchId(resolvedBranchId)
+          setScopeType(resolveAuthScopeType(role, resolvedBranchId))
           setAllowed(true)
           setLoading(false)
         }
@@ -159,6 +187,8 @@ export function usePageAccess(
         if (mountedRef.current) {
           setAllowed(false)
           setUserRole(null)
+          setBranchId(null)
+          setScopeType(null)
           setLoading(false)
           router.replace(resolvedRedirectIfForbidden)
         }
@@ -185,6 +215,8 @@ export function usePageAccess(
     authLoading: loading,
     allowed,
     userRole,
+    branchId,
+    scopeType,
     roleLabel: getRoleLabel(userRole),
   }
 }
