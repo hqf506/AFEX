@@ -18,6 +18,10 @@ import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { normalizeOrderRecord, type OrderStatus, type OrderSourceRow } from '@/lib/orders/normalize'
 import { formatCurrency, formatDateTime } from '@/lib/orders/format'
+import {
+  buildReadyOrderStatusWhatsAppMessage,
+  isSendableWhatsAppPhone,
+} from '@/lib/whatsapp/messages'
 
 function buildOrderComparisonSignature(orders: OrderRecord[]) {
   return orders
@@ -325,18 +329,26 @@ export default function OrdersPage() {
       return nextOrders
     })
 
-    if (status === 'ready' && order.customer_phone !== '—') {
+    const shouldSendReadyNotification =
+      order.status !== status &&
+      status === 'ready' &&
+      isSendableWhatsAppPhone(order.customer_phone)
+
+    if (shouldSendReadyNotification) {
       try {
-        const response = await fetch('/api/send-whatsapp', {
+        const response = await fetch('/api/whatsapp/send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            phone: order.customer_phone,
-            customerName: order.customer_name,
-            orderNumber: order.order_number,
-            total: order.total,
+            to: order.customer_phone,
+            mode: 'text',
+            text: buildReadyOrderStatusWhatsAppMessage({
+              customerName: order.customer_name,
+              orderNumber: order.order_number,
+              total: order.total,
+            }),
           }),
         })
 
