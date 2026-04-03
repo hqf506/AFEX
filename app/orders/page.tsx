@@ -258,10 +258,27 @@ export default function OrdersPage() {
     if (!allowed) return
 
     const interval = setInterval(() => {
+      if (document.hidden) return
       fetchOrders(true)
     }, 15000)
 
     return () => clearInterval(interval)
+  }, [allowed, fetchOrders])
+
+  useEffect(() => {
+    if (!allowed) return
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        void fetchOrders(true)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [allowed, fetchOrders])
 
   const todayOrders = useMemo(() => {

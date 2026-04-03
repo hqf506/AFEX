@@ -145,10 +145,27 @@ function DashboardPageContent() {
     if (!allowed) return
 
     const interval = setInterval(() => {
+      if (document.hidden) return
       fetchDashboardData(true)
     }, 15000)
 
     return () => clearInterval(interval)
+  }, [allowed, fetchDashboardData])
+
+  useEffect(() => {
+    if (!allowed) return
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        void fetchDashboardData(true)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [allowed, fetchDashboardData])
 
   const todayOrders = useMemo(
