@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AdminButton } from '@/components/admin-button'
 import { PageHero } from '@/components/page-hero'
 import { StatCard } from '@/components/stat-card'
 import { SummaryRow } from '@/components/summary-row'
@@ -45,6 +46,33 @@ function buildOrderComparisonSignature(orders: OrderRecord[]) {
     )
     .join('||')
 }
+
+const ORDER_STATUS_ACTIONS: Array<{
+  status: OrderStatus
+  label: string
+  description: string
+}> = [
+  {
+    status: 'new',
+    label: 'جديد',
+    description: 'إرجاع الطلب إلى قائمة الطلبات الجديدة.',
+  },
+  {
+    status: 'in_progress',
+    label: 'قيد التنفيذ',
+    description: 'بدء تنفيذ الطلب داخل الورشة.',
+  },
+  {
+    status: 'ready',
+    label: 'جاهز',
+    description: 'تأكيد أن الطلب جاهز للاستلام.',
+  },
+  {
+    status: 'delivered',
+    label: 'مستلم',
+    description: 'تأكيد أن العميل استلم الطلب.',
+  },
+]
 
 export default function OrdersPage() {
   const access = usePageAccess(['admin', 'employee'])
@@ -768,124 +796,170 @@ export default function OrdersPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        <button
+                      <div className="flex w-full flex-col gap-2 lg:w-64">
+                        <AdminButton
                           onClick={() =>
                             setExpandedOrderId(
                               expandedOrderId === order.id ? null : order.id
                             )
                           }
-                          className="secondary-btn"
+                          variant={expandedOrderId === order.id ? 'primary' : 'secondary'}
+                          className="w-full"
                         >
                           {expandedOrderId === order.id
-                            ? 'إخفاء التفاصيل'
-                            : 'عرض التفاصيل'}
-                        </button>
+                            ? 'إخفاء تفاصيل الطلب'
+                            : 'عرض تفاصيل الطلب'}
+                        </AdminButton>
 
-                        <button
-                          onClick={() => printThermalReceipt(order)}
-                          className="secondary-btn"
-                        >
-                          طباعة حرارية
-                        </button>
+                        <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-2">
+                          <p className="px-2 pb-2 text-xs font-bold text-slate-500">
+                            إجراءات سريعة
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <AdminButton
+                              onClick={() => printThermalReceipt(order)}
+                              className="w-full"
+                            >
+                              طباعة حرارية
+                            </AdminButton>
 
-                        <button
-                          onClick={() => copyText(order.customer_phone, 'رقم الجوال')}
-                          className="secondary-btn"
-                        >
-                          نسخ الجوال
-                        </button>
+                            <AdminButton
+                              onClick={() => copyText(order.customer_phone, 'رقم الجوال')}
+                              className="w-full"
+                            >
+                              نسخ الجوال
+                            </AdminButton>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     {expandedOrderId === order.id && (
                       <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="inner-card">
-                            <h3 className="mb-3 text-sm font-bold text-slate-900">
-                              تفاصيل الطلب
-                            </h3>
+                        <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+                          <div className="space-y-4">
+                            <div className="inner-card">
+                              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="text-sm font-bold text-slate-900">
+                                  تفاصيل الطلب
+                                </h3>
+                                <span className={ORDER_STATUS_MAP[order.status].className}>
+                                  {ORDER_STATUS_MAP[order.status].label}
+                                </span>
+                              </div>
 
-                            <div className="space-y-2 text-sm text-slate-700">
-                              <Row label="رقم الفاتورة" value={order.invoice_number} />
-                              <Row label="طريقة الدفع" value={order.payment_method} />
-                              <Row label="حالة الدفع" value={order.payment_status} />
-                              <Row label="الإجمالي" value={formatCurrency(order.total)} />
-                              <Row
-                                label="المبلغ المستلم"
-                                value={formatCurrency(order.cash_received)}
-                              />
-                              <Row
-                                label="المتبقي من العميل"
-                                value={formatCurrency(order.remaining_from_customer)}
-                              />
-                              <Row
-                                label="الباقي للعميل"
-                                value={formatCurrency(order.cash_change)}
-                              />
+                              <div className="space-y-2">
+                                <SummaryRow
+                                  label="رقم الفاتورة"
+                                  value={order.invoice_number}
+                                  rowClassName="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                                />
+                                <SummaryRow
+                                  label="طريقة الدفع"
+                                  value={order.payment_method}
+                                  rowClassName="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                                />
+                                <SummaryRow
+                                  label="حالة الدفع"
+                                  value={order.payment_status}
+                                  rowClassName="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                                />
+                                <SummaryRow
+                                  label="الإجمالي"
+                                  value={formatCurrency(order.total)}
+                                  rowClassName="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                                />
+                                <SummaryRow
+                                  label="المبلغ المستلم"
+                                  value={formatCurrency(order.cash_received)}
+                                  rowClassName="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                                />
+                                <SummaryRow
+                                  label="المتبقي من العميل"
+                                  value={formatCurrency(order.remaining_from_customer)}
+                                  rowClassName="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                                />
+                                <SummaryRow
+                                  label="الباقي للعميل"
+                                  value={formatCurrency(order.cash_change)}
+                                  rowClassName="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                                />
+                              </div>
                             </div>
+
+                            {order.note !== '—' && (
+                              <div className="inner-card">
+                                <h3 className="mb-3 text-sm font-bold text-slate-900">
+                                  ملاحظة الطلب
+                                </h3>
+                                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                                  {order.note}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           <div className="inner-card">
-                            <h3 className="mb-3 text-sm font-bold text-slate-900">
-                              تغيير الحالة
-                            </h3>
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                              <h3 className="text-sm font-bold text-slate-900">
+                                تحديث الحالة
+                              </h3>
+                              <span className="badge badge-slate">
+                                الحالة الحالية: {ORDER_STATUS_MAP[order.status].label}
+                              </span>
+                            </div>
+
+                            <p className="mb-4 text-sm text-slate-500">
+                              اختر الحالة التالية بعناية. سيتم حفظ التغيير مباشرة بعد الاختيار.
+                            </p>
 
                             {canManageOrders ? (
-                              <div className="grid gap-2 sm:grid-cols-2">
-                                <button
-                                  onClick={() => updateStatus(order, 'new')}
-                                  disabled={updatingId === order.id}
-                                  className="secondary-btn"
-                                >
-                                  جديد
-                                </button>
+                              <div className="space-y-2">
+                                {ORDER_STATUS_ACTIONS.map((action) => {
+                                  const isCurrentStatus = order.status === action.status
 
-                                <button
-                                  onClick={() => updateStatus(order, 'in_progress')}
-                                  disabled={updatingId === order.id}
-                                  className="secondary-btn"
-                                >
-                                  قيد التنفيذ
-                                </button>
-
-                                <button
-                                  onClick={() => updateStatus(order, 'ready')}
-                                  disabled={updatingId === order.id}
-                                  className="secondary-btn"
-                                >
-                                  جاهز
-                                </button>
-
-                                <button
-                                  onClick={() => updateStatus(order, 'delivered')}
-                                  disabled={updatingId === order.id}
-                                  className="secondary-btn"
-                                >
-                                  مستلم
-                                </button>
+                                  return (
+                                    <button
+                                      key={action.status}
+                                      onClick={() => updateStatus(order, action.status)}
+                                      disabled={updatingId === order.id || isCurrentStatus}
+                                      className={`w-full rounded-[20px] border px-4 py-3 text-right transition ${
+                                        isCurrentStatus
+                                          ? 'cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500'
+                                          : 'border-slate-200 bg-white text-slate-900 hover:border-slate-400'
+                                      } ${
+                                        updatingId === order.id ? 'cursor-not-allowed opacity-60' : ''
+                                      }`}
+                                    >
+                                      <span className="block text-sm font-bold">
+                                        {isCurrentStatus
+                                          ? `${action.label} (الحالة الحالية)`
+                                          : `نقل الطلب إلى ${action.label}`}
+                                      </span>
+                                      <span className="mt-1 block text-xs text-slate-500">
+                                        {action.description}
+                                      </span>
+                                    </button>
+                                  )
+                                })}
                               </div>
                             ) : (
                               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
                                 لا تملك صلاحية تغيير حالة الطلب.
                               </div>
                             )}
-
-                            {order.note !== '—' && (
-                              <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                                <span className="font-bold text-slate-900">
-                                  ملاحظة:
-                                </span>{' '}
-                                {order.note}
-                              </div>
-                            )}
                           </div>
                         </div>
 
                         <div className="inner-card">
-                          <h3 className="mb-3 text-sm font-bold text-slate-900">
-                            العناصر
-                          </h3>
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="text-sm font-bold text-slate-900">
+                              العناصر
+                            </h3>
+                            <span className="badge badge-slate">
+                              {order.items.length} عنصر
+                            </span>
+                          </div>
 
                           {order.items.length === 0 ? (
                             <div className="text-sm text-slate-500">لا توجد عناصر</div>
@@ -929,37 +1003,42 @@ export default function OrdersPage() {
           <div className="space-y-5">
             <div className="page-card">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="section-title">الطلب المحدد</h2>
+                <h2 className="section-title">مراحل حالة الطلب</h2>
                 <span className="badge badge-slate">
-                  {selectedOrder?.order_number || 'لا يوجد'}
+                  {selectedOrder ? selectedOrder.order_number : 'لا يوجد طلب مفتوح'}
                 </span>
               </div>
 
               {!selectedOrder ? (
                 <div className="py-8 text-center text-sm text-slate-500">
-                  اختر طلبًا من القائمة لعرض ملخصه بسرعة
+                  افتح تفاصيل أي طلب من القائمة لمتابعة حالته من مكان واحد بوضوح.
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <SummaryRow label="اسم العميل" value={selectedOrder.customer_name} />
-                  <SummaryRow label="الجوال" value={selectedOrder.customer_phone} />
-                  <SummaryRow label="طريقة الدفع" value={selectedOrder.payment_method} />
-                  <SummaryRow
-                    label="الإجمالي"
-                    value={formatCurrency(selectedOrder.total)}
-                  />
-                  <SummaryRow
-                    label="المبلغ المستلم"
-                    value={formatCurrency(selectedOrder.cash_received)}
-                  />
-                  <SummaryRow
-                    label="المتبقي"
-                    value={formatCurrency(selectedOrder.remaining_from_customer)}
-                  />
-                  <SummaryRow
-                    label="الباقي"
-                    value={formatCurrency(selectedOrder.cash_change)}
-                  />
+                  {ORDER_STATUS_ACTIONS.map((action) => {
+                    const isCurrentStatus = selectedOrder.status === action.status
+
+                    return (
+                      <SummaryRow
+                        key={action.status}
+                        label={
+                          <span className="flex flex-col gap-1">
+                            <span>{action.label}</span>
+                            <span className="text-xs text-slate-400">{action.description}</span>
+                          </span>
+                        }
+                        value={isCurrentStatus ? 'الحالة الحالية' : 'متاح'}
+                        rowClassName={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-3 ${
+                          isCurrentStatus
+                            ? 'border-slate-300 bg-slate-100'
+                            : 'border-slate-200 bg-slate-50'
+                        }`}
+                        valueClassName={`text-sm font-bold ${
+                          isCurrentStatus ? 'text-slate-900' : 'text-slate-500'
+                        }`}
+                      />
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -990,21 +1069,6 @@ export default function OrdersPage() {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Row({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-200 py-2 last:border-b-0">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-semibold text-slate-900">{value}</span>
     </div>
   )
 }
