@@ -151,12 +151,7 @@ function DashboardPageContent() {
           note,
           cash_received,
           remaining_from_customer,
-          cash_change,
-          invoice_items (
-            item_name_snapshot,
-            quantity,
-            line_total
-          )
+          cash_change
         )
         `)
         .order('created_at', { ascending: false })

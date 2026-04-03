@@ -32,11 +32,6 @@ export type DashboardOrderRecord = {
   remaining_from_customer: number
   cash_change: number
   note: string
-  items: {
-    name: string
-    quantity: number
-    line_total: number
-  }[]
 }
 
 export type DashboardOrderSummary = {
@@ -114,11 +109,6 @@ export function mapOrderSourceRowToDashboardOrderRecord(
     remaining_from_customer: record.remainingFromCustomer,
     cash_change: record.cashChange,
     note: record.note,
-    items: record.items.map((item) => ({
-      name: item.name,
-      quantity: item.quantity,
-      line_total: item.lineTotal,
-    })),
   }
 }
 
