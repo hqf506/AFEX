@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Cairo } from 'next/font/google'
+import { AuthStateProvider } from '@/components/auth-state-provider'
 import './globals.css'
 
 const cairo = Cairo({
@@ -20,7 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} h-full antialiased`}>
-      <body className="min-h-full font-sans">{children}</body>
+      <body className="min-h-full font-sans">
+        <AuthStateProvider>{children}</AuthStateProvider>
+      </body>
     </html>
   )
 }

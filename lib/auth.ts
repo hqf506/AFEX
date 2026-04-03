@@ -11,6 +11,7 @@ export type CurrentUserProfile = {
   email: string
   role: AppRole
   full_name: string
+  is_active: boolean
 } & BranchAwareProfileFields
 
 export type AuthenticatedUserProfile = CurrentUserProfile
@@ -27,7 +28,7 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('full_name, role, branch_id')
+    .select('full_name, role, is_active, branch_id')
     .eq('id', user.id)
     .single()
 
@@ -43,6 +44,7 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null
     email: user.email || '',
     role: profile.role as AppRole,
     full_name: profile.full_name || '',
+    is_active: Boolean(profile.is_active),
     branch_id: branchId,
     scope_type: resolveAuthScopeType(profile.role as AppRole, branchId),
   }

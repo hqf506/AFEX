@@ -1,10 +1,10 @@
 ﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
-import { resolveAuthScopeType, type AuthScopeType } from '@/lib/auth-profile'
+import { usePageAccess } from '@/hooks/use-page-access'
+import { SummaryRow } from '@/components/summary-row'
 import { supabase } from '@/lib/supabase/client'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 
@@ -45,13 +45,14 @@ const highlights = [
 ]
 
 export default function HomePage() {
-  const router = useRouter()
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const access = usePageAccess(['admin', 'employee', 'cashier'])
 
-  const [role, setRole] = useState<Role | null>(null)
-  const [branchId, setBranchId] = useState<string | null>(null)
-  const [scopeType, setScopeType] = useState<AuthScopeType | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+  const authLoading = access.loading
+  const allowed = access.allowed
+  const role = access.userRole as Role | null
+  const branchId = access.branchId
+  const scopeType = access.scopeType
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceKey>('home')
   const [iframeLoading, setIframeLoading] = useState(false)
 
@@ -67,66 +68,14 @@ export default function HomePage() {
     selectedBranchId,
     selectedBranchName,
     setSelectedBranchId,
-  } = useAdminBranchFilter(scopeType, branchId, !authLoading)
-
-  useEffect(() => {
-    const checkAccess = async () => {
-      try {
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser()
-
-        if (userError || !user) {
-          router.replace('/login')
-          return
-        }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role, is_active, branch_id')
-          .eq('id', user.id)
-          .single()
-
-        if (profileError || !profile?.role) {
-          router.replace('/login')
-          return
-        }
-
-        if (!profile.is_active) {
-          await supabase.auth.signOut()
-          router.replace('/login')
-          return
-        }
-
-        const resolvedBranchId =
-          typeof profile.branch_id === 'string' ? profile.branch_id : null
-
-        setRole(profile.role as Role)
-        setBranchId(resolvedBranchId)
-        setScopeType(resolveAuthScopeType(profile.role as Role, resolvedBranchId))
-      } catch (error) {
-        console.error('Home auth error:', error)
-        router.replace('/login')
-      } finally {
-        setAuthLoading(false)
-      }
-    }
-
-    void checkAccess()
-  }, [router])
+  } = useAdminBranchFilter(scopeType, branchId, !authLoading && allowed)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
 
-  const roleLabel = useMemo(() => {
-    if (role === 'admin') return 'أدمن'
-    if (role === 'employee') return 'موظف'
-    if (role === 'cashier') return 'كاشير'
-    return ''
-  }, [role])
+  const roleLabel = access.roleLabel
 
   const storeName = settings?.store_name?.trim() || 'Leather Fix ERP'
   const branchName = settings?.branch_name?.trim() || 'الفرع الرئيسي'
@@ -370,14 +319,22 @@ export default function HomePage() {
 
   useEffect(() => {
     if (activeWorkspace === 'home') {
-      setIframeLoading(false)
-      return
+      const timeoutId = window.setTimeout(() => {
+        setIframeLoading(false)
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
     }
 
     if (activeWorkspacePath) {
-      setIframeLoading(true)
+      const timeoutId = window.setTimeout(() => {
+        setIframeLoading(true)
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
     } else {
-      setIframeLoading(false)
+      const timeoutId = window.setTimeout(() => {
+        setIframeLoading(false)
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
     }
   }, [activeWorkspace, activeWorkspacePath])
 
@@ -389,7 +346,10 @@ export default function HomePage() {
       .map((item) => item.key)
 
     if (!allowedKeys.includes(activeWorkspace)) {
-      setActiveWorkspace('home')
+      const timeoutId = window.setTimeout(() => {
+        setActiveWorkspace('home')
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
     }
   }, [role, allSidebarItems, activeWorkspace])
 
@@ -416,29 +376,40 @@ export default function HomePage() {
     ]
 
     if (dashboardKeys.includes(activeWorkspace)) {
-      setDashboardMenuOpen(true)
-      setOrdersMenuOpen(false)
-      setReportsMenuOpen(false)
-      return
+      const timeoutId = window.setTimeout(() => {
+        setDashboardMenuOpen(true)
+        setOrdersMenuOpen(false)
+        setReportsMenuOpen(false)
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
     }
 
     if (ordersKeys.includes(activeWorkspace)) {
-      setOrdersMenuOpen(true)
-      setDashboardMenuOpen(false)
-      setReportsMenuOpen(false)
+      const timeoutId = window.setTimeout(() => {
+        setOrdersMenuOpen(true)
+        setDashboardMenuOpen(false)
+        setReportsMenuOpen(false)
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
       return
     }
 
     if (reportsKeys.includes(activeWorkspace)) {
-      setReportsMenuOpen(true)
-      setDashboardMenuOpen(false)
-      setOrdersMenuOpen(false)
+      const timeoutId = window.setTimeout(() => {
+        setReportsMenuOpen(true)
+        setDashboardMenuOpen(false)
+        setOrdersMenuOpen(false)
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
       return
     }
 
-    setDashboardMenuOpen(false)
-    setOrdersMenuOpen(false)
-    setReportsMenuOpen(false)
+    const timeoutId = window.setTimeout(() => {
+      setDashboardMenuOpen(false)
+      setOrdersMenuOpen(false)
+      setReportsMenuOpen(false)
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
   }, [activeWorkspace])
 
   const openWorkspace = (key: WorkspaceKey) => {
@@ -768,6 +739,16 @@ export default function HomePage() {
       <div className="app-shell" dir="rtl">
         <div className="page-wrap">
           <div className="page-card text-right">جاري التحقق من الصلاحية...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!allowed) {
+    return (
+      <div className="app-shell" dir="rtl">
+        <div className="page-wrap">
+          <div className="page-card text-right">جارٍ التحويل...</div>
         </div>
       </div>
     )
@@ -1174,17 +1155,3 @@ export default function HomePage() {
   )
 }
 
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex flex-row-reverse items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-right">
-      <span className="text-sm font-semibold text-slate-600">{label}</span>
-      <span className="text-sm font-extrabold text-slate-900">{value}</span>
-    </div>
-  )
-}

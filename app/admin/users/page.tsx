@@ -2,7 +2,10 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AdminButton } from '@/components/admin-button'
+import { AdminInput } from '@/components/admin-input'
 import { AdminSelect } from '@/components/admin-select'
+import { PageHeader } from '@/components/page-header'
 import {
   type AdminBranchRecord,
   requiresAssignedBranch,
@@ -35,44 +38,6 @@ type ResetPasswordModalState = {
 }
 
 const emptyForm = createEmptyAdminUserPayload()
-
-function ActionButton({
-  label,
-  onClick,
-  disabled = false,
-  variant = 'default',
-  className = '',
-}: {
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  variant?: 'default' | 'danger' | 'active' | 'inactive'
-  className?: string
-}) {
-  const styles = {
-    default:
-      'border border-slate-300 bg-white text-slate-800 hover:border-slate-400',
-    danger:
-      'border border-red-300 bg-white text-red-600 hover:border-red-400',
-    active:
-      'border border-amber-300 bg-white text-amber-700 hover:border-amber-400',
-    inactive:
-      'border border-emerald-300 bg-white text-emerald-700 hover:border-emerald-400',
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`h-11 rounded-2xl px-4 text-sm font-bold transition ${styles[variant]} ${
-        disabled ? 'cursor-not-allowed opacity-60' : ''
-      } ${className}`}
-    >
-      {label}
-    </button>
-  )
-}
 
 function getBranchName(
   branches: AdminBranchRecord[],
@@ -486,11 +451,7 @@ export default function AdminUsersPage() {
   if (accessLoading) {
     return (
       <main className="min-h-screen bg-slate-50 p-4 md:p-6">
-        <div className="mx-auto max-w-7xl">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            جاري التحقق من الصلاحية...
-          </div>
-        </div>
+        <div className="mx-auto max-w-7xl" />
       </main>
     )
   }
@@ -520,32 +481,29 @@ export default function AdminUsersPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="text-right">
-            <h1 className="text-4xl font-black text-slate-900">إدارة المستخدمين</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              إنشاء المستخدمين وتعديل الصلاحيات وإدارة الحسابات
-            </p>
-          </div>
+        <PageHeader
+          title="إدارة المستخدمين"
+          subtitle="إنشاء المستخدمين وتعديل الصلاحيات وإدارة الحسابات"
+          actions={
+            <>
+              {isSystemAdmin ? (
+                <Link
+                  href="/admin/branches"
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+                >
+                  إدارة الفروع
+                </Link>
+              ) : null}
 
-          <div className="flex flex-wrap justify-end gap-3">
-            {isSystemAdmin ? (
               <Link
-                href="/admin/branches"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+                href="/"
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
               >
-                إدارة الفروع
+                العودة إلى القائمة الرئيسية
               </Link>
-            ) : null}
-
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
-            >
-              العودة إلى القائمة الرئيسية
-            </Link>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {successMessage ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
@@ -569,12 +527,12 @@ export default function AdminUsersPage() {
               <label className="mb-2 block text-sm font-bold text-slate-700">
                 اسم المستخدم
               </label>
-              <input
+              <AdminInput
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="مثال: faisal"
-                className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
+                className="h-14 border-slate-300 text-right focus:border-slate-500"
                 autoComplete="off"
               />
             </div>
@@ -583,12 +541,12 @@ export default function AdminUsersPage() {
               <label className="mb-2 block text-sm font-bold text-slate-700">
                 الاسم الكامل
               </label>
-              <input
+              <AdminInput
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="اختياري"
-                className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
+                className="h-14 border-slate-300 text-right focus:border-slate-500"
                 autoComplete="off"
               />
             </div>
@@ -597,12 +555,12 @@ export default function AdminUsersPage() {
               <label className="mb-2 block text-sm font-bold text-slate-700">
                 كلمة المرور
               </label>
-              <input
+              <AdminInput
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="6 أحرف أو أكثر"
-                className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
+                className="h-14 border-slate-300 text-right focus:border-slate-500"
                 autoComplete="new-password"
               />
             </div>
@@ -611,12 +569,12 @@ export default function AdminUsersPage() {
               <label className="mb-2 block text-sm font-bold text-slate-700">
                 تأكيد كلمة المرور
               </label>
-              <input
+              <AdminInput
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="أعد كتابة كلمة المرور"
-                className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
+                className="h-14 border-slate-300 text-right focus:border-slate-500"
                 autoComplete="new-password"
               />
             </div>
@@ -680,11 +638,9 @@ export default function AdminUsersPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 lg:self-end">
-                  <ActionButton
-                    label="مسح الحقول"
-                    onClick={resetForm}
-                    className="min-w-[140px]"
-                  />
+                  <AdminButton onClick={resetForm} className="min-w-[140px]">
+                    مسح الحقول
+                  </AdminButton>
 
                   <button
                     type="submit"
@@ -703,7 +659,7 @@ export default function AdminUsersPage() {
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <h2 className="text-2xl font-black text-slate-900">المستخدمون الحاليون</h2>
 
-            <ActionButton label="تحديث" onClick={loadUsers} />
+            <AdminButton onClick={loadUsers}>تحديث</AdminButton>
           </div>
 
           {loadingUsers ? (
@@ -805,36 +761,40 @@ export default function AdminUsersPage() {
                                 ))}
                               </AdminSelect>
 
-                              <ActionButton
-                                label="حفظ الفرع"
+                              <AdminButton
                                 onClick={() => handleUserBranchUpdate(user)}
                                 disabled={isBusy || isMainAdmin}
-                              />
+                              >
+                                حفظ الفرع
+                              </AdminButton>
                             </div>
                           </td>
                         ) : null}
                         <td className="px-3 py-4">
-                          <ActionButton
-                            label="إعادة التعيين"
+                          <AdminButton
                             onClick={() => openResetPasswordModal(user)}
                             disabled={isBusy}
-                          />
+                          >
+                            إعادة التعيين
+                          </AdminButton>
                         </td>
                         <td className="px-3 py-4">
-                          <ActionButton
-                            label={user.is_active ? 'تعطيل' : 'تفعيل'}
+                          <AdminButton
                             onClick={() => handleToggleStatus(user)}
                             disabled={isBusy || isMainAdmin}
                             variant={user.is_active ? 'active' : 'inactive'}
-                          />
+                          >
+                            {user.is_active ? 'تعطيل' : 'تفعيل'}
+                          </AdminButton>
                         </td>
                         <td className="px-3 py-4">
-                          <ActionButton
-                            label="حذف"
+                          <AdminButton
                             onClick={() => handleDeleteUser(user)}
                             disabled={isBusy || isMainAdmin}
                             variant="danger"
-                          />
+                          >
+                            حذف
+                          </AdminButton>
                         </td>
                       </tr>
                     )
@@ -859,12 +819,12 @@ export default function AdminUsersPage() {
                 <label className="mb-2 block text-sm font-bold text-slate-700">
                   كلمة المرور الجديدة
                 </label>
-                <input
+                <AdminInput
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="6 أحرف أو أكثر"
-                  className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
+                  className="h-14 border-slate-300 text-right focus:border-slate-500"
                   autoComplete="new-password"
                 />
               </div>
@@ -873,19 +833,19 @@ export default function AdminUsersPage() {
                 <label className="mb-2 block text-sm font-bold text-slate-700">
                   تأكيد كلمة المرور الجديدة
                 </label>
-                <input
+                <AdminInput
                   type="password"
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   placeholder="أعد كتابة كلمة المرور"
-                  className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
+                  className="h-14 border-slate-300 text-right focus:border-slate-500"
                   autoComplete="new-password"
                 />
               </div>
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
-              <ActionButton label="إلغاء" onClick={closeResetModal} />
+              <AdminButton onClick={closeResetModal}>إلغاء</AdminButton>
 
               <button
                 type="button"

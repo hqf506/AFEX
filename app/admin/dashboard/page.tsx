@@ -3,6 +3,9 @@
 import Link from 'next/link'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { PageHero } from '@/components/page-hero'
+import { StatCard } from '@/components/stat-card'
+import { SummaryRow } from '@/components/summary-row'
 import { getRoleLabel } from '@/lib/app-roles'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
@@ -236,9 +239,7 @@ function DashboardPageContent() {
   if (authLoading) {
     return (
       <div className="app-shell">
-        <div className="page-wrap">
-          <div className="page-card">جاري التحقق من الصلاحية...</div>
-        </div>
+        <div className="page-wrap" />
       </div>
     )
   }
@@ -523,7 +524,7 @@ function DashboardPageContent() {
           </aside>
 
           <main className="space-y-5 xl:order-2">
-            <div className="page-hero">
+            <PageHero>
               <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
                 <div>
                   <p className="text-sm text-slate-500">أهلاً بك من جديد</p>
@@ -552,23 +553,27 @@ function DashboardPageContent() {
                   <StatCard
                     title="إجمالي اليوم"
                     value={formatCurrency(stats.totalRevenue)}
+                    className="!p-5"
                   />
                   <StatCard
                     title="طلبات اليوم"
                     value={stats.todayOrdersCount.toString()}
+                    className="!p-5"
                   />
                   <StatCard
                     title="فواتير النطاق"
                     value={stats.rangeOrdersCount.toString()}
+                    className="!p-5"
                   />
                   <StatCard
                     title="آخر تحديث"
                     value={lastUpdated || '—'}
                     valueClassName="text-lg sm:text-xl"
+                    className="!p-5"
                   />
                 </div>
               </div>
-            </div>
+            </PageHero>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard title="طلبات جديدة" value={stats.newCount.toString()} valueClassName="text-blue-700" />
@@ -589,38 +594,6 @@ function DashboardPageContent() {
           </main>
         </div>
       </div>
-    </div>
-  )
-}
-
-function StatCard({
-  title,
-  value,
-  valueClassName = 'text-slate-900',
-}: {
-  title: string
-  value: string
-  valueClassName?: string
-}) {
-  return (
-    <div className="stat-card !p-5">
-      <p className="stat-label">{title}</p>
-      <p className={`stat-value ${valueClassName}`}>{value}</p>
-    </div>
-  )
-}
-
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <span className="text-sm text-slate-600">{label}</span>
-      <span className="text-sm font-bold text-slate-900">{value}</span>
     </div>
   )
 }

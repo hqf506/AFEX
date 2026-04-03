@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { PageHero } from '@/components/page-hero'
+import { SummaryRow } from '@/components/summary-row'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
   INVOICE_CUSTOMER_STORAGE_KEY,
@@ -225,9 +227,7 @@ export default function InvoiceItemsPage() {
   if (authLoading) {
     return (
       <div className="app-shell">
-        <div className="page-wrap">
-          <div className="page-card">جاري التحقق من الصلاحية...</div>
-        </div>
+        <div className="page-wrap" />
       </div>
     )
   }
@@ -248,7 +248,7 @@ export default function InvoiceItemsPage() {
         {successMessage && <div className="success-alert">{successMessage}</div>}
         {errorMessage && <div className="error-alert">{errorMessage}</div>}
 
-        <div className="page-hero">
+        <PageHero>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="page-title">شاشة البيع السريع POS</h1>
@@ -279,7 +279,7 @@ export default function InvoiceItemsPage() {
               <span className="badge badge-green">الصلاحية: {roleLabel}</span>
             </div>
           </div>
-        </div>
+        </PageHero>
 
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
           <section className="page-card">
@@ -524,21 +524,6 @@ export default function InvoiceItemsPage() {
           </aside>
         </div>
       </div>
-    </div>
-  )
-}
-
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
-      <span className="text-sm text-slate-600">{label}</span>
-      <span className="text-sm font-bold text-slate-900">{value}</span>
     </div>
   )
 }

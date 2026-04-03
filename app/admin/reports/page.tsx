@@ -415,9 +415,7 @@ export default function ReportsPage() {
   if (authLoading) {
     return (
       <div className="app-shell">
-        <div className="page-wrap">
-          <div className="page-card">جاري التحقق من الصلاحية...</div>
-        </div>
+        <div className="page-wrap" />
       </div>
     )
   }

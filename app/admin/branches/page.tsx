@@ -2,6 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { AdminButton } from '@/components/admin-button'
+import { AdminInput } from '@/components/admin-input'
+import { PageHeader } from '@/components/page-header'
 import { notifyAdminBranchOptionsChanged } from '@/lib/admin/branch-filter'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
 import { usePageAccess } from '@/hooks/use-page-access'
@@ -140,11 +143,7 @@ export default function AdminBranchesPage() {
   if (accessLoading) {
     return (
       <main className="min-h-screen bg-slate-50 p-4 md:p-6">
-        <div className="mx-auto max-w-7xl">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            جاري التحقق من الصلاحية...
-          </div>
-        </div>
+        <div className="mx-auto max-w-7xl" />
       </main>
     )
   }
@@ -182,29 +181,26 @@ export default function AdminBranchesPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="text-right">
-            <h1 className="text-4xl font-black text-slate-900">إدارة الفروع</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              إنشاء الفروع وتفعيلها أو تعطيلها على مستوى النظام
-            </p>
-          </div>
-
-          <div className="flex flex-wrap justify-end gap-3">
-            <Link
-              href="/admin/users"
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-900"
-            >
-              العودة إلى المستخدمين
-            </Link>
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
-            >
-              العودة إلى القائمة الرئيسية
-            </Link>
-          </div>
-        </div>
+        <PageHeader
+          title="إدارة الفروع"
+          subtitle="إنشاء الفروع وتفعيلها أو تعطيلها على مستوى النظام"
+          actions={
+            <>
+              <Link
+                href="/admin/users"
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+              >
+                العودة إلى المستخدمين
+              </Link>
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
+              >
+                العودة إلى القائمة الرئيسية
+              </Link>
+            </>
+          }
+        />
 
         {successMessage ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
@@ -228,7 +224,7 @@ export default function AdminBranchesPage() {
               <label className="mb-2 block text-sm font-bold text-slate-700">
                 كود الفرع
               </label>
-              <input
+              <AdminInput
                 type="text"
                 value={form.code}
                 onChange={(e) =>
@@ -238,7 +234,7 @@ export default function AdminBranchesPage() {
                   }))
                 }
                 placeholder="مثال: riyadh"
-                className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
+                className="h-14 border-slate-300 text-right focus:border-slate-500"
                 autoComplete="off"
               />
             </div>
@@ -247,7 +243,7 @@ export default function AdminBranchesPage() {
               <label className="mb-2 block text-sm font-bold text-slate-700">
                 اسم الفرع
               </label>
-              <input
+              <AdminInput
                 type="text"
                 value={form.name}
                 onChange={(e) =>
@@ -257,19 +253,20 @@ export default function AdminBranchesPage() {
                   }))
                 }
                 placeholder="مثال: فرع الرياض"
-                className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500"
+                className="h-14 border-slate-300 text-right focus:border-slate-500"
                 autoComplete="off"
               />
             </div>
 
             <div className="md:col-span-2 flex justify-end">
-              <button
+              <AdminButton
                 type="submit"
                 disabled={!canCreate || creating}
-                className="h-11 min-w-[160px] rounded-2xl bg-slate-950 px-6 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+                variant="primary"
+                className="min-w-[160px] px-6"
               >
                 {creating ? 'جاري إضافة الفرع...' : 'إضافة فرع'}
-              </button>
+              </AdminButton>
             </div>
           </form>
         </section>
@@ -277,13 +274,11 @@ export default function AdminBranchesPage() {
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:p-7">
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <h2 className="text-2xl font-black text-slate-900">الفروع الحالية</h2>
-            <button
-              type="button"
+            <AdminButton
               onClick={() => void loadBranches()}
-              className="h-11 rounded-2xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-800"
             >
               تحديث
-            </button>
+            </AdminButton>
           </div>
 
           {loadingBranches ? (
@@ -321,18 +316,13 @@ export default function AdminBranchesPage() {
                           </span>
                         </td>
                         <td className="px-3 py-4">
-                          <button
-                            type="button"
+                          <AdminButton
                             onClick={() => void handleToggleBranch(branch)}
                             disabled={isBusy}
-                            className={`h-11 rounded-2xl px-4 text-sm font-bold transition ${
-                              branch.is_active
-                                ? 'border border-amber-300 bg-white text-amber-700'
-                                : 'border border-emerald-300 bg-white text-emerald-700'
-                            } disabled:cursor-not-allowed disabled:opacity-60`}
+                            variant={branch.is_active ? 'active' : 'inactive'}
                           >
                             {branch.is_active ? 'تعطيل' : 'تفعيل'}
-                          </button>
+                          </AdminButton>
                         </td>
                       </tr>
                     )

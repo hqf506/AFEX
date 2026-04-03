@@ -1,13 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { useAuthState } from '@/components/auth-state-provider'
 import { getRoleLabel, type AppRole } from '@/lib/app-roles'
-import {
-  resolveAuthScopeType,
-  type AuthScopeType,
-} from '@/lib/auth-profile'
-import { supabase } from '@/lib/supabase/client'
+import { type AuthScopeType } from '@/lib/auth-profile'
 
 export type { AppRole }
 
@@ -57,7 +54,7 @@ export function usePageAccess(
 ): UsePageAccessResult {
   const router = useRouter()
   const pathname = usePathname()
-  const mountedRef = useRef(true)
+  const authState = useAuthState()
   const {
     allowedRoles,
     redirectIfNoUser: resolvedRedirectIfNoUser,
@@ -68,146 +65,50 @@ export function usePageAccess(
     redirectIfForbidden
   )
   const allowedRolesKey = allowedRoles.join('|')
+  const stableAllowedRoles = allowedRolesKey
+    ? (allowedRolesKey.split('|') as AppRole[])
+    : []
 
-  const [loading, setLoading] = useState(true)
-  const [allowed, setAllowed] = useState(false)
-  const [userRole, setUserRole] = useState<AppRole | null>(null)
-  const [branchId, setBranchId] = useState<string | null>(null)
-  const [scopeType, setScopeType] = useState<AuthScopeType | null>(null)
+  const profile = authState.profile
+  const loading = authState.loading
+  const userRole = profile?.role || null
+  const branchId = profile?.branch_id || null
+  const scopeType = profile?.scope_type || null
+  const allowed =
+    Boolean(profile) &&
+    (stableAllowedRoles.length === 0 ||
+      (userRole ? stableAllowedRoles.includes(userRole) : false))
 
   useEffect(() => {
-    mountedRef.current = true
+    const stableAllowedRolesForEffect = allowedRolesKey
+      ? (allowedRolesKey.split('|') as AppRole[])
+      : []
 
-    async function checkAccess() {
-      const stableAllowedRoles = allowedRolesKey
-        ? (allowedRolesKey.split('|') as AppRole[])
-        : []
-
-      try {
-        if (mountedRef.current) {
-          setLoading(true)
-        }
-
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession()
-
-        if (sessionError || !session?.user) {
-          if (mountedRef.current) {
-            setAllowed(false)
-            setUserRole(null)
-            setLoading(false)
-            router.replace(resolvedRedirectIfNoUser)
-          }
-          return
-        }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role, is_active, branch_id')
-          .eq('id', session.user.id)
-          .single()
-
-        if (profileError || !profile) {
-          if (mountedRef.current) {
-            setAllowed(false)
-            setUserRole(null)
-            setBranchId(null)
-            setScopeType(null)
-            setLoading(false)
-            await supabase.auth.signOut()
-            router.replace(resolvedRedirectIfNoUser)
-          }
-          return
-        }
-
-        if (!profile.is_active) {
-          await supabase.auth.signOut()
-
-          if (mountedRef.current) {
-            setAllowed(false)
-            setUserRole(null)
-            setBranchId(null)
-            setScopeType(null)
-            setLoading(false)
-            router.replace('/login')
-          }
-          return
-        }
-
-        const role = profile.role as AppRole
-
-        if (!role) {
-          if (mountedRef.current) {
-            setAllowed(false)
-            setUserRole(null)
-            setBranchId(null)
-            setScopeType(null)
-            setLoading(false)
-            router.replace(resolvedRedirectIfForbidden)
-          }
-          return
-        }
-
-        if (
-          stableAllowedRoles.length > 0 &&
-          !stableAllowedRoles.includes(role)
-        ) {
-          if (mountedRef.current) {
-            setAllowed(false)
-            setUserRole(role)
-            setBranchId(
-              typeof profile.branch_id === 'string' ? profile.branch_id : null
-            )
-            setScopeType(
-              resolveAuthScopeType(
-                role,
-                typeof profile.branch_id === 'string' ? profile.branch_id : null
-              )
-            )
-            setLoading(false)
-            router.replace(resolvedRedirectIfForbidden)
-          }
-          return
-        }
-
-        const resolvedBranchId =
-          typeof profile.branch_id === 'string' ? profile.branch_id : null
-
-        if (mountedRef.current) {
-          setUserRole(role)
-          setBranchId(resolvedBranchId)
-          setScopeType(resolveAuthScopeType(role, resolvedBranchId))
-          setAllowed(true)
-          setLoading(false)
-        }
-      } catch (error) {
-        console.error('Page access error:', error)
-        if (mountedRef.current) {
-          setAllowed(false)
-          setUserRole(null)
-          setBranchId(null)
-          setScopeType(null)
-          setLoading(false)
-          router.replace(resolvedRedirectIfForbidden)
-        }
-      }
+    if (loading) {
+      return
     }
 
-    checkAccess()
+    if (!profile) {
+      router.replace(resolvedRedirectIfNoUser)
+      return
+    }
 
-    return () => {
-      mountedRef.current = false
+    if (
+      stableAllowedRolesForEffect.length > 0 &&
+      userRole &&
+      !stableAllowedRolesForEffect.includes(userRole)
+    ) {
+      router.replace(resolvedRedirectIfForbidden)
     }
   }, [
     allowedRolesKey,
+    loading,
     pathname,
-    redirectIfForbidden,
-    redirectIfNoUser,
+    profile,
     resolvedRedirectIfForbidden,
     resolvedRedirectIfNoUser,
     router,
+    userRole,
   ])
 
   return {

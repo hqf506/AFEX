@@ -2,6 +2,9 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PageHero } from '@/components/page-hero'
+import { StatCard } from '@/components/stat-card'
+import { SummaryRow } from '@/components/summary-row'
 import { getRoleLabel } from '@/lib/app-roles'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
@@ -555,9 +558,7 @@ export default function OrdersPage() {
   if (authLoading) {
     return (
       <div className="app-shell">
-        <div className="page-wrap">
-          <div className="page-card">جاري التحقق من الصلاحية...</div>
-        </div>
+        <div className="page-wrap" />
       </div>
     )
   }
@@ -578,7 +579,7 @@ export default function OrdersPage() {
         {successMessage && <div className="success-alert">{successMessage}</div>}
         {errorMessage && <div className="error-alert">{errorMessage}</div>}
 
-        <div className="page-hero">
+        <PageHero>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="page-title">إدارة الطلبات</h1>
@@ -649,7 +650,7 @@ export default function OrdersPage() {
               </button>
             </div>
           </div>
-        </div>
+        </PageHero>
 
         <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           يتم عرض آخر {ORDERS_FETCH_LIMIT} طلب فقط لتحسين السرعة والأداء.
@@ -989,38 +990,6 @@ export default function OrdersPage() {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function StatCard({
-  title,
-  value,
-  valueClassName = 'text-slate-900',
-}: {
-  title: string
-  value: string
-  valueClassName?: string
-}) {
-  return (
-    <div className="stat-card">
-      <p className="stat-label">{title}</p>
-      <p className={`stat-value ${valueClassName}`}>{value}</p>
-    </div>
-  )
-}
-
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <span className="text-sm text-slate-600">{label}</span>
-      <span className="text-sm font-bold text-slate-900">{value}</span>
     </div>
   )
 }
