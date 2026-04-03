@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { jsonResponse } from '@/lib/api/responses'
+import { getTrimmedString } from '@/lib/api/validation'
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,18 +20,18 @@ export async function POST(req: NextRequest) {
       total?: number
     } = body
 
-    if (!phone) {
-      return NextResponse.json(
-        { success: false, error: 'Phone is required' },
-        { status: 400 }
-      )
+    const normalizedPhone = getTrimmedString(phone)
+
+    if (!normalizedPhone) {
+      return jsonResponse(
+        { success: false, error: 'Phone is required' }, 400)
     }
 
     const token = process.env.ULTRAMSG_TOKEN
     const apiUrl = process.env.ULTRAMSG_API_URL
 
     if (!token || !apiUrl) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           success: false,
           error: 'Missing ULTRAMSG env vars',
@@ -37,12 +39,10 @@ export async function POST(req: NextRequest) {
             hasToken: Boolean(token),
             hasApiUrl: Boolean(apiUrl),
           },
-        },
-        { status: 500 }
-      )
+        }, 500)
     }
 
-    const cleanPhone = phone.replace(/\D/g, '')
+    const cleanPhone = normalizedPhone.replace(/\D/g, '')
 
     const message =
       `مرحبًا ${customerName || 'عميلنا العزيز'}\n` +
@@ -67,27 +67,23 @@ export async function POST(req: NextRequest) {
     const result = await response.json().catch(() => null)
 
     if (!response.ok) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           success: false,
           error: result || 'UltraMsg request failed',
           status: response.status,
-        },
-        { status: 500 }
-      )
+        }, 500)
     }
 
-    return NextResponse.json({
+    return jsonResponse({
       success: true,
       result,
     })
   } catch (error) {
-    return NextResponse.json(
+    return jsonResponse(
       {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+      }, 500)
   }
 }

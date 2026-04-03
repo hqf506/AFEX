@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { jsonResponse } from '@/lib/api/responses'
 import {
   isPrimaryAdminUsername,
   normalizeAdminUserId,
 } from '@/lib/admin/users'
+import { isBooleanValue } from '@/lib/api/validation'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type ToggleUserStatusBody = {
@@ -25,18 +27,14 @@ export async function POST(request: NextRequest) {
     const isActive = body.is_active
 
     if (!userId) {
-      const response = NextResponse.json(
-        { error: 'معرف المستخدم مطلوب' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'معرف المستخدم مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
-    if (typeof isActive !== 'boolean') {
-      const response = NextResponse.json(
-        { error: 'قيمة is_active غير صالحة' },
-        { status: 400 }
-      )
+    if (!isBooleanValue(isActive)) {
+      const response = jsonResponse(
+        { error: 'قيمة is_active غير صالحة' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -47,29 +45,23 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingProfileError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
           details: existingProfileError.message,
-        },
-        { status: 500 }
-      )
+        }, 500)
       return withAuthCookies(auth.response, response)
     }
 
     if (!existingProfile) {
-      const response = NextResponse.json(
-        { error: 'المستخدم غير موجود' },
-        { status: 404 }
-      )
+      const response = jsonResponse(
+        { error: 'المستخدم غير موجود' }, 404)
       return withAuthCookies(auth.response, response)
     }
 
     if (isPrimaryAdminUsername(existingProfile.username)) {
-      const response = NextResponse.json(
-        { error: 'لا يمكن تعطيل أو تفعيل حساب admin الرئيسي' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'لا يمكن تعطيل أو تفعيل حساب admin الرئيسي' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -82,17 +74,15 @@ export async function POST(request: NextRequest) {
       .eq('id', userId)
 
     if (updateError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل تحديث حالة المستخدم',
           details: updateError.message,
-        },
-        { status: 400 }
-      )
+        }, 400)
       return withAuthCookies(auth.response, response)
     }
 
-    const response = NextResponse.json({
+    const response = jsonResponse({
       success: true,
       message: isActive ? 'تم تفعيل المستخدم بنجاح' : 'تم تعطيل المستخدم بنجاح',
       user: {
@@ -104,13 +94,11 @@ export async function POST(request: NextRequest) {
 
     return withAuthCookies(auth.response, response)
   } catch (error) {
-    const response = NextResponse.json(
+    const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
         details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+      }, 500)
 
     return withAuthCookies(auth.response, response)
   }

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { jsonResponse } from '@/lib/api/responses'
 import {
   hasValidAdminPasswordLength,
   isValidAdminRole,
@@ -33,37 +34,29 @@ export async function POST(request: NextRequest) {
     const role: AppRole = body.role || 'employee'
 
     if (!username) {
-      const response = NextResponse.json(
-        { error: 'اسم المستخدم مطلوب' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'اسم المستخدم مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
     if (!/^[a-z0-9._-]+$/.test(username)) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'اسم المستخدم غير صالح',
           details: 'استخدم حروف إنجليزية صغيرة أو أرقام أو . أو _ أو - فقط',
-        },
-        { status: 400 }
-      )
+        }, 400)
       return withAuthCookies(auth.response, response)
     }
 
     if (!hasValidAdminPasswordLength(password)) {
-      const response = NextResponse.json(
-        { error: 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
     if (!isValidAdminRole(role)) {
-      const response = NextResponse.json(
-        { error: 'الصلاحية غير صالحة' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'الصلاحية غير صالحة' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -76,24 +69,20 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingProfileError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل التحقق من اسم المستخدم في profiles',
           details: existingProfileError.message,
-        },
-        { status: 500 }
-      )
+        }, 500)
       return withAuthCookies(auth.response, response)
     }
 
     if (existingProfile) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'اسم المستخدم مستخدم بالفعل',
           details: `username "${username}" موجود مسبقًا`,
-        },
-        { status: 409 }
-      )
+        }, 409)
       return withAuthCookies(auth.response, response)
     }
 
@@ -101,13 +90,11 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.auth.admin.listUsers()
 
     if (listUsersError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل قراءة مستخدمي auth',
           details: listUsersError.message,
-        },
-        { status: 500 }
-      )
+        }, 500)
       return withAuthCookies(auth.response, response)
     }
 
@@ -116,13 +103,11 @@ export async function POST(request: NextRequest) {
     )
 
     if (existingAuthUser) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'المستخدم موجود مسبقًا في auth',
           details: `email "${internalEmail}" موجود مسبقًا في auth.users`,
-        },
-        { status: 409 }
-      )
+        }, 409)
       return withAuthCookies(auth.response, response)
     }
 
@@ -139,13 +124,11 @@ export async function POST(request: NextRequest) {
       })
 
     if (createAuthError || !createdUser.user) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل إنشاء المستخدم في auth',
           details: createAuthError?.message || 'Unknown auth error',
-        },
-        { status: 400 }
-      )
+        }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -164,17 +147,15 @@ export async function POST(request: NextRequest) {
     if (profileInsertError) {
       await supabaseAdmin.auth.admin.deleteUser(userId)
 
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'تم إنشاء المستخدم في auth لكن فشل حفظه في profiles',
           details: profileInsertError.message,
-        },
-        { status: 400 }
-      )
+        }, 400)
       return withAuthCookies(auth.response, response)
     }
 
-    const response = NextResponse.json({
+    const response = jsonResponse({
       success: true,
       message: 'تم إنشاء المستخدم بنجاح',
       user: {
@@ -188,13 +169,11 @@ export async function POST(request: NextRequest) {
 
     return withAuthCookies(auth.response, response)
   } catch (error) {
-    const response = NextResponse.json(
+    const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
         details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+      }, 500)
 
     return withAuthCookies(auth.response, response)
   }

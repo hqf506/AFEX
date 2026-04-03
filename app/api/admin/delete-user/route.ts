@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { jsonResponse } from '@/lib/api/responses'
 import {
   isPrimaryAdminUsername,
   normalizeAdminUserId,
@@ -23,10 +24,8 @@ export async function POST(request: NextRequest) {
     const userId = normalizeAdminUserId(body.userId)
 
     if (!userId) {
-      const response = NextResponse.json(
-        { error: 'معرف المستخدم مطلوب' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'معرف المستخدم مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -37,29 +36,23 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingProfileError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
           details: existingProfileError.message,
-        },
-        { status: 500 }
-      )
+        }, 500)
       return withAuthCookies(auth.response, response)
     }
 
     if (!existingProfile) {
-      const response = NextResponse.json(
-        { error: 'المستخدم غير موجود في profiles' },
-        { status: 404 }
-      )
+      const response = jsonResponse(
+        { error: 'المستخدم غير موجود في profiles' }, 404)
       return withAuthCookies(auth.response, response)
     }
 
     if (isPrimaryAdminUsername(existingProfile.username)) {
-      const response = NextResponse.json(
-        { error: 'لا يمكن حذف حساب admin الرئيسي' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'لا يمكن حذف حساب admin الرئيسي' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -69,43 +62,37 @@ export async function POST(request: NextRequest) {
       .eq('id', userId)
 
     if (deleteProfileError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل حذف المستخدم من profiles',
           details: deleteProfileError.message,
-        },
-        { status: 400 }
-      )
+        }, 400)
       return withAuthCookies(auth.response, response)
     }
 
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (deleteAuthError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'تم حذف المستخدم من profiles لكن فشل حذفه من auth',
           details: deleteAuthError.message,
-        },
-        { status: 400 }
-      )
+        }, 400)
       return withAuthCookies(auth.response, response)
     }
 
-    const response = NextResponse.json({
+    const response = jsonResponse({
       success: true,
       message: 'تم حذف المستخدم بنجاح',
     })
 
     return withAuthCookies(auth.response, response)
   } catch (error) {
-    const response = NextResponse.json(
+    const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
         details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+      }, 500)
 
     return withAuthCookies(auth.response, response)
   }

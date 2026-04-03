@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { jsonResponse } from '@/lib/api/responses'
 import {
   isPrimaryAdminUsername,
   isValidAdminRole,
@@ -27,18 +28,14 @@ export async function POST(request: NextRequest) {
     const role = body.role
 
     if (!userId) {
-      const response = NextResponse.json(
-        { error: 'معرف المستخدم مطلوب' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'معرف المستخدم مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
     if (!role || !isValidAdminRole(role)) {
-      const response = NextResponse.json(
-        { error: 'الصلاحية غير صالحة' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'الصلاحية غير صالحة' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -49,29 +46,23 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (profileCheckError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
           details: profileCheckError.message,
-        },
-        { status: 500 }
-      )
+        }, 500)
       return withAuthCookies(auth.response, response)
     }
 
     if (!existingProfile) {
-      const response = NextResponse.json(
-        { error: 'المستخدم غير موجود في profiles' },
-        { status: 404 }
-      )
+      const response = jsonResponse(
+        { error: 'المستخدم غير موجود في profiles' }, 404)
       return withAuthCookies(auth.response, response)
     }
 
     if (isPrimaryAdminUsername(existingProfile.username)) {
-      const response = NextResponse.json(
-        { error: 'لا يمكن تعديل صلاحية حساب admin الرئيسي' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'لا يمكن تعديل صلاحية حساب admin الرئيسي' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -84,17 +75,15 @@ export async function POST(request: NextRequest) {
       .eq('id', userId)
 
     if (updateError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل تحديث الصلاحية',
           details: updateError.message,
-        },
-        { status: 400 }
-      )
+        }, 400)
       return withAuthCookies(auth.response, response)
     }
 
-    const response = NextResponse.json({
+    const response = jsonResponse({
       success: true,
       message: 'تم تحديث الصلاحية بنجاح',
       user: {
@@ -106,13 +95,11 @@ export async function POST(request: NextRequest) {
 
     return withAuthCookies(auth.response, response)
   } catch (error) {
-    const response = NextResponse.json(
+    const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
         details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+      }, 500)
 
     return withAuthCookies(auth.response, response)
   }

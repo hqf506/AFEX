@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { jsonResponse } from '@/lib/api/responses'
 import {
   hasValidAdminPasswordLength,
   normalizeAdminPassword,
@@ -26,18 +27,14 @@ export async function POST(request: NextRequest) {
     const newPassword = normalizeAdminPassword(body.newPassword)
 
     if (!userId) {
-      const response = NextResponse.json(
-        { error: 'معرف المستخدم مطلوب' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'معرف المستخدم مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
     if (!newPassword || !hasValidAdminPasswordLength(newPassword)) {
-      const response = NextResponse.json(
-        { error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أكثر' },
-        { status: 400 }
-      )
+      const response = jsonResponse(
+        { error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أكثر' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -48,21 +45,17 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingProfileError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
           details: existingProfileError.message,
-        },
-        { status: 500 }
-      )
+        }, 500)
       return withAuthCookies(auth.response, response)
     }
 
     if (!existingProfile) {
-      const response = NextResponse.json(
-        { error: 'المستخدم غير موجود' },
-        { status: 404 }
-      )
+      const response = jsonResponse(
+        { error: 'المستخدم غير موجود' }, 404)
       return withAuthCookies(auth.response, response)
     }
 
@@ -74,30 +67,26 @@ export async function POST(request: NextRequest) {
     )
 
     if (updateAuthError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل إعادة تعيين كلمة المرور',
           details: updateAuthError.message,
-        },
-        { status: 400 }
-      )
+        }, 400)
       return withAuthCookies(auth.response, response)
     }
 
-    const response = NextResponse.json({
+    const response = jsonResponse({
       success: true,
       message: `تم إعادة تعيين كلمة مرور المستخدم ${existingProfile.username} بنجاح`,
     })
 
     return withAuthCookies(auth.response, response)
   } catch (error) {
-    const response = NextResponse.json(
+    const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
         details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+      }, 500)
 
     return withAuthCookies(auth.response, response)
   }

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { jsonResponse } from '@/lib/api/responses'
 import {
   normalizeSystemSettingsUpdatePayload,
   type SystemSettingsUpdateBody,
@@ -21,31 +22,27 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
 
     if (error) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل تحميل إعدادات النظام',
           details: error.message,
-        },
-        { status: 500 }
-      )
+        }, 500)
 
       return withAuthCookies(auth.response, response)
     }
 
-    const response = NextResponse.json({
+    const response = jsonResponse({
       success: true,
       settings: data || null,
     })
 
     return withAuthCookies(auth.response, response)
   } catch (error) {
-    const response = NextResponse.json(
+    const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع أثناء تحميل الإعدادات',
         details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+      }, 500)
 
     return withAuthCookies(auth.response, response)
   }
@@ -68,24 +65,20 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingError) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل التحقق من سجل الإعدادات الحالي',
           details: existingError.message,
-        },
-        { status: 500 }
-      )
+        }, 500)
 
       return withAuthCookies(auth.response, response)
     }
 
     if (!existingSettings?.id) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'لم يتم العثور على سجل إعدادات النظام',
-        },
-        { status: 404 }
-      )
+        }, 404)
 
       return withAuthCookies(auth.response, response)
     }
@@ -100,18 +93,16 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      const response = NextResponse.json(
+      const response = jsonResponse(
         {
           error: 'فشل حفظ إعدادات النظام',
           details: error.message,
-        },
-        { status: 400 }
-      )
+        }, 400)
 
       return withAuthCookies(auth.response, response)
     }
 
-    const response = NextResponse.json({
+    const response = jsonResponse({
       success: true,
       message: 'تم حفظ إعدادات النظام بنجاح',
       settings: data,
@@ -119,13 +110,11 @@ export async function POST(request: NextRequest) {
 
     return withAuthCookies(auth.response, response)
   } catch (error) {
-    const response = NextResponse.json(
+    const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع أثناء حفظ الإعدادات',
         details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+      }, 500)
 
     return withAuthCookies(auth.response, response)
   }
