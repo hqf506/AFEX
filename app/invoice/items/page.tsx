@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { formatCurrency } from '@/lib/orders/format'
 
 type Product = {
   id: string
@@ -38,10 +39,6 @@ const products: Product[] = [
 ]
 
 const filters = ['الكل', 'الخدمات', 'المنتجات', 'تنظيف', 'إصلاح', 'عناية']
-
-function formatCurrency(value: number) {
-  return `${value.toFixed(2)} ر.س`
-}
 
 export default function InvoiceItemsPage() {
   const router = useRouter()

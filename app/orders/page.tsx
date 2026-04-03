@@ -4,53 +4,20 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
+import {
+  isSameDay,
+  normalizeOrderRecord,
+  type NormalizedOrderRecord,
+  type OrderStatus,
+  type RawOrder,
+} from '@/lib/orders/normalize'
+import {
+  formatCurrency,
+  formatDateTime,
+  formatPaymentMethod,
+} from '@/lib/orders/format'
 
-type OrderStatus = 'new' | 'in_progress' | 'ready' | 'delivered'
 type OrderFilter = 'all' | 'today' | OrderStatus
-
-type RawInvoiceItem = {
-  item_name_snapshot?: string
-  item_type_snapshot?: string
-  quantity?: number | string
-  unit_price?: number | string
-  line_total?: number | string
-  [key: string]: unknown
-}
-
-type RawInvoice = {
-  invoice_number?: string
-  payment_method?: string
-  payment_status?: string
-  note?: string
-  total?: number | string
-  subtotal?: number | string
-  discount?: number | string
-  tax?: number | string
-  cash_received?: number | string
-  remaining_from_customer?: number | string
-  cash_change?: number | string
-  invoice_items?: RawInvoiceItem[]
-}
-
-type RawOrder = {
-  id?: string
-  order_number?: string
-  status?: string
-  created_at?: string
-  customers?:
-    | {
-        name?: string
-        phone?: string
-        phone_number?: string
-      }
-    | {
-        name?: string
-        phone?: string
-        phone_number?: string
-      }[]
-  invoices?: RawInvoice[] | RawInvoice
-  [key: string]: unknown
-}
 
 type OrderItem = {
   item_name: string
@@ -108,136 +75,33 @@ const filters: { key: OrderFilter; label: string }[] = [
 
 const ORDERS_FETCH_LIMIT = 100
 
-function normalizeStatus(value: unknown): OrderStatus {
-  if (value === 'in_progress') return 'in_progress'
-  if (value === 'ready') return 'ready'
-  if (value === 'delivered') return 'delivered'
-  return 'new'
-}
-
-function getStringValue(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim()
-    }
-  }
-  return '—'
-}
-
-function getNumberValue(...values: unknown[]): number {
-  for (const value of values) {
-    if (typeof value === 'number' && !Number.isNaN(value)) {
-      return value
-    }
-
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value)
-      if (!Number.isNaN(parsed)) {
-        return parsed
-      }
-    }
-  }
-  return 0
-}
-
-function getPrimaryInvoice(invoices: RawOrder['invoices']): RawInvoice | null {
-  if (Array.isArray(invoices)) {
-    return invoices[0] || null
-  }
-
-  if (invoices && typeof invoices === 'object') {
-    return invoices
-  }
-
-  return null
-}
-
-function getPrimaryCustomer(customers: RawOrder['customers']) {
-  if (Array.isArray(customers)) return customers[0] || null
-  if (customers && typeof customers === 'object') return customers
-  return null
-}
-
-function normalizePaymentMethod(value: string): string {
-  if (value === 'cash') return 'كاش'
-  if (value === 'card') return 'شبكة'
-  if (value === 'transfer') return 'تحويل'
-  return value || '—'
-}
-
-function normalizeItems(items: RawInvoiceItem[] | undefined): OrderItem[] {
-  if (!Array.isArray(items)) return []
-
-  return items.map((item) => {
-    const quantity = getNumberValue(item.quantity, 1)
-    const unitPrice = getNumberValue(item.unit_price)
-    const lineTotal = getNumberValue(item.line_total, quantity * unitPrice)
-
-    return {
-      item_name: getStringValue(item.item_name_snapshot),
-      item_type: getStringValue(item.item_type_snapshot),
-      quantity,
-      unit_price: unitPrice,
-      line_total: lineTotal,
-    }
-  })
-}
-
-function normalizeOrder(row: RawOrder, index: number): Order {
-  const primaryInvoice = getPrimaryInvoice(row.invoices)
-  const primaryCustomer = getPrimaryCustomer(row.customers)
-
+function mapOrderRecordToOrder(record: NormalizedOrderRecord): Order {
   return {
-    id:
-      typeof row.id === 'string' && row.id.trim() ? row.id : `row-${index}`,
-    order_number: getStringValue(row.order_number),
-    customer_name: getStringValue(primaryCustomer?.name),
-    customer_phone: getStringValue(
-      primaryCustomer?.phone,
-      primaryCustomer?.phone_number
+    id: record.id,
+    order_number: record.orderNumber,
+    customer_name: record.customerName,
+    customer_phone: record.customerPhone,
+    total: record.total,
+    status: record.status,
+    created_at: record.createdAt,
+    invoice_number: record.invoiceNumber,
+    payment_method: formatPaymentMethod(
+      record.paymentMethod,
+      record.paymentMethodRaw
     ),
-    total: getNumberValue(primaryInvoice?.total, primaryInvoice?.subtotal),
-    status: normalizeStatus(row.status),
-    created_at: getStringValue(row.created_at),
-    invoice_number: getStringValue(primaryInvoice?.invoice_number),
-    payment_method: normalizePaymentMethod(
-      getStringValue(primaryInvoice?.payment_method)
-    ),
-    payment_status: getStringValue(primaryInvoice?.payment_status),
-    note: getStringValue(primaryInvoice?.note),
-    cash_received: getNumberValue(primaryInvoice?.cash_received),
-    remaining_from_customer: getNumberValue(
-      primaryInvoice?.remaining_from_customer
-    ),
-    cash_change: getNumberValue(primaryInvoice?.cash_change),
-    items: normalizeItems(primaryInvoice?.invoice_items),
+    payment_status: record.paymentStatus,
+    note: record.note,
+    cash_received: record.cashReceived,
+    remaining_from_customer: record.remainingFromCustomer,
+    cash_change: record.cashChange,
+    items: record.items.map((item) => ({
+      item_name: item.name,
+      item_type: item.type,
+      quantity: item.quantity,
+      unit_price: item.unitPrice,
+      line_total: item.lineTotal,
+    })),
   }
-}
-
-function isSameDay(dateString: string): boolean {
-  if (!dateString) return false
-
-  const date = new Date(dateString)
-  if (Number.isNaN(date.getTime())) return false
-
-  const now = new Date()
-
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  )
-}
-
-function formatCurrency(value: number) {
-  return `${value.toFixed(2)} ر.س`
-}
-
-function formatDateTime(value: string) {
-  if (!value || value === '—') return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString('ar-SA')
 }
 
 export default function OrdersPage() {
@@ -405,7 +269,9 @@ export default function OrdersPage() {
       }
 
       const rows = Array.isArray(data) ? (data as RawOrder[]) : []
-      const normalized = rows.map((row, index) => normalizeOrder(row, index))
+      const normalized = rows
+        .map((row, index) => normalizeOrderRecord(row, index))
+        .map(mapOrderRecordToOrder)
       const nextIds = new Set(normalized.map((order) => order.id))
 
       if (!initializedRef.current) {

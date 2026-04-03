@@ -4,43 +4,19 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
+import {
+  normalizeOrderRecord,
+  type PaymentMethodKey,
+  type RawOrder,
+} from '@/lib/orders/normalize'
+import {
+  formatCurrency,
+  formatDateTime,
+  formatPaymentMethod,
+  getDateInputValue,
+} from '@/lib/orders/format'
 
 type ReportRange = 'daily' | 'monthly' | 'yearly' | 'custom'
-
-type RawInvoiceItem = {
-  item_name_snapshot?: string
-  quantity?: number | string
-  line_total?: number | string
-}
-
-type RawInvoice = {
-  invoice_number?: string
-  payment_method?: string
-  payment_status?: string
-  total?: number | string
-  subtotal?: number | string
-  discount?: number | string
-  tax?: number | string
-  cash_received?: number | string
-  remaining_from_customer?: number | string
-  cash_change?: number | string
-  note?: string
-  invoice_items?: RawInvoiceItem[]
-}
-
-type RawCustomer = {
-  name?: string
-  phone?: string
-}
-
-type RawOrder = {
-  id?: string
-  order_number?: string
-  status?: string
-  created_at?: string
-  customers?: RawCustomer | RawCustomer[]
-  invoices?: RawInvoice[] | RawInvoice
-}
 
 type ReportOrder = {
   id: string
@@ -50,7 +26,7 @@ type ReportOrder = {
   status: string
   created_at: string
   invoice_number: string
-  payment_method: 'cash' | 'card' | 'transfer' | 'unknown'
+  payment_method: PaymentMethodKey
   payment_status: string
   total: number
   subtotal: number
@@ -67,100 +43,33 @@ type ReportOrder = {
   }[]
 }
 
-function getStringValue(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return '—'
-}
-
-function getNumberValue(...values: unknown[]): number {
-  for (const value of values) {
-    if (typeof value === 'number' && !Number.isNaN(value)) return value
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value)
-      if (!Number.isNaN(parsed)) return parsed
-    }
-  }
-  return 0
-}
-
-function getPrimaryInvoice(invoices: RawOrder['invoices']): RawInvoice | null {
-  if (Array.isArray(invoices)) return invoices[0] || null
-  if (invoices && typeof invoices === 'object') return invoices
-  return null
-}
-
-function getPrimaryCustomer(customers: RawOrder['customers']): RawCustomer | null {
-  if (Array.isArray(customers)) return customers[0] || null
-  if (customers && typeof customers === 'object') return customers
-  return null
-}
-
-function normalizePaymentMethod(
-  value: unknown
-): ReportOrder['payment_method'] {
-  if (value === 'cash') return 'cash'
-  if (value === 'card') return 'card'
-  if (value === 'transfer') return 'transfer'
-  return 'unknown'
-}
-
-function normalizeOrder(row: RawOrder, index: number): ReportOrder {
-  const primaryInvoice = getPrimaryInvoice(row.invoices)
-  const primaryCustomer = getPrimaryCustomer(row.customers)
+function mapOrderRecordToReportOrder(row: RawOrder, index: number): ReportOrder {
+  const record = normalizeOrderRecord(row, index)
 
   return {
-    id: getStringValue(row.id, `row-${index}`),
-    order_number: getStringValue(row.order_number),
-    customer_name: getStringValue(primaryCustomer?.name),
-    customer_phone: getStringValue(primaryCustomer?.phone),
-    status: getStringValue(row.status),
-    created_at: getStringValue(row.created_at),
-    invoice_number: getStringValue(primaryInvoice?.invoice_number),
-    payment_method: normalizePaymentMethod(primaryInvoice?.payment_method),
-    payment_status: getStringValue(primaryInvoice?.payment_status),
-    total: getNumberValue(primaryInvoice?.total, primaryInvoice?.subtotal),
-    subtotal: getNumberValue(primaryInvoice?.subtotal),
-    discount: getNumberValue(primaryInvoice?.discount),
-    tax: getNumberValue(primaryInvoice?.tax),
-    cash_received: getNumberValue(primaryInvoice?.cash_received),
-    remaining_from_customer: getNumberValue(primaryInvoice?.remaining_from_customer),
-    cash_change: getNumberValue(primaryInvoice?.cash_change),
-    note: getStringValue(primaryInvoice?.note),
-    items: Array.isArray(primaryInvoice?.invoice_items)
-      ? primaryInvoice.invoice_items.map((item) => ({
-          name: getStringValue(item.item_name_snapshot),
-          quantity: getNumberValue(item.quantity, 1),
-          line_total: getNumberValue(item.line_total),
-        }))
-      : [],
+    id: record.id,
+    order_number: record.orderNumber,
+    customer_name: record.customerName,
+    customer_phone: record.customerPhone,
+    status: record.statusRaw,
+    created_at: record.createdAt,
+    invoice_number: record.invoiceNumber,
+    payment_method: record.paymentMethod,
+    payment_status: record.paymentStatus,
+    total: record.total,
+    subtotal: record.subtotal,
+    discount: record.discount,
+    tax: record.tax,
+    cash_received: record.cashReceived,
+    remaining_from_customer: record.remainingFromCustomer,
+    cash_change: record.cashChange,
+    note: record.note,
+    items: record.items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      line_total: item.lineTotal,
+    })),
   }
-}
-
-function formatCurrency(value: number) {
-  return `${value.toFixed(2)} ر.س`
-}
-
-function formatDateTime(value: string) {
-  if (!value || value === '—') return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString('en-GB')
-}
-
-function formatPaymentMethod(value: ReportOrder['payment_method']) {
-  if (value === 'cash') return 'كاش'
-  if (value === 'card') return 'شبكة'
-  if (value === 'transfer') return 'تحويل'
-  return 'غير محدد'
-}
-
-function getDateInputValue(date: Date) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 function sanitizeExportValue(value: string | number) {
@@ -319,7 +228,7 @@ export default function ReportsPage() {
     }
 
     const normalized = Array.isArray(data)
-      ? data.map((row, index) => normalizeOrder(row as RawOrder, index))
+      ? data.map((row, index) => mapOrderRecordToReportOrder(row as RawOrder, index))
       : []
 
     setOrders(normalized)
@@ -453,7 +362,7 @@ export default function ReportsPage() {
       order.cash_received,
       order.remaining_from_customer,
       order.cash_change,
-      formatDateTime(order.created_at),
+      formatDateTime(order.created_at, 'en-GB'),
       order.note === '—' ? '' : order.note,
     ])
 
@@ -490,7 +399,7 @@ export default function ReportsPage() {
                   <td>${sanitizeExportValue(formatPaymentMethod(order.payment_method))}</td>
                   <td>${order.total.toFixed(2)} ر.س</td>
                   <td>${sanitizeExportValue(order.status)}</td>
-                  <td>${sanitizeExportValue(formatDateTime(order.created_at))}</td>
+                  <td>${sanitizeExportValue(formatDateTime(order.created_at, 'en-GB'))}</td>
                 </tr>
               `
             )
@@ -911,7 +820,7 @@ export default function ReportsPage() {
                         {order.customer_name} • {order.customer_phone}
                       </p>
                       <p className="text-xs text-slate-400">
-                        {formatDateTime(order.created_at)}
+                        {formatDateTime(order.created_at, 'en-GB')}
                       </p>
                     </div>
 

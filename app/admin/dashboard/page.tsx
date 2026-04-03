@@ -5,44 +5,19 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
+import {
+  isSameDay,
+  isWithinCurrentMonth,
+  isWithinCurrentWeek,
+  normalizeOrderRecord,
+  type OrderStatus,
+  type PaymentMethodKey,
+  type RawOrder,
+} from '@/lib/orders/normalize'
+import { formatCurrency, formatPaymentMethod } from '@/lib/orders/format'
 
 type DashboardRange = 'today' | 'week' | 'month'
 type DashboardSection = 'full' | 'latest' | 'status' | 'summary' | 'activity' | 'cash'
-
-type RawInvoiceItem = {
-  item_name_snapshot?: string
-  quantity?: number | string
-  line_total?: number | string
-}
-
-type RawInvoice = {
-  invoice_number?: string
-  payment_method?: string
-  payment_status?: string
-  total?: number | string
-  subtotal?: number | string
-  discount?: number | string
-  tax?: number | string
-  cash_received?: number | string
-  remaining_from_customer?: number | string
-  cash_change?: number | string
-  note?: string
-  invoice_items?: RawInvoiceItem[]
-}
-
-type RawCustomer = {
-  name?: string
-  phone?: string
-}
-
-type RawOrder = {
-  id?: string
-  order_number?: string
-  status?: string
-  created_at?: string
-  customers?: RawCustomer | RawCustomer[]
-  invoices?: RawInvoice[] | RawInvoice
-}
 
 type DashboardOrder = {
   id: string
@@ -50,10 +25,10 @@ type DashboardOrder = {
   customer_name: string
   customer_phone: string
   total: number
-  status: 'new' | 'in_progress' | 'ready' | 'delivered'
+  status: OrderStatus
   created_at: string
   invoice_number: string
-  payment_method: 'cash' | 'card' | 'transfer' | 'unknown'
+  payment_method: PaymentMethodKey
   payment_status: string
   cash_received: number
   remaining_from_customer: number
@@ -78,143 +53,30 @@ const statusMap: Record<
   delivered: { label: 'تم التسليم', className: 'badge badge-slate' },
 }
 
-function getStringValue(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return '—'
-}
-
-function getNumberValue(...values: unknown[]): number {
-  for (const value of values) {
-    if (typeof value === 'number' && !Number.isNaN(value)) return value
-
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value)
-      if (!Number.isNaN(parsed)) return parsed
-    }
-  }
-
-  return 0
-}
-
-function normalizeStatus(value: unknown): DashboardOrder['status'] {
-  if (value === 'in_progress') return 'in_progress'
-  if (value === 'ready') return 'ready'
-  if (value === 'delivered') return 'delivered'
-  return 'new'
-}
-
-function getPrimaryInvoice(invoices: RawOrder['invoices']): RawInvoice | null {
-  if (Array.isArray(invoices)) return invoices[0] || null
-  if (invoices && typeof invoices === 'object') return invoices
-  return null
-}
-
-function getPrimaryCustomer(customers: RawOrder['customers']): RawCustomer | null {
-  if (Array.isArray(customers)) return customers[0] || null
-  if (customers && typeof customers === 'object') return customers
-  return null
-}
-
-function normalizePaymentMethod(
-  value: unknown
-): DashboardOrder['payment_method'] {
-  if (value === 'cash') return 'cash'
-  if (value === 'card') return 'card'
-  if (value === 'transfer') return 'transfer'
-  return 'unknown'
-}
-
-function formatPaymentMethod(value: DashboardOrder['payment_method']) {
-  if (value === 'cash') return 'كاش'
-  if (value === 'card') return 'شبكة'
-  if (value === 'transfer') return 'تحويل'
-  return 'غير محدد'
-}
-
-function normalizeOrder(row: RawOrder, index: number): DashboardOrder {
-  const primaryInvoice = getPrimaryInvoice(row.invoices)
-  const primaryCustomer = getPrimaryCustomer(row.customers)
+function mapOrderRecordToDashboardOrder(row: RawOrder, index: number): DashboardOrder {
+  const record = normalizeOrderRecord(row, index)
 
   return {
-    id: getStringValue(row.id, `row-${index}`),
-    order_number: getStringValue(row.order_number),
-    customer_name: getStringValue(primaryCustomer?.name),
-    customer_phone: getStringValue(primaryCustomer?.phone),
-    total: getNumberValue(primaryInvoice?.total, primaryInvoice?.subtotal),
-    status: normalizeStatus(row.status),
-    created_at: getStringValue(row.created_at),
-    invoice_number: getStringValue(primaryInvoice?.invoice_number),
-    payment_method: normalizePaymentMethod(primaryInvoice?.payment_method),
-    payment_status: getStringValue(primaryInvoice?.payment_status),
-    cash_received: getNumberValue(primaryInvoice?.cash_received),
-    remaining_from_customer: getNumberValue(
-      primaryInvoice?.remaining_from_customer
-    ),
-    cash_change: getNumberValue(primaryInvoice?.cash_change),
-    note: getStringValue(primaryInvoice?.note),
-    items: Array.isArray(primaryInvoice?.invoice_items)
-      ? primaryInvoice.invoice_items.map((item) => ({
-          name: getStringValue(item.item_name_snapshot),
-          quantity: getNumberValue(item.quantity, 1),
-          line_total: getNumberValue(item.line_total),
-        }))
-      : [],
+    id: record.id,
+    order_number: record.orderNumber,
+    customer_name: record.customerName,
+    customer_phone: record.customerPhone,
+    total: record.total,
+    status: record.status,
+    created_at: record.createdAt,
+    invoice_number: record.invoiceNumber,
+    payment_method: record.paymentMethod,
+    payment_status: record.paymentStatus,
+    cash_received: record.cashReceived,
+    remaining_from_customer: record.remainingFromCustomer,
+    cash_change: record.cashChange,
+    note: record.note,
+    items: record.items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      line_total: item.lineTotal,
+    })),
   }
-}
-
-function isSameDay(dateString: string) {
-  if (!dateString || dateString === '—') return false
-
-  const date = new Date(dateString)
-  const now = new Date()
-
-  if (Number.isNaN(date.getTime())) return false
-
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  )
-}
-
-function isWithinCurrentWeek(dateString: string) {
-  if (!dateString || dateString === '—') return false
-
-  const date = new Date(dateString)
-  if (Number.isNaN(date.getTime())) return false
-
-  const now = new Date()
-  const currentDay = now.getDay()
-  const diffToWeekStart = currentDay === 0 ? 6 : currentDay - 1
-
-  const weekStart = new Date(now)
-  weekStart.setHours(0, 0, 0, 0)
-  weekStart.setDate(now.getDate() - diffToWeekStart)
-
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekStart.getDate() + 7)
-
-  return date >= weekStart && date < weekEnd
-}
-
-function isWithinCurrentMonth(dateString: string) {
-  if (!dateString || dateString === '—') return false
-
-  const date = new Date(dateString)
-  const now = new Date()
-
-  if (Number.isNaN(date.getTime())) return false
-
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth()
-  )
-}
-
-function formatCurrency(value: number) {
-  return `${value.toFixed(2)} ر.س`
 }
 
 function DashboardPageContent() {
@@ -297,7 +159,7 @@ function DashboardPageContent() {
     }
 
     const normalized = Array.isArray(data)
-      ? data.map((row, index) => normalizeOrder(row as RawOrder, index))
+      ? data.map((row, index) => mapOrderRecordToDashboardOrder(row as RawOrder, index))
       : []
 
     setOrders(normalized)
