@@ -1,6 +1,8 @@
-export type AppRole = 'admin' | 'employee' | 'cashier'
+export const APP_ROLES = ['admin', 'employee', 'cashier'] as const
 
-const ROLE_LABELS: Record<AppRole, string> = {
+export type AppRole = (typeof APP_ROLES)[number]
+
+export const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'أدمن',
   employee: 'موظف',
   cashier: 'كاشير',

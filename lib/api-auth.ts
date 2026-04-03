@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
+import type { AppRole } from '@/lib/app-roles'
 
-export type AppRole = 'admin' | 'employee' | 'cashier'
-
-type ProfileRecord = {
+export type ApiAuthProfile = {
   id: string
   role: AppRole
   is_active: boolean
@@ -17,7 +16,7 @@ type ApiAuthSuccess = {
   response: NextResponse
   supabase: ReturnType<typeof createServerClient>
   user: User
-  profile: ProfileRecord
+  profile: ApiAuthProfile
 }
 
 type ApiAuthFailure = {
@@ -106,7 +105,7 @@ export async function requireApiAuth(
       }
     }
 
-    const typedProfile = profile as ProfileRecord
+    const typedProfile = profile as ApiAuthProfile
 
     if (!typedProfile.is_active) {
       return {

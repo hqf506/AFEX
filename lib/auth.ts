@@ -8,6 +8,8 @@ export type CurrentUserProfile = {
   full_name: string
 }
 
+export type AuthenticatedUserProfile = CurrentUserProfile
+
 export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null> {
   const {
     data: { user },

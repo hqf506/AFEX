@@ -7,13 +7,13 @@ import { supabase } from '@/lib/supabase/client'
 
 export type { AppRole }
 
-type UsePageAccessOptions = {
+export type UsePageAccessOptions = {
   allowedRoles?: AppRole[]
   redirectIfNoUser?: string
   redirectIfForbidden?: string
 }
 
-type UsePageAccessResult = {
+export type UsePageAccessResult = {
   loading: boolean
   authLoading: boolean
   allowed: boolean
@@ -21,23 +21,46 @@ type UsePageAccessResult = {
   roleLabel: string
 }
 
+const DEFAULT_REDIRECT_IF_NO_USER = '/login'
+const DEFAULT_REDIRECT_IF_FORBIDDEN = '/'
+
+function resolvePageAccessOptions(
+  allowedRolesOrOptions: AppRole[] | UsePageAccessOptions,
+  redirectIfNoUser: string,
+  redirectIfForbidden: string
+) {
+  const allowedRoles = Array.isArray(allowedRolesOrOptions)
+    ? allowedRolesOrOptions
+    : allowedRolesOrOptions.allowedRoles || []
+
+  return {
+    allowedRoles,
+    redirectIfNoUser: Array.isArray(allowedRolesOrOptions)
+      ? redirectIfNoUser
+      : allowedRolesOrOptions.redirectIfNoUser || redirectIfNoUser,
+    redirectIfForbidden: Array.isArray(allowedRolesOrOptions)
+      ? redirectIfForbidden
+      : allowedRolesOrOptions.redirectIfForbidden || redirectIfForbidden,
+  }
+}
+
 export function usePageAccess(
   allowedRolesOrOptions: AppRole[] | UsePageAccessOptions = [],
-  redirectIfNoUser = '/login',
-  redirectIfForbidden = '/'
+  redirectIfNoUser = DEFAULT_REDIRECT_IF_NO_USER,
+  redirectIfForbidden = DEFAULT_REDIRECT_IF_FORBIDDEN
 ): UsePageAccessResult {
   const router = useRouter()
   const pathname = usePathname()
   const mountedRef = useRef(true)
-  const allowedRoles = Array.isArray(allowedRolesOrOptions)
-    ? allowedRolesOrOptions
-    : allowedRolesOrOptions.allowedRoles || []
-  const resolvedRedirectIfNoUser = Array.isArray(allowedRolesOrOptions)
-    ? redirectIfNoUser
-    : allowedRolesOrOptions.redirectIfNoUser || redirectIfNoUser
-  const resolvedRedirectIfForbidden = Array.isArray(allowedRolesOrOptions)
-    ? redirectIfForbidden
-    : allowedRolesOrOptions.redirectIfForbidden || redirectIfForbidden
+  const {
+    allowedRoles,
+    redirectIfNoUser: resolvedRedirectIfNoUser,
+    redirectIfForbidden: resolvedRedirectIfForbidden,
+  } = resolvePageAccessOptions(
+    allowedRolesOrOptions,
+    redirectIfNoUser,
+    redirectIfForbidden
+  )
   const allowedRolesKey = allowedRoles.join('|')
 
   const [loading, setLoading] = useState(true)
