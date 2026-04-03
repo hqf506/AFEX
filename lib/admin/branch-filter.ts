@@ -2,6 +2,7 @@ import type { AuthScopeType } from '@/lib/auth-profile'
 
 export const ADMIN_BRANCH_FILTER_ALL = 'all'
 export const ADMIN_BRANCH_FILTER_STORAGE_KEY = 'admin_branch_filter'
+export const ADMIN_BRANCH_OPTIONS_UPDATED_EVENT = 'admin-branch-options-updated'
 
 export function normalizeAdminBranchFilterValue(value: unknown) {
   if (typeof value !== 'string') {
@@ -32,6 +33,25 @@ export function setStoredAdminBranchFilter(value: string) {
     ADMIN_BRANCH_FILTER_STORAGE_KEY,
     normalizeAdminBranchFilterValue(value)
   )
+}
+
+export function notifyAdminBranchOptionsChanged() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const event = new CustomEvent(ADMIN_BRANCH_OPTIONS_UPDATED_EVENT)
+  window.dispatchEvent(event)
+
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.dispatchEvent(
+        new CustomEvent(ADMIN_BRANCH_OPTIONS_UPDATED_EVENT)
+      )
+    }
+  } catch {
+    // Ignore cross-window dispatch issues.
+  }
 }
 
 export function resolveEffectiveBranchFilter(

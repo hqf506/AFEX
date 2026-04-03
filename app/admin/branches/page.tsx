@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { notifyAdminBranchOptionsChanged } from '@/lib/admin/branch-filter'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
 import { usePageAccess } from '@/hooks/use-page-access'
 
@@ -35,6 +36,7 @@ export default function AdminBranchesPage() {
 
       const response = await fetch('/api/admin/branches', {
         method: 'GET',
+        cache: 'no-store',
       })
 
       const result = await response.json()
@@ -90,6 +92,7 @@ export default function AdminBranchesPage() {
       setSuccessMessage(result.message || 'تم إنشاء الفرع بنجاح')
       setForm(emptyBranchForm)
       await loadBranches()
+      notifyAdminBranchOptionsChanged()
     } catch (error) {
       console.error('Create branch error:', error)
       setErrorMessage(error instanceof Error ? error.message : 'تعذر إنشاء الفرع')
@@ -123,6 +126,7 @@ export default function AdminBranchesPage() {
 
       setSuccessMessage(result.message || 'تم تحديث حالة الفرع بنجاح')
       await loadBranches()
+      notifyAdminBranchOptionsChanged()
     } catch (error) {
       console.error('Toggle branch error:', error)
       setErrorMessage(

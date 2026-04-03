@@ -1,5 +1,6 @@
 'use client'
 
+import { AdminSelect } from '@/components/admin-select'
 import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
 import type { AdminBranchRecord } from '@/lib/admin/branches'
 
@@ -27,11 +28,11 @@ export function AdminBranchFilter({
       <label className="mb-2 block text-sm font-bold text-slate-700">
         {label}
       </label>
-      <select
+      <AdminSelect
         value={selectedBranchId}
         onChange={(e) => onChange(e.target.value)}
         disabled={loading}
-        className="h-11 min-w-[220px] rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500 disabled:opacity-60"
+        className="min-w-[220px]"
       >
         <option value={ADMIN_BRANCH_FILTER_ALL}>{allLabel}</option>
         {branches.map((branch) => (
@@ -40,7 +41,7 @@ export function AdminBranchFilter({
             {!branch.is_active ? ' - معطل' : ''}
           </option>
         ))}
-      </select>
+      </AdminSelect>
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AdminSelect } from '@/components/admin-select'
 import {
   type AdminBranchRecord,
   requiresAssignedBranch,
@@ -34,47 +35,6 @@ type ResetPasswordModalState = {
 }
 
 const emptyForm = createEmptyAdminUserPayload()
-
-function RoleTabs({
-  value,
-  onChange,
-  disabled = false,
-  disabledMessage,
-}: {
-  value: AppRole
-  onChange: (role: AppRole) => void
-  disabled?: boolean
-  disabledMessage?: string
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {ADMIN_ROLE_OPTIONS.map((option) => {
-        const active = value === option.value
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(option.value)}
-            title={disabled ? disabledMessage || '' : ''}
-            className={`h-11 rounded-2xl px-4 text-sm font-bold transition ${
-              active
-                ? 'border border-slate-950 bg-slate-950 text-white'
-                : 'border border-slate-300 bg-white text-slate-900 hover:border-slate-400'
-            } ${
-              disabled
-                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-70'
-                : ''
-            }`}
-          >
-            {option.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 function ActionButton({
   label,
@@ -667,11 +627,11 @@ export default function AdminUsersPage() {
               </label>
 
               {isSystemAdmin ? (
-                <select
+                <AdminSelect
                   value={createBranchId}
                   onChange={(e) => setCreateBranchId(e.target.value)}
                   disabled={loadingBranches}
-                  className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-right outline-none focus:border-slate-500 disabled:opacity-60"
+                  className="h-14 w-full"
                 >
                   <option value="">
                     {role === 'admin'
@@ -684,7 +644,7 @@ export default function AdminUsersPage() {
                       {!branch.is_active ? ' - معطل' : ''}
                     </option>
                   ))}
-                </select>
+                </AdminSelect>
               ) : (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-right text-sm text-slate-700">
                   سيتم ربط المستخدم بفرعك الحالي:
@@ -707,7 +667,16 @@ export default function AdminUsersPage() {
                   <label className="mb-2 block text-sm font-bold text-slate-700">
                     الصلاحية
                   </label>
-                  <RoleTabs value={role} onChange={setRole} />
+                  <AdminSelect
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as AppRole)}
+                  >
+                    {ADMIN_ROLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </AdminSelect>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 lg:self-end">
@@ -791,19 +760,30 @@ export default function AdminUsersPage() {
                           </span>
                         </td>
                         <td className="px-3 py-4">
-                          <RoleTabs
+                          <AdminSelect
                             value={user.role}
-                            onChange={(newRole) => handleRoleChange(user.id, newRole)}
-                            disabled={isBusy || isMainAdmin}
-                            disabledMessage={
-                              isMainAdmin ? 'غير مسموح التعديل على الحساب الرئيسي' : undefined
+                            onChange={(e) =>
+                              handleRoleChange(user.id, e.target.value as AppRole)
                             }
-                          />
+                            disabled={isBusy || isMainAdmin}
+                            title={
+                              isMainAdmin
+                                ? 'غير مسموح التعديل على الحساب الرئيسي'
+                                : ''
+                            }
+                            className="min-w-[180px] px-3"
+                          >
+                            {ADMIN_ROLE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </AdminSelect>
                         </td>
                         {isSystemAdmin ? (
                           <td className="px-3 py-4">
                             <div className="flex min-w-[240px] flex-col gap-2">
-                              <select
+                              <AdminSelect
                                 value={branchSelections[user.id] || ''}
                                 onChange={(e) =>
                                   setBranchSelections((prev) => ({
@@ -812,7 +792,7 @@ export default function AdminUsersPage() {
                                   }))
                                 }
                                 disabled={isBusy || isMainAdmin}
-                                className="h-11 rounded-2xl border border-slate-300 bg-white px-3 text-right outline-none focus:border-slate-500 disabled:opacity-60"
+                                className="min-w-0 px-3"
                               >
                                 <option value="">
                                   {user.role === 'admin' ? 'بدون فرع' : 'اختر فرعًا'}
@@ -823,7 +803,7 @@ export default function AdminUsersPage() {
                                     {!branch.is_active ? ' - معطل' : ''}
                                   </option>
                                 ))}
-                              </select>
+                              </AdminSelect>
 
                               <ActionButton
                                 label="حفظ الفرع"

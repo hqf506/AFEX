@@ -5,6 +5,7 @@ import type { AuthScopeType } from '@/lib/auth-profile'
 import type { AdminBranchRecord } from '@/lib/admin/branches'
 import {
   ADMIN_BRANCH_FILTER_ALL,
+  ADMIN_BRANCH_OPTIONS_UPDATED_EVENT,
   getStoredAdminBranchFilter,
   normalizeAdminBranchFilterValue,
   resolveEffectiveBranchFilter,
@@ -27,6 +28,7 @@ export function useAdminBranchFilter(
   useEffect(() => {
     if (!enabled || !isSystemAdmin) {
       setBranches([])
+      setLoadingBranches(false)
       return
     }
 
@@ -35,7 +37,11 @@ export function useAdminBranchFilter(
     async function loadBranches() {
       try {
         setLoadingBranches(true)
-        const response = await fetch('/api/admin/branches', { method: 'GET' })
+
+        const response = await fetch('/api/admin/branches', {
+          method: 'GET',
+          cache: 'no-store',
+        })
         const result = await response.json().catch(() => null)
 
         if (!response.ok || !result?.success) {
@@ -55,10 +61,29 @@ export function useAdminBranchFilter(
       }
     }
 
+    const handleOptionsUpdated = () => {
+      void loadBranches()
+    }
+
+    const handleWindowFocus = () => {
+      void loadBranches()
+    }
+
     void loadBranches()
+
+    window.addEventListener(
+      ADMIN_BRANCH_OPTIONS_UPDATED_EVENT,
+      handleOptionsUpdated
+    )
+    window.addEventListener('focus', handleWindowFocus)
 
     return () => {
       cancelled = true
+      window.removeEventListener(
+        ADMIN_BRANCH_OPTIONS_UPDATED_EVENT,
+        handleOptionsUpdated
+      )
+      window.removeEventListener('focus', handleWindowFocus)
     }
   }, [enabled, isSystemAdmin])
 
@@ -93,7 +118,8 @@ export function useAdminBranchFilter(
   const selectedBranchName = useMemo(() => {
     if (!isSystemAdmin) {
       return (
-        branches.find((branch) => branch.id === actorBranchId)?.name || 'الفرع الحالي'
+        branches.find((branch) => branch.id === actorBranchId)?.name ||
+        'الفرع الحالي'
       )
     }
 
