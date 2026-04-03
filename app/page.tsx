@@ -69,11 +69,17 @@ export default function HomePage() {
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, is_active')
           .eq('id', user.id)
           .single()
 
         if (profileError || !profile?.role) {
+          router.replace('/login')
+          return
+        }
+
+        if (!profile.is_active) {
+          await supabase.auth.signOut()
           router.replace('/login')
           return
         }
@@ -150,35 +156,35 @@ export default function HomePage() {
         key: 'orders',
         label: 'إدارة الطلبات',
         path: '/orders',
-        roles: ['admin', 'employee'],
+        roles: ['admin'],
         enabled: settings?.enable_orders ?? true,
       },
       {
         key: 'orders-latest',
         label: 'آخر الطلبات',
         path: '/admin/dashboard?section=latest',
-        roles: ['admin', 'employee'],
+        roles: ['admin'],
         enabled: settings?.enable_orders ?? true,
       },
       {
         key: 'orders-status',
         label: 'حالة الطلبات',
         path: '/admin/dashboard?section=status',
-        roles: ['admin', 'employee'],
+        roles: ['admin'],
         enabled: settings?.enable_orders ?? true,
       },
       {
         key: 'orders-summary',
         label: 'ملخص سريع',
         path: '/admin/dashboard?section=summary',
-        roles: ['admin', 'employee'],
+        roles: ['admin'],
         enabled: settings?.enable_orders ?? true,
       },
       {
         key: 'orders-activity',
         label: 'النشاط الأخير',
         path: '/admin/dashboard?section=activity',
-        roles: ['admin', 'employee'],
+        roles: ['admin'],
         enabled: settings?.enable_orders ?? true,
       },
       {
