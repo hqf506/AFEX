@@ -2,8 +2,13 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AdminButton } from '@/components/admin-button'
 import { getRoleLabel } from '@/lib/app-roles'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
+import { AdminInput } from '@/components/admin-input'
+import { PageHero } from '@/components/page-hero'
+import { StatCard } from '@/components/stat-card'
+import { SummaryRow } from '@/components/summary-row'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import {
   isBranchScopedWithoutBranchId,
@@ -182,6 +187,8 @@ export default function ReportsPage() {
   }, [allowed, fetchReportsData])
 
   const filteredOrders = orders
+
+  const visibleOrders = useMemo(() => orders.slice(0, 12), [orders])
 
   const stats = useMemo(() => {
     return buildReportOrderSummary(orders)
@@ -462,11 +469,14 @@ export default function ReportsPage() {
       <div className="page-wrap">
         {errorMessage && <div className="error-alert">{errorMessage}</div>}
 
-        <div className="page-hero">
+        <PageHero>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="page-title">التقارير</h1>
               <p className="page-subtitle">Leather Fix ERP</p>
+              <p className="mt-2 text-sm text-slate-500">
+                اختر الفترة المناسبة، ثم راجع الملخصات ونتائج التقرير وصدّرها عند الحاجة.
+              </p>
               <p className="mt-2 text-xs text-slate-400">
                 آخر تحديث: {lastUpdated || '—'}
                 {refreshing ? ' • جاري التحديث...' : ''}
@@ -490,151 +500,125 @@ export default function ReportsPage() {
               {roleLabel ? (
                 <span className="badge badge-blue">الصلاحية: {roleLabel}</span>
               ) : null}
-
-              <button
-                onClick={() => setRange('daily')}
-                className={range === 'daily' ? 'primary-btn' : 'secondary-btn'}
-                type="button"
-              >
-                يومي
-              </button>
-              <button
-                onClick={() => setRange('monthly')}
-                className={range === 'monthly' ? 'primary-btn' : 'secondary-btn'}
-                type="button"
-              >
-                شهري
-              </button>
-              <button
-                onClick={() => setRange('yearly')}
-                className={range === 'yearly' ? 'primary-btn' : 'secondary-btn'}
-                type="button"
-              >
-                سنوي
-              </button>
-              <button
-                onClick={() => setRange('custom')}
-                className={range === 'custom' ? 'primary-btn' : 'secondary-btn'}
-                type="button"
-              >
-                تاريخ محدد
-              </button>
             </div>
           </div>
-        </div>
+        </PageHero>
 
-        <div className="page-card mb-5">
-          <div className="grid gap-5 xl:grid-cols-[260px_1fr_220px]">
-            <div className="inner-card">
-              <h2 className="section-title mb-4">الفترة الزمنية</h2>
+        <div className="page-card mb-5 space-y-5">
+          <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-4">
+              <div>
+                <h2 className="section-title">فلاتر التقرير</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  اختر نوع التقرير وحدد المدة الزمنية قبل تحديث النتائج.
+                </p>
+              </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="field-label">من تاريخ</label>
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="field-input"
-                  />
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <AdminButton
+                    onClick={() => setRange('daily')}
+                    variant={range === 'daily' ? 'primary' : 'secondary'}
+                    type="button"
+                  >
+                    يومي
+                  </AdminButton>
+                  <AdminButton
+                    onClick={() => setRange('monthly')}
+                    variant={range === 'monthly' ? 'primary' : 'secondary'}
+                    type="button"
+                  >
+                    شهري
+                  </AdminButton>
+                  <AdminButton
+                    onClick={() => setRange('yearly')}
+                    variant={range === 'yearly' ? 'primary' : 'secondary'}
+                    type="button"
+                  >
+                    سنوي
+                  </AdminButton>
+                  <AdminButton
+                    onClick={() => setRange('custom')}
+                    variant={range === 'custom' ? 'primary' : 'secondary'}
+                    type="button"
+                  >
+                    تاريخ محدد
+                  </AdminButton>
                 </div>
 
-                <div>
-                  <label className="field-label">إلى تاريخ</label>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="field-input"
-                    disabled={range !== 'custom'}
-                  />
-                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="field-label">من تاريخ</label>
+                    <AdminInput
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                    />
+                  </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                  في التقرير اليومي والشهري والسنوي يتم الاعتماد على
-                  <span className="font-bold text-slate-800"> من تاريخ </span>
-                  كأساس للتصفية.
-                  <br />
-                  أما
-                  <span className="font-bold text-slate-800"> تاريخ محدد </span>
-                  فيعتمد على المدى الكامل من
-                  <span className="font-bold text-slate-800"> من تاريخ </span>
-                  إلى
-                  <span className="font-bold text-slate-800"> إلى تاريخ</span>.
+                  <div>
+                    <label className="field-label">إلى تاريخ</label>
+                    <AdminInput
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      disabled={range !== 'custom'}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="inner-card">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="section-title">ملخص الفلتر الحالي</h2>
-                <span className="badge badge-blue">{rangeLabel}</span>
+            <div className="space-y-4">
+              <div className="inner-card">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="section-title">ملخص الفلتر الحالي</h2>
+                  <span className="badge badge-blue">{rangeLabel}</span>
+                </div>
+
+                <div className="space-y-3">
+                  <SummaryRow label="نوع التقرير" value={rangeLabel} />
+                  <SummaryRow label="من تاريخ" value={dateFrom || '—'} />
+                  <SummaryRow
+                    label="إلى تاريخ"
+                    value={range === 'custom' ? dateTo || '—' : 'تلقائي حسب النوع'}
+                  />
+                </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                  <p className="text-sm font-bold text-slate-900">نوع التقرير</p>
-                  <p className="mt-2 text-sm text-slate-500">{rangeLabel}</p>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p className="text-sm font-bold text-slate-900">من تاريخ</p>
-                    <p className="mt-2 text-sm text-slate-500">{dateFrom || '—'}</p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p className="text-sm font-bold text-slate-900">إلى تاريخ</p>
-                    <p className="mt-2 text-sm text-slate-500">
-                      {range === 'custom' ? dateTo || '—' : 'تلقائي حسب النوع'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-500">
-                  اليومي: يعتمد على نفس يوم من تاريخ.
-                  <br />
-                  الشهري: يعتمد على كامل شهر من تاريخ.
-                  <br />
-                  السنوي: يعتمد على كامل سنة من تاريخ.
-                  <br />
-                  تاريخ محدد: يعتمد على الفترة بين التاريخين.
-                </div>
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-500">
+                اليومي: يعتمد على نفس يوم من تاريخ.
+                <br />
+                الشهري: يعتمد على كامل شهر من تاريخ.
+                <br />
+                السنوي: يعتمد على كامل سنة من تاريخ.
+                <br />
+                تاريخ محدد: يعتمد على الفترة بين التاريخين.
               </div>
             </div>
+          </div>
 
-            <div className="inner-card">
-              <h2 className="section-title mb-4">أدوات التقرير</h2>
-
-              <div className="space-y-3">
-                <button
-                  onClick={() => fetchReportsData()}
-                  className="secondary-btn w-full"
-                  type="button"
-                >
-                  تحديث البيانات
-                </button>
-
-                <button
-                  onClick={exportPdf}
-                  className="secondary-btn w-full"
-                  type="button"
-                >
-                  تحميل PDF
-                </button>
-
-                <button
-                  onClick={exportExcel}
-                  className="secondary-btn w-full"
-                  type="button"
-                >
-                  تحميل Excel
-                </button>
+          <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="section-title">أدوات التقرير</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  حدّث النتائج أولاً، ثم صدّر نفس البيانات الظاهرة الآن إذا احتجتها.
+                </p>
               </div>
+              <span className="badge badge-slate">{visibleOrders.length} نتيجة معروضة</span>
+            </div>
 
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                تقدر تحمل نفس النتائج الظاهرة الآن مباشرة بصيغة PDF أو Excel.
-              </div>
+            <div className="flex flex-wrap gap-2">
+              <AdminButton onClick={() => fetchReportsData()} type="button">
+                تحديث البيانات
+              </AdminButton>
+              <AdminButton onClick={exportPdf} type="button">
+                تحميل PDF
+              </AdminButton>
+              <AdminButton onClick={exportExcel} type="button">
+                تحميل Excel
+              </AdminButton>
             </div>
           </div>
         </div>
@@ -675,7 +659,7 @@ export default function ReportsPage() {
               </div>
             ) : (
               <div className="table-list">
-                {orders.slice(0, 12).map((order) => (
+                {visibleOrders.map((order) => (
                   <div key={order.id} className="list-row">
                     <div className="space-y-1">
                       <p className="text-sm font-bold text-slate-900">
@@ -756,38 +740,6 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function StatCard({
-  title,
-  value,
-  valueClassName = 'text-slate-900',
-}: {
-  title: string
-  value: string
-  valueClassName?: string
-}) {
-  return (
-    <div className="stat-card">
-      <p className="stat-label">{title}</p>
-      <p className={`stat-value ${valueClassName}`}>{value}</p>
-    </div>
-  )
-}
-
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <span className="text-sm text-slate-600">{label}</span>
-      <span className="text-sm font-bold text-slate-900">{value}</span>
     </div>
   )
 }
