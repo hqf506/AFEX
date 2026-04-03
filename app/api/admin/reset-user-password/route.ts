@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import {
+  hasValidAdminPasswordLength,
+  normalizeAdminPassword,
+  normalizeAdminUserId,
+} from '@/lib/admin/users'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type ResetUserPasswordBody = {
@@ -17,8 +22,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ResetUserPasswordBody
 
-    const userId = body.userId?.trim() || ''
-    const newPassword = body.newPassword?.trim() || ''
+    const userId = normalizeAdminUserId(body.userId)
+    const newPassword = normalizeAdminPassword(body.newPassword)
 
     if (!userId) {
       const response = NextResponse.json(
@@ -28,7 +33,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (!newPassword || newPassword.length < 6) {
+    if (!newPassword || !hasValidAdminPasswordLength(newPassword)) {
       const response = NextResponse.json(
         { error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أكثر' },
         { status: 400 }

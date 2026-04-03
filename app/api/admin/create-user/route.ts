@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import {
+  hasValidAdminPasswordLength,
+  isValidAdminRole,
+  normalizeAdminFullName,
+} from '@/lib/admin/users'
 import { type AppRole } from '@/lib/app-roles'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
@@ -22,8 +27,9 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as CreateUserBody
 
     const username = normalizeUsername(body.username || '')
-    const password = (body.password || '').trim()
-    const fullName = (body.full_name || '').trim()
+    const password =
+      typeof body.password === 'string' ? body.password.trim() : ''
+    const fullName = normalizeAdminFullName(body.full_name)
     const role: AppRole = body.role || 'employee'
 
     if (!username) {
@@ -45,7 +51,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (password.length < 6) {
+    if (!hasValidAdminPasswordLength(password)) {
       const response = NextResponse.json(
         { error: 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر' },
         { status: 400 }
@@ -53,7 +59,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (!['admin', 'employee', 'cashier'].includes(role)) {
+    if (!isValidAdminRole(role)) {
       const response = NextResponse.json(
         { error: 'الصلاحية غير صالحة' },
         { status: 400 }

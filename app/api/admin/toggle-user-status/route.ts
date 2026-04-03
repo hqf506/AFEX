@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import {
+  isPrimaryAdminUsername,
+  normalizeAdminUserId,
+} from '@/lib/admin/users'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type ToggleUserStatusBody = {
@@ -17,7 +21,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ToggleUserStatusBody
 
-    const userId = body.userId?.trim() || ''
+    const userId = normalizeAdminUserId(body.userId)
     const isActive = body.is_active
 
     if (!userId) {
@@ -61,7 +65,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (existingProfile.username === 'admin') {
+    if (isPrimaryAdminUsername(existingProfile.username)) {
       const response = NextResponse.json(
         { error: 'لا يمكن تعطيل أو تفعيل حساب admin الرئيسي' },
         { status: 400 }

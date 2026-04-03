@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import {
+  isPrimaryAdminUsername,
+  isValidAdminRole,
+  normalizeAdminUserId,
+} from '@/lib/admin/users'
+import { type AppRole } from '@/lib/app-roles'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-
-type AppRole = 'admin' | 'employee' | 'cashier'
 
 type UpdateUserRoleBody = {
   userId?: string
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as UpdateUserRoleBody
 
-    const userId = body.userId?.trim() || ''
+    const userId = normalizeAdminUserId(body.userId)
     const role = body.role
 
     if (!userId) {
@@ -30,7 +34,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (!role || !['admin', 'employee', 'cashier'].includes(role)) {
+    if (!role || !isValidAdminRole(role)) {
       const response = NextResponse.json(
         { error: 'الصلاحية غير صالحة' },
         { status: 400 }
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (existingProfile.username === 'admin') {
+    if (isPrimaryAdminUsername(existingProfile.username)) {
       const response = NextResponse.json(
         { error: 'لا يمكن تعديل صلاحية حساب admin الرئيسي' },
         { status: 400 }

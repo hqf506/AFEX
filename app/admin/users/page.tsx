@@ -2,6 +2,13 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  ADMIN_ROLE_OPTIONS,
+  canSubmitAdminUserForm,
+  createEmptyAdminUserForm,
+  hasValidAdminPasswordLength,
+  isPrimaryAdminUsername,
+} from '@/lib/admin/users'
 import { AppRole, usePageAccess } from '@/hooks/use-page-access'
 
 type ProfileRow = {
@@ -20,19 +27,7 @@ type ResetPasswordModalState = {
   username: string
 }
 
-const emptyForm = {
-  username: '',
-  fullName: '',
-  password: '',
-  confirmPassword: '',
-  role: 'employee' as AppRole,
-}
-
-const roleOptions: { value: AppRole; label: string }[] = [
-  { value: 'employee', label: 'employee' },
-  { value: 'cashier', label: 'cashier' },
-  { value: 'admin', label: 'admin' },
-]
+const emptyForm = createEmptyAdminUserForm()
 
 function RoleTabs({
   value,
@@ -47,7 +42,7 @@ function RoleTabs({
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {roleOptions.map((option) => {
+      {ADMIN_ROLE_OPTIONS.map((option) => {
         const active = value === option.value
 
         return (
@@ -188,12 +183,11 @@ export default function AdminUsersPage() {
   }, [accessLoading, allowed])
 
   const canSubmitCreate = useMemo(() => {
-    return (
-      username.trim().length > 0 &&
-      password.trim().length >= 6 &&
-      confirmPassword.trim().length >= 6 &&
-      password === confirmPassword
-    )
+    return canSubmitAdminUserForm({
+      username,
+      password,
+      confirmPassword,
+    })
   }, [username, password, confirmPassword])
 
   async function handleCreateUser(e: React.FormEvent) {
@@ -208,7 +202,7 @@ export default function AdminUsersPage() {
         throw new Error('يرجى كتابة اسم المستخدم')
       }
 
-      if (password.trim().length < 6) {
+      if (!hasValidAdminPasswordLength(password.trim())) {
         throw new Error('كلمة المرور يجب أن تكون 6 أحرف أو أكثر')
       }
 
@@ -586,7 +580,7 @@ export default function AdminUsersPage() {
                 <tbody>
                   {users.map((user) => {
                     const isBusy = updatingUserId === user.id
-                    const isMainAdmin = user.username === 'admin'
+                    const isMainAdmin = isPrimaryAdminUsername(user.username)
 
                     return (
                       <tr key={user.id} className="border-b border-slate-100 align-top">

@@ -2,64 +2,15 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  createDefaultSystemSettingsForm,
+  createSystemSettingsForm,
+  createSystemSettingsSavePayload,
+  resolveSystemSettingsSaveNames,
+  type SystemSettings,
+  type SystemSettingsForm,
+} from '@/lib/admin/settings'
 import { usePageAccess } from '@/hooks/use-page-access'
-
-type SystemSettings = {
-  id: string
-  store_name: string
-  branch_name: string
-  logo_url: string | null
-  whatsapp_provider: string
-  whatsapp_phone: string | null
-  ultramsg_instance_id: string | null
-  ultramsg_token: string | null
-  ultramsg_api_url: string | null
-  enable_whatsapp: boolean
-  enable_printing: boolean
-  enable_pos: boolean
-  enable_invoices: boolean
-  enable_orders: boolean
-  enable_reports: boolean
-  enable_users: boolean
-  created_at: string
-  updated_at: string
-}
-
-type SettingsForm = {
-  store_name: string
-  branch_name: string
-  logo_url: string
-  whatsapp_provider: string
-  whatsapp_phone: string
-  ultramsg_instance_id: string
-  ultramsg_token: string
-  ultramsg_api_url: string
-  enable_whatsapp: boolean
-  enable_printing: boolean
-  enable_pos: boolean
-  enable_invoices: boolean
-  enable_orders: boolean
-  enable_reports: boolean
-  enable_users: boolean
-}
-
-const defaultForm: SettingsForm = {
-  store_name: '',
-  branch_name: '',
-  logo_url: '',
-  whatsapp_provider: 'ultramsg',
-  whatsapp_phone: '',
-  ultramsg_instance_id: '',
-  ultramsg_token: '',
-  ultramsg_api_url: '',
-  enable_whatsapp: true,
-  enable_printing: true,
-  enable_pos: true,
-  enable_invoices: true,
-  enable_orders: true,
-  enable_reports: true,
-  enable_users: true,
-}
 
 function maskSecret(value: string) {
   if (!value) return 'غير موجود'
@@ -90,7 +41,9 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<SystemSettings | null>(null)
-  const [form, setForm] = useState<SettingsForm>(defaultForm)
+  const [form, setForm] = useState<SystemSettingsForm>(() =>
+    createDefaultSystemSettingsForm()
+  )
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -116,26 +69,7 @@ export default function AdminSettingsPage() {
       const settingsData = result.settings as SystemSettings | null
 
       setSettings(settingsData)
-
-      if (settingsData) {
-        setForm({
-          store_name: '',
-          branch_name: '',
-          logo_url: settingsData.logo_url || '',
-          whatsapp_provider: settingsData.whatsapp_provider || 'ultramsg',
-          whatsapp_phone: settingsData.whatsapp_phone || '',
-          ultramsg_instance_id: settingsData.ultramsg_instance_id || '',
-          ultramsg_token: settingsData.ultramsg_token || '',
-          ultramsg_api_url: settingsData.ultramsg_api_url || '',
-          enable_whatsapp: settingsData.enable_whatsapp,
-          enable_printing: settingsData.enable_printing,
-          enable_pos: settingsData.enable_pos,
-          enable_invoices: settingsData.enable_invoices,
-          enable_orders: settingsData.enable_orders,
-          enable_reports: settingsData.enable_reports,
-          enable_users: settingsData.enable_users,
-        })
-      }
+      setForm(createSystemSettingsForm(settingsData))
 
       setLoading(false)
     } catch (error) {
@@ -156,9 +90,9 @@ export default function AdminSettingsPage() {
     return () => window.clearTimeout(timeoutId)
   }, [allowed, fetchSettings])
 
-  const updateField = <K extends keyof SettingsForm>(
+  const updateField = <K extends keyof SystemSettingsForm>(
     key: K,
-    value: SettingsForm[K]
+    value: SystemSettingsForm[K]
   ) => {
     setForm((prev) => ({
       ...prev,
@@ -167,28 +101,7 @@ export default function AdminSettingsPage() {
   }
 
   const resetForm = () => {
-    if (!settings) {
-      setForm(defaultForm)
-      return
-    }
-
-    setForm({
-      store_name: '',
-      branch_name: '',
-      logo_url: settings.logo_url || '',
-      whatsapp_provider: settings.whatsapp_provider || 'ultramsg',
-      whatsapp_phone: settings.whatsapp_phone || '',
-      ultramsg_instance_id: settings.ultramsg_instance_id || '',
-      ultramsg_token: settings.ultramsg_token || '',
-      ultramsg_api_url: settings.ultramsg_api_url || '',
-      enable_whatsapp: settings.enable_whatsapp,
-      enable_printing: settings.enable_printing,
-      enable_pos: settings.enable_pos,
-      enable_invoices: settings.enable_invoices,
-      enable_orders: settings.enable_orders,
-      enable_reports: settings.enable_reports,
-      enable_users: settings.enable_users,
-    })
+    setForm(createSystemSettingsForm(settings))
   }
 
   const saveSettings = async () => {
@@ -198,8 +111,8 @@ export default function AdminSettingsPage() {
       return
     }
 
-    const finalStoreName = form.store_name.trim() || settings.store_name || ''
-    const finalBranchName = form.branch_name.trim() || settings.branch_name || ''
+    const { storeName: finalStoreName, branchName: finalBranchName } =
+      resolveSystemSettingsSaveNames(form, settings)
 
     if (!finalStoreName) {
       setErrorMessage('اسم المحل مطلوب')
@@ -216,11 +129,7 @@ export default function AdminSettingsPage() {
     setSuccessMessage('')
 
     try {
-      const payload = {
-        ...form,
-        store_name: finalStoreName,
-        branch_name: finalBranchName,
-      }
+      const payload = createSystemSettingsSavePayload(form, settings)
 
       const response = await fetch('/api/admin/system-settings', {
         method: 'POST',
@@ -242,23 +151,7 @@ export default function AdminSettingsPage() {
       const savedSettings = result.settings as SystemSettings
 
       setSettings(savedSettings)
-      setForm({
-        store_name: '',
-        branch_name: '',
-        logo_url: savedSettings.logo_url || '',
-        whatsapp_provider: savedSettings.whatsapp_provider || 'ultramsg',
-        whatsapp_phone: savedSettings.whatsapp_phone || '',
-        ultramsg_instance_id: savedSettings.ultramsg_instance_id || '',
-        ultramsg_token: savedSettings.ultramsg_token || '',
-        ultramsg_api_url: savedSettings.ultramsg_api_url || '',
-        enable_whatsapp: savedSettings.enable_whatsapp,
-        enable_printing: savedSettings.enable_printing,
-        enable_pos: savedSettings.enable_pos,
-        enable_invoices: savedSettings.enable_invoices,
-        enable_orders: savedSettings.enable_orders,
-        enable_reports: savedSettings.enable_reports,
-        enable_users: savedSettings.enable_users,
-      })
+      setForm(createSystemSettingsForm(savedSettings))
 
       setSuccessMessage(result.message || 'تم حفظ إعدادات النظام بنجاح')
       setTimeout(() => setSuccessMessage(''), 3000)
