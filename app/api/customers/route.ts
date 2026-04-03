@@ -2,6 +2,10 @@ import { NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
 import {
+  isBranchScopedWithoutBranchId,
+  shouldFilterByBranch,
+} from '@/lib/branch-access'
+import {
   buildCustomerSearchFilter,
   normalizeCustomerSearchTerm,
 } from '@/lib/customers'
@@ -22,6 +26,17 @@ export async function GET(request: NextRequest) {
     .select('id, name, phone')
     .order('name', { ascending: true })
     .limit(50)
+
+  if (isBranchScopedWithoutBranchId(auth.profile.scope_type, auth.profile.branch_id)) {
+    return jsonWithAuthCookies(auth.response, {
+      success: true,
+      customers: [],
+    })
+  }
+
+  if (shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)) {
+    query = query.eq('branch_id', auth.profile.branch_id as string)
+  }
 
   const searchFilter = buildCustomerSearchFilter(search)
 

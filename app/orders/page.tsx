@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
+  isBranchScopedWithoutBranchId,
+  shouldFilterByBranch,
+} from '@/lib/branch-access'
+import {
   buildOrdersPageSummary,
   filterOrders,
   getTodayOrderRecords,
@@ -43,6 +47,8 @@ export default function OrdersPage() {
   const allowed = access.allowed
   const role = access.userRole
   const roleLabel = getRoleLabel(role)
+  const branchId = access.branchId
+  const scopeType = access.scopeType
 
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -156,9 +162,18 @@ export default function OrdersPage() {
       setErrorMessage('')
 
       try {
-        const { data, error } = await supabase
-        .from('orders')
-        .select(`
+        if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
+          setOrders([])
+          ordersSignatureRef.current = ''
+          setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
+          setLoading(false)
+          setRefreshing(false)
+          return
+        }
+
+        let query = supabase
+          .from('orders')
+          .select(`
           id,
           order_number,
           status,
@@ -190,6 +205,12 @@ export default function OrdersPage() {
         `)
           .order('created_at', { ascending: false })
           .limit(ORDERS_FETCH_LIMIT)
+
+        if (shouldFilterByBranch(scopeType, branchId)) {
+          query = query.eq('branch_id', branchId as string)
+        }
+
+        const { data, error } = await query
 
       if (error) {
         console.error('Supabase orders fetch error:', error)
@@ -238,7 +259,7 @@ export default function OrdersPage() {
         isFetchInFlightRef.current = false
       }
     },
-    [playNewOrderSound, soundEnabled, canUseOrderSound]
+    [playNewOrderSound, soundEnabled, canUseOrderSound, scopeType, branchId]
   )
 
   useEffect(() => {

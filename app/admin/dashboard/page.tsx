@@ -5,6 +5,10 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'next/navigation'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
+  isBranchScopedWithoutBranchId,
+  shouldFilterByBranch,
+} from '@/lib/branch-access'
+import {
   buildDashboardOrderSummary,
   DASHBOARD_FETCH_LIMIT,
   DASHBOARD_NAV_ITEMS,
@@ -46,6 +50,8 @@ function DashboardPageContent() {
   const authLoading = access.loading
   const allowed = access.allowed
   const roleLabel = getRoleLabel(access.userRole)
+  const branchId = access.branchId
+  const scopeType = access.scopeType
 
   const section = useMemo<DashboardSection>(() => {
     return resolveDashboardSection(searchParams.get('section'))
@@ -70,9 +76,18 @@ function DashboardPageContent() {
     setErrorMessage('')
 
     try {
-      const { data, error } = await supabase
-      .from('orders')
-      .select(`
+      if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
+        setOrders([])
+        ordersSignatureRef.current = ''
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
+        setLoading(false)
+        setRefreshing(false)
+        return
+      }
+
+      let query = supabase
+        .from('orders')
+        .select(`
         id,
         order_number,
         status,
@@ -103,6 +118,12 @@ function DashboardPageContent() {
         .order('created_at', { ascending: false })
         .limit(DASHBOARD_FETCH_LIMIT)
 
+      if (shouldFilterByBranch(scopeType, branchId)) {
+        query = query.eq('branch_id', branchId as string)
+      }
+
+      const { data, error } = await query
+
     if (error) {
       setErrorMessage(`فشل تحميل لوحة التحكم: ${error.message}`)
       setOrders([])
@@ -129,7 +150,7 @@ function DashboardPageContent() {
     } finally {
       isFetchInFlightRef.current = false
     }
-  }, [])
+  }, [scopeType, branchId])
 
   useEffect(() => {
     if (!allowed) return

@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
+  isBranchScopedWithoutBranchId,
+  shouldFilterByBranch,
+} from '@/lib/branch-access'
+import {
   buildReportDateRange,
   buildReportOrderSummary,
   escapeCsvValue,
@@ -28,6 +32,8 @@ export default function ReportsPage() {
   const authLoading = access.loading
   const allowed = access.allowed
   const roleLabel = getRoleLabel(access.userRole)
+  const branchId = access.branchId
+  const scopeType = access.scopeType
 
   const today = new Date()
   const todayString = getDateInputValue(today)
@@ -64,7 +70,15 @@ export default function ReportsPage() {
 
     const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
 
-    const { data, error } = await supabase
+    if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
+      setOrders([])
+      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+      setLoading(false)
+      setRefreshing(false)
+      return
+    }
+
+    let query = supabase
       .from('orders')
       .select(`
         id,
@@ -98,6 +112,12 @@ export default function ReportsPage() {
       .lte('created_at', toIso)
       .order('created_at', { ascending: false })
 
+    if (shouldFilterByBranch(scopeType, branchId)) {
+      query = query.eq('branch_id', branchId as string)
+    }
+
+    const { data, error } = await query
+
     if (error) {
       setErrorMessage(`فشل تحميل التقارير: ${error.message}`)
       setOrders([])
@@ -114,7 +134,7 @@ export default function ReportsPage() {
     setLastUpdated(new Date().toLocaleTimeString('en-GB'))
     setLoading(false)
     setRefreshing(false)
-  }, [range, dateFrom, dateTo])
+  }, [range, dateFrom, dateTo, scopeType, branchId])
 
   useEffect(() => {
     if (!allowed) return
