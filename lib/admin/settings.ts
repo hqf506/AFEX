@@ -19,7 +19,7 @@ export type SystemSettings = {
   updated_at: string
 }
 
-export type SystemSettingsForm = {
+export type SystemSettingsPayload = {
   store_name: string
   branch_name: string
   logo_url: string
@@ -37,7 +37,7 @@ export type SystemSettingsForm = {
   enable_users: boolean
 }
 
-export type SystemSettingsUpdateBody = {
+export type SystemSettingsUpdatePayload = {
   store_name?: string
   branch_name?: string
   logo_url?: string | null
@@ -68,7 +68,7 @@ export const SYSTEM_SETTINGS_DEFAULT_VALUES = {
   enable_users: true,
 } as const
 
-export function createDefaultSystemSettingsForm(): SystemSettingsForm {
+export function createDefaultSystemSettingsPayload(): SystemSettingsPayload {
   return {
     store_name: '',
     branch_name: '',
@@ -88,11 +88,11 @@ export function createDefaultSystemSettingsForm(): SystemSettingsForm {
   }
 }
 
-export function createSystemSettingsForm(
+export function createSystemSettingsPayload(
   settings: SystemSettings | null | undefined
-): SystemSettingsForm {
+): SystemSettingsPayload {
   if (!settings) {
-    return createDefaultSystemSettingsForm()
+    return createDefaultSystemSettingsPayload()
   }
 
   return {
@@ -117,7 +117,7 @@ export function createSystemSettingsForm(
 }
 
 export function resolveSystemSettingsSaveNames(
-  form: SystemSettingsForm,
+  form: SystemSettingsPayload,
   settings: SystemSettings
 ) {
   return {
@@ -127,7 +127,7 @@ export function resolveSystemSettingsSaveNames(
 }
 
 export function createSystemSettingsSavePayload(
-  form: SystemSettingsForm,
+  form: SystemSettingsPayload,
   settings: SystemSettings
 ) {
   const { storeName, branchName } = resolveSystemSettingsSaveNames(form, settings)
@@ -152,7 +152,7 @@ export function normalizeRequiredText(value: unknown, fallback: string) {
 }
 
 export function normalizeSystemSettingsUpdatePayload(
-  body: SystemSettingsUpdateBody
+  body: SystemSettingsUpdatePayload
 ) {
   return {
     store_name: normalizeRequiredText(

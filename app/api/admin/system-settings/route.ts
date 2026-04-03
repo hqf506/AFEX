@@ -3,7 +3,7 @@ import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import {
   normalizeSystemSettingsUpdatePayload,
-  type SystemSettingsUpdateBody,
+  type SystemSettingsUpdatePayload,
 } from '@/lib/admin/settings'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = (await request.json()) as SystemSettingsUpdateBody
+    const body = (await request.json()) as SystemSettingsUpdatePayload
 
     const { data: existingSettings, error: existingError } = await supabaseAdmin
       .from('system_settings')

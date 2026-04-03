@@ -4,18 +4,18 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
-  buildDateRange,
-  buildReportStats,
+  buildReportDateRange,
+  buildReportOrderSummary,
   escapeCsvValue,
-  getTopReportServices,
-  mapOrderRecordToReportOrder,
+  getReportTopServices,
+  mapOrderSourceRowToReportOrderRecord,
   sanitizeExportValue,
-  type ReportOrder,
+  type ReportOrderRecord,
   type ReportRange,
 } from '@/lib/orders/reports'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
-import { type RawOrder } from '@/lib/orders/normalize'
+import { type OrderSourceRow } from '@/lib/orders/normalize'
 import {
   formatCurrency,
   formatDateTime,
@@ -32,7 +32,7 @@ export default function ReportsPage() {
   const today = new Date()
   const todayString = getDateInputValue(today)
 
-  const [orders, setOrders] = useState<ReportOrder[]>([])
+  const [orders, setOrders] = useState<ReportOrderRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -62,7 +62,7 @@ export default function ReportsPage() {
 
     setErrorMessage('')
 
-    const { fromIso, toIso } = buildDateRange(range, dateFrom, dateTo)
+    const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
 
     const { data, error } = await supabase
       .from('orders')
@@ -107,7 +107,7 @@ export default function ReportsPage() {
     }
 
     const normalized = Array.isArray(data)
-      ? data.map((row, index) => mapOrderRecordToReportOrder(row as RawOrder, index))
+      ? data.map((row, index) => mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index))
       : []
 
     setOrders(normalized)
@@ -131,11 +131,11 @@ export default function ReportsPage() {
   }, [orders])
 
   const stats = useMemo(() => {
-    return buildReportStats(filteredOrders)
+    return buildReportOrderSummary(filteredOrders)
   }, [filteredOrders])
 
   const topServices = useMemo(() => {
-    return getTopReportServices(filteredOrders)
+    return getReportTopServices(filteredOrders)
   }, [filteredOrders])
 
   const exportExcel = () => {

@@ -1,13 +1,13 @@
 import {
   isSameDay,
-  type NormalizedOrderRecord,
+  type OrderSummary,
   type OrderStatus,
 } from '@/lib/orders/normalize'
 import { formatPaymentMethod } from '@/lib/orders/format'
 
 export type OrderFilter = 'all' | 'today' | OrderStatus
 
-export type OrderItem = {
+export type OrderLineItemRecord = {
   item_name: string
   item_type: string
   quantity: number
@@ -15,7 +15,7 @@ export type OrderItem = {
   line_total: number
 }
 
-export type Order = {
+export type OrderRecord = {
   id: string
   order_number: string
   customer_name: string
@@ -30,10 +30,10 @@ export type Order = {
   cash_received: number
   remaining_from_customer: number
   cash_change: number
-  items: OrderItem[]
+  items: OrderLineItemRecord[]
 }
 
-export type OrdersPageStats = {
+export type OrdersPageSummary = {
   totalOrders: number
   newCount: number
   inProgressCount: number
@@ -77,7 +77,7 @@ export const ORDER_FILTERS: { key: OrderFilter; label: string }[] = [
   { key: 'delivered', label: 'مستلم' },
 ]
 
-export function mapOrderRecordToOrder(record: NormalizedOrderRecord): Order {
+export function mapOrderSummaryToOrderRecord(record: OrderSummary): OrderRecord {
   return {
     id: record.id,
     order_number: record.orderNumber,
@@ -106,12 +106,12 @@ export function mapOrderRecordToOrder(record: NormalizedOrderRecord): Order {
   }
 }
 
-export function getTodayOrders(orders: Order[]) {
+export function getTodayOrderRecords(orders: OrderRecord[]) {
   return orders.filter((order) => isSameDay(order.created_at))
 }
 
 export function filterOrders(
-  orders: Order[],
+  orders: OrderRecord[],
   search: string,
   filter: OrderFilter
 ) {
@@ -136,10 +136,10 @@ export function filterOrders(
   })
 }
 
-export function buildOrdersPageStats(
-  filteredOrders: Order[],
-  todayOrders: Order[]
-): OrdersPageStats {
+export function buildOrdersPageSummary(
+  filteredOrders: OrderRecord[],
+  todayOrders: OrderRecord[]
+): OrdersPageSummary {
   return {
     totalOrders: filteredOrders.length,
     newCount: filteredOrders.filter((order) => order.status === 'new').length,

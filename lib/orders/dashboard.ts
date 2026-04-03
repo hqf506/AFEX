@@ -5,7 +5,7 @@ import {
   normalizeOrderRecord,
   type OrderStatus,
   type PaymentMethodKey,
-  type RawOrder,
+  type OrderSourceRow,
 } from '@/lib/orders/normalize'
 
 export type DashboardRange = 'today' | 'week' | 'month'
@@ -17,7 +17,7 @@ export type DashboardSection =
   | 'activity'
   | 'cash'
 
-export type DashboardOrder = {
+export type DashboardOrderRecord = {
   id: string
   order_number: string
   customer_name: string
@@ -39,7 +39,7 @@ export type DashboardOrder = {
   }[]
 }
 
-export type DashboardStats = {
+export type DashboardOrderSummary = {
   totalOrders: number
   rangeOrdersCount: number
   todayOrdersCount: number
@@ -59,7 +59,7 @@ export type DashboardStats = {
 export const DASHBOARD_FETCH_LIMIT = 100
 
 export const DASHBOARD_STATUS_MAP: Record<
-  DashboardOrder['status'],
+  DashboardOrderRecord['status'],
   { label: string; className: string }
 > = {
   new: { label: 'جديد', className: 'badge badge-blue' },
@@ -93,10 +93,10 @@ export const DASHBOARD_SECTION_TITLES: Record<DashboardSection, string> = {
   cash: 'النقدية',
 }
 
-export function mapOrderRecordToDashboardOrder(
-  row: RawOrder,
+export function mapOrderSourceRowToDashboardOrderRecord(
+  row: OrderSourceRow,
   index: number
-): DashboardOrder {
+): DashboardOrderRecord {
   const record = normalizeOrderRecord(row, index)
 
   return {
@@ -134,7 +134,7 @@ export function resolveDashboardSection(
 }
 
 export function getDashboardRangeOrders(
-  orders: DashboardOrder[],
+  orders: DashboardOrderRecord[],
   range: DashboardRange
 ) {
   if (range === 'today') {
@@ -148,11 +148,11 @@ export function getDashboardRangeOrders(
   return orders.filter((order) => isWithinCurrentMonth(order.created_at))
 }
 
-export function buildDashboardStats(
-  orders: DashboardOrder[],
-  rangeOrders: DashboardOrder[],
-  todayOrders: DashboardOrder[]
-): DashboardStats {
+export function buildDashboardOrderSummary(
+  orders: DashboardOrderRecord[],
+  rangeOrders: DashboardOrderRecord[],
+  todayOrders: DashboardOrderRecord[]
+): DashboardOrderSummary {
   const cashTotal = rangeOrders
     .filter((order) => order.payment_method === 'cash')
     .reduce((sum, order) => sum + order.total, 0)
@@ -202,7 +202,7 @@ export function buildDashboardStats(
   }
 }
 
-export function getDashboardStatusItems(stats: DashboardStats) {
+export function getDashboardStatusItems(stats: DashboardOrderSummary) {
   return [
     { label: 'جديد', count: stats.newCount, color: 'bg-blue-900' },
     { label: 'قيد التنفيذ', count: stats.inProgressCount, color: 'bg-amber-500' },

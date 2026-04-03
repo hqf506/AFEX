@@ -3,12 +3,12 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  createDefaultSystemSettingsForm,
-  createSystemSettingsForm,
+  createDefaultSystemSettingsPayload,
+  createSystemSettingsPayload,
   createSystemSettingsSavePayload,
   resolveSystemSettingsSaveNames,
   type SystemSettings,
-  type SystemSettingsForm,
+  type SystemSettingsPayload,
 } from '@/lib/admin/settings'
 import { usePageAccess } from '@/hooks/use-page-access'
 
@@ -41,8 +41,8 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<SystemSettings | null>(null)
-  const [form, setForm] = useState<SystemSettingsForm>(() =>
-    createDefaultSystemSettingsForm()
+  const [form, setForm] = useState<SystemSettingsPayload>(() =>
+    createDefaultSystemSettingsPayload()
   )
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -69,7 +69,7 @@ export default function AdminSettingsPage() {
       const settingsData = result.settings as SystemSettings | null
 
       setSettings(settingsData)
-      setForm(createSystemSettingsForm(settingsData))
+      setForm(createSystemSettingsPayload(settingsData))
 
       setLoading(false)
     } catch (error) {
@@ -90,9 +90,9 @@ export default function AdminSettingsPage() {
     return () => window.clearTimeout(timeoutId)
   }, [allowed, fetchSettings])
 
-  const updateField = <K extends keyof SystemSettingsForm>(
+  const updateField = <K extends keyof SystemSettingsPayload>(
     key: K,
-    value: SystemSettingsForm[K]
+    value: SystemSettingsPayload[K]
   ) => {
     setForm((prev) => ({
       ...prev,
@@ -101,7 +101,7 @@ export default function AdminSettingsPage() {
   }
 
   const resetForm = () => {
-    setForm(createSystemSettingsForm(settings))
+    setForm(createSystemSettingsPayload(settings))
   }
 
   const saveSettings = async () => {
@@ -151,7 +151,7 @@ export default function AdminSettingsPage() {
       const savedSettings = result.settings as SystemSettings
 
       setSettings(savedSettings)
-      setForm(createSystemSettingsForm(savedSettings))
+      setForm(createSystemSettingsPayload(savedSettings))
 
       setSuccessMessage(result.message || 'تم حفظ إعدادات النظام بنجاح')
       setTimeout(() => setSuccessMessage(''), 3000)

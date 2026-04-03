@@ -3,7 +3,7 @@ import { APP_ROLES, type AppRole } from '@/lib/app-roles'
 export const ADMIN_PRIMARY_USERNAME = 'admin'
 export const ADMIN_PASSWORD_MIN_LENGTH = 6
 
-export type AdminUserCreateForm = {
+export type AdminUserCreatePayload = {
   username: string
   fullName: string
   password: string
@@ -11,7 +11,7 @@ export type AdminUserCreateForm = {
   role: AppRole
 }
 
-export function createEmptyAdminUserForm(): AdminUserCreateForm {
+export function createEmptyAdminUserPayload(): AdminUserCreatePayload {
   return {
     username: '',
     fullName: '',
@@ -53,8 +53,8 @@ export function isPrimaryAdminUsername(username: string | null | undefined) {
   return username === ADMIN_PRIMARY_USERNAME
 }
 
-export function canSubmitAdminUserForm(
-  form: Pick<AdminUserCreateForm, 'username' | 'password' | 'confirmPassword'>
+export function canSubmitAdminUserCreatePayload(
+  form: Pick<AdminUserCreatePayload, 'username' | 'password' | 'confirmPassword'>
 ) {
   return (
     form.username.trim().length > 0 &&

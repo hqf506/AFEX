@@ -1,4 +1,4 @@
-export type Product = {
+export type InvoiceCatalogItem = {
   id: string
   name: string
   type: 'product' | 'service'
@@ -6,7 +6,7 @@ export type Product = {
   price: number
 }
 
-export type InvoiceItem = {
+export type InvoiceLineItem = {
   item_id: string | null
   item_name: string
   item_type: 'product' | 'service'
@@ -14,7 +14,7 @@ export type InvoiceItem = {
   unit_price: number
 }
 
-export type InvoiceResult = {
+export type CreatedInvoiceRecord = {
   customer_id: string
   order_id: string
   order_number: string
@@ -23,7 +23,7 @@ export type InvoiceResult = {
   status: string
 }
 
-export const INVOICE_PRODUCTS: Product[] = [
+export const INVOICE_PRODUCTS: InvoiceCatalogItem[] = [
   { id: '1', name: 'تنظيف فاخر', type: 'service', category: 'تنظيف', price: 120 },
   { id: '2', name: 'إصلاح شنطة جلد', type: 'service', category: 'إصلاح', price: 240 },
   { id: '3', name: 'بخاخ حماية جلد', type: 'product', category: 'عناية', price: 85 },
@@ -40,7 +40,7 @@ export const INVOICE_FILTERS = [
 ]
 
 export function filterInvoiceProducts(
-  products: Product[],
+  products: InvoiceCatalogItem[],
   activeFilter: string,
   search: string
 ) {
@@ -61,14 +61,14 @@ export function filterInvoiceProducts(
   })
 }
 
-export function calculateInvoiceSubtotal(invoiceItems: InvoiceItem[]) {
+export function calculateInvoiceSubtotal(invoiceItems: InvoiceLineItem[]) {
   return invoiceItems.reduce(
     (sum, item) => sum + item.quantity * item.unit_price,
     0
   )
 }
 
-export function getNumericCashReceived(value: string) {
+export function parseCashReceivedAmount(value: string) {
   const numericValue = Number(value)
   return Number.isNaN(numericValue) ? 0 : numericValue
 }
@@ -91,9 +91,9 @@ export function calculateCashChange(
   return Math.max(numericCashReceived - finalTotal, 0)
 }
 
-export function addInvoiceItem(
-  invoiceItems: InvoiceItem[],
-  product: Product
+export function addInvoiceLineItem(
+  invoiceItems: InvoiceLineItem[],
+  product: InvoiceCatalogItem
 ) {
   const existing = invoiceItems.find((item) => item.item_name === product.name)
 
@@ -117,8 +117,8 @@ export function addInvoiceItem(
   ]
 }
 
-export function increaseInvoiceItemQuantity(
-  invoiceItems: InvoiceItem[],
+export function increaseInvoiceLineItemQuantity(
+  invoiceItems: InvoiceLineItem[],
   itemName: string
 ) {
   return invoiceItems.map((item) =>
@@ -128,8 +128,8 @@ export function increaseInvoiceItemQuantity(
   )
 }
 
-export function decreaseInvoiceItemQuantity(
-  invoiceItems: InvoiceItem[],
+export function decreaseInvoiceLineItemQuantity(
+  invoiceItems: InvoiceLineItem[],
   itemName: string
 ) {
   return invoiceItems.map((item) =>
@@ -139,15 +139,15 @@ export function decreaseInvoiceItemQuantity(
   )
 }
 
-export function removeInvoiceItem(
-  invoiceItems: InvoiceItem[],
+export function removeInvoiceLineItem(
+  invoiceItems: InvoiceLineItem[],
   itemName: string
 ) {
   return invoiceItems.filter((item) => item.item_name !== itemName)
 }
 
 export function createInvoicePrintHtml(params: {
-  invoiceItems: InvoiceItem[]
+  invoiceItems: InvoiceLineItem[]
   invoiceNumber?: string
   orderNumber?: string
   customerName: string

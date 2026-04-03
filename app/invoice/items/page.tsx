@@ -5,24 +5,24 @@ import { useRouter } from 'next/navigation'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
   INVOICE_CUSTOMER_STORAGE_KEY,
-  parseStoredInvoiceCustomer,
+  parseStoredInvoiceCustomerDraft,
 } from '@/lib/invoices/customer'
 import {
-  addInvoiceItem,
+  addInvoiceLineItem,
   calculateCashChange,
   calculateInvoiceSubtotal,
   calculateRemainingFromCustomer,
   createInvoicePrintHtml,
-  decreaseInvoiceItemQuantity,
+  decreaseInvoiceLineItemQuantity,
   filterInvoiceProducts,
-  getNumericCashReceived,
-  increaseInvoiceItemQuantity,
+  parseCashReceivedAmount,
+  increaseInvoiceLineItemQuantity,
   INVOICE_FILTERS,
   INVOICE_PRODUCTS,
-  removeInvoiceItem,
-  type InvoiceItem,
-  type InvoiceResult,
-  type Product,
+  removeInvoiceLineItem,
+  type InvoiceLineItem,
+  type CreatedInvoiceRecord,
+  type InvoiceCatalogItem,
 } from '@/lib/invoices/items'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
@@ -47,7 +47,7 @@ export default function InvoiceItemsPage() {
   const [note, setNote] = useState('')
   const [cashReceived, setCashReceived] = useState('')
   const [loading, setLoading] = useState(false)
-  const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([])
+  const [invoiceItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([])
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [lastInvoiceNumber, setLastInvoiceNumber] = useState('')
@@ -56,7 +56,7 @@ export default function InvoiceItemsPage() {
   useEffect(() => {
     if (!allowed) return
 
-    const parsed = parseStoredInvoiceCustomer(
+    const parsed = parseStoredInvoiceCustomerDraft(
       localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
     )
 
@@ -85,7 +85,7 @@ export default function InvoiceItemsPage() {
   const finalTotal = subtotal - discount + tax
 
   const numericCashReceived = useMemo(() => {
-    return getNumericCashReceived(cashReceived)
+    return parseCashReceivedAmount(cashReceived)
   }, [cashReceived])
 
   const remainingFromCustomer = useMemo(() => {
@@ -100,24 +100,24 @@ export default function InvoiceItemsPage() {
     return calculateCashChange(paymentMethod, numericCashReceived, finalTotal)
   }, [paymentMethod, numericCashReceived, finalTotal])
 
-  const addItem = (product: Product) => {
-    setInvoiceItems((prev) => addInvoiceItem(prev, product))
+  const addItem = (product: InvoiceCatalogItem) => {
+    setInvoiceLineItems((prev) => addInvoiceLineItem(prev, product))
   }
 
   const increaseQty = (itemName: string) => {
-    setInvoiceItems((prev) => increaseInvoiceItemQuantity(prev, itemName))
+    setInvoiceLineItems((prev) => increaseInvoiceLineItemQuantity(prev, itemName))
   }
 
   const decreaseQty = (itemName: string) => {
-    setInvoiceItems((prev) => decreaseInvoiceItemQuantity(prev, itemName))
+    setInvoiceLineItems((prev) => decreaseInvoiceLineItemQuantity(prev, itemName))
   }
 
   const removeItem = (itemName: string) => {
-    setInvoiceItems((prev) => removeInvoiceItem(prev, itemName))
+    setInvoiceLineItems((prev) => removeInvoiceLineItem(prev, itemName))
   }
 
   const clearInvoice = () => {
-    setInvoiceItems([])
+    setInvoiceLineItems([])
     setDiscount(0)
     setTax(0)
     setNote('')
@@ -213,7 +213,7 @@ export default function InvoiceItemsPage() {
       return
     }
 
-    const result = data as InvoiceResult
+    const result = data as CreatedInvoiceRecord
 
     if (result?.invoice_id) {
       const { error: updateInvoiceError } = await supabase

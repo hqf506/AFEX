@@ -1,8 +1,8 @@
-import { normalizeOrderRecord, type PaymentMethodKey, type RawOrder } from '@/lib/orders/normalize'
+import { normalizeOrderRecord, type PaymentMethodKey, type OrderSourceRow } from '@/lib/orders/normalize'
 
 export type ReportRange = 'daily' | 'monthly' | 'yearly' | 'custom'
 
-export type ReportOrder = {
+export type ReportOrderRecord = {
   id: string
   order_number: string
   customer_name: string
@@ -27,7 +27,7 @@ export type ReportOrder = {
   }[]
 }
 
-export type ReportStats = {
+export type ReportOrderSummary = {
   totalOrders: number
   totalSales: number
   totalSubtotal: number
@@ -45,16 +45,16 @@ export type ReportStats = {
   deliveredCount: number
 }
 
-export type TopReportService = {
+export type ReportTopService = {
   name: string
   qty: number
   total: number
 }
 
-export function mapOrderRecordToReportOrder(
-  row: RawOrder,
+export function mapOrderSourceRowToReportOrderRecord(
+  row: OrderSourceRow,
   index: number
-): ReportOrder {
+): ReportOrderRecord {
   const record = normalizeOrderRecord(row, index)
 
   return {
@@ -98,7 +98,7 @@ export function escapeCsvValue(value: string | number) {
   return text
 }
 
-export function buildDateRange(
+export function buildReportDateRange(
   range: ReportRange,
   dateFrom: string,
   dateTo: string
@@ -152,7 +152,7 @@ export function buildDateRange(
   }
 }
 
-export function buildReportStats(filteredOrders: ReportOrder[]): ReportStats {
+export function buildReportOrderSummary(filteredOrders: ReportOrderRecord[]): ReportOrderSummary {
   const totalSales = filteredOrders.reduce((sum, order) => sum + order.total, 0)
   const totalSubtotal = filteredOrders.reduce(
     (sum, order) => sum + order.subtotal,
@@ -212,9 +212,9 @@ export function buildReportStats(filteredOrders: ReportOrder[]): ReportStats {
   }
 }
 
-export function getTopReportServices(
-  filteredOrders: ReportOrder[]
-): TopReportService[] {
+export function getReportTopServices(
+  filteredOrders: ReportOrderRecord[]
+): ReportTopService[] {
   const map = new Map<string, { qty: number; total: number }>()
 
   for (const order of filteredOrders) {

@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import {
   ADMIN_ROLE_OPTIONS,
-  canSubmitAdminUserForm,
-  createEmptyAdminUserForm,
+  canSubmitAdminUserCreatePayload,
+  createEmptyAdminUserPayload,
   hasValidAdminPasswordLength,
   isPrimaryAdminUsername,
 } from '@/lib/admin/users'
@@ -27,7 +27,7 @@ type ResetPasswordModalState = {
   username: string
 }
 
-const emptyForm = createEmptyAdminUserForm()
+const emptyForm = createEmptyAdminUserPayload()
 
 function RoleTabs({
   value,
@@ -183,7 +183,7 @@ export default function AdminUsersPage() {
   }, [accessLoading, allowed])
 
   const canSubmitCreate = useMemo(() => {
-    return canSubmitAdminUserForm({
+    return canSubmitAdminUserCreatePayload({
       username,
       password,
       confirmPassword,

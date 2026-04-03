@@ -4,19 +4,19 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
-  buildOrdersPageStats,
+  buildOrdersPageSummary,
   filterOrders,
-  getTodayOrders,
-  mapOrderRecordToOrder,
+  getTodayOrderRecords,
+  mapOrderSummaryToOrderRecord,
   ORDER_FILTERS,
   ORDERS_FETCH_LIMIT,
   ORDER_STATUS_MAP,
-  type Order,
+  type OrderRecord,
   type OrderFilter,
 } from '@/lib/orders/orders-page'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
-import { normalizeOrderRecord, type OrderStatus, type RawOrder } from '@/lib/orders/normalize'
+import { normalizeOrderRecord, type OrderStatus, type OrderSourceRow } from '@/lib/orders/normalize'
 import { formatCurrency, formatDateTime } from '@/lib/orders/format'
 
 export default function OrdersPage() {
@@ -26,7 +26,7 @@ export default function OrdersPage() {
   const role = access.userRole
   const roleLabel = getRoleLabel(role)
 
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<OrderRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -176,10 +176,10 @@ export default function OrdersPage() {
         return
       }
 
-      const rows = Array.isArray(data) ? (data as RawOrder[]) : []
+      const rows = Array.isArray(data) ? (data as OrderSourceRow[]) : []
       const normalized = rows
         .map((row, index) => normalizeOrderRecord(row, index))
-        .map(mapOrderRecordToOrder)
+        .map(mapOrderSummaryToOrderRecord)
       const nextIds = new Set(normalized.map((order) => order.id))
 
       if (!initializedRef.current) {
@@ -235,7 +235,7 @@ export default function OrdersPage() {
   }, [allowed, fetchOrders])
 
   const todayOrders = useMemo(() => {
-    return getTodayOrders(orders)
+    return getTodayOrderRecords(orders)
   }, [orders])
 
   const filteredOrders = useMemo(() => {
@@ -243,10 +243,10 @@ export default function OrdersPage() {
   }, [orders, search, filter])
 
   const stats = useMemo(() => {
-    return buildOrdersPageStats(filteredOrders, todayOrders)
+    return buildOrdersPageSummary(filteredOrders, todayOrders)
   }, [filteredOrders, todayOrders])
 
-  const updateStatus = async (order: Order, status: OrderStatus) => {
+  const updateStatus = async (order: OrderRecord, status: OrderStatus) => {
     if (!canManageOrders) {
       showError('ليس لديك صلاحية لتغيير حالة الطلب')
       return
@@ -308,7 +308,7 @@ export default function OrdersPage() {
     setUpdatingId(null)
   }
 
-  const printThermalReceipt = (order: Order) => {
+  const printThermalReceipt = (order: OrderRecord) => {
     const printWindow = window.open('', '_blank', 'width=420,height=800')
 
     if (!printWindow) {

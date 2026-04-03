@@ -23,14 +23,14 @@ export type SystemSettings = {
   updated_at: string
 }
 
-type UseSystemSettingsResult = {
+type SystemSettingsHookResult = {
   settings: SystemSettings | null
   loading: boolean
   error: string
   refresh: () => Promise<void>
 }
 
-export function useSystemSettings(enabled = true): UseSystemSettingsResult {
+export function useSystemSettings(enabled = true): SystemSettingsHookResult {
   const [settings, setSettings] = useState<SystemSettings | null>(null)
   const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState('')

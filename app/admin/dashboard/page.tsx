@@ -5,7 +5,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
-  buildDashboardStats,
+  buildDashboardOrderSummary,
   DASHBOARD_FETCH_LIMIT,
   DASHBOARD_NAV_ITEMS,
   DASHBOARD_QUICK_ACTIONS,
@@ -14,15 +14,15 @@ import {
   getDashboardRangeLabel,
   getDashboardRangeOrders,
   getDashboardStatusItems,
-  mapOrderRecordToDashboardOrder,
+  mapOrderSourceRowToDashboardOrderRecord,
   resolveDashboardSection,
-  type DashboardOrder,
+  type DashboardOrderRecord,
   type DashboardRange,
   type DashboardSection,
 } from '@/lib/orders/dashboard'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
-import { isSameDay, type RawOrder } from '@/lib/orders/normalize'
+import { isSameDay, type OrderSourceRow } from '@/lib/orders/normalize'
 import { formatCurrency, formatPaymentMethod } from '@/lib/orders/format'
 
 function DashboardPageContent() {
@@ -37,7 +37,7 @@ function DashboardPageContent() {
     return resolveDashboardSection(searchParams.get('section'))
   }, [searchParams])
 
-  const [orders, setOrders] = useState<DashboardOrder[]>([])
+  const [orders, setOrders] = useState<DashboardOrderRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -92,7 +92,7 @@ function DashboardPageContent() {
     }
 
     const normalized = Array.isArray(data)
-      ? data.map((row, index) => mapOrderRecordToDashboardOrder(row as RawOrder, index))
+      ? data.map((row, index) => mapOrderSourceRowToDashboardOrderRecord(row as OrderSourceRow, index))
       : []
 
     setOrders(normalized)
@@ -131,7 +131,7 @@ function DashboardPageContent() {
   }, [orders, range])
 
   const stats = useMemo(() => {
-    return buildDashboardStats(orders, rangeOrders, todayOrders)
+    return buildDashboardOrderSummary(orders, rangeOrders, todayOrders)
   }, [orders, rangeOrders, todayOrders])
 
   const recentOrders = useMemo(() => orders.slice(0, 6), [orders])

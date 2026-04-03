@@ -2,7 +2,7 @@ export type OrderStatus = 'new' | 'in_progress' | 'ready' | 'delivered'
 
 export type PaymentMethodKey = 'cash' | 'card' | 'transfer' | 'unknown'
 
-export type RawInvoiceItem = {
+export type OrderInvoiceLineItemSource = {
   item_name_snapshot?: string
   item_type_snapshot?: string
   quantity?: number | string
@@ -11,7 +11,7 @@ export type RawInvoiceItem = {
   [key: string]: unknown
 }
 
-export type RawInvoice = {
+export type OrderInvoiceSource = {
   invoice_number?: string
   payment_method?: string
   payment_status?: string
@@ -23,26 +23,26 @@ export type RawInvoice = {
   cash_received?: number | string
   remaining_from_customer?: number | string
   cash_change?: number | string
-  invoice_items?: RawInvoiceItem[]
+  invoice_items?: OrderInvoiceLineItemSource[]
 }
 
-export type RawCustomer = {
+export type OrderCustomerSource = {
   name?: string
   phone?: string
   phone_number?: string
 }
 
-export type RawOrder = {
+export type OrderSourceRow = {
   id?: string
   order_number?: string
   status?: string
   created_at?: string
-  customers?: RawCustomer | RawCustomer[]
-  invoices?: RawInvoice[] | RawInvoice
+  customers?: OrderCustomerSource | OrderCustomerSource[]
+  invoices?: OrderInvoiceSource[] | OrderInvoiceSource
   [key: string]: unknown
 }
 
-export type NormalizedOrderItem = {
+export type OrderLineItemSummary = {
   name: string
   type: string
   quantity: number
@@ -50,7 +50,7 @@ export type NormalizedOrderItem = {
   lineTotal: number
 }
 
-export type NormalizedOrderRecord = {
+export type OrderSummary = {
   id: string
   orderNumber: string
   customerName: string
@@ -70,10 +70,10 @@ export type NormalizedOrderRecord = {
   cashReceived: number
   remainingFromCustomer: number
   cashChange: number
-  items: NormalizedOrderItem[]
+  items: OrderLineItemSummary[]
 }
 
-export function getStringValue(...values: unknown[]): string {
+export function readOrderStringValue(...values: unknown[]): string {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) {
       return value.trim()
@@ -83,7 +83,7 @@ export function getStringValue(...values: unknown[]): string {
   return '—'
 }
 
-export function getNumberValue(...values: unknown[]): number {
+export function readOrderNumberValue(...values: unknown[]): number {
   for (const value of values) {
     if (typeof value === 'number' && !Number.isNaN(value)) {
       return value
@@ -100,7 +100,7 @@ export function getNumberValue(...values: unknown[]): number {
   return 0
 }
 
-export function getPrimaryInvoice(invoices: RawOrder['invoices']): RawInvoice | null {
+export function getPrimaryOrderInvoice(invoices: OrderSourceRow['invoices']): OrderInvoiceSource | null {
   if (Array.isArray(invoices)) {
     return invoices[0] || null
   }
@@ -112,7 +112,7 @@ export function getPrimaryInvoice(invoices: RawOrder['invoices']): RawInvoice | 
   return null
 }
 
-export function getPrimaryCustomer(customers: RawOrder['customers']): RawCustomer | null {
+export function getPrimaryOrderCustomer(customers: OrderSourceRow['customers']): OrderCustomerSource | null {
   if (Array.isArray(customers)) {
     return customers[0] || null
   }
@@ -138,17 +138,17 @@ export function normalizePaymentMethod(value: unknown): PaymentMethodKey {
   return 'unknown'
 }
 
-export function normalizeOrderItems(items: RawInvoiceItem[] | undefined): NormalizedOrderItem[] {
+export function normalizeOrderItems(items: OrderInvoiceLineItemSource[] | undefined): OrderLineItemSummary[] {
   if (!Array.isArray(items)) return []
 
   return items.map((item) => {
-    const quantity = getNumberValue(item.quantity, 1)
-    const unitPrice = getNumberValue(item.unit_price)
-    const lineTotal = getNumberValue(item.line_total, quantity * unitPrice)
+    const quantity = readOrderNumberValue(item.quantity, 1)
+    const unitPrice = readOrderNumberValue(item.unit_price)
+    const lineTotal = readOrderNumberValue(item.line_total, quantity * unitPrice)
 
     return {
-      name: getStringValue(item.item_name_snapshot),
-      type: getStringValue(item.item_type_snapshot),
+      name: readOrderStringValue(item.item_name_snapshot),
+      type: readOrderStringValue(item.item_type_snapshot),
       quantity,
       unitPrice,
       lineTotal,
@@ -157,39 +157,39 @@ export function normalizeOrderItems(items: RawInvoiceItem[] | undefined): Normal
 }
 
 export function normalizeOrderRecord(
-  row: RawOrder,
+  row: OrderSourceRow,
   index: number
-): NormalizedOrderRecord {
-  const primaryInvoice = getPrimaryInvoice(row.invoices)
-  const primaryCustomer = getPrimaryCustomer(row.customers)
-  const paymentMethodRaw = getStringValue(primaryInvoice?.payment_method)
+): OrderSummary {
+  const primaryInvoice = getPrimaryOrderInvoice(row.invoices)
+  const primaryCustomer = getPrimaryOrderCustomer(row.customers)
+  const paymentMethodRaw = readOrderStringValue(primaryInvoice?.payment_method)
 
   return {
     id:
       typeof row.id === 'string' && row.id.trim() ? row.id : `row-${index}`,
-    orderNumber: getStringValue(row.order_number),
-    customerName: getStringValue(primaryCustomer?.name),
-    customerPhone: getStringValue(
+    orderNumber: readOrderStringValue(row.order_number),
+    customerName: readOrderStringValue(primaryCustomer?.name),
+    customerPhone: readOrderStringValue(
       primaryCustomer?.phone,
       primaryCustomer?.phone_number
     ),
-    total: getNumberValue(primaryInvoice?.total, primaryInvoice?.subtotal),
-    subtotal: getNumberValue(primaryInvoice?.subtotal),
-    discount: getNumberValue(primaryInvoice?.discount),
-    tax: getNumberValue(primaryInvoice?.tax),
+    total: readOrderNumberValue(primaryInvoice?.total, primaryInvoice?.subtotal),
+    subtotal: readOrderNumberValue(primaryInvoice?.subtotal),
+    discount: readOrderNumberValue(primaryInvoice?.discount),
+    tax: readOrderNumberValue(primaryInvoice?.tax),
     status: normalizeOrderStatus(row.status),
-    statusRaw: getStringValue(row.status),
-    createdAt: getStringValue(row.created_at),
-    invoiceNumber: getStringValue(primaryInvoice?.invoice_number),
+    statusRaw: readOrderStringValue(row.status),
+    createdAt: readOrderStringValue(row.created_at),
+    invoiceNumber: readOrderStringValue(primaryInvoice?.invoice_number),
     paymentMethod: normalizePaymentMethod(primaryInvoice?.payment_method),
     paymentMethodRaw,
-    paymentStatus: getStringValue(primaryInvoice?.payment_status),
-    note: getStringValue(primaryInvoice?.note),
-    cashReceived: getNumberValue(primaryInvoice?.cash_received),
-    remainingFromCustomer: getNumberValue(
+    paymentStatus: readOrderStringValue(primaryInvoice?.payment_status),
+    note: readOrderStringValue(primaryInvoice?.note),
+    cashReceived: readOrderNumberValue(primaryInvoice?.cash_received),
+    remainingFromCustomer: readOrderNumberValue(
       primaryInvoice?.remaining_from_customer
     ),
-    cashChange: getNumberValue(primaryInvoice?.cash_change),
+    cashChange: readOrderNumberValue(primaryInvoice?.cash_change),
     items: normalizeOrderItems(primaryInvoice?.invoice_items),
   }
 }
