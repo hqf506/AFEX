@@ -1,26 +1,211 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --primary: #0f172a;
+  --primary-foreground: #ffffff;
+  --success-bg: #ecfdf5;
+  --success-text: #047857;
+  --danger-bg: #fff1f2;
+  --danger-text: #be123c;
+  --warning-bg: #fffbeb;
+  --warning-text: #b45309;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-cairo);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+strong,
+b {
+  font-weight: 700;
+}
+
+label {
+  font-weight: 600;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-cairo), Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* إزالة أسهم input number */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* ================== Layout ================== */
+
+.app-shell {
+  @apply min-h-screen w-full bg-slate-100 text-slate-900;
+}
+
+.page-wrap {
+  @apply w-full px-3 py-4 sm:px-4 sm:py-5 lg:px-6 lg:py-6 xl:px-8;
+}
+
+/* ================== Cards ================== */
+
+.page-hero {
+  @apply mb-5 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:rounded-[24px] sm:p-5 lg:rounded-[28px] lg:p-6;
+}
+
+.page-card {
+  @apply rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-200;
+}
+
+.inner-card {
+  @apply rounded-[18px] border border-slate-200 bg-slate-50 p-3 sm:rounded-[20px] sm:p-4 lg:rounded-[24px];
+}
+
+/* ================== Typography ================== */
+
+.page-title {
+  @apply text-xl font-extrabold text-slate-900 sm:text-2xl lg:text-3xl;
+}
+
+.section-title {
+  @apply text-base font-bold text-slate-900 sm:text-lg;
+}
+
+.page-subtitle {
+  @apply mt-1 text-sm text-slate-500;
+}
+
+.muted-text {
+  @apply text-sm text-slate-500;
+}
+
+/* ================== Inputs ================== */
+
+.field-label {
+  @apply mb-2 block text-sm font-semibold text-slate-700;
+}
+
+.field-input {
+  @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-slate-400;
+}
+
+.field-select {
+  @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-slate-400;
+}
+
+/* ================== Buttons ================== */
+
+.primary-btn {
+  @apply inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60;
+}
+
+.secondary-btn {
+  @apply inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60;
+}
+
+.soft-btn {
+  @apply inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white;
+}
+
+/* ================== Alerts ================== */
+
+.success-alert {
+  @apply mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700;
+}
+
+.error-alert {
+  @apply mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700;
+}
+
+.warning-alert {
+  @apply rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800;
+}
+
+/* ================== Stats ================== */
+
+.stat-card {
+  @apply rounded-[20px] bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:rounded-[22px] lg:rounded-[24px];
+}
+
+.stat-label {
+  @apply text-xs text-slate-500;
+}
+
+.stat-value {
+  @apply mt-2 text-xl font-extrabold text-slate-900 sm:text-2xl;
+}
+
+/* ================== Badges ================== */
+
+.badge {
+  @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-bold;
+}
+
+.badge-slate {
+  @apply bg-slate-100 text-slate-700;
+}
+
+.badge-blue {
+  @apply bg-blue-100 text-blue-800;
+}
+
+.badge-amber {
+  @apply bg-amber-100 text-amber-800;
+}
+
+.badge-green {
+  @apply bg-emerald-100 text-emerald-700;
+}
+
+.badge-rose {
+  @apply bg-rose-100 text-rose-700;
+}
+
+/* ================== Lists ================== */
+
+.table-list {
+  @apply divide-y divide-slate-200;
+}
+
+.list-row {
+  @apply flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between;
+}
+
+/* ================== Mobile تحسين ================== */
+
+@media (max-width: 640px) {
+  .primary-btn,
+  .secondary-btn,
+  .soft-btn {
+    @apply min-h-[46px] w-full;
+  }
+
+  .page-card,
+  .page-hero {
+    @apply shadow-sm;
+  }
 }

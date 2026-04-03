@@ -1,0 +1,170 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import type { User } from '@supabase/supabase-js'
+
+export type AppRole = 'admin' | 'employee' | 'cashier'
+
+type ProfileRecord = {
+  id: string
+  role: AppRole
+  is_active: boolean
+  username: string | null
+  full_name: string | null
+}
+
+type ApiAuthSuccess = {
+  ok: true
+  response: NextResponse
+  supabase: ReturnType<typeof createServerClient>
+  user: User
+  profile: ProfileRecord
+}
+
+type ApiAuthFailure = {
+  ok: false
+  response: NextResponse
+}
+
+export type ApiAuthResult = ApiAuthSuccess | ApiAuthFailure
+
+function buildSupabaseServerClient(request: NextRequest, response: NextResponse) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY'
+    )
+  }
+
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return request.cookies.get(name)?.value
+      },
+      set(name: string, value: string, options: Record<string, unknown>) {
+        response.cookies.set({
+          name,
+          value,
+          ...(options as object),
+        })
+      },
+      remove(name: string, options: Record<string, unknown>) {
+        response.cookies.set({
+          name,
+          value: '',
+          ...(options as object),
+        })
+      },
+    },
+  })
+}
+
+export async function requireApiAuth(
+  request: NextRequest,
+  allowedRoles: AppRole[] = []
+): Promise<ApiAuthResult> {
+  const response = NextResponse.next()
+
+  try {
+    const supabase = buildSupabaseServerClient(request, response)
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            error: 'غير مصرح',
+            details: 'يجب تسجيل الدخول أولاً',
+          },
+          { status: 401 }
+        ),
+      }
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, role, is_active, username, full_name')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError || !profile) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            error: 'غير مصرح',
+            details: 'تعذر التحقق من ملف المستخدم',
+          },
+          { status: 401 }
+        ),
+      }
+    }
+
+    const typedProfile = profile as ProfileRecord
+
+    if (!typedProfile.is_active) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            error: 'الحساب معطل',
+            details: 'هذا الحساب غير نشط',
+          },
+          { status: 403 }
+        ),
+      }
+    }
+
+    if (
+      allowedRoles.length > 0 &&
+      !allowedRoles.includes(typedProfile.role)
+    ) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            error: 'لا تملك صلاحية الوصول',
+            details: 'صلاحية المستخدم لا تسمح بتنفيذ هذا الإجراء',
+          },
+          { status: 403 }
+        ),
+      }
+    }
+
+    return {
+      ok: true,
+      response,
+      supabase,
+      user,
+      profile: typedProfile,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          error: 'فشل التحقق الأمني',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        { status: 500 }
+      ),
+    }
+  }
+}
+
+export function withAuthCookies(
+  authResponse: NextResponse,
+  finalResponse: NextResponse
+) {
+  for (const cookie of authResponse.cookies.getAll()) {
+    finalResponse.cookies.set(cookie)
+  }
+
+  return finalResponse
+}
