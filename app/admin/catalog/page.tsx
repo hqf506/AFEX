@@ -250,6 +250,12 @@ export default function AdminCatalogPage() {
           actions={
             <>
               <Link
+                href="/admin/branch-catalog"
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+              >
+                كتالوج الفروع
+              </Link>
+              <Link
                 href="/admin/settings"
                 className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-900"
               >
