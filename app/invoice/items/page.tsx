@@ -27,7 +27,8 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { formatCurrency } from '@/lib/orders/format'
-import { isSendableWhatsAppPhone } from '@/lib/whatsapp/messages'
+
+const INVOICE_PDF_WHATSAPP_ENABLED = false
 
 export default function InvoiceItemsPage() {
   const router = useRouter()
@@ -153,69 +154,6 @@ export default function InvoiceItemsPage() {
     printWindow.document.close()
   }
 
-  const generateInvoicePdf = async (
-    invoiceNumber?: string,
-    orderNumber?: string
-  ) => {
-    const response = await fetch('/api/invoices/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        invoiceItems,
-        invoiceNumber,
-        orderNumber,
-        customerName,
-        customerPhone,
-        paymentMethod,
-        numericCashReceived,
-        remainingFromCustomer,
-        cashChange,
-        subtotal,
-        discount,
-        tax,
-        finalTotal,
-        note,
-        issuedAt: new Date().toISOString(),
-      }),
-    })
-
-    const result = await response.json().catch(() => null)
-
-    if (!response.ok || !result?.success) {
-      throw new Error('Failed to generate invoice PDF')
-    }
-
-    return {
-      fileUrl: typeof result.fileUrl === 'string' ? result.fileUrl : '',
-      filename: typeof result.filename === 'string' ? result.filename : '',
-    }
-  }
-
-  const sendInvoicePdfWhatsApp = async (params: {
-    fileUrl: string
-    filename?: string
-  }) => {
-    const response = await fetch('/api/whatsapp/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'file',
-        to: customerPhone,
-        fileUrl: params.fileUrl,
-        filename: params.filename,
-        caption: 'ÙØ§ØªÙˆØ±ØªÙƒ Ù…Ù† Leather Fix ERP',
-      }),
-    })
-
-    const result = await response.json().catch(() => null)
-
-    if (!response.ok || !result?.success) {
-      throw new Error('Failed to send invoice PDF via WhatsApp')
-    }
-
-    return result
-  }
-
   const createInvoice = async () => {
     if (loading) return
 
@@ -271,29 +209,11 @@ export default function InvoiceItemsPage() {
     setLastOrderNumber(result?.order_number || '')
     printInvoice(result?.invoice_number, result?.order_number)
 
-    try {
-      if (!isSendableWhatsAppPhone(customerPhone)) {
-        setSuccessMessage(
-          `ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ§ØªÙˆØ±Ø© ${result?.invoice_number || ''} Ø¨Ù†Ø¬Ø§Ø­. Ù„Ù… ÙŠØªÙ… Ø¥Ø±Ø³Ø§Ù„ PDF Ø¹Ø¨Ø± Ø§Ù„ÙˆØ§ØªØ³Ø§Ø¨ Ù„Ø¹Ø¯Ù… ØªÙˆÙØ± Ø±Ù‚Ù… ØµØ§Ù„Ø­.`
-        )
-      } else {
-        const pdfFile = await generateInvoicePdf(
-          result?.invoice_number,
-          result?.order_number
-        )
-
-        await sendInvoicePdfWhatsApp(pdfFile)
-
-        setSuccessMessage(
-          `ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ§ØªÙˆØ±Ø© ${result?.invoice_number || ''} ÙˆØ¥Ø±Ø³Ø§Ù„ PDF Ø§Ù„ÙˆØ§ØªØ³Ø§Ø¨ Ø¨Ù†Ø¬Ø§Ø­`
-        )
-      }
-    } catch {
-      setSuccessMessage(
-        `تم إنشاء الفاتورة ${result?.invoice_number || ''} لكن فشل توليد PDF الفاتورة أو إرسالها عبر الواتساب`
-      )
+    // Temporary feature flag: keep invoice creation/print active while
+    // disabling the post-create PDF and WhatsApp flow.
+    if (!INVOICE_PDF_WHATSAPP_ENABLED) {
+      setSuccessMessage(`تم إنشاء الفاتورة ${result?.invoice_number || ''} بنجاح`)
     }
-
 
     setLoading(false)
 
