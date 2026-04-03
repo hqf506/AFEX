@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
@@ -25,6 +25,20 @@ import { usePageAccess } from '@/hooks/use-page-access'
 import { isSameDay, type OrderSourceRow } from '@/lib/orders/normalize'
 import { formatCurrency, formatPaymentMethod } from '@/lib/orders/format'
 
+function buildDashboardOrderComparisonSignature(orders: DashboardOrderRecord[]) {
+  return orders
+    .map((order) =>
+      [
+        order.id,
+        order.status,
+        order.created_at,
+        order.total,
+        order.invoice_number,
+      ].join('|')
+    )
+    .join('||')
+}
+
 function DashboardPageContent() {
   const searchParams = useSearchParams()
 
@@ -43,14 +57,20 @@ function DashboardPageContent() {
   const [errorMessage, setErrorMessage] = useState('')
   const [range, setRange] = useState<DashboardRange>('today')
   const [lastUpdated, setLastUpdated] = useState('')
+  const isFetchInFlightRef = useRef(false)
+  const ordersSignatureRef = useRef('')
 
   const fetchDashboardData = useCallback(async (silent = false) => {
+    if (isFetchInFlightRef.current) return
+    isFetchInFlightRef.current = true
+
     if (silent) setRefreshing(true)
     else setLoading(true)
 
     setErrorMessage('')
 
-    const { data, error } = await supabase
+    try {
+      const { data, error } = await supabase
       .from('orders')
       .select(`
         id,
@@ -79,13 +99,14 @@ function DashboardPageContent() {
             line_total
           )
         )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(DASHBOARD_FETCH_LIMIT)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(DASHBOARD_FETCH_LIMIT)
 
     if (error) {
       setErrorMessage(`فشل تحميل لوحة التحكم: ${error.message}`)
       setOrders([])
+      ordersSignatureRef.current = ''
       setLoading(false)
       setRefreshing(false)
       return
@@ -95,10 +116,19 @@ function DashboardPageContent() {
       ? data.map((row, index) => mapOrderSourceRowToDashboardOrderRecord(row as OrderSourceRow, index))
       : []
 
-    setOrders(normalized)
+    const nextSignature = buildDashboardOrderComparisonSignature(normalized)
+
+    if (ordersSignatureRef.current !== nextSignature) {
+      ordersSignatureRef.current = nextSignature
+      setOrders(normalized)
+    }
+
     setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
     setLoading(false)
     setRefreshing(false)
+    } finally {
+      isFetchInFlightRef.current = false
+    }
   }, [])
 
   useEffect(() => {

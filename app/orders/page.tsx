@@ -19,6 +19,20 @@ import { usePageAccess } from '@/hooks/use-page-access'
 import { normalizeOrderRecord, type OrderStatus, type OrderSourceRow } from '@/lib/orders/normalize'
 import { formatCurrency, formatDateTime } from '@/lib/orders/format'
 
+function buildOrderComparisonSignature(orders: OrderRecord[]) {
+  return orders
+    .map((order) =>
+      [
+        order.id,
+        order.status,
+        order.created_at,
+        order.total,
+        order.invoice_number,
+      ].join('|')
+    )
+    .join('||')
+}
+
 export default function OrdersPage() {
   const access = usePageAccess(['admin', 'employee'])
   const authLoading = access.loading
@@ -44,6 +58,8 @@ export default function OrdersPage() {
   })
 
   const initializedRef = useRef(false)
+  const isFetchInFlightRef = useRef(false)
+  const ordersSignatureRef = useRef('')
   const previousOrderIdsRef = useRef<Set<string>>(new Set())
 
   const canManageOrders = role === 'admin' || role === 'employee'
@@ -124,6 +140,9 @@ export default function OrdersPage() {
 
   const fetchOrders = useCallback(
     async (silent = false) => {
+      if (isFetchInFlightRef.current) return
+      isFetchInFlightRef.current = true
+
       if (silent) {
         setRefreshing(true)
       } else {
@@ -132,7 +151,8 @@ export default function OrdersPage() {
 
       setErrorMessage('')
 
-      const { data, error } = await supabase
+      try {
+        const { data, error } = await supabase
         .from('orders')
         .select(`
           id,
@@ -164,13 +184,14 @@ export default function OrdersPage() {
             )
           )
         `)
-        .order('created_at', { ascending: false })
-        .limit(ORDERS_FETCH_LIMIT)
+          .order('created_at', { ascending: false })
+          .limit(ORDERS_FETCH_LIMIT)
 
       if (error) {
         console.error('Supabase orders fetch error:', error)
         showError(`فشل تحميل الطلبات: ${error.message}`)
         setOrders([])
+        ordersSignatureRef.current = ''
         setLoading(false)
         setRefreshing(false)
         return
@@ -199,10 +220,19 @@ export default function OrdersPage() {
         previousOrderIdsRef.current = nextIds
       }
 
-      setOrders(normalized)
+      const nextSignature = buildOrderComparisonSignature(normalized)
+
+      if (ordersSignatureRef.current !== nextSignature) {
+        ordersSignatureRef.current = nextSignature
+        setOrders(normalized)
+      }
+
       setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
+      } finally {
+        isFetchInFlightRef.current = false
+      }
     },
     [playNewOrderSound, soundEnabled, canUseOrderSound]
   )
@@ -270,9 +300,13 @@ export default function OrdersPage() {
       return
     }
 
-    setOrders((prev) =>
-      prev.map((item) => (item.id === order.id ? { ...item, status } : item))
-    )
+    setOrders((prev) => {
+      const nextOrders = prev.map((item) =>
+        item.id === order.id ? { ...item, status } : item
+      )
+      ordersSignatureRef.current = buildOrderComparisonSignature(nextOrders)
+      return nextOrders
+    })
 
     if (status === 'ready' && order.customer_phone !== '—') {
       try {
