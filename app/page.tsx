@@ -851,6 +851,21 @@ export default function HomePage() {
                   </button>
                 ) : null}
 
+                {visibleSidebarItems.some((item) => item.key === 'catalog') ? (
+                  <button
+                    type="button"
+                    onClick={() => openWorkspace('catalog')}
+                    className={`flex w-full flex-row-reverse items-center justify-between rounded-2xl px-4 py-3 text-right text-sm font-bold transition ${
+                      activeWorkspace === 'catalog'
+                        ? 'bg-slate-950 text-white'
+                        : 'bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    <span className="shrink-0">•</span>
+                    <span className="flex-1 text-right">الأصناف</span>
+                  </button>
+                ) : null}
+
                 {visibleSidebarItems.some((item) => item.key === 'customers') ? (
                   <button
                     type="button"

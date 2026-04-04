@@ -77,15 +77,10 @@ async function resolveSharedAuthProfile(): Promise<CurrentUserProfile | null> {
 }
 
 export function AuthStateProvider({ children }: { children: ReactNode }) {
-  const initialCachedProfile = readCachedAuthProfile()
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
-  const [status, setStatus] = useState<SharedAuthStatus>(() =>
-    initialCachedProfile ? 'authenticated' : 'loading'
-  )
-  const [profile, setProfile] = useState<CurrentUserProfile | null>(
-    () => initialCachedProfile
-  )
+  const [status, setStatus] = useState<SharedAuthStatus>('loading')
+  const [profile, setProfile] = useState<CurrentUserProfile | null>(null)
 
   const refreshAuthState = useCallback(async () => {
     const requestId = ++requestIdRef.current
@@ -119,6 +114,20 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     mountedRef.current = true
+    const cachedProfile = readCachedAuthProfile()
+    let cachedProfileTimeout: number | null = null
+
+    if (cachedProfile) {
+      cachedProfileTimeout = window.setTimeout(() => {
+        if (!mountedRef.current) {
+          return
+        }
+
+        setProfile(cachedProfile)
+        setStatus('authenticated')
+      }, 0)
+    }
+
     const initialRefreshTimeout = window.setTimeout(() => {
       void refreshAuthState()
     }, 0)
@@ -145,6 +154,9 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mountedRef.current = false
+      if (cachedProfileTimeout !== null) {
+        window.clearTimeout(cachedProfileTimeout)
+      }
       window.clearTimeout(initialRefreshTimeout)
       subscription.unsubscribe()
     }
