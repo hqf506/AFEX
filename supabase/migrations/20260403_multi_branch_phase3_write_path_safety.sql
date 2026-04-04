@@ -1,8 +1,8 @@
 begin;
 
 -- Resolve branch_id for new core records from the authenticated user's profile.
--- If no branch is available (for example a system-scope admin), fall back to the
--- default "main" branch to preserve current write behavior safely.
+-- Branch-scoped users must have a valid branch_id; otherwise the write fails.
+-- System-scoped admins may still fall back to the default "main" branch.
 create or replace function public.resolve_insert_branch_id(
   requested_branch_id uuid default null
 )
@@ -13,19 +13,25 @@ set search_path = public
 as $$
 declare
   resolved_branch_id uuid;
+  profile_role text;
 begin
   if requested_branch_id is not null then
     return requested_branch_id;
   end if;
 
-  select p.branch_id
-  into resolved_branch_id
+  select p.role, p.branch_id
+  into profile_role, resolved_branch_id
   from public.profiles p
   where p.id = auth.uid()
   limit 1;
 
   if resolved_branch_id is not null then
     return resolved_branch_id;
+  end if;
+
+  if profile_role is distinct from 'admin' then
+    raise exception 'Branch-scoped writes require a valid branch_id on the authenticated profile'
+      using errcode = '23514';
   end if;
 
   select b.id

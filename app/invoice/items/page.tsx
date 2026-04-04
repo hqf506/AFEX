@@ -43,7 +43,9 @@ export default function InvoiceItemsPage() {
   const authLoading = access.loading
   const allowed = access.allowed
   const branchId = access.branchId
+  const scopeType = access.scopeType
   const roleLabel = getRoleLabel(access.userRole)
+  const hasInvalidBranchContext = scopeType === 'branch' && !branchId
 
   const [ready, setReady] = useState(false)
   const [customerName, setCustomerName] = useState('')
@@ -85,7 +87,7 @@ export default function InvoiceItemsPage() {
   }, [allowed, router])
 
   useEffect(() => {
-    if (!allowed || !ready) return
+    if (!allowed || !ready || hasInvalidBranchContext) return
 
     let cancelled = false
 
@@ -112,7 +114,7 @@ export default function InvoiceItemsPage() {
     return () => {
       cancelled = true
     }
-  }, [allowed, ready, branchId])
+  }, [allowed, ready, branchId, hasInvalidBranchContext])
 
   const filteredProducts = useMemo(() => {
     return filterInvoiceProducts(catalogProducts, activeFilter, search)
@@ -201,6 +203,11 @@ export default function InvoiceItemsPage() {
   const createInvoice = async () => {
     if (loading) return
 
+    if (hasInvalidBranchContext) {
+      setErrorMessage('لا يمكن إنشاء فاتورة لأن حسابك غير مرتبط بفرع صالح')
+      return
+    }
+
     if (invoiceItems.length === 0) {
       setErrorMessage('أضف عنصرًا واحدًا على الأقل')
       return
@@ -288,6 +295,11 @@ export default function InvoiceItemsPage() {
     <div className="app-shell">
       <div className="page-wrap">
         {successMessage && <div className="success-alert">{successMessage}</div>}
+        {hasInvalidBranchContext ? (
+          <div className="error-alert">
+            لا يمكن استخدام شاشة الفاتورة لأن حسابك غير مرتبط بفرع صالح
+          </div>
+        ) : null}
         {errorMessage && <div className="error-alert">{errorMessage}</div>}
 
         <PageHero>

@@ -14,6 +14,7 @@ type WorkspaceKey =
   | 'home'
   | 'dashboard'
   | 'dashboard-system-summary'
+  | 'catalog'
   | 'customers'
   | 'orders'
   | 'orders-latest'
@@ -129,6 +130,13 @@ export default function HomePage() {
         path: '/invoice/new',
         roles: ['admin', 'employee', 'cashier'],
         enabled: settings?.enable_invoices ?? true,
+      },
+      {
+        key: 'catalog',
+        label: 'الأصناف',
+        path: '/admin/catalog',
+        roles: ['admin'],
+        enabled: true,
       },
       {
         key: 'customers',
@@ -568,6 +576,11 @@ export default function HomePage() {
         key: 'dashboard-system-summary',
         label: 'ملخص النظام',
         primary: true,
+      })
+
+      quickActions.push({
+        key: 'catalog',
+        label: 'الأصناف',
       })
     }
 
