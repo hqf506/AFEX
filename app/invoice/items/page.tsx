@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { AdminButton } from '@/components/admin-button'
 import { AdminInput, AdminTextarea } from '@/components/admin-input'
 import { AdminSelect } from '@/components/admin-select'
 import { PageHero } from '@/components/page-hero'
 import { SummaryRow } from '@/components/summary-row'
+import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
   INVOICE_CUSTOMER_STORAGE_KEY,
@@ -82,7 +84,18 @@ export default function InvoiceItemsPage() {
   const branchId = access.branchId
   const scopeType = access.scopeType
   const roleLabel = getRoleLabel(access.userRole)
+  const {
+    isSystemAdmin,
+    branches,
+    loadingBranches,
+    selectedBranchId,
+    effectiveBranchId,
+    setSelectedBranchId,
+  } = useAdminBranchFilter(scopeType, branchId, allowed)
   const hasInvalidBranchContext = scopeType === 'branch' && !branchId
+  const hasAmbiguousAdminBranchContext = isSystemAdmin && !effectiveBranchId
+  const hasUnavailablePosBranchContext =
+    hasInvalidBranchContext || hasAmbiguousAdminBranchContext
 
   const [ready, setReady] = useState(false)
   const [customerName, setCustomerName] = useState('')
@@ -123,13 +136,16 @@ export default function InvoiceItemsPage() {
   }, [allowed, router])
 
   useEffect(() => {
-    if (!allowed || !ready || hasInvalidBranchContext) return
+    if (!allowed || !ready || hasUnavailablePosBranchContext) return
 
     let cancelled = false
 
     const loadCatalog = async () => {
       try {
-        const nextProducts = await loadBranchInvoiceCatalog(supabase, branchId)
+        const nextProducts = await loadBranchInvoiceCatalog(
+          supabase,
+          effectiveBranchId
+        )
 
         if (!cancelled) {
           setCatalogProducts(nextProducts)
@@ -148,7 +164,7 @@ export default function InvoiceItemsPage() {
     return () => {
       cancelled = true
     }
-  }, [allowed, ready, branchId, hasInvalidBranchContext])
+  }, [allowed, ready, effectiveBranchId, hasUnavailablePosBranchContext])
 
   const filteredProducts = useMemo(() => {
     return filterInvoiceProducts(catalogProducts, activeFilter, search)
@@ -242,6 +258,11 @@ export default function InvoiceItemsPage() {
       return
     }
 
+    if (hasAmbiguousAdminBranchContext) {
+      setErrorMessage('اختر فرعًا محددًا قبل استخدام شاشة الفاتورة')
+      return
+    }
+
     if (invoiceItems.length === 0) {
       setErrorMessage('أضف عنصرًا واحدًا على الأقل')
       return
@@ -332,6 +353,11 @@ export default function InvoiceItemsPage() {
             لا يمكن استخدام شاشة الفاتورة لأن حسابك غير مرتبط بفرع صالح
           </div>
         ) : null}
+        {hasAmbiguousAdminBranchContext ? (
+          <div className="error-alert">
+            اختر فرعًا محددًا من القائمة قبل إنشاء فاتورة جديدة
+          </div>
+        ) : null}
         {errorMessage && <div className="error-alert">{errorMessage}</div>}
 
         <PageHero>
@@ -345,6 +371,17 @@ export default function InvoiceItemsPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {isSystemAdmin ? (
+                <AdminBranchFilter
+                  branches={branches}
+                  selectedBranchId={selectedBranchId}
+                  loading={loadingBranches}
+                  onChange={setSelectedBranchId}
+                  className="min-w-[220px]"
+                  allLabel="اختر فرعًا للفاتورة"
+                />
+              ) : null}
+
               <AdminButton
                 onClick={() => router.push('/invoice/new')}
                 type="button"
@@ -450,7 +487,11 @@ export default function InvoiceItemsPage() {
               />
             </div>
 
-            {filteredProducts.length === 0 ? (
+            {hasAmbiguousAdminBranchContext ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-8 text-center text-sm text-amber-800">
+                اختر فرعًا محددًا أولًا حتى يتم تحميل كتالوج الفرع الصحيح للفاتورة.
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
                 لا توجد منتجات أو خدمات مطابقة للبحث الحالي.
               </div>

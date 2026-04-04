@@ -551,6 +551,12 @@ export default function AdminCatalogPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/admin/branch-catalog?itemId=${encodeURIComponent(item.id)}`}
+                          className="secondary-btn inline-flex items-center justify-center"
+                        >
+                          إدارة الفروع
+                        </Link>
                         <label className="cursor-pointer">
                           <input
                             type="file"

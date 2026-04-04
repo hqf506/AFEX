@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { AdminButton } from '@/components/admin-button'
 import { AdminInput } from '@/components/admin-input'
 import { AdminSelect } from '@/components/admin-select'
@@ -18,11 +19,14 @@ import type { AdminBranchRecord } from '@/lib/admin/branches'
 import { formatCurrency } from '@/lib/orders/format'
 import { usePageAccess } from '@/hooks/use-page-access'
 
-export default function AdminBranchCatalogPage() {
+function AdminBranchCatalogPageContent() {
+  const searchParams = useSearchParams()
   const access = usePageAccess(['admin'])
   const { loading: accessLoading, allowed, scopeType } = access
   const isSystemAdmin =
     scopeType !== null && isSystemScopedBranchCatalogAdmin(scopeType)
+  const focusedItemId = searchParams.get('itemId')?.trim() || ''
+  const requestedBranchId = searchParams.get('branchId')?.trim() || ''
 
   const [branches, setBranches] = useState<AdminBranchRecord[]>([])
   const [selectedBranchId, setSelectedBranchId] = useState('')
@@ -78,9 +82,9 @@ export default function AdminBranchCatalogPage() {
 
   useEffect(() => {
     if (!accessLoading && allowed) {
-      void loadBranchCatalog()
+      void loadBranchCatalog(requestedBranchId || undefined)
     }
-  }, [accessLoading, allowed])
+  }, [accessLoading, allowed, requestedBranchId])
 
   const selectedBranch = useMemo(
     () => resolveSelectedBranch(branches, selectedBranchId),
@@ -96,6 +100,28 @@ export default function AdminBranchCatalogPage() {
     () => items.filter((item) => item.branch_price !== item.default_price).length,
     [items]
   )
+
+  const focusedItem = useMemo(
+    () => items.find((item) => item.id === focusedItemId) || null,
+    [items, focusedItemId]
+  )
+
+  const displayedItems = useMemo(() => {
+    if (!focusedItemId) {
+      return items
+    }
+
+    const matchingItem = items.find((item) => item.id === focusedItemId)
+
+    if (!matchingItem) {
+      return items
+    }
+
+    return [
+      matchingItem,
+      ...items.filter((item) => item.id !== focusedItemId),
+    ]
+  }, [items, focusedItemId])
 
   async function handleBranchChange(nextBranchId: string) {
     setSuccessMessage('')
@@ -245,6 +271,29 @@ export default function AdminBranchCatalogPage() {
           </div>
         ) : null}
 
+        {focusedItem ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-right">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-slate-500">إدارة مركزة للصنف</p>
+                <p className="mt-1 text-sm font-black text-slate-900">
+                  {focusedItem.name}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  يمكنك الآن تغيير توفره وسعره وترتيبه في الفروع بشكل مباشر.
+                </p>
+              </div>
+
+              <Link
+                href="/admin/branch-catalog"
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900"
+              >
+                عرض جميع الأصناف
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:p-7">
           <div className="grid gap-5 xl:grid-cols-[320px_1fr]">
             <div className="space-y-4">
@@ -318,13 +367,17 @@ export default function AdminBranchCatalogPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {items.map((item) => {
+                  {displayedItems.map((item) => {
                     const draft = drafts[item.id]
 
                     return (
                       <article
                         key={item.id}
-                        className="rounded-[24px] border border-slate-200 bg-slate-50 p-4"
+                        className={`rounded-[24px] border p-4 ${
+                          item.id === focusedItemId
+                            ? 'border-slate-900 bg-white shadow-sm'
+                            : 'border-slate-200 bg-slate-50'
+                        }`}
                       >
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                           <div className="space-y-2 text-right">
@@ -456,5 +509,19 @@ export default function AdminBranchCatalogPage() {
         </section>
       </div>
     </main>
+  )
+}
+
+export default function AdminBranchCatalogPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-50 p-4 md:p-6">
+          <div className="mx-auto max-w-7xl" />
+        </main>
+      }
+    >
+      <AdminBranchCatalogPageContent />
+    </Suspense>
   )
 }
