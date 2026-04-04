@@ -113,8 +113,8 @@ export default function InvoiceItemsPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [lastInvoiceNumber, setLastInvoiceNumber] = useState('')
   const [lastOrderNumber, setLastOrderNumber] = useState('')
-  const [catalogProducts, setCatalogProducts] =
-    useState<InvoiceCatalogItem[]>(INVOICE_PRODUCTS)
+  const [catalogProducts, setCatalogProducts] = useState<InvoiceCatalogItem[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
 
   useEffect(() => {
     if (!allowed) return
@@ -136,25 +136,33 @@ export default function InvoiceItemsPage() {
   }, [allowed, router])
 
   useEffect(() => {
-    if (!allowed || !ready || hasUnavailablePosBranchContext) return
+    if (!allowed || !ready) return
+
+    if (hasUnavailablePosBranchContext) {
+      return
+    }
 
     let cancelled = false
 
     const loadCatalog = async () => {
       try {
-        const nextProducts = await loadBranchInvoiceCatalog(
-          supabase,
-          effectiveBranchId
-        )
+        if (!cancelled) {
+          setCatalogLoading(true)
+          setCatalogProducts([])
+        }
+
+        const nextProducts = await loadBranchInvoiceCatalog(effectiveBranchId)
 
         if (!cancelled) {
           setCatalogProducts(nextProducts)
+          setCatalogLoading(false)
         }
       } catch (error) {
         console.error('Load branch invoice catalog error:', error)
 
         if (!cancelled) {
           setCatalogProducts(INVOICE_PRODUCTS)
+          setCatalogLoading(false)
         }
       }
     }
@@ -166,9 +174,13 @@ export default function InvoiceItemsPage() {
     }
   }, [allowed, ready, effectiveBranchId, hasUnavailablePosBranchContext])
 
+  const visibleCatalogProducts = useMemo(() => {
+    return hasUnavailablePosBranchContext ? [] : catalogProducts
+  }, [catalogProducts, hasUnavailablePosBranchContext])
+
   const filteredProducts = useMemo(() => {
-    return filterInvoiceProducts(catalogProducts, activeFilter, search)
-  }, [catalogProducts, activeFilter, search])
+    return filterInvoiceProducts(visibleCatalogProducts, activeFilter, search)
+  }, [visibleCatalogProducts, activeFilter, search])
 
   const subtotal = useMemo(() => {
     return calculateInvoiceSubtotal(invoiceItems)
@@ -490,6 +502,10 @@ export default function InvoiceItemsPage() {
             {hasAmbiguousAdminBranchContext ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-8 text-center text-sm text-amber-800">
                 اختر فرعًا محددًا أولًا حتى يتم تحميل كتالوج الفرع الصحيح للفاتورة.
+              </div>
+            ) : catalogLoading ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø£ØµÙ†Ø§Ù...
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">

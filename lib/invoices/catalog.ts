@@ -1,11 +1,10 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   INVOICE_PRODUCTS,
   resolveInvoiceCatalogImageUrl,
   type InvoiceCatalogItem,
 } from '@/lib/invoices/items'
 
-type CatalogItemRow = {
+export type CatalogItemRow = {
   id: string
   name: string
   category: string
@@ -15,11 +14,18 @@ type CatalogItemRow = {
   is_active: boolean
 }
 
-type BranchCatalogItemRow = {
+export type BranchCatalogItemRow = {
   catalog_item_id: string
   price: number
   is_active: boolean
   display_order: number | null
+}
+
+type LoadBranchInvoiceCatalogResponse = {
+  success?: boolean
+  products?: InvoiceCatalogItem[]
+  error?: string
+  details?: string
 }
 
 function toStaticInvoiceProductsFallback() {
@@ -86,43 +92,30 @@ export function mapBranchCatalogToInvoiceProducts(
     }))
 }
 
-export async function loadBranchInvoiceCatalog(
-  supabase: SupabaseClient,
-  branchId: string | null
-) {
+export async function loadBranchInvoiceCatalog(branchId: string | null) {
   if (!branchId) {
     return toStaticInvoiceProductsFallback()
   }
 
-  const { data: branchOverrides, error: branchOverridesError } = await supabase
-    .from('branch_catalog_items')
-    .select('catalog_item_id, price, is_active, display_order')
-    .eq('branch_id', branchId)
-
-  if (branchOverridesError) {
-    return toStaticInvoiceProductsFallback()
-  }
-
-  if (!Array.isArray(branchOverrides)) {
-    return toStaticInvoiceProductsFallback()
-  }
-
-  const { data: catalogItems, error: catalogError } = await supabase
-    .from('catalog_items')
-    .select('id, name, category, item_type, default_price, image_url, is_active')
-
-  if (catalogError || !Array.isArray(catalogItems) || catalogItems.length === 0) {
-    return toStaticInvoiceProductsFallback()
-  }
-
-  const products = mapBranchCatalogToInvoiceProducts(
-    catalogItems as CatalogItemRow[],
-    branchOverrides as BranchCatalogItemRow[]
+  const response = await fetch(
+    `/api/invoice/catalog?branchId=${encodeURIComponent(branchId)}`,
+    {
+      method: 'GET',
+      cache: 'no-store',
+    }
   )
 
-  if (branchOverrides.length === 0) {
-    return []
+  const result = (await response.json().catch(() => null)) as
+    | LoadBranchInvoiceCatalogResponse
+    | null
+
+  if (
+    !response.ok ||
+    !result?.success ||
+    !Array.isArray(result.products)
+  ) {
+    throw new Error(result?.details || result?.error || 'Failed to load branch catalog')
   }
 
-  return products
+  return result.products
 }
