@@ -25,6 +25,7 @@ import {
   INVOICE_FILTERS,
   INVOICE_PRODUCTS,
   removeInvoiceLineItem,
+  resolveInvoiceCatalogImageUrl,
   type InvoiceLineItem,
   type CreatedInvoiceRecord,
   type InvoiceCatalogItem,
@@ -65,7 +66,7 @@ export default function InvoiceItemsPage() {
   const [lastOrderNumber, setLastOrderNumber] = useState('')
   const [catalogProducts, setCatalogProducts] =
     useState<InvoiceCatalogItem[]>(INVOICE_PRODUCTS)
-  const [failedCatalogImageIds, setFailedCatalogImageIds] = useState<string[]>([])
+  const [failedCatalogImageUrls, setFailedCatalogImageUrls] = useState<string[]>([])
 
   useEffect(() => {
     if (!allowed) return
@@ -97,14 +98,14 @@ export default function InvoiceItemsPage() {
 
         if (!cancelled) {
           setCatalogProducts(nextProducts)
-          setFailedCatalogImageIds([])
+          setFailedCatalogImageUrls([])
         }
       } catch (error) {
         console.error('Load branch invoice catalog error:', error)
 
         if (!cancelled) {
           setCatalogProducts(INVOICE_PRODUCTS)
-          setFailedCatalogImageIds([])
+          setFailedCatalogImageUrls([])
         }
       }
     }
@@ -430,18 +431,24 @@ export default function InvoiceItemsPage() {
                     onClick={() => addItem(product)}
                     className="inner-card text-right transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
                   >
+                    {(() => {
+                      const imageSrc = resolveInvoiceCatalogImageUrl(
+                        product.image_url
+                      )
+
+                      return (
                     <div className="mb-4 overflow-hidden rounded-[20px] border border-slate-200 bg-slate-100">
-                      {product.image_url &&
-                      !failedCatalogImageIds.includes(product.id) ? (
+                      {imageSrc &&
+                      !failedCatalogImageUrls.includes(imageSrc) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={product.image_url}
+                          src={imageSrc}
                           alt={product.name}
                           className="h-40 w-full object-cover"
                           loading="lazy"
                           onError={() =>
-                            setFailedCatalogImageIds((prev) =>
-                              prev.includes(product.id) ? prev : [...prev, product.id]
+                            setFailedCatalogImageUrls((prev) =>
+                              prev.includes(imageSrc) ? prev : [...prev, imageSrc]
                             )
                           }
                         />
@@ -458,6 +465,8 @@ export default function InvoiceItemsPage() {
                         </div>
                       )}
                     </div>
+                      )
+                    })()}
 
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">

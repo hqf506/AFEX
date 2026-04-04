@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { INVOICE_PRODUCTS, type InvoiceCatalogItem } from '@/lib/invoices/items'
+import {
+  INVOICE_PRODUCTS,
+  resolveInvoiceCatalogImageUrl,
+  type InvoiceCatalogItem,
+} from '@/lib/invoices/items'
 
 type CatalogItemRow = {
   id: string
@@ -63,7 +67,7 @@ export function mapBranchCatalogToInvoiceProducts(
         type: item.item_type,
         category: item.category,
         price: override?.price ?? item.default_price,
-        image_url: item.image_url,
+        image_url: resolveInvoiceCatalogImageUrl(item.image_url),
         displayOrder: override?.display_order ?? null,
       }
     })

@@ -40,6 +40,41 @@ export const INVOICE_FILTERS = [
   'عناية',
 ]
 
+export function resolveInvoiceCatalogImageUrl(
+  imageUrl: string | null | undefined
+) {
+  const normalizedValue = imageUrl?.trim()
+
+  if (
+    !normalizedValue ||
+    normalizedValue === 'null' ||
+    normalizedValue === 'undefined'
+  ) {
+    return null
+  }
+
+  if (
+    normalizedValue.startsWith('http://') ||
+    normalizedValue.startsWith('https://') ||
+    normalizedValue.startsWith('data:') ||
+    normalizedValue.startsWith('blob:') ||
+    normalizedValue.startsWith('/')
+  ) {
+    return normalizedValue
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const normalizedPath = normalizedValue
+    .replace(/^catalog-images\//, '')
+    .replace(/^\/+/, '')
+
+  if (!supabaseUrl) {
+    return normalizedValue
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/catalog-images/${normalizedPath}`
+}
+
 export function filterInvoiceProducts(
   products: InvoiceCatalogItem[],
   activeFilter: string,
