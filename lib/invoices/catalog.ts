@@ -48,16 +48,13 @@ export function mapBranchCatalogToInvoiceProducts(
   catalogItems: CatalogItemRow[],
   branchOverrides: BranchCatalogItemRow[]
 ) {
-  const overrideMap = new Map(
-    branchOverrides.map((override) => [override.catalog_item_id, override])
-  )
+  const catalogItemMap = new Map(catalogItems.map((item) => [item.id, item]))
 
-  return catalogItems
-    .map((item) => {
-      const override = overrideMap.get(item.id)
-      const isActive = override?.is_active ?? item.is_active
+  return branchOverrides
+    .map((override) => {
+      const item = catalogItemMap.get(override.catalog_item_id)
 
-      if (!isActive) {
+      if (!item || !item.is_active || !override.is_active) {
         return null
       }
 
@@ -66,9 +63,9 @@ export function mapBranchCatalogToInvoiceProducts(
         name: item.name,
         type: item.item_type,
         category: item.category,
-        price: override?.price ?? item.default_price,
+        price: override.price,
         image_url: resolveInvoiceCatalogImageUrl(item.image_url),
-        displayOrder: override?.display_order ?? null,
+        displayOrder: override.display_order ?? null,
       }
     })
     .filter(
@@ -97,15 +94,6 @@ export async function loadBranchInvoiceCatalog(
     return toStaticInvoiceProductsFallback()
   }
 
-  const { data: catalogItems, error: catalogError } = await supabase
-    .from('catalog_items')
-    .select('id, name, category, item_type, default_price, image_url, is_active')
-    .eq('is_active', true)
-
-  if (catalogError || !Array.isArray(catalogItems) || catalogItems.length === 0) {
-    return toStaticInvoiceProductsFallback()
-  }
-
   const { data: branchOverrides, error: branchOverridesError } = await supabase
     .from('branch_catalog_items')
     .select('catalog_item_id, price, is_active, display_order')
@@ -115,12 +103,26 @@ export async function loadBranchInvoiceCatalog(
     return toStaticInvoiceProductsFallback()
   }
 
+  if (!Array.isArray(branchOverrides)) {
+    return toStaticInvoiceProductsFallback()
+  }
+
+  const { data: catalogItems, error: catalogError } = await supabase
+    .from('catalog_items')
+    .select('id, name, category, item_type, default_price, image_url, is_active')
+
+  if (catalogError || !Array.isArray(catalogItems) || catalogItems.length === 0) {
+    return toStaticInvoiceProductsFallback()
+  }
+
   const products = mapBranchCatalogToInvoiceProducts(
     catalogItems as CatalogItemRow[],
-    Array.isArray(branchOverrides)
-      ? (branchOverrides as BranchCatalogItemRow[])
-      : []
+    branchOverrides as BranchCatalogItemRow[]
   )
 
-  return products.length > 0 ? products : toStaticInvoiceProductsFallback()
+  if (branchOverrides.length === 0) {
+    return []
+  }
+
+  return products
 }
