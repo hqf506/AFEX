@@ -25,7 +25,6 @@ import {
   INVOICE_FILTERS,
   INVOICE_PRODUCTS,
   removeInvoiceLineItem,
-  resolveInvoiceCatalogImageUrl,
   type InvoiceLineItem,
   type CreatedInvoiceRecord,
   type InvoiceCatalogItem,
@@ -36,6 +35,43 @@ import { usePageAccess } from '@/hooks/use-page-access'
 import { formatCurrency } from '@/lib/orders/format'
 
 const INVOICE_PDF_WHATSAPP_ENABLED = false
+
+function PosCatalogItemImage({
+  imageUrl,
+  name,
+  type,
+}: {
+  imageUrl: string | null
+  name: string
+  type: 'product' | 'service'
+}) {
+  const normalizedImageUrl = imageUrl?.trim() || ''
+  const [hasImageError, setHasImageError] = useState(false)
+
+  if (!normalizedImageUrl || hasImageError) {
+    return (
+      <div className="flex h-40 w-full items-center justify-center bg-slate-100 text-center">
+        <div className="space-y-2 px-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-black text-slate-400">
+            {type === 'service' ? 'خ' : 'م'}
+          </div>
+          <p className="text-xs font-bold text-slate-500">لا توجد صورة متاحة</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={normalizedImageUrl}
+      alt={name}
+      className="h-40 w-full object-cover"
+      loading="lazy"
+      onError={() => setHasImageError(true)}
+    />
+  )
+}
 
 export default function InvoiceItemsPage() {
   const router = useRouter()
@@ -66,7 +102,6 @@ export default function InvoiceItemsPage() {
   const [lastOrderNumber, setLastOrderNumber] = useState('')
   const [catalogProducts, setCatalogProducts] =
     useState<InvoiceCatalogItem[]>(INVOICE_PRODUCTS)
-  const [failedCatalogImageUrls, setFailedCatalogImageUrls] = useState<string[]>([])
 
   useEffect(() => {
     if (!allowed) return
@@ -98,14 +133,12 @@ export default function InvoiceItemsPage() {
 
         if (!cancelled) {
           setCatalogProducts(nextProducts)
-          setFailedCatalogImageUrls([])
         }
       } catch (error) {
         console.error('Load branch invoice catalog error:', error)
 
         if (!cancelled) {
           setCatalogProducts(INVOICE_PRODUCTS)
-          setFailedCatalogImageUrls([])
         }
       }
     }
@@ -261,8 +294,6 @@ export default function InvoiceItemsPage() {
     setLastOrderNumber(result?.order_number || '')
     printInvoice(result?.invoice_number, result?.order_number)
 
-    // Temporary feature flag: keep invoice creation and printing active while
-    // the post-create PDF and WhatsApp flow stays disabled.
     if (!INVOICE_PDF_WHATSAPP_ENABLED) {
       setSuccessMessage(`تم إنشاء الفاتورة ${result?.invoice_number || ''} بنجاح`)
     }
@@ -431,42 +462,14 @@ export default function InvoiceItemsPage() {
                     onClick={() => addItem(product)}
                     className="inner-card text-right transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
                   >
-                    {(() => {
-                      const imageSrc = resolveInvoiceCatalogImageUrl(
-                        product.image_url
-                      )
-
-                      return (
                     <div className="mb-4 overflow-hidden rounded-[20px] border border-slate-200 bg-slate-100">
-                      {imageSrc &&
-                      !failedCatalogImageUrls.includes(imageSrc) ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={imageSrc}
-                          alt={product.name}
-                          className="h-40 w-full object-cover"
-                          loading="lazy"
-                          onError={() =>
-                            setFailedCatalogImageUrls((prev) =>
-                              prev.includes(imageSrc) ? prev : [...prev, imageSrc]
-                            )
-                          }
-                        />
-                      ) : (
-                        <div className="flex h-40 w-full items-center justify-center bg-slate-100 text-center">
-                          <div className="space-y-2 px-4">
-                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-black text-slate-400">
-                              {product.type === 'service' ? 'خ' : 'م'}
-                            </div>
-                            <p className="text-xs font-bold text-slate-500">
-                              لا توجد صورة متاحة
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      <PosCatalogItemImage
+                        key={product.image_url || product.id}
+                        imageUrl={product.image_url}
+                        name={product.name}
+                        type={product.type}
+                      />
                     </div>
-                      )
-                    })()}
 
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -670,7 +673,6 @@ export default function InvoiceItemsPage() {
                 >
                   {loading ? 'جاري إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
                 </AdminButton>
-
               </div>
             </section>
           </aside>
