@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -505,11 +505,11 @@ export default function InvoiceItemsPage() {
               </div>
             ) : catalogLoading ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø£ØµÙ†Ø§Ù...
+                جاري تحميل الأصناف...
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                لا توجد منتجات أو خدمات مطابقة للبحث الحالي.
+                لا توجد منتجات أو خدمات متاحة لهذا الفرع.
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
