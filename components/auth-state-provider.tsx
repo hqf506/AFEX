@@ -11,7 +11,11 @@ import {
   type ReactNode,
 } from 'react'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
-import { getCurrentUserProfile, type CurrentUserProfile } from '@/lib/auth'
+import {
+  getCurrentUserProfile,
+  isSupabaseAuthLockError,
+  type CurrentUserProfile,
+} from '@/lib/auth'
 import { supabase } from '@/lib/supabase/client'
 
 type SharedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
@@ -79,38 +83,89 @@ async function resolveSharedAuthProfile(): Promise<CurrentUserProfile | null> {
 export function AuthStateProvider({ children }: { children: ReactNode }) {
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
+  const refreshInFlightRef = useRef<Promise<void> | null>(null)
+  const refreshAuthStateRef = useRef<(() => Promise<void>) | null>(null)
+  const retryTimeoutRef = useRef<number | null>(null)
+  const profileRef = useRef<CurrentUserProfile | null>(null)
+  const statusRef = useRef<SharedAuthStatus>('loading')
   const [status, setStatus] = useState<SharedAuthStatus>('loading')
   const [profile, setProfile] = useState<CurrentUserProfile | null>(null)
 
-  const refreshAuthState = useCallback(async () => {
+  const refreshAuthState = useCallback(() => {
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current
+    }
+
     const requestId = ++requestIdRef.current
 
     if (mountedRef.current) {
       setStatus((current) => (current === 'authenticated' ? current : 'loading'))
     }
 
-    try {
-      const nextProfile = await resolveSharedAuthProfile()
+    const refreshPromise = (async () => {
+      try {
+        const nextProfile = await resolveSharedAuthProfile()
 
-      if (!mountedRef.current || requestId !== requestIdRef.current) {
-        return
+        if (!mountedRef.current || requestId !== requestIdRef.current) {
+          return
+        }
+
+        profileRef.current = nextProfile
+        statusRef.current = nextProfile ? 'authenticated' : 'unauthenticated'
+        setProfile(nextProfile)
+        setStatus(statusRef.current)
+        writeCachedAuthProfile(nextProfile)
+      } catch (error) {
+        if (!mountedRef.current || requestId !== requestIdRef.current) {
+          return
+        }
+
+        if (isSupabaseAuthLockError(error)) {
+          if (profileRef.current) {
+            setProfile(profileRef.current)
+            setStatus('authenticated')
+            statusRef.current = 'authenticated'
+            return
+          }
+
+          if (retryTimeoutRef.current === null) {
+            retryTimeoutRef.current = window.setTimeout(() => {
+              retryTimeoutRef.current = null
+
+              if (mountedRef.current) {
+                void refreshAuthStateRef.current?.()
+              }
+            }, 75)
+          }
+
+          return
+        }
+
+        console.error('Shared auth state error:', error)
+        profileRef.current = null
+        statusRef.current = 'unauthenticated'
+        setProfile(null)
+        setStatus('unauthenticated')
+        writeCachedAuthProfile(null)
       }
-
-      setProfile(nextProfile)
-      setStatus(nextProfile ? 'authenticated' : 'unauthenticated')
-      writeCachedAuthProfile(nextProfile)
-    } catch (error) {
-      console.error('Shared auth state error:', error)
-
-      if (!mountedRef.current || requestId !== requestIdRef.current) {
-        return
+    })().finally(() => {
+      if (refreshInFlightRef.current === refreshPromise) {
+        refreshInFlightRef.current = null
       }
+    })
 
-      setProfile(null)
-      setStatus('unauthenticated')
-      writeCachedAuthProfile(null)
-    }
+    refreshInFlightRef.current = refreshPromise
+    return refreshPromise
   }, [])
+
+  useEffect(() => {
+    refreshAuthStateRef.current = refreshAuthState
+  }, [refreshAuthState])
+
+  useEffect(() => {
+    profileRef.current = profile
+    statusRef.current = status
+  }, [profile, status])
 
   useEffect(() => {
     mountedRef.current = true
@@ -123,6 +178,8 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        profileRef.current = cachedProfile
+        statusRef.current = 'authenticated'
         setProfile(cachedProfile)
         setStatus('authenticated')
       }, 0)
@@ -142,6 +199,8 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
 
         if (!session) {
           requestIdRef.current += 1
+          profileRef.current = null
+          statusRef.current = 'unauthenticated'
           setProfile(null)
           setStatus('unauthenticated')
           writeCachedAuthProfile(null)
@@ -154,9 +213,16 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mountedRef.current = false
+
       if (cachedProfileTimeout !== null) {
         window.clearTimeout(cachedProfileTimeout)
       }
+
+      if (retryTimeoutRef.current !== null) {
+        window.clearTimeout(retryTimeoutRef.current)
+        retryTimeoutRef.current = null
+      }
+
       window.clearTimeout(initialRefreshTimeout)
       subscription.unsubscribe()
     }

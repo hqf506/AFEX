@@ -22,7 +22,9 @@ export type ReportOrderRecord = {
   note: string
   items: {
     name: string
+    type: string
     quantity: number
+    unit_price: number
     line_total: number
   }[]
 }
@@ -77,7 +79,9 @@ export function mapOrderSourceRowToReportOrderRecord(
     note: record.note,
     items: record.items.map((item) => ({
       name: item.name,
+      type: item.type,
       quantity: item.quantity,
+      unit_price: item.unitPrice,
       line_total: item.lineTotal,
     })),
   }

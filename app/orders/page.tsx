@@ -419,6 +419,7 @@ export default function OrdersPage() {
           },
           body: JSON.stringify({
             to: order.customer_phone,
+            branchId: effectiveBranchId || branchId || undefined,
             mode: 'text',
             text: buildReadyOrderStatusWhatsAppMessage({
               customerName: order.customer_name,

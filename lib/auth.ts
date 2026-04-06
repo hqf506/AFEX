@@ -16,13 +16,32 @@ export type CurrentUserProfile = {
 
 export type AuthenticatedUserProfile = CurrentUserProfile
 
-export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null> {
+let currentUserProfileRequest: Promise<CurrentUserProfile | null> | null = null
+
+export function isSupabaseAuthLockError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  const message = error.message.toLowerCase()
+
+  return (
+    message.includes('lock:sb-') &&
+    (message.includes('stole it') || message.includes('released because another request'))
+  )
+}
+
+async function fetchCurrentUserProfile(): Promise<CurrentUserProfile | null> {
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser()
 
-  if (userError || !user) {
+  if (userError) {
+    throw userError
+  }
+
+  if (!user) {
     return null
   }
 
@@ -48,6 +67,18 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null
     branch_id: branchId,
     scope_type: resolveAuthScopeType(profile.role as AppRole, branchId),
   }
+}
+
+export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null> {
+  if (currentUserProfileRequest) {
+    return currentUserProfileRequest
+  }
+
+  currentUserProfileRequest = fetchCurrentUserProfile().finally(() => {
+    currentUserProfileRequest = null
+  })
+
+  return currentUserProfileRequest
 }
 
 export { getRoleLabel }

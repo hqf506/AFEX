@@ -1,30 +1,12 @@
 import { getWhatsAppProvider } from '@/lib/whatsapp/provider-registry'
 import { logWhatsAppSend } from '@/lib/whatsapp/logging'
+import { getBranchWhatsAppProviderConfig } from '@/lib/whatsapp/config'
 import type {
-  UltraMsgProviderConfig,
   WhatsAppProviderKey,
   WhatsAppServiceResult,
   WhatsAppSendFileInput,
   WhatsAppSendTextInput,
 } from '@/lib/whatsapp/types'
-
-function resolveProviderKey(): WhatsAppProviderKey {
-  const providerKey = process.env.WHATSAPP_PROVIDER?.trim()
-
-  if (providerKey === 'meta') {
-    return 'meta'
-  }
-
-  return 'ultramsg'
-}
-
-function resolveUltraMsgConfig(): UltraMsgProviderConfig {
-  return {
-    providerKey: 'ultramsg',
-    apiUrl: process.env.ULTRAMSG_API_URL?.trim() || '',
-    token: process.env.ULTRAMSG_TOKEN?.trim() || '',
-  }
-}
 
 function buildTextMessage(input: WhatsAppSendTextInput) {
   return input.text.trim()
@@ -55,20 +37,29 @@ export async function sendWhatsAppText(
 ): Promise<WhatsAppServiceResult> {
   const mode = options.mode || 'text'
   const messageType = options.messageType || 'text'
-  const providerKey = resolveProviderKey()
+  let providerKey: WhatsAppProviderKey = 'ultramsg'
 
   try {
-    const provider = getWhatsAppProvider(providerKey)
+    const config = await getBranchWhatsAppProviderConfig(input.branchId)
 
-    if (providerKey !== 'ultramsg') {
-      throw new Error(`WhatsApp provider "${providerKey}" is not configured for MVP`)
+    if (!config) {
+      return {
+        providerKey,
+        success: false,
+        errorMessage: 'WhatsApp branch config is missing or inactive',
+      }
     }
 
-    const config = resolveUltraMsgConfig()
+    providerKey = config.providerKey
+    const provider = getWhatsAppProvider(providerKey)
     const validation = provider.validateConfig(config)
 
     if (!validation.valid) {
-      throw new Error(validation.errors.join(', '))
+      return {
+        providerKey,
+        success: false,
+        errorMessage: validation.errors.join(', '),
+      }
     }
 
     const result = await provider.sendText(
@@ -115,20 +106,29 @@ export async function sendWhatsAppFile(
 ): Promise<WhatsAppServiceResult> {
   const mode = options.mode || 'file'
   const messageType = options.messageType || 'file'
-  const providerKey = resolveProviderKey()
+  let providerKey: WhatsAppProviderKey = 'ultramsg'
 
   try {
-    const provider = getWhatsAppProvider(providerKey)
+    const config = await getBranchWhatsAppProviderConfig(input.branchId)
 
-    if (providerKey !== 'ultramsg') {
-      throw new Error(`WhatsApp provider "${providerKey}" is not configured for MVP`)
+    if (!config) {
+      return {
+        providerKey,
+        success: false,
+        errorMessage: 'WhatsApp branch config is missing or inactive',
+      }
     }
 
-    const config = resolveUltraMsgConfig()
+    providerKey = config.providerKey
+    const provider = getWhatsAppProvider(providerKey)
     const validation = provider.validateConfig(config)
 
     if (!validation.valid) {
-      throw new Error(validation.errors.join(', '))
+      return {
+        providerKey,
+        success: false,
+        errorMessage: validation.errors.join(', '),
+      }
     }
 
     const result = await provider.sendFile(buildFileMessage(input), config)
@@ -165,18 +165,23 @@ export async function sendWhatsAppFile(
 
 export async function sendWhatsAppTestMessage(
   to: string,
+  branchId?: string | null,
   message?: string
 ): Promise<WhatsAppServiceResult> {
-  return sendWhatsAppText({
-    to,
-    text:
-      message?.trim() ||
-      'هذه رسالة اختبار من نظام Leather Fix ERP عبر تكامل واتساب.',
-    metadata: {
-      type: 'test',
+  return sendWhatsAppText(
+    {
+      to,
+      branchId: branchId || null,
+      text:
+        message?.trim() ||
+        'هذه رسالة اختبار من نظام Leather Fix ERP عبر تكامل واتساب.',
+      metadata: {
+        type: 'test',
+      },
     },
-  }, {
-    mode: 'test',
-    messageType: 'text',
-  })
+    {
+      mode: 'test',
+      messageType: 'text',
+    }
+  )
 }

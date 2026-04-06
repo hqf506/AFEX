@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { jsonResponse } from '@/lib/api/responses'
 import { getTrimmedString } from '@/lib/api/validation'
+import { requireApiAuth } from '@/lib/api-auth'
 import { logWhatsAppSend } from '@/lib/whatsapp/logging'
 import {
   acquireWhatsAppOrderStatusNotificationLock,
@@ -22,11 +23,24 @@ type SendWhatsAppBody = {
   fileUrl?: string
   filename?: string
   caption?: string
+  branchId?: string
   notification?: {
     orderId?: string
     status?: string
     channel?: 'whatsapp'
   }
+}
+
+function resolveRequestBranchId(
+  requestedBranchId: string,
+  scopeType: 'system' | 'branch',
+  actorBranchId: string | null
+) {
+  if (scopeType === 'system') {
+    return requestedBranchId
+  }
+
+  return actorBranchId || ''
 }
 
 export async function POST(req: NextRequest) {
@@ -35,6 +49,12 @@ export async function POST(req: NextRequest) {
   let mode: 'text' | 'test' = 'text'
 
   try {
+    const auth = await requireApiAuth(req, ['admin', 'employee', 'cashier'])
+
+    if (!auth.ok) {
+      return auth.response
+    }
+
     const body = (await req.json()) as SendWhatsAppBody
 
     type = body.type === 'file' ? 'file' : 'text'
@@ -44,6 +64,12 @@ export async function POST(req: NextRequest) {
     const fileUrl = getTrimmedString(body.fileUrl)
     const filename = getTrimmedString(body.filename)
     const caption = getTrimmedString(body.caption)
+    const requestedBranchId = getTrimmedString(body.branchId)
+    const branchId = resolveRequestBranchId(
+      requestedBranchId,
+      auth.profile.scope_type,
+      auth.profile.branch_id
+    )
     const notificationOrderId = getTrimmedString(body.notification?.orderId)
     const notificationStatus = getTrimmedString(body.notification?.status)
     const notificationChannel = body.notification?.channel || 'whatsapp'
@@ -61,6 +87,16 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: 'Recipient phone is required',
+        },
+        400
+      )
+    }
+
+    if (!branchId) {
+      return jsonResponse(
+        {
+          success: false,
+          error: 'Branch WhatsApp config requires a concrete branch',
         },
         400
       )
@@ -91,7 +127,6 @@ export async function POST(req: NextRequest) {
         return jsonResponse({
           success: true,
           skipped: true,
-          providerKey: process.env.WHATSAPP_PROVIDER?.trim() || 'ultramsg',
           result: null,
         })
       }
@@ -103,7 +138,6 @@ export async function POST(req: NextRequest) {
         return jsonResponse({
           success: true,
           skipped: true,
-          providerKey: process.env.WHATSAPP_PROVIDER?.trim() || 'ultramsg',
           result: null,
         })
       }
@@ -114,6 +148,7 @@ export async function POST(req: NextRequest) {
             ? await sendWhatsAppFile(
                 {
                   to,
+                  branchId,
                   fileUrl,
                   filename: filename || undefined,
                   caption: caption || undefined,
@@ -131,6 +166,7 @@ export async function POST(req: NextRequest) {
             : await sendWhatsAppText(
                 {
                   to,
+                  branchId,
                   text: text || '',
                   metadata: {
                     type: 'order_status',
@@ -173,30 +209,32 @@ export async function POST(req: NextRequest) {
 
     const result =
       mode === 'test'
-        ? await sendWhatsAppTestMessage(to, text || undefined)
+        ? await sendWhatsAppTestMessage(to, branchId, text || undefined)
         : type === 'file'
-        ? await sendWhatsAppFile(
-            {
-              to,
-              fileUrl,
-              filename: filename || undefined,
-              caption: caption || undefined,
-            },
-            {
-              mode: 'file',
-              messageType: 'file',
-            }
-          )
-        : await sendWhatsAppText(
-            {
-              to,
-              text: text || '',
-            },
-            {
-              mode: 'text',
-              messageType: 'text',
-            }
-          )
+          ? await sendWhatsAppFile(
+              {
+                to,
+                branchId,
+                fileUrl,
+                filename: filename || undefined,
+                caption: caption || undefined,
+              },
+              {
+                mode: 'file',
+                messageType: 'file',
+              }
+            )
+          : await sendWhatsAppText(
+              {
+                to,
+                branchId,
+                text: text || '',
+              },
+              {
+                mode: 'text',
+                messageType: 'text',
+              }
+            )
 
     if (!result.success) {
       return jsonResponse(
@@ -217,7 +255,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     logWhatsAppSend({
-      provider: process.env.WHATSAPP_PROVIDER?.trim() || 'ultramsg',
+      provider: 'unknown',
       phone: to || 'unknown',
       messageType: type,
       mode: type === 'file' ? 'file' : mode,

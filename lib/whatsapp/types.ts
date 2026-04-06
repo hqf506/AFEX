@@ -3,6 +3,7 @@ export type WhatsAppProviderKey = 'ultramsg' | 'meta'
 export type WhatsAppSendTextInput = {
   to: string
   text: string
+  branchId?: string | null
   metadata?: Record<string, unknown>
 }
 
@@ -11,6 +12,7 @@ export type WhatsAppSendFileInput = {
   fileUrl: string
   filename?: string
   caption?: string
+  branchId?: string | null
   metadata?: Record<string, unknown>
 }
 
