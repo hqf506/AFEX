@@ -1,6 +1,6 @@
 'use client'
 
-import { AdminSelect } from '@/components/admin-select'
+import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
 import type { AdminBranchRecord } from '@/lib/admin/branches'
 
@@ -23,25 +23,27 @@ export function AdminBranchFilter({
   allLabel = 'كل الفروع',
   className = '',
 }: AdminBranchFilterProps) {
+  const options = [
+    { value: ADMIN_BRANCH_FILTER_ALL, label: allLabel },
+    ...branches.map((branch) => ({
+      value: branch.id,
+      label: `${branch.name}${!branch.is_active ? ' - معطل' : ''}`,
+    })),
+  ]
+
   return (
     <div className={`text-right ${className}`}>
-      <label className="mb-2 block text-sm font-bold text-slate-700">
+      <label className="mb-2 block text-sm font-bold text-slate-400">
         {label}
       </label>
-      <AdminSelect
+      <AdminDarkSelect
         value={selectedBranchId}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         disabled={loading}
+        options={options}
         className="min-w-[220px]"
-      >
-        <option value={ADMIN_BRANCH_FILTER_ALL}>{allLabel}</option>
-        {branches.map((branch) => (
-          <option key={branch.id} value={branch.id}>
-            {branch.name}
-            {!branch.is_active ? ' - معطل' : ''}
-          </option>
-        ))}
-      </AdminSelect>
+        ariaLabel={label}
+      />
     </div>
   )
 }

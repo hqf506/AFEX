@@ -8,6 +8,7 @@ import {
 } from '@/lib/admin/branches'
 import {
   hasValidAdminPasswordLength,
+  isValidAdminPosPin,
   isValidAdminRole,
   normalizeAdminFullName,
 } from '@/lib/admin/users'
@@ -19,8 +20,15 @@ type CreateUserBody = {
   username?: string
   password?: string
   full_name?: string
+  contact_email?: string | null
+  phone?: string | null
+  pos_pin?: string
   role?: AppRole
   branch_id?: string | null
+}
+
+function normalizeOptionalText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 export async function POST(request: NextRequest) {
@@ -31,12 +39,25 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      const response = jsonResponse(
+        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
     const body = (await request.json()) as CreateUserBody
 
     const username = normalizeUsername(body.username || '')
     const password =
       typeof body.password === 'string' ? body.password.trim() : ''
     const fullName = normalizeAdminFullName(body.full_name)
+    const contactEmail = normalizeOptionalText(body.contact_email).toLowerCase()
+    const phone = normalizeOptionalText(body.phone)
+    const posPin = normalizeOptionalText(body.pos_pin)
     const role: AppRole = body.role || 'employee'
     const requestedBranchId = normalizeAdminBranchId(body.branch_id)
     const resolvedBranchId = resolveManagedUserBranchId(
@@ -70,6 +91,14 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
+    if (!isValidAdminPosPin(posPin)) {
+      const response = jsonResponse(
+        { error: 'POS PIN يجب أن يتكون من 4 أرقام' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
     if (!isValidAdminRole(role)) {
       const response = jsonResponse({ error: 'الصلاحية غير صالحة' }, 400)
       return withAuthCookies(auth.response, response)
@@ -89,6 +118,7 @@ export async function POST(request: NextRequest) {
           .from('branches')
           .select('id')
           .eq('id', resolvedBranchId)
+          .eq('tenant_id', tenantId)
           .maybeSingle()
 
       if (existingBranchError) {
@@ -205,6 +235,7 @@ export async function POST(request: NextRequest) {
         role,
         is_active: true,
         branch_id: resolvedBranchId || null,
+        tenant_id: tenantId,
       })
 
     if (profileInsertError) {
@@ -220,6 +251,57 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
+    const { error: profileContactUpdateError } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        contact_email: contactEmail || null,
+        phone: phone || null,
+        pos_pin_hash: null,
+      })
+      .eq('id', userId)
+      .eq('tenant_id', tenantId)
+
+    if (profileContactUpdateError) {
+      await supabaseAdmin
+        .from('profiles')
+        .delete()
+        .eq('id', userId)
+        .eq('tenant_id', tenantId)
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+
+      const response = jsonResponse(
+        {
+          error: 'تعذر حفظ بيانات التواصل للمستخدم',
+          details: profileContactUpdateError.message,
+        },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    const { error: setPinError } = await supabaseAdmin.rpc('set_pos_pin', {
+      user_id: userId,
+      raw_pin: posPin,
+    })
+
+    if (setPinError) {
+      await supabaseAdmin
+        .from('profiles')
+        .delete()
+        .eq('id', userId)
+        .eq('tenant_id', tenantId)
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+
+      const response = jsonResponse(
+        {
+          error: 'تعذر حفظ POS PIN بشكل آمن',
+          details: setPinError.message,
+        },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
     const response = jsonResponse({
       success: true,
       message: 'تم إنشاء المستخدم بنجاح',
@@ -227,6 +309,8 @@ export async function POST(request: NextRequest) {
         id: userId,
         username,
         full_name: fullName || username,
+        contact_email: contactEmail || null,
+        phone: phone || null,
         role,
         email: internalEmail,
         branch_id: resolvedBranchId || null,

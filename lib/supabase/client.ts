@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
 
 function getSupabaseEnv() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -26,7 +27,13 @@ declare global {
 
 function createSupabaseBrowserClient() {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv()
-  return createBrowserClient(supabaseUrl, supabaseAnonKey)
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: getSupabaseCookieOptions(),
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  })
 }
 
 export const supabase =

@@ -5,6 +5,9 @@ export type AdminBranchRecord = {
   id: string
   code: string
   name: string
+  display_store_name: string | null
+  display_branch_name: string | null
+  map_url: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -21,6 +24,14 @@ export function normalizeAdminBranchCode(value: unknown) {
 }
 
 export function normalizeAdminBranchName(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export function normalizeAdminBranchDisplayName(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export function normalizeAdminBranchMapUrl(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
 

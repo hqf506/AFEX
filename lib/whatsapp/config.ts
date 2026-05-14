@@ -15,11 +15,13 @@ type BranchWhatsAppConfigDbRow = {
 }
 
 export async function getBranchWhatsAppProviderConfig(
-  branchId: string | null | undefined
+  branchId: string | null | undefined,
+  tenantId: string | null | undefined
 ): Promise<WhatsAppProviderConfig | null> {
   const normalizedBranchId = typeof branchId === 'string' ? branchId.trim() : ''
+  const normalizedTenantId = typeof tenantId === 'string' ? tenantId.trim() : ''
 
-  if (!normalizedBranchId) {
+  if (!normalizedBranchId || !normalizedTenantId) {
     return null
   }
 
@@ -27,6 +29,7 @@ export async function getBranchWhatsAppProviderConfig(
     .from('branch_whatsapp_configs')
     .select('provider, phone_number, instance_id, token, api_url, is_active')
     .eq('branch_id', normalizedBranchId)
+    .eq('tenant_id', normalizedTenantId)
     .maybeSingle()
 
   if (error) {

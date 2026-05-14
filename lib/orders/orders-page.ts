@@ -18,6 +18,7 @@ export type OrderLineItemRecord = {
 export type OrderRecord = {
   id: string
   order_number: string
+  branch_id: string
   customer_name: string
   customer_phone: string
   total: number
@@ -39,21 +40,16 @@ export type OrdersPageSummary = {
   inProgressCount: number
   readyCount: number
   deliveredCount: number
+  closedCount: number
   revenue: number
   todayOrdersCount: number
   todayRevenue: number
 }
 
-export const ORDERS_FETCH_LIMIT = 100
-
 export const ORDER_STATUS_MAP: Record<
   OrderStatus,
   { label: string; className: string }
 > = {
-  new: {
-    label: 'جديد',
-    className: 'badge badge-blue',
-  },
   in_progress: {
     label: 'قيد التنفيذ',
     className: 'badge badge-amber',
@@ -62,25 +58,29 @@ export const ORDER_STATUS_MAP: Record<
     label: 'جاهز',
     className: 'badge badge-green',
   },
-  delivered: {
-    label: 'مستلم',
+  closed: {
+    label: 'تم تسليم',
     className: 'badge badge-slate',
+  },
+  unknown: {
+    label: 'غير معروفة',
+    className: 'badge badge-rose',
   },
 }
 
 export const ORDER_FILTERS: { key: OrderFilter; label: string }[] = [
   { key: 'all', label: 'الكل' },
   { key: 'today', label: 'اليوم' },
-  { key: 'new', label: 'جديد' },
   { key: 'in_progress', label: 'قيد التنفيذ' },
   { key: 'ready', label: 'جاهز' },
-  { key: 'delivered', label: 'مستلم' },
+  { key: 'closed', label: 'تم تسليم' },
 ]
 
 export function mapOrderSummaryToOrderRecord(record: OrderSummary): OrderRecord {
   return {
     id: record.id,
     order_number: record.orderNumber,
+    branch_id: record.branchId,
     customer_name: record.customerName,
     customer_phone: record.customerPhone,
     total: record.total,
@@ -110,53 +110,24 @@ export function getTodayOrderRecords(orders: OrderRecord[]) {
   return orders.filter((order) => isSameDay(order.created_at))
 }
 
-export function filterOrders(
-  orders: OrderRecord[],
-  search: string,
-  filter: OrderFilter
-) {
-  const normalizedSearch = search.trim()
-
-  return orders.filter((order) => {
-    const matchesSearch =
-      normalizedSearch === '' ||
-      order.customer_name.includes(normalizedSearch) ||
-      order.customer_phone.includes(normalizedSearch) ||
-      order.order_number.includes(normalizedSearch) ||
-      order.invoice_number.includes(normalizedSearch)
-
-    const matchesFilter =
-      filter === 'all'
-        ? true
-        : filter === 'today'
-        ? isSameDay(order.created_at)
-        : order.status === filter
-
-    return matchesSearch && matchesFilter
-  })
-}
-
 export function buildOrdersPageSummary(
-  filteredOrders: OrderRecord[],
+  visibleOrders: OrderRecord[],
   todayOrders: OrderRecord[]
 ): OrdersPageSummary {
-  let newCount = 0
   let inProgressCount = 0
   let readyCount = 0
-  let deliveredCount = 0
+  let closedCount = 0
   let revenue = 0
 
-  for (const order of filteredOrders) {
+  for (const order of visibleOrders) {
     revenue += order.total
 
-    if (order.status === 'new') {
-      newCount += 1
-    } else if (order.status === 'in_progress') {
+    if (order.status === 'in_progress') {
       inProgressCount += 1
     } else if (order.status === 'ready') {
       readyCount += 1
-    } else if (order.status === 'delivered') {
-      deliveredCount += 1
+    } else if (order.status === 'closed') {
+      closedCount += 1
     }
   }
 
@@ -167,11 +138,12 @@ export function buildOrdersPageSummary(
   }
 
   return {
-    totalOrders: filteredOrders.length,
-    newCount,
+    totalOrders: visibleOrders.length,
+    newCount: 0,
     inProgressCount,
     readyCount,
-    deliveredCount,
+    deliveredCount: closedCount,
+    closedCount,
     revenue,
     todayOrdersCount: todayOrders.length,
     todayRevenue,

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const message =
       `مرحبًا ${customerName || 'عميلنا العزيز'}\n` +
-      `تم إنشاء فاتورتك بنجاح لدى Leather Fix ERP.\n` +
+      `تم إنشاء فاتورتك بنجاح لدى AFEX.\n` +
       `رقم الفاتورة: ${invoiceNumber || '—'}\n` +
       `رقم الطلب: ${orderNumber || '—'}\n` +
       `الإجمالي: ${total ?? 0} ر.س\n` +

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reports Branch Dropdown Preview</title>
+  <style>
+    body { margin:0; background:#f8fafc; font-family:Tahoma, Arial, sans-serif; }
+    .frame { width: 1200px; margin: 0 auto; padding: 48px; }
+    .card { background:#fff; border:1px solid #e2e8f0; border-radius:24px; box-shadow:0 10px 25px rgba(15,23,42,.06); padding:28px; }
+    .label { font-size:14px; font-weight:700; color:#334155; margin-bottom:8px; display:block; }
+    .field { height:44px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; padding:0 16px; display:flex; align-items:center; justify-content:space-between; color:#334155; font-size:14px; }
+    .arrow { color:#94a3b8; }
+    .dropdown { margin-top:8px; border:1px solid #e2e8f0; border-radius:16px; background:#fff; box-shadow:0 18px 40px rgba(15,23,42,.12); padding:8px; }
+    .search { height:40px; width:100%; box-sizing:border-box; border:1px solid #f1f5f9; border-radius:12px; background:#f8fafc; padding:0 12px; font-size:14px; color:#334155; }
+    .list { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+    .item { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:12px; font-size:14px; color:#334155; }
+    .item.active { background:#f1f5f9; font-weight:600; }
+    .muted { color:#94a3b8; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:24px; align-items:start; }
+    .title { font-size:18px; font-weight:700; color:#0f172a; margin-bottom:16px; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="grid">
+      <div class="card">
+        <div class="title">قبل الفتح</div>
+        <label class="label">الفرع</label>
+        <div class="field">
+          <span class="arrow">▾</span>
+          <span>فرع Leather-Fix</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="title">بعد الفتح</div>
+        <label class="label">الفرع</label>
+        <div class="field">
+          <span class="arrow">▾</span>
+          <span>فرع Leather-Fix</span>
+        </div>
+        <div class="dropdown">
+          <input class="search" placeholder="ابحث عن فرع" value="" />
+          <div class="list">
+            <div class="item"><span class="muted"></span><span>كل الفروع</span></div>
+            <div class="item"><span class="muted"></span><span>الفرع الرئيسي</span></div>
+            <div class="item active"><span class="muted">✓</span><span>فرع Leather-Fix</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

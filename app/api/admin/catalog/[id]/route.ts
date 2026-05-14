@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import {
@@ -15,6 +16,7 @@ import {
 } from '@/lib/admin/catalog'
 import { isBooleanValue } from '@/lib/api/validation'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type UpdateCatalogItemBody = {
   name?: string
@@ -22,7 +24,27 @@ type UpdateCatalogItemBody = {
   category?: string
   item_type?: CatalogItemType
   default_price?: number | string
+  cost_price?: number | string
+  pos_display_mode?: 'style' | 'image'
+  pos_color?: string | null
+  pos_shape?: string | null
   is_active?: boolean
+}
+
+function normalizePosDisplayMode(value: unknown): 'style' | 'image' {
+  return value === 'image' ? 'image' : 'style'
+}
+
+function normalizeOptionalText(value: unknown) {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized || null
+}
+
+function utf8JsonResponse(data: Record<string, unknown>, status = 200) {
+  const response = jsonResponse(data, status)
+  response.headers.set('Content-Type', 'application/json; charset=utf-8')
+  return response
 }
 
 export async function PATCH(
@@ -58,7 +80,11 @@ export async function PATCH(
     const code = normalizeCatalogCode(body.code)
     const category = normalizeCatalogCategory(body.category)
     const itemType = body.item_type
-    const defaultPrice = normalizeCatalogPrice(body.default_price)
+    const salePrice = normalizeCatalogPrice(body.default_price)
+    const costPrice = normalizeCatalogPrice(body.cost_price)
+    const posDisplayMode = normalizePosDisplayMode(body.pos_display_mode)
+    const posColor = normalizeOptionalText(body.pos_color)
+    const posShape = normalizeOptionalText(body.pos_shape)
     const isActive = body.is_active
 
     if (!name) {
@@ -71,21 +97,14 @@ export async function PATCH(
     if (!code) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'الكود الداخلي مطلوب' }, 400)
+        jsonResponse({ error: 'كود العنصر مطلوب' }, 400)
       )
     }
 
     if (!isValidCatalogCode(code)) {
       return withAuthCookies(
         auth.response,
-        jsonResponse(
-          {
-            error: 'الكود الداخلي غير صالح',
-            details:
-              'استخدم أحرفًا إنجليزية صغيرة أو أرقامًا أو - فقط، بين 2 و64 حرفًا',
-          },
-          400
-        )
+        jsonResponse({ error: 'كود العنصر غير صالح' }, 400)
       )
     }
 
@@ -103,24 +122,45 @@ export async function PATCH(
       )
     }
 
-    if (!isValidCatalogPrice(defaultPrice)) {
+    if (!isValidCatalogPrice(costPrice)) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'السعر الافتراضي غير صالح' }, 400)
+        jsonResponse({ error: 'سعر التكلفة غير صالح' }, 400)
+      )
+    }
+
+    if (!isValidCatalogPrice(salePrice)) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse({ error: 'سعر البيع غير صالح' }, 400)
       )
     }
 
     if (!isBooleanValue(isActive)) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'قيمة is_active غير صالحة' }, 400)
+        jsonResponse({ error: 'قيمة الحالة غير صالحة' }, 400)
       )
     }
 
-    const { data: existingItem, error: existingItemError } = await supabaseAdmin
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse({ error: 'Ø¹Ù†ØµØ± Ø§Ù„ÙƒØªØ§Ù„ÙˆØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' }, 404)
+      )
+    }
+
+    let existingItemQuery = supabaseAdmin
       .from('catalog_items')
       .select('id, code')
       .eq('id', itemId)
+
+    existingItemQuery = applyTenantFilter(existingItemQuery, tenantId)
+
+    const { data: existingItem, error: existingItemError } =
+      await existingItemQuery
       .maybeSingle()
 
     if (existingItemError) {
@@ -143,11 +183,16 @@ export async function PATCH(
       )
     }
 
-    const { data: duplicateItem, error: duplicateItemError } = await supabaseAdmin
+    let duplicateItemQuery = supabaseAdmin
       .from('catalog_items')
       .select('id')
       .eq('code', code)
       .neq('id', itemId)
+
+    duplicateItemQuery = applyTenantFilter(duplicateItemQuery, tenantId)
+
+    const { data: duplicateItem, error: duplicateItemError } =
+      await duplicateItemQuery
       .maybeSingle()
 
     if (duplicateItemError) {
@@ -155,7 +200,7 @@ export async function PATCH(
         auth.response,
         jsonResponse(
           {
-            error: 'تعذر التحقق من الكود الداخلي',
+            error: 'تعذر التحقق من كود العنصر',
             details: duplicateItemError.message,
           },
           500
@@ -166,7 +211,7 @@ export async function PATCH(
     if (duplicateItem) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'الكود الداخلي مستخدم بالفعل' }, 409)
+        jsonResponse({ error: 'كود العنصر مستخدم بالفعل' }, 409)
       )
     }
 
@@ -177,13 +222,18 @@ export async function PATCH(
         code,
         category,
         item_type: itemType,
-        default_price: defaultPrice,
+        default_price: salePrice,
+        cost_price: costPrice,
+        pos_display_mode: posDisplayMode,
+        pos_color: posColor,
+        pos_shape: posShape,
         is_active: isActive,
         updated_at: new Date().toISOString(),
       })
       .eq('id', itemId)
+      .eq('tenant_id', tenantId)
       .select(
-        'id, code, name, category, item_type, default_price, image_url, is_active, created_at, updated_at'
+        'id, code, name, category, item_type, default_price, cost_price, image_url, pos_display_mode, pos_color, pos_shape, is_active, created_at, updated_at'
       )
       .single()
 
@@ -214,6 +264,194 @@ export async function PATCH(
       jsonResponse(
         {
           error: 'حدث خطأ غير متوقع',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        500
+      )
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireApiAuth(request, ['admin'])
+
+  if (!auth.ok) {
+    return auth.response
+  }
+
+  if (!isSystemScopedCatalogAdmin(auth.profile.scope_type)) {
+    return withAuthCookies(
+      auth.response,
+      utf8JsonResponse(
+        {
+          success: false,
+          error: 'FORBIDDEN',
+          message: 'هذه العملية متاحة لمدير النظام فقط',
+        },
+        403
+      )
+    )
+  }
+
+  try {
+    const params = await context.params
+    const itemId = normalizeCatalogItemId(params.id)
+    const envUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+
+    if (!itemId) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          {
+            success: false,
+            error: 'INVALID_CATALOG_ITEM_ID',
+            message: 'معرف العنصر مطلوب',
+          },
+          400
+        )
+      )
+    }
+
+    if (!envUrl || !serviceRoleKey) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          {
+            success: false,
+            error: 'MISSING_SERVICE_ROLE_KEY',
+            message: 'SUPABASE_SERVICE_ROLE_KEY غير موجود في .env.local',
+          },
+          500
+        )
+      )
+    }
+
+    const serviceSupabase = createClient(envUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          {
+            success: false,
+            error: 'CATALOG_ITEM_NOT_FOUND',
+            message: 'Ø§Ù„Ø¹Ù†ØµØ± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯ ÙÙŠ Ø§Ù„ÙƒØªØ§Ù„ÙˆØ¬',
+          },
+          404
+        )
+      )
+    }
+
+    let existingItemQuery = serviceSupabase
+      .from('catalog_items')
+      .select('id')
+      .eq('id', itemId)
+
+    existingItemQuery = applyTenantFilter(existingItemQuery, tenantId)
+
+    const { data: existingItem, error: existingItemError } =
+      await existingItemQuery
+      .maybeSingle()
+
+    if (existingItemError) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          {
+            success: false,
+            error: 'CATALOG_ITEM_LOOKUP_FAILED',
+            message: 'تعذر التحقق من العنصر قبل حذفه',
+            details: existingItemError.message,
+            code: existingItemError.code,
+          },
+          500
+        )
+      )
+    }
+
+    if (!existingItem) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          {
+            success: false,
+            error: 'CATALOG_ITEM_NOT_FOUND',
+            message: 'العنصر غير موجود في الكتالوج',
+          },
+          404
+        )
+      )
+    }
+
+    const { error: branchDeleteError } = await serviceSupabase
+      .from('branch_catalog_items')
+      .delete()
+      .eq('catalog_item_id', itemId)
+      .eq('tenant_id', tenantId)
+
+    if (branchDeleteError) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          {
+            success: false,
+            error: 'BRANCH_CATALOG_DELETE_FAILED',
+            message: 'تعذر حذف ارتباطات الفروع لهذا العنصر',
+          },
+          500
+        )
+      )
+    }
+
+    const { error: catalogDeleteError } = await serviceSupabase
+      .from('catalog_items')
+      .delete()
+      .eq('id', itemId)
+      .eq('tenant_id', tenantId)
+
+    if (catalogDeleteError) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          {
+            success: false,
+            error: 'CATALOG_ITEM_DELETE_FAILED',
+            message: 'تعذر حذف العنصر من الكتالوج',
+            details: catalogDeleteError.message,
+            code: catalogDeleteError.code,
+          },
+          500
+        )
+      )
+    }
+
+    return withAuthCookies(
+      auth.response,
+      utf8JsonResponse({
+        success: true,
+        message: 'تم حذف العنصر نهائيًا من الكتالوج',
+      })
+    )
+  } catch (error) {
+    return withAuthCookies(
+      auth.response,
+      utf8JsonResponse(
+        {
+          success: false,
+          error: 'UNEXPECTED_DELETE_ERROR',
+          message: 'حدث خطأ غير متوقع أثناء حذف العنصر',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500

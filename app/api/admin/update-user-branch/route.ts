@@ -35,6 +35,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      const response = jsonResponse(
+        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
     const body = (await request.json()) as UpdateUserBranchBody
     const userId = normalizeAdminUserId(body.userId)
     const branchId = normalizeAdminBranchId(body.branch_id)
@@ -51,6 +61,7 @@ export async function POST(request: NextRequest) {
       .from('profiles')
       .select('id, username, role, branch_id')
       .eq('id', userId)
+      .eq('tenant_id', tenantId)
       .maybeSingle()
 
     if (profileError) {
@@ -109,6 +120,7 @@ export async function POST(request: NextRequest) {
         .from('branches')
         .select('id, is_active')
         .eq('id', branchId)
+        .eq('tenant_id', tenantId)
         .maybeSingle()
 
       if (branchError) {
@@ -138,6 +150,7 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
+      .eq('tenant_id', tenantId)
 
     if (updateError) {
       const response = jsonResponse(

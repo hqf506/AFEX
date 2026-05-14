@@ -1,17 +1,44 @@
 import type { Metadata } from 'next'
-import { Cairo } from 'next/font/google'
+import localFont from 'next/font/local'
 import { AuthStateProvider } from '@/components/auth-state-provider'
+import { DevCacheReset } from '@/components/dev-cache-reset'
 import './globals.css'
 
-const cairo = Cairo({
-  subsets: ['arabic'],
-  weight: ['400', '500', '600', '700', '800'],
+const cairo = localFont({
+  src: [
+    {
+      path: './fonts/cairo-arabic.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: './fonts/cairo-arabic.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: './fonts/cairo-arabic.woff2',
+      weight: '600',
+      style: 'normal',
+    },
+    {
+      path: './fonts/cairo-arabic.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: './fonts/cairo-arabic.woff2',
+      weight: '800',
+      style: 'normal',
+    },
+  ],
+  display: 'swap',
   variable: '--font-cairo',
 })
 
 export const metadata: Metadata = {
-  title: 'Leather Fix ERP',
-  description: 'نظام إدارة الطلبات والفواتير لمتجر Leather Fix',
+  title: 'AFEX',
+  description: 'نظام إدارة الطلبات والفواتير لمتجر AFEX',
 }
 
 export default function RootLayout({
@@ -22,6 +49,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">
+        <DevCacheReset />
         <AuthStateProvider>{children}</AuthStateProvider>
       </body>
     </html>

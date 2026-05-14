@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     const fileUrl = getTrimmedString(body.fileUrl)
     const filename = getTrimmedString(body.filename)
     const caption = getTrimmedString(body.caption)
+    const tenantId = auth.profile.tenant_id
     const requestedBranchId = getTrimmedString(body.branchId)
     const branchId = resolveRequestBranchId(
       requestedBranchId,
@@ -87,6 +88,16 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: 'Recipient phone is required',
+        },
+        400
+      )
+    }
+
+    if (!tenantId) {
+      return jsonResponse(
+        {
+          success: false,
+          error: 'Tenant context is required for WhatsApp config',
         },
         400
       )
@@ -149,6 +160,7 @@ export async function POST(req: NextRequest) {
                 {
                   to,
                   branchId,
+                  tenantId,
                   fileUrl,
                   filename: filename || undefined,
                   caption: caption || undefined,
@@ -167,6 +179,7 @@ export async function POST(req: NextRequest) {
                 {
                   to,
                   branchId,
+                  tenantId,
                   text: text || '',
                   metadata: {
                     type: 'order_status',
@@ -209,12 +222,18 @@ export async function POST(req: NextRequest) {
 
     const result =
       mode === 'test'
-        ? await sendWhatsAppTestMessage(to, branchId, text || undefined)
+        ? await sendWhatsAppTestMessage(
+            to,
+            branchId,
+            tenantId,
+            text || undefined
+          )
         : type === 'file'
           ? await sendWhatsAppFile(
               {
                 to,
                 branchId,
+                tenantId,
                 fileUrl,
                 filename: filename || undefined,
                 caption: caption || undefined,
@@ -228,6 +247,7 @@ export async function POST(req: NextRequest) {
               {
                 to,
                 branchId,
+                tenantId,
                 text: text || '',
               },
               {

@@ -19,6 +19,7 @@ import {
   type BranchWhatsAppConfigRow,
 } from '@/lib/admin/branch-whatsapp-config'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type BranchWhatsAppConfigBody = {
   branchId?: string
@@ -30,13 +31,17 @@ type BranchWhatsAppConfigBody = {
   is_active?: boolean | string
 }
 
-async function getExistingConfig(branchId: string) {
-  const { data, error } = await supabaseAdmin
+async function getExistingConfig(branchId: string, tenantId: string) {
+  let query = supabaseAdmin
     .from('branch_whatsapp_configs')
     .select(
       'id, branch_id, provider, phone_number, instance_id, token, api_url, is_active, created_at, updated_at'
     )
     .eq('branch_id', branchId)
+
+  query = applyTenantFilter(query, tenantId)
+
+  const { data, error } = await query
     .maybeSingle()
 
   if (error) {
@@ -54,6 +59,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse({
+          success: true,
+          config: null,
+        })
+      )
+    }
+
     const requestedBranchId = normalizeBranchWhatsAppBranchId(
       request.nextUrl.searchParams.get('branchId')
     )
@@ -92,7 +109,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const config = await getExistingConfig(resolvedBranchId)
+    const config = await getExistingConfig(resolvedBranchId, tenantId)
 
     return withAuthCookies(
       auth.response,
@@ -123,6 +140,20 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse(
+          {
+            error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©',
+          },
+          400
+        )
+      )
+    }
+
     const body = (await request.json()) as BranchWhatsAppConfigBody
     const requestedBranchId = normalizeBranchWhatsAppBranchId(body.branchId)
     const resolvedBranchId = resolveManagedBranchWhatsAppBranchId(
@@ -228,10 +259,14 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
       )
     }
 
-    const { data: branch, error: branchError } = await supabaseAdmin
+    let branchQuery = supabaseAdmin
       .from('branches')
       .select('id')
       .eq('id', resolvedBranchId)
+
+    branchQuery = applyTenantFilter(branchQuery, tenantId)
+
+    const { data: branch, error: branchError } = await branchQuery
       .maybeSingle()
 
     if (branchError) {
@@ -259,7 +294,7 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
       )
     }
 
-    const existingConfig = await getExistingConfig(resolvedBranchId)
+    const existingConfig = await getExistingConfig(resolvedBranchId, tenantId)
     const finalToken = nextToken || existingConfig?.token || ''
 
     if (!finalToken) {
@@ -289,8 +324,10 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
             updated_at: timestamp,
           })
           .eq('id', existingConfig.id)
+          .eq('tenant_id', tenantId)
       : supabaseAdmin.from('branch_whatsapp_configs').insert({
           branch_id: resolvedBranchId,
+          tenant_id: tenantId,
           provider,
           phone_number: phoneNumber,
           instance_id: instanceId,
@@ -316,7 +353,7 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
       )
     }
 
-    const savedConfig = await getExistingConfig(resolvedBranchId)
+    const savedConfig = await getExistingConfig(resolvedBranchId, tenantId)
 
     return withAuthCookies(
       auth.response,

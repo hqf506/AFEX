@@ -1,0 +1,612 @@
+'use client'
+
+import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  createThermalInvoiceSettingsPayload,
+  createThermalInvoiceSettingsSavePayload,
+  type SystemSettings,
+  type ThermalInvoiceSettingsPayload,
+} from '@/lib/admin/settings'
+import { AdminDarkSelect } from '@/components/admin-dark-select'
+import { usePageAccess } from '@/hooks/use-page-access'
+import {
+  renderThermalInvoiceHtml,
+} from '@/lib/invoices/thermal-template'
+
+const THERMAL_INVOICE_TABS = [
+  { id: 'identity', label: 'الهوية' },
+  { id: 'printing', label: 'الطباعة' },
+  { id: 'content', label: 'المحتوى' },
+  { id: 'note', label: 'الملاحظة' },
+  { id: 'preview', label: 'المعاينة' },
+] as const
+
+const darkPanelClassName =
+  'rounded-[28px] border border-cyan-300/15 bg-[#07111d]/90 p-5 shadow-[0_0_45px_rgba(34,211,238,0.08)] backdrop-blur-xl sm:p-6'
+
+const darkCardClassName =
+  'rounded-3xl border border-cyan-300/15 bg-[#0a1624]/85 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl'
+
+const darkInputClassName =
+  'h-12 w-full rounded-2xl border border-cyan-300/15 bg-[#091522]/90 px-4 text-right text-sm font-bold text-white outline-none transition placeholder:text-slate-500 hover:border-cyan-300/30 focus:border-cyan-300/55 focus:bg-[#0d1c2d] focus:ring-2 focus:ring-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-60'
+
+const darkTextareaClassName =
+  'min-h-[150px] w-full rounded-2xl border border-cyan-300/15 bg-[#091522]/90 px-4 py-3 text-right text-sm font-bold leading-7 text-white outline-none transition placeholder:text-slate-500 hover:border-cyan-300/30 focus:border-cyan-300/55 focus:bg-[#0d1c2d] focus:ring-2 focus:ring-cyan-300/15'
+
+const darkSecondaryButtonClassName =
+  'inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-cyan-300/15 bg-[#0b1725]/90 px-4 py-2.5 text-sm font-bold text-slate-200 transition hover:border-cyan-300/35 hover:bg-cyan-300/10 hover:text-white disabled:opacity-60'
+
+const darkPrimaryButtonClassName =
+  'inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-2.5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.22)] transition hover:shadow-[0_0_42px_rgba(34,211,238,0.34)] disabled:opacity-60'
+
+function displayAfexText(value?: string | null) {
+  return value?.replace(/leather\s*[- ]?\s*fix/gi, 'AFEX') ?? ''
+}
+
+type ThermalInvoiceTabId = (typeof THERMAL_INVOICE_TABS)[number]['id']
+
+type ToggleCardProps = {
+  icon: ReactNode
+  label: string
+  description?: string
+  enabled: boolean
+  onToggle: (checked: boolean) => void
+}
+
+function sanitizeThermalPreviewHtml(html: string, paperWidth: string) {
+  const paperWidthPx = paperWidth === '58mm' ? 220 : 280
+
+  return html.replace(
+    '</head>',
+    `
+  <style>
+    html, body {
+      background: #ffffff !important;
+      min-height: 100%;
+      padding: 0 !important;
+      width: ${paperWidthPx}px !important;
+      overflow: hidden;
+    }
+
+    .receipt {
+      width: ${paperWidthPx}px !important;
+      margin: 0 !important;
+      border-radius: 3px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      transform-origin: top center;
+    }
+
+    @media print {
+      html, body {
+        background: #fff !important;
+        padding: 0;
+      }
+
+      .receipt {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>`
+  )
+}
+
+function ThermalToggleCard({
+  icon,
+  label,
+  description,
+  enabled,
+  onToggle,
+}: ToggleCardProps) {
+  return (
+    <div className="rounded-2xl border border-cyan-300/15 bg-[#081522]/90 p-4 shadow-[0_18px_55px_rgba(0,0,0,0.22)] transition-all duration-200 ease-out hover:border-cyan-300/30 hover:bg-[#0b1b2c]">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/10 text-cyan-200 shadow-[0_0_24px_rgba(34,211,238,0.08)]">
+          {icon}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-white">{label}</div>
+          {description ? (
+            <div className="mt-1 text-xs text-slate-400">{description}</div>
+          ) : null}
+        </div>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          onClick={() => onToggle(!enabled)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
+            enabled ? 'bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.22)]' : 'bg-slate-700'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-slate-950 shadow transition-all duration-200 ${
+              enabled ? 'right-0.5' : 'left-0.5'
+            }`}
+          />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function buildSampleThermalPreviewHtml(
+  form: ThermalInvoiceSettingsPayload,
+  settings: SystemSettings | null
+) {
+  const html = renderThermalInvoiceHtml({
+    thermalBrandName: displayAfexText(form.thermal_invoice_brand_name),
+    thermalBranchName: displayAfexText(form.thermal_invoice_branch_name),
+    thermalPaperWidth:
+      form.thermal_invoice_paper_width === '58mm' ? '58mm' : '80mm',
+    thermalShowCustomerPhone: form.thermal_invoice_show_customer_phone,
+    thermalShowPaymentMethod: form.thermal_invoice_show_payment_method,
+    thermalShowNote: form.thermal_invoice_show_note,
+    thermalNote: form.thermal_invoice_note,
+    thermalFooterMessage: form.thermal_invoice_footer_message,
+    thermalShowWhatsapp: form.thermal_invoice_show_whatsapp,
+    thermalShowInstagram: form.thermal_invoice_show_instagram,
+    thermalShowTiktok: form.thermal_invoice_show_tiktok,
+    thermalShowGoogleReview: form.thermal_invoice_show_google_review,
+    thermalShowMap: form.thermal_invoice_show_map,
+    whatsappNumber: settings?.digital_invoice_whatsapp_number ?? '',
+    instagramLink: settings?.digital_invoice_instagram_link ?? '',
+    tiktokLink: settings?.digital_invoice_tiktok_link ?? '',
+    googleReviewLink: settings?.digital_invoice_google_review_link ?? '',
+    mapLink: settings?.digital_invoice_map_link ?? '',
+    customerName: 'عميل تجريبي',
+    customerPhone: '0500000000',
+    invoiceNumber: 'PREVIEW-001',
+    issuedAt: new Date().toISOString(),
+    paymentMethod: 'شبكة',
+    invoiceItems: [
+      { name: 'تنظيف جلد', quantity: 1, price: 120 },
+      { name: 'إصلاح شنطة جلد', quantity: 1, price: 240 },
+    ],
+    subtotal: 360,
+    taxAmount: 54,
+    finalTotal: 414,
+  })
+
+  return sanitizeThermalPreviewHtml(html, form.thermal_invoice_paper_width)
+}
+
+export default function AdminThermalInvoiceSettingsPage() {
+  const access = usePageAccess(['admin'])
+  const authLoading = access.loading
+  const allowed = access.allowed
+
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [settings, setSettings] = useState<SystemSettings | null>(null)
+  const [form, setForm] = useState<ThermalInvoiceSettingsPayload>(() =>
+    createThermalInvoiceSettingsPayload(null)
+  )
+  const [successMessage, setSuccessMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [activeTab, setActiveTab] = useState<ThermalInvoiceTabId>('identity')
+
+  const livePreviewHtml = useMemo(
+    () => buildSampleThermalPreviewHtml(form, settings),
+    [form, settings]
+  )
+  const isNarrowPaper = form.thermal_invoice_paper_width === '58mm'
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true)
+    setErrorMessage('')
+
+    try {
+      const response = await fetch('/api/admin/system-settings', {
+        method: 'GET',
+        credentials: 'include',
+      })
+
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success) {
+        setErrorMessage(result?.error || 'فشل تحميل إعدادات الفاتورة الحرارية')
+        setLoading(false)
+        return
+      }
+
+      const settingsData = result.settings as SystemSettings | null
+      setSettings(settingsData)
+      setForm(createThermalInvoiceSettingsPayload(settingsData))
+      setLoading(false)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'فشل تحميل إعدادات الفاتورة الحرارية'
+      )
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!allowed) return
+
+    const timeoutId = window.setTimeout(() => {
+      void fetchSettings()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [allowed, fetchSettings])
+
+  const updateField = <K extends keyof ThermalInvoiceSettingsPayload>(
+    key: K,
+    value: ThermalInvoiceSettingsPayload[K]
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }))
+  }
+
+  const resetForm = () => {
+    setForm(createThermalInvoiceSettingsPayload(settings))
+  }
+
+  const previewInvoice = () => {
+    const previewWindow = window.open('', '_blank', 'width=520,height=900')
+
+    if (!previewWindow) return
+
+    previewWindow.document.write(buildSampleThermalPreviewHtml(form, settings))
+    previewWindow.document.close()
+  }
+
+  const saveSettings = async () => {
+    if (saving) return
+
+    setSaving(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    try {
+      const payload = createThermalInvoiceSettingsSavePayload(form)
+      const response = await fetch('/api/admin/system-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      })
+
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success) {
+        setErrorMessage(result?.error || 'فشل حفظ إعدادات الفاتورة الحرارية')
+        setSaving(false)
+        return
+      }
+
+      const savedSettings = result.settings as SystemSettings
+      setSettings(savedSettings)
+      setForm(createThermalInvoiceSettingsPayload(savedSettings))
+      setSuccessMessage(result.message || 'تم حفظ إعدادات الفاتورة الحرارية بنجاح')
+      setSaving(false)
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'فشل حفظ إعدادات الفاتورة الحرارية'
+      )
+      setSaving(false)
+    }
+  }
+
+  if (authLoading) {
+    return <div className={darkPanelClassName}>جارٍ التحقق من الصلاحية...</div>
+  }
+
+  if (!allowed) {
+    return <div className={darkPanelClassName}>جارٍ التحويل...</div>
+  }
+
+  if (loading) {
+    return <div className={darkPanelClassName}>جاري تحميل إعدادات الفاتورة الحرارية...</div>
+  }
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#020617] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_30%)]" />
+      <div className="relative space-y-5 py-6">
+      {successMessage ? (
+        <div className="mx-auto max-w-[1200px] rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 shadow-[0_0_28px_rgba(16,185,129,0.12)]">
+          {successMessage}
+        </div>
+      ) : null}
+      {errorMessage ? (
+        <div className="mx-auto max-w-[1200px] rounded-2xl border border-rose-300/20 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-200 shadow-[0_0_28px_rgba(244,63,94,0.12)]">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      <div className="mx-auto max-w-[1200px] px-6">
+        <div className={darkPanelClassName}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="mb-3 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">
+                AFEX Thermal Invoice
+              </div>
+              <h1 className="text-2xl font-black text-white sm:text-3xl">تعديل الفاتورة الحرارية</h1>
+              <p className="mt-2 text-sm font-medium text-slate-400">
+                إعدادات قالب الإيصال الحراري للطابعات الصغيرة
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Link href="/admin/settings" className={darkSecondaryButtonClassName}>
+                العودة إلى الإعدادات
+              </Link>
+              <button
+                onClick={() => void fetchSettings()}
+                className={darkSecondaryButtonClassName}
+                type="button"
+              >
+                تحديث
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-[1200px] px-6">
+        <div className={`${darkPanelClassName} space-y-6`}>
+          <div className="border-b border-cyan-300/10 pb-4">
+            <div className="flex flex-wrap gap-2">
+              {THERMAL_INVOICE_TABS.map((tab) => {
+                const isActive = activeTab === tab.id
+
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                      isActive
+                        ? 'border-cyan-300/50 bg-gradient-to-l from-cyan-300 to-emerald-300 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.22)]'
+                        : 'border-cyan-300/10 bg-[#091522]/80 text-slate-300 hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {activeTab === 'identity' ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-black text-white">هوية الإيصال</h2>
+                <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">Thermal</span>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className={darkCardClassName}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">اسم النشاط</label>
+                  <input
+                    type="text"
+                    value={displayAfexText(form.thermal_invoice_brand_name)}
+                    onChange={(e) =>
+                      updateField('thermal_invoice_brand_name', e.target.value)
+                    }
+                    className={darkInputClassName}
+                    placeholder="اكتب اسم النشاط"
+                  />
+                </div>
+
+                <div className={darkCardClassName}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">اسم الفرع</label>
+                  <input
+                    type="text"
+                    value={displayAfexText(form.thermal_invoice_branch_name)}
+                    onChange={(e) =>
+                      updateField('thermal_invoice_branch_name', e.target.value)
+                    }
+                    className={darkInputClassName}
+                    placeholder="اكتب اسم الفرع"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'printing' ? (
+            <div className="space-y-6">
+              <h2 className="text-lg font-black text-white">الطباعة</h2>
+
+              <div className={`${darkCardClassName} max-w-sm`}>
+                <label className="mb-2 block text-sm font-bold text-slate-200">عرض الورق</label>
+                <AdminDarkSelect
+                  value={form.thermal_invoice_paper_width}
+                  onChange={(value) =>
+                    updateField('thermal_invoice_paper_width', value)
+                  }
+                  options={[
+                    { value: '80mm', label: '80mm' },
+                    { value: '58mm', label: '58mm' },
+                  ]}
+                  ariaLabel="عرض الورق"
+                  triggerClassName="bg-[#0b1422]/90 hover:bg-cyan-300/10"
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'content' ? (
+            <div className="space-y-6">
+              <h2 className="text-lg font-black text-white">المحتوى</h2>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <ThermalToggleCard
+                  icon={
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.33 0-8 2.17-8 4.5V21h16v-2.5C20 16.17 16.33 14 12 14z"
+                      />
+                    </svg>
+                  }
+                  label="إظهار رقم العميل"
+                  enabled={form.thermal_invoice_show_customer_phone}
+                  onToggle={(checked) =>
+                    updateField('thermal_invoice_show_customer_phone', checked)
+                  }
+                />
+
+                <ThermalToggleCard
+                  icon={
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M3 6h18v12H3zm2 2v8h14V8zm3 6h2v-2H8zm3 0h5v-2h-5z"
+                      />
+                    </svg>
+                  }
+                  label="إظهار طريقة الدفع"
+                  enabled={form.thermal_invoice_show_payment_method}
+                  onToggle={(checked) =>
+                    updateField('thermal_invoice_show_payment_method', checked)
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'note' ? (
+            <div className="space-y-6">
+              <h2 className="text-lg font-black text-white">الملاحظة</h2>
+
+              <div className="max-w-md">
+                <ThermalToggleCard
+                  icon={
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M5 4h14v16l-7-3-7 3zm2 2v10.76l5-2.14 5 2.14V6z"
+                      />
+                    </svg>
+                  }
+                  label="إظهار الملاحظة"
+                  enabled={form.thermal_invoice_show_note}
+                  onToggle={(checked) =>
+                    updateField('thermal_invoice_show_note', checked)
+                  }
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className={darkCardClassName}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">ملاحظة الإيصال</label>
+                  <textarea
+                    value={form.thermal_invoice_note}
+                    onChange={(e) =>
+                      updateField('thermal_invoice_note', e.target.value)
+                    }
+                    className={darkTextareaClassName}
+                    placeholder="اكتب ملاحظة الإيصال"
+                  />
+                </div>
+
+                <div className={darkCardClassName}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">رسالة نهاية الإيصال</label>
+                  <textarea
+                    value={form.thermal_invoice_footer_message}
+                    onChange={(e) =>
+                      updateField('thermal_invoice_footer_message', e.target.value)
+                    }
+                    className={darkTextareaClassName}
+                    placeholder="اكتب رسالة النهاية"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'preview' ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black text-white">معاينة الفاتورة الحرارية</h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    تتحدث المعاينة مباشرة حسب الإعدادات الحالية قبل الحفظ.
+                  </p>
+                </div>
+                <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">Live</span>
+              </div>
+
+              <div className="rounded-3xl border border-cyan-300/15 bg-[#07111d]/90 p-5 shadow-[0_0_35px_rgba(34,211,238,0.08)]">
+                <div className="mb-4 flex items-center justify-between text-sm text-slate-400">
+                  <span>عرض الورق الحالي</span>
+                  <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 font-bold text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.08)]">
+                    {isNarrowPaper ? '58mm' : '80mm'}
+                  </span>
+                </div>
+
+                <div className="flex justify-center overflow-auto rounded-3xl border border-cyan-500/15 bg-[#020817]/80 p-6 shadow-inner shadow-cyan-950/20 sm:p-8">
+                  <div
+                    className={`overflow-hidden rounded-[3px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)] ${
+                      isNarrowPaper ? 'w-[220px]' : 'w-[280px]'
+                    }`}
+                  >
+                    <iframe
+                      title="معاينة الفاتورة الحرارية"
+                      srcDoc={livePreviewHtml}
+                      className="block w-full bg-white"
+                      sandbox="allow-same-origin"
+                      style={{
+                        border: 0,
+                        height: isNarrowPaper ? '720px' : '760px',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="border-t border-cyan-300/10 pt-5">
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={saveSettings}
+                disabled={saving}
+                className={darkPrimaryButtonClassName}
+                type="button"
+              >
+                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              </button>
+
+              <button
+                onClick={resetForm}
+                disabled={saving}
+                className={darkSecondaryButtonClassName}
+                type="button"
+              >
+                استرجاع القيم الحالية
+              </button>
+
+              <button
+                onClick={previewInvoice}
+                disabled={saving}
+                className={darkSecondaryButtonClassName}
+                type="button"
+              >
+                معاينة الفاتورة
+              </button>
+
+              <Link href="/admin/settings" className={darkSecondaryButtonClassName}>
+                العودة إلى الإعدادات
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  )
+}

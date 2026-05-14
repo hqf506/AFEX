@@ -1,13 +1,15 @@
-export type OrderStatus = 'new' | 'in_progress' | 'ready' | 'delivered'
+export type OrderStatus = 'in_progress' | 'ready' | 'closed' | 'unknown'
 
 export type PaymentMethodKey = 'cash' | 'card' | 'transfer' | 'unknown'
 
 export type OrderInvoiceLineItemSource = {
   item_name_snapshot?: string
   item_type_snapshot?: string
+  item_category_snapshot?: string
   quantity?: number | string
   unit_price?: number | string
   line_total?: number | string
+  cost_price?: number | string
   [key: string]: unknown
 }
 
@@ -35,6 +37,7 @@ export type OrderCustomerSource = {
 export type OrderSourceRow = {
   id?: string
   order_number?: string
+  branch_id?: string
   status?: string
   created_at?: string
   customers?: OrderCustomerSource | OrderCustomerSource[]
@@ -45,14 +48,17 @@ export type OrderSourceRow = {
 export type OrderLineItemSummary = {
   name: string
   type: string
+  category: string
   quantity: number
   unitPrice: number
   lineTotal: number
+  costPrice: number
 }
 
 export type OrderSummary = {
   id: string
   orderNumber: string
+  branchId: string
   customerName: string
   customerPhone: string
   total: number
@@ -81,6 +87,16 @@ export function readOrderStringValue(...values: unknown[]): string {
   }
 
   return '—'
+}
+
+export function readOrderOptionalStringValue(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return ''
 }
 
 export function readOrderNumberValue(...values: unknown[]): number {
@@ -125,10 +141,24 @@ export function getPrimaryOrderCustomer(customers: OrderSourceRow['customers']):
 }
 
 export function normalizeOrderStatus(value: unknown): OrderStatus {
-  if (value === 'in_progress') return 'in_progress'
-  if (value === 'ready') return 'ready'
-  if (value === 'delivered') return 'delivered'
-  return 'new'
+  if (
+    value === 'new' ||
+    value === 'pending' ||
+    value === 'processing' ||
+    value === 'in_progress'
+  ) {
+    return 'in_progress'
+  }
+
+  if (value === 'ready') {
+    return 'ready'
+  }
+
+  if (value === 'delivered' || value === 'completed' || value === 'closed') {
+    return 'closed'
+  }
+
+  return 'unknown'
 }
 
 export function normalizePaymentMethod(value: unknown): PaymentMethodKey {
@@ -145,13 +175,16 @@ export function normalizeOrderItems(items: OrderInvoiceLineItemSource[] | undefi
     const quantity = readOrderNumberValue(item.quantity, 1)
     const unitPrice = readOrderNumberValue(item.unit_price)
     const lineTotal = readOrderNumberValue(item.line_total, quantity * unitPrice)
+    const costPrice = readOrderNumberValue(item.cost_price)
 
     return {
-      name: readOrderStringValue(item.item_name_snapshot),
-      type: readOrderStringValue(item.item_type_snapshot),
+      name: readOrderOptionalStringValue(item.item_name_snapshot),
+      type: readOrderOptionalStringValue(item.item_type_snapshot),
+      category: readOrderOptionalStringValue(item.item_category_snapshot),
       quantity,
       unitPrice,
       lineTotal,
+      costPrice,
     }
   })
 }
@@ -168,6 +201,7 @@ export function normalizeOrderRecord(
     id:
       typeof row.id === 'string' && row.id.trim() ? row.id : `row-${index}`,
     orderNumber: readOrderStringValue(row.order_number),
+    branchId: readOrderOptionalStringValue(row.branch_id),
     customerName: readOrderStringValue(primaryCustomer?.name),
     customerPhone: readOrderStringValue(
       primaryCustomer?.phone,

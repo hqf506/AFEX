@@ -6,6 +6,9 @@ export const ADMIN_PASSWORD_MIN_LENGTH = 6
 export type AdminUserCreatePayload = {
   username: string
   fullName: string
+  contactEmail: string
+  phone: string
+  posPin: string
   password: string
   confirmPassword: string
   role: AppRole
@@ -16,6 +19,9 @@ export function createEmptyAdminUserPayload(): AdminUserCreatePayload {
   return {
     username: '',
     fullName: '',
+    contactEmail: '',
+    phone: '',
+    posPin: '',
     password: '',
     confirmPassword: '',
     role: 'employee',
@@ -47,6 +53,10 @@ export function hasValidAdminPasswordLength(password: string) {
   return password.length >= ADMIN_PASSWORD_MIN_LENGTH
 }
 
+export function isValidAdminPosPin(value: string) {
+  return /^[0-9]{4}$/.test(value.trim())
+}
+
 export function isValidAdminRole(value: unknown): value is AppRole {
   return typeof value === 'string' && APP_ROLES.includes(value as AppRole)
 }
@@ -56,10 +66,14 @@ export function isPrimaryAdminUsername(username: string | null | undefined) {
 }
 
 export function canSubmitAdminUserCreatePayload(
-  form: Pick<AdminUserCreatePayload, 'username' | 'password' | 'confirmPassword'>
+  form: Pick<
+    AdminUserCreatePayload,
+    'username' | 'password' | 'confirmPassword' | 'posPin'
+  >
 ) {
   return (
     form.username.trim().length > 0 &&
+    isValidAdminPosPin(form.posPin) &&
     hasValidAdminPasswordLength(form.password.trim()) &&
     hasValidAdminPasswordLength(form.confirmPassword.trim()) &&
     form.password === form.confirmPassword

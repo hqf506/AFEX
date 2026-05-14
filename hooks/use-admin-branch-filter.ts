@@ -1,8 +1,17 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import type { AuthScopeType } from '@/lib/auth-profile'
 import type { AdminBranchRecord } from '@/lib/admin/branches'
+import {
+  createProtectedResourceAuthError,
+  isClientResourceFresh,
+  isProtectedResourceAuthError,
+  loadClientResource,
+  markProtectedResourcesUnauthorized,
+  peekClientResource,
+} from '@/lib/client-resource-cache'
 import {
   ADMIN_BRANCH_FILTER_ALL,
   ADMIN_BRANCH_OPTIONS_UPDATED_EVENT,
@@ -12,13 +21,25 @@ import {
   setStoredAdminBranchFilter,
 } from '@/lib/admin/branch-filter'
 
+const BRANCHES_CACHE_KEY = 'admin-branches'
+const BRANCHES_CACHE_TTL_MS = 60_000
+
 export function useAdminBranchFilter(
   scopeType: AuthScopeType | null,
   actorBranchId: string | null,
   enabled = true
 ) {
-  const [branches, setBranches] = useState<AdminBranchRecord[]>([])
-  const [loadingBranches, setLoadingBranches] = useState(false)
+  const pathname = usePathname()
+  const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
+  const shouldFetch = enabled && !isPosLoginPage
+  const [branches, setBranches] = useState<AdminBranchRecord[]>(() =>
+    peekClientResource<AdminBranchRecord[]>(BRANCHES_CACHE_KEY) || []
+  )
+  const [loadingBranches, setLoadingBranches] = useState(
+    shouldFetch &&
+      scopeType === 'system' &&
+      !(peekClientResource<AdminBranchRecord[]>(BRANCHES_CACHE_KEY) || []).length
+  )
   const [selectedBranchId, setSelectedBranchIdState] = useState(() =>
     getStoredAdminBranchFilter()
   )
@@ -26,7 +47,7 @@ export function useAdminBranchFilter(
   const isSystemAdmin = scopeType === 'system'
 
   useEffect(() => {
-    if (!enabled || !isSystemAdmin) {
+    if (!shouldFetch || !isSystemAdmin) {
       setBranches([])
       setLoadingBranches(false)
       return
@@ -34,25 +55,60 @@ export function useAdminBranchFilter(
 
     let cancelled = false
 
-    async function loadBranches() {
-      try {
+    async function loadBranches(force = false) {
+      const cachedBranches =
+        peekClientResource<AdminBranchRecord[]>(BRANCHES_CACHE_KEY) || []
+
+      if (cachedBranches.length > 0) {
+        setBranches(cachedBranches)
+        setLoadingBranches(false)
+      } else {
         setLoadingBranches(true)
+      }
 
-        const response = await fetch('/api/admin/branches', {
-          method: 'GET',
-          cache: 'no-store',
-        })
-        const result = await response.json().catch(() => null)
+      try {
+        const nextBranches = await loadClientResource(
+          BRANCHES_CACHE_KEY,
+          async () => {
+            const response = await fetch('/api/admin/branches', {
+              method: 'GET',
+              cache: 'no-store',
+            })
 
-        if (!response.ok || !result?.success) {
-          if (!cancelled) {
-            setBranches([])
+            if (response.status === 401) {
+              markProtectedResourcesUnauthorized()
+              throw createProtectedResourceAuthError()
+            }
+
+            const result = await response.json().catch(() => null)
+
+            if (!response.ok || !result?.success) {
+              throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+            }
+
+            return Array.isArray(result.branches) ? result.branches : []
+          },
+          {
+            ttlMs: BRANCHES_CACHE_TTL_MS,
+            force,
+            logLabel: 'fetch branches',
+            protectedResource: true,
           }
-          return
-        }
+        )
 
         if (!cancelled) {
-          setBranches(Array.isArray(result.branches) ? result.branches : [])
+          setBranches(nextBranches)
+        }
+      } catch (error) {
+        if (!cancelled && isProtectedResourceAuthError(error)) {
+          if (typeof window !== 'undefined' && window.location.pathname.startsWith('/pos')) {
+            window.location.href = '/pos/login'
+            return
+          }
+        }
+
+        if (!cancelled && cachedBranches.length === 0) {
+          setBranches([])
         }
       } finally {
         if (!cancelled) {
@@ -62,14 +118,20 @@ export function useAdminBranchFilter(
     }
 
     const handleOptionsUpdated = () => {
-      void loadBranches()
+      void loadBranches(true)
     }
 
     const handleWindowFocus = () => {
-      void loadBranches()
+      if (!isClientResourceFresh(BRANCHES_CACHE_KEY, BRANCHES_CACHE_TTL_MS)) {
+        void loadBranches(true)
+      }
     }
 
-    void loadBranches()
+    if (!isClientResourceFresh(BRANCHES_CACHE_KEY, BRANCHES_CACHE_TTL_MS)) {
+      void loadBranches()
+    } else {
+      setLoadingBranches(false)
+    }
 
     window.addEventListener(
       ADMIN_BRANCH_OPTIONS_UPDATED_EVENT,
@@ -85,7 +147,7 @@ export function useAdminBranchFilter(
       )
       window.removeEventListener('focus', handleWindowFocus)
     }
-  }, [enabled, isSystemAdmin])
+  }, [isSystemAdmin, shouldFetch])
 
   useEffect(() => {
     if (!isSystemAdmin) {

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reports Date Picker Preview</title>
+  <style>
+    body { margin:0; background:#f8fafc; font-family:Tahoma, Arial, sans-serif; }
+    .frame { width: 1280px; margin: 0 auto; padding: 48px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items:start; }
+    .card { background:#fff; border:1px solid #e2e8f0; border-radius:24px; box-shadow:0 10px 25px rgba(15,23,42,.06); padding:28px; }
+    .title { font-size:18px; font-weight:700; color:#0f172a; margin-bottom:16px; }
+    .label { font-size:14px; font-weight:700; color:#334155; margin-bottom:8px; display:block; }
+    .field { height:44px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; padding:0 16px; display:flex; align-items:center; justify-content:space-between; color:#334155; font-size:14px; }
+    .icon { color:#94a3b8; }
+    .picker { margin-top:8px; width:280px; border:1px solid #e2e8f0; border-radius:16px; background:#fff; box-shadow:0 18px 40px rgba(15,23,42,.12); padding:12px; }
+    .head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .nav { width:32px; height:32px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:#64748b; }
+    .month { font-size:14px; font-weight:700; color:#0f172a; }
+    .week { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; font-size:12px; color:#94a3b8; margin-bottom:8px; }
+    .days { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+    .day, .empty { height:36px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .day { color:#334155; background:transparent; }
+    .day.today { border:1px solid #000; }
+    .day.selected { background:#000; color:#fff; border:none; }
+    .footer { margin-top:12px; }
+    .todayBtn { width:100%; height:38px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; color:#334155; font-size:14px; font-weight:500; display:flex; align-items:center; justify-content:center; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="grid">
+      <div class="card">
+        <div class="title">قبل الفتح</div>
+        <label class="label">من تاريخ</label>
+        <div class="field">
+          <span class="icon">🗓</span>
+          <span>2026-04-27</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="title">بعد الفتح</div>
+        <label class="label">من تاريخ</label>
+        <div class="field">
+          <span class="icon">🗓</span>
+          <span>2026-04-27</span>
+        </div>
+        <div class="picker">
+          <div class="head">
+            <span class="nav">›</span>
+            <div class="month">أبريل 2026</div>
+            <span class="nav">‹</span>
+          </div>
+          <div class="week">
+            <span>ح</span><span>ن</span><span>ث</span><span>ر</span><span>خ</span><span>ج</span><span>س</span>
+          </div>
+          <div class="days">
+            <span class="empty"></span><span class="empty"></span><span class="empty"></span>
+            <span class="day">1</span><span class="day">2</span><span class="day">3</span><span class="day">4</span>
+            <span class="day">5</span><span class="day">6</span><span class="day">7</span><span class="day">8</span><span class="day">9</span><span class="day">10</span><span class="day">11</span>
+            <span class="day">12</span><span class="day">13</span><span class="day">14</span><span class="day">15</span><span class="day">16</span><span class="day">17</span><span class="day">18</span>
+            <span class="day">19</span><span class="day">20</span><span class="day">21</span><span class="day">22</span><span class="day">23</span><span class="day">24</span><span class="day">25</span>
+            <span class="day">26</span><span class="day selected">27</span><span class="day">28</span><span class="day">29</span><span class="day">30</span>
+          </div>
+          <div class="footer">
+            <div class="todayBtn">اليوم</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

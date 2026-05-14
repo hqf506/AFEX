@@ -10,6 +10,7 @@ import {
   buildCustomerSearchFilter,
   normalizeCustomerSearchTerm,
 } from '@/lib/customers'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
@@ -25,11 +26,20 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get('branch_id')
   )
 
+  if (!auth.profile.tenant_id) {
+    return jsonWithAuthCookies(auth.response, {
+      success: true,
+      customers: [],
+    })
+  }
+
   let query = auth.supabase
     .from('customers')
     .select('id, name, phone')
     .order('name', { ascending: true })
     .limit(50)
+
+  query = applyTenantFilter(query, auth.profile.tenant_id)
 
   if (isBranchScopedWithoutBranchId(auth.profile.scope_type, auth.profile.branch_id)) {
     return jsonWithAuthCookies(auth.response, {

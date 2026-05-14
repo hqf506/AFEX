@@ -1,7 +1,8 @@
 import type { PaymentMethodKey } from '@/lib/orders/normalize'
 
-export function formatCurrency(value: number) {
-  return `${value.toFixed(2)} ر.س`
+export function formatCurrency(value?: number | null) {
+  const amount = Number(value ?? 0)
+  return `${Number.isFinite(amount) ? amount.toFixed(2) : '0.00'} ر.س`
 }
 
 export function formatDateTime(value: string, locale = 'ar-SA') {

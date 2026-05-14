@@ -17,9 +17,12 @@ export type UsePageAccessOptions = {
 export type UsePageAccessResult = {
   loading: boolean
   authLoading: boolean
+  authError: string | null
+  authStatus: 'loading' | 'authenticated' | 'unauthenticated'
   allowed: boolean
   userRole: AppRole | null
   branchId: string | null
+  tenantId: string | null
   scopeType: AuthScopeType | null
   roleLabel: string
 }
@@ -73,6 +76,7 @@ export function usePageAccess(
   const loading = authState.loading
   const userRole = profile?.role || null
   const branchId = profile?.branch_id || null
+  const tenantId = profile?.tenant_id || null
   const scopeType = profile?.scope_type || null
   const allowed =
     Boolean(profile) &&
@@ -114,9 +118,12 @@ export function usePageAccess(
   return {
     loading,
     authLoading: loading,
+    authError: authState.error,
+    authStatus: authState.status,
     allowed,
     userRole,
     branchId,
+    tenantId,
     scopeType,
     roleLabel: getRoleLabel(userRole),
   }

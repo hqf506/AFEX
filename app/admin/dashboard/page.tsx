@@ -1,93 +1,304 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { PageHero } from '@/components/page-hero'
-import { StatCard } from '@/components/stat-card'
-import { SummaryRow } from '@/components/summary-row'
-import { getRoleLabel } from '@/lib/app-roles'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
+import { useAuthState } from '@/components/auth-state-provider'
+import { getRoleLabel } from '@/lib/app-roles'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
+import { usePageAccess } from '@/hooks/use-page-access'
 import {
   isBranchScopedWithoutBranchId,
   shouldFilterByBranch,
 } from '@/lib/branch-access'
 import {
-  buildDashboardOrderSummary,
-  DASHBOARD_FETCH_LIMIT,
-  DASHBOARD_NAV_ITEMS,
-  DASHBOARD_QUICK_ACTIONS,
-  DASHBOARD_SECTION_TITLES,
-  DASHBOARD_STATUS_MAP,
-  getDashboardRangeLabel,
-  getDashboardRangeOrders,
-  getDashboardStatusItems,
-  mapOrderSourceRowToDashboardOrderRecord,
-  resolveDashboardSection,
-  type DashboardOrderRecord,
-  type DashboardRange,
-  type DashboardSection,
-} from '@/lib/orders/dashboard'
+  buildReportDateRange,
+  mapOrderSourceRowToReportOrderRecord,
+  type ReportOrderRecord,
+  type ReportRange,
+} from '@/lib/reports/core'
+import { buildPreviousComparisonRange } from '@/lib/reports/comparison'
+import { buildExecutiveDashboardData } from '@/lib/reports/executive-dashboard'
+import { type OrderSourceRow } from '@/lib/orders/normalize'
+import { formatCurrency, getDateInputValue } from '@/lib/orders/format'
 import { supabase } from '@/lib/supabase/client'
-import { usePageAccess } from '@/hooks/use-page-access'
-import { isSameDay, type OrderSourceRow } from '@/lib/orders/normalize'
-import { formatCurrency, formatPaymentMethod } from '@/lib/orders/format'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
-function buildDashboardOrderComparisonSignature(orders: DashboardOrderRecord[]) {
-  return orders
-    .map((order) =>
-      [
-        order.id,
-        order.status,
-        order.created_at,
-        order.total,
-        order.invoice_number,
-      ].join('|')
-    )
-    .join('||')
+type PeriodPresetKey =
+  | 'today'
+  | 'yesterday'
+  | 'this-week'
+  | 'this-month'
+  | 'last-7-days'
+  | 'last-30-days'
+
+function getPeriodLabel(period: PeriodPresetKey) {
+  if (period === 'today') return 'اليوم'
+  if (period === 'yesterday') return 'الأمس'
+  if (period === 'this-week') return 'هذا الأسبوع'
+  if (period === 'this-month') return 'هذا الشهر'
+  if (period === 'last-7-days') return 'آخر 7 أيام'
+  return 'آخر 30 يوماً'
 }
 
-function DashboardShellPlaceholder() {
-  return (
-    <div className="app-shell">
-      <div className="page-wrap">
-        <div className="grid gap-5 xl:grid-cols-[320px_1fr]">
-          <aside className="space-y-5 xl:order-1">
-            <div className="page-card min-h-[220px] animate-pulse bg-slate-100 ring-0 shadow-none" />
-            <div className="page-card min-h-[220px] animate-pulse bg-slate-100" />
-          </aside>
+function addDays(date: Date, amount: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + amount)
+  return next
+}
 
-          <main className="space-y-5 xl:order-2">
-            <div className="page-hero min-h-[220px] animate-pulse bg-slate-100" />
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="stat-card min-h-[120px] animate-pulse bg-slate-100"
-                />
-              ))}
-            </div>
-            <div className="grid gap-5 lg:grid-cols-[1.25fr_0.95fr]">
-              <div className="page-card min-h-[320px] animate-pulse bg-slate-100" />
-              <div className="page-card min-h-[320px] animate-pulse bg-slate-100" />
-            </div>
-          </main>
+function startOfWeek(date: Date) {
+  const next = new Date(date)
+  const day = next.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  next.setDate(next.getDate() + diff)
+  next.setHours(0, 0, 0, 0)
+  return next
+}
+
+function endOfWeek(date: Date) {
+  const next = startOfWeek(date)
+  next.setDate(next.getDate() + 6)
+  next.setHours(0, 0, 0, 0)
+  return next
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
+
+function resolvePeriodPreset(period: PeriodPresetKey, anchorDate?: Date) {
+  const baseDate = anchorDate ? new Date(anchorDate) : new Date()
+
+  if (period === 'today') {
+    const value = getDateInputValue(baseDate)
+    return {
+      range: 'daily' as ReportRange,
+      dateFrom: value,
+      dateTo: value,
+    }
+  }
+
+  if (period === 'yesterday') {
+    const target = addDays(baseDate, -1)
+    const value = getDateInputValue(target)
+    return {
+      range: 'daily' as ReportRange,
+      dateFrom: value,
+      dateTo: value,
+    }
+  }
+
+  if (period === 'this-week') {
+    return {
+      range: 'custom' as ReportRange,
+      dateFrom: getDateInputValue(startOfWeek(baseDate)),
+      dateTo: getDateInputValue(endOfWeek(baseDate)),
+    }
+  }
+
+  if (period === 'this-month') {
+    return {
+      range: 'monthly' as ReportRange,
+      dateFrom: getDateInputValue(startOfMonth(baseDate)),
+      dateTo: getDateInputValue(endOfMonth(baseDate)),
+    }
+  }
+
+  if (period === 'last-7-days') {
+    return {
+      range: 'custom' as ReportRange,
+      dateFrom: getDateInputValue(addDays(baseDate, -6)),
+      dateTo: getDateInputValue(baseDate),
+    }
+  }
+
+  return {
+    range: 'custom' as ReportRange,
+    dateFrom: getDateInputValue(addDays(baseDate, -29)),
+    dateTo: getDateInputValue(baseDate),
+  }
+}
+
+function filterOrdersByRange(
+  orders: ReportOrderRecord[],
+  range: { start: string; end: string }
+) {
+  const start = new Date(range.start)
+  const end = new Date(range.end)
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    start > end
+  ) {
+    return []
+  }
+
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+
+  return orders.filter((order) => {
+    const createdAt = new Date(order.created_at)
+
+    if (Number.isNaN(createdAt.getTime())) {
+      return false
+    }
+
+    const createdAtMs = createdAt.getTime()
+    return createdAtMs >= startMs && createdAtMs <= endMs
+  })
+}
+
+function getDisplayText(value: string, fallback: string) {
+  const normalized = value.trim()
+  if (!normalized || normalized === '?' || normalized === '???') {
+    return fallback
+  }
+  return normalized
+}
+
+function resolveDashboardOrderStatusLabel(status: ReportOrderRecord['status']) {
+  if (status === 'in_progress') return 'قيد التنفيذ'
+  if (status === 'ready') return 'جاهز'
+  if (status === 'closed') return 'مكتمل'
+  return 'غير محدد'
+}
+
+function resolveDashboardOrderStatusBadgeClassName(
+  status: ReportOrderRecord['status']
+) {
+  if (status === 'in_progress') return 'bg-amber-300/10 text-amber-200'
+  if (status === 'ready') return 'bg-cyan-300/10 text-cyan-200'
+  if (status === 'closed') return 'bg-emerald-300/10 text-emerald-200'
+  return 'bg-slate-300/10 text-slate-300'
+}
+
+function resolveGrowthPercent(current: number, previous: number) {
+  if (previous <= 0) {
+    return current > 0 ? '+100%' : '+0%'
+  }
+
+  const value = ((current - previous) / previous) * 100
+  const prefix = value >= 0 ? '+' : ''
+  return `${prefix}${value.toFixed(1)}%`
+}
+
+function buildLineChartPoints(values: number[]) {
+  if (values.length === 0) return ''
+
+  const maxValue = Math.max(...values, 1)
+  const step = values.length > 1 ? 100 / (values.length - 1) : 100
+
+  return values
+    .map((value, index) => {
+      const x = index * step
+      const y = 100 - (value / maxValue) * 82 - 8
+      return `${x.toFixed(2)},${y.toFixed(2)}`
+    })
+    .join(' ')
+}
+
+function DashboardIcon({ type }: { type: string }) {
+  if (type === 'sales') {
+    return (
+      <path d="M5 6h2l1.4 9.2a2 2 0 0 0 2 1.8h5.8a2 2 0 0 0 1.9-1.4L20 9H8" />
+    )
+  }
+
+  if (type === 'orders') {
+    return (
+      <>
+        <rect x="6" y="4" width="12" height="16" rx="2" />
+        <path d="M9 9h6M9 13h6M9 17h4" />
+      </>
+    )
+  }
+
+  if (type === 'customers') {
+    return (
+      <>
+        <circle cx="12" cy="9" r="3" />
+        <path d="M5 20a7 7 0 0 1 14 0" />
+      </>
+    )
+  }
+
+  return <path d="M4 12h4l2-6 4 12 2-6h4" />
+}
+
+type KpiCardProps = {
+  title: string
+  value: string
+  growth: string
+  icon: string
+}
+
+function KpiCard({ title, value, growth, icon }: KpiCardProps) {
+  return (
+    <div className="rounded-[24px] border border-cyan-300/15 bg-white/[0.045] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.18)] backdrop-blur">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200 shadow-[0_0_30px_rgba(34,211,238,0.12)]">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-7 w-7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <DashboardIcon type={icon} />
+          </svg>
+        </div>
+        <div className="min-w-0 text-left">
+          <p className="text-sm font-bold text-slate-400">{title}</p>
+          <p className="mt-2 text-3xl font-black text-white">{value}</p>
+          <p className="mt-2 text-xs font-black text-emerald-300">
+            {growth} عن الفترة السابقة
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
-function DashboardPageContent() {
-  const searchParams = useSearchParams()
+function ExecutiveDashboardPlaceholder() {
+  return (
+    <div className="min-h-full rounded-[30px] border border-white/10 bg-white/[0.035] p-6">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="h-28 animate-pulse rounded-[28px] bg-white/[0.06]" />
+        <div className="grid gap-6 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-32 animate-pulse rounded-[24px] bg-white/[0.06]"
+            />
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="h-80 animate-pulse rounded-[28px] bg-white/[0.06]" />
+          <div className="h-80 animate-pulse rounded-[28px] bg-white/[0.06]" />
+        </div>
+      </div>
+    </div>
+  )
+}
 
+export default function DashboardPage() {
+  const authState = useAuthState()
   const access = usePageAccess(['admin'])
   const authLoading = access.loading
   const allowed = access.allowed
   const roleLabel = getRoleLabel(access.userRole)
   const branchId = access.branchId
   const scopeType = access.scopeType
+  const tenantId = authState.profile?.tenant_id ?? null
   const {
     isSystemAdmin,
     branches,
@@ -97,33 +308,62 @@ function DashboardPageContent() {
     setSelectedBranchId,
   } = useAdminBranchFilter(scopeType, branchId, allowed)
 
-  const section = useMemo<DashboardSection>(() => {
-    return resolveDashboardSection(searchParams.get('section'))
-  }, [searchParams])
-
-  const [orders, setOrders] = useState<DashboardOrderRecord[]>([])
+  const initialPeriod = resolvePeriodPreset('today')
+  const [period, setPeriod] = useState<PeriodPresetKey>('today')
+  const [range, setRange] = useState<ReportRange>(initialPeriod.range)
+  const [dateFrom, setDateFrom] = useState(initialPeriod.dateFrom)
+  const [dateTo, setDateTo] = useState(initialPeriod.dateTo)
+  const [orders, setOrders] = useState<ReportOrderRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [range, setRange] = useState<DashboardRange>('today')
   const [lastUpdated, setLastUpdated] = useState('')
-  const isFetchInFlightRef = useRef(false)
-  const ordersSignatureRef = useRef('')
 
-  const fetchDashboardData = useCallback(async (silent = false) => {
-    if (isFetchInFlightRef.current) return
-    isFetchInFlightRef.current = true
+  const currentRange = useMemo(() => {
+    const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
 
-    if (silent) setRefreshing(true)
-    else setLoading(true)
+    return {
+      start: fromIso,
+      end: toIso,
+    }
+  }, [range, dateFrom, dateTo])
 
-    setErrorMessage('')
+  const previousRange = useMemo(() => {
+    return buildPreviousComparisonRange(currentRange)
+  }, [currentRange])
 
-    try {
+  const combinedRange = useMemo(() => {
+    return {
+      start: previousRange.start || currentRange.start,
+      end: currentRange.end,
+    }
+  }, [currentRange.end, currentRange.start, previousRange.start])
+
+  const fetchDashboardData = useCallback(
+    async (silent = false) => {
+      if (!dateFrom) {
+        setOrders([])
+        setLoading(false)
+        setRefreshing(false)
+        return
+      }
+
+      if (silent) setRefreshing(true)
+      else setLoading(true)
+
+      setErrorMessage('')
+
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
         setOrders([])
-        ordersSignatureRef.current = ''
-        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
+        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLoading(false)
+        setRefreshing(false)
+        return
+      }
+
+      if (!tenantId) {
+        setOrders([])
+        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -132,30 +372,41 @@ function DashboardPageContent() {
       let query = supabase
         .from('orders')
         .select(`
-        id,
-        order_number,
-        status,
-        created_at,
-        customers (
-          name,
-          phone
-        ),
-        invoices (
-          invoice_number,
-          payment_method,
-          payment_status,
-          subtotal,
-          discount,
-          tax,
-          total,
-          note,
-          cash_received,
-          remaining_from_customer,
-          cash_change
-        )
+          id,
+          order_number,
+          status,
+          created_at,
+          customers (
+            name,
+            phone
+          ),
+          invoices (
+            invoice_number,
+            payment_method,
+            payment_status,
+            subtotal,
+            discount,
+            tax,
+            total,
+            note,
+            cash_received,
+            remaining_from_customer,
+            cash_change,
+            invoice_items (
+              item_name_snapshot,
+              item_type_snapshot,
+              item_category_snapshot,
+              quantity,
+              unit_price,
+              line_total
+            )
+          )
         `)
+        .gte('created_at', combinedRange.start)
+        .lte('created_at', combinedRange.end)
         .order('created_at', { ascending: false })
-        .limit(DASHBOARD_FETCH_LIMIT)
+
+      query = applyTenantFilter(query, tenantId)
 
       if (shouldFilterByBranch(scopeType, branchId)) {
         query = query.eq('branch_id', branchId as string)
@@ -165,33 +416,35 @@ function DashboardPageContent() {
 
       const { data, error } = await query
 
-    if (error) {
-      setErrorMessage(`فشل تحميل لوحة التحكم: ${error.message}`)
-      setOrders([])
-      ordersSignatureRef.current = ''
+      if (error) {
+        setErrorMessage(`تعذر تحميل لوحة التحكم: ${error.message}`)
+        setOrders([])
+        setLoading(false)
+        setRefreshing(false)
+        return
+      }
+
+      const normalized = Array.isArray(data)
+        ? data.map((row, index) =>
+            mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index)
+          )
+        : []
+
+      setOrders(normalized)
+      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
       setLoading(false)
       setRefreshing(false)
-      return
-    }
-
-    const normalized = Array.isArray(data)
-      ? data.map((row, index) => mapOrderSourceRowToDashboardOrderRecord(row as OrderSourceRow, index))
-      : []
-
-    const nextSignature = buildDashboardOrderComparisonSignature(normalized)
-
-    if (ordersSignatureRef.current !== nextSignature) {
-      ordersSignatureRef.current = nextSignature
-      setOrders(normalized)
-    }
-
-    setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
-    setLoading(false)
-    setRefreshing(false)
-    } finally {
-      isFetchInFlightRef.current = false
-    }
-  }, [scopeType, branchId, effectiveBranchId])
+    },
+    [
+      dateFrom,
+      combinedRange.end,
+      combinedRange.start,
+      scopeType,
+      branchId,
+      effectiveBranchId,
+      tenantId,
+    ]
+  )
 
   useEffect(() => {
     if (!allowed) return
@@ -203,426 +456,562 @@ function DashboardPageContent() {
     return () => window.clearTimeout(timeoutId)
   }, [allowed, fetchDashboardData])
 
-  useEffect(() => {
-    if (!allowed) return
+  const currentOrders = useMemo(() => {
+    return filterOrdersByRange(orders, currentRange)
+  }, [orders, currentRange])
 
-    const interval = setInterval(() => {
-      if (document.hidden) return
-      fetchDashboardData(true)
-    }, 15000)
+  const previousOrders = useMemo(() => {
+    if (!previousRange.start || !previousRange.end) {
+      return []
+    }
 
-    return () => clearInterval(interval)
-  }, [allowed, fetchDashboardData])
+    return filterOrdersByRange(orders, previousRange)
+  }, [orders, previousRange])
 
-  useEffect(() => {
-    if (!allowed) return
+  const dashboardData = useMemo(() => {
+    return buildExecutiveDashboardData(currentOrders, {
+      range,
+      dateFrom,
+      dateTo,
+      trendGrouping: 'day',
+      topLimit: 5,
+    })
+  }, [currentOrders, range, dateFrom, dateTo])
 
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        void fetchDashboardData(true)
+  const previousDashboardData = useMemo(() => {
+    return buildExecutiveDashboardData(previousOrders, {
+      range,
+      dateFrom,
+      dateTo,
+      trendGrouping: 'day',
+      topLimit: 5,
+    })
+  }, [previousOrders, range, dateFrom, dateTo])
+
+  const uniqueCustomersCount = useMemo(() => {
+    return new Set(
+      currentOrders
+        .map((order) => getDisplayText(order.customer_name, ''))
+        .filter(Boolean)
+    ).size
+  }, [currentOrders])
+
+  const activeOrdersCount = useMemo(() => {
+    return currentOrders.filter((order) => order.status !== 'closed').length
+  }, [currentOrders])
+
+  const previousUniqueCustomersCount = useMemo(() => {
+    return new Set(
+      previousOrders
+        .map((order) => getDisplayText(order.customer_name, ''))
+        .filter(Boolean)
+    ).size
+  }, [previousOrders])
+
+  const previousActiveOrdersCount = useMemo(() => {
+    return previousOrders.filter((order) => order.status !== 'closed').length
+  }, [previousOrders])
+
+  const recentOrders = useMemo(() => {
+    return currentOrders.slice(0, 5)
+  }, [currentOrders])
+
+  const salesTrendPoints = useMemo(() => {
+    return buildLineChartPoints(
+      dashboardData.trend.map((item) => item.grossSales)
+    )
+  }, [dashboardData.trend])
+
+  const categoryTotal = useMemo(() => {
+    return dashboardData.topCategories.reduce(
+      (sum, item) => sum + item.grossSales,
+      0
+    )
+  }, [dashboardData.topCategories])
+
+  const donutSegments = useMemo(() => {
+    const colors = ['#2dd4bf', '#22d3ee', '#0ea5e9', '#155e75', '#334155']
+    const topCategories = dashboardData.topCategories.slice(0, 5)
+
+    return topCategories.map((item, index) => {
+      const percent =
+        categoryTotal > 0 ? (item.grossSales / categoryTotal) * 100 : 0
+      const start = topCategories
+        .slice(0, index)
+        .reduce((sum, previousItem) => {
+          return (
+            sum +
+            (categoryTotal > 0
+              ? (previousItem.grossSales / categoryTotal) * 100
+              : 0)
+          )
+        }, 0)
+
+      const segment = {
+        ...item,
+        percent,
+        color: colors[index] || colors[colors.length - 1],
+        start,
+        end: start + percent,
       }
+
+      return segment
+    })
+  }, [categoryTotal, dashboardData.topCategories])
+
+  const donutGradient = useMemo(() => {
+    if (donutSegments.length === 0) {
+      return 'conic-gradient(rgba(45,212,191,0.18) 0 100%)'
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return `conic-gradient(${donutSegments
+      .map((segment) => `${segment.color} ${segment.start}% ${segment.end}%`)
+      .join(', ')})`
+  }, [donutSegments])
 
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [allowed, fetchDashboardData])
+  const performanceChartData = useMemo(() => {
+    const items = [
+      {
+        key: 'sales',
+        label: 'المبيعات',
+        value: dashboardData.summary.totalSales,
+        displayValue: formatCurrency(dashboardData.summary.totalSales),
+        barClassName: 'bg-black',
+      },
+      {
+        key: 'orders',
+        label: 'الطلبات',
+        value: dashboardData.summary.totalOrders,
+        displayValue: dashboardData.summary.totalOrders.toString(),
+        barClassName: 'bg-slate-300',
+      },
+      {
+        key: 'customers',
+        label: 'العملاء',
+        value: uniqueCustomersCount,
+        displayValue: uniqueCustomersCount.toString(),
+        barClassName: 'bg-slate-300',
+      },
+    ]
 
-  const todayOrders = useMemo(
-    () => orders.filter((order) => isSameDay(order.created_at)),
-    [orders]
-  )
-
-  const rangeOrders = useMemo(() => {
-    return getDashboardRangeOrders(orders, range)
-  }, [orders, range])
-
-  const stats = useMemo(() => {
-    return buildDashboardOrderSummary(orders, rangeOrders, todayOrders)
-  }, [orders, rangeOrders, todayOrders])
-
-  const recentOrders = useMemo(() => orders.slice(0, 6), [orders])
-
-  const { statusItems, maxStatusCount } = useMemo(() => {
-    const nextStatusItems = getDashboardStatusItems(stats)
+    const maxValue = Math.max(...items.map((item) => item.value), 0)
 
     return {
-      statusItems: nextStatusItems,
-      maxStatusCount: Math.max(...nextStatusItems.map((item) => item.count), 1),
+      maxValue,
+      items: items.map((item) => ({
+        ...item,
+        heightPercentage:
+          maxValue > 0 ? Math.max(16, (item.value / maxValue) * 100) : 0,
+      })),
     }
-  }, [stats])
+  }, [
+    dashboardData.summary.totalOrders,
+    dashboardData.summary.totalSales,
+    uniqueCustomersCount,
+  ])
 
-  const quickActions = DASHBOARD_QUICK_ACTIONS
-
-  const navItems = DASHBOARD_NAV_ITEMS
-
-  const rangeLabel = getDashboardRangeLabel(range)
-
-  const sectionTitleMap = DASHBOARD_SECTION_TITLES
+  const statCards = useMemo(
+    () => [
+      {
+        title: 'المبيعات',
+        value: formatCurrency(dashboardData.summary.totalSales),
+        growth: resolveGrowthPercent(
+          dashboardData.summary.totalSales,
+          previousDashboardData.summary.totalSales
+        ),
+        icon: 'sales',
+      },
+      {
+        title: 'عدد الطلبات',
+        value: dashboardData.summary.totalOrders.toString(),
+        growth: resolveGrowthPercent(
+          dashboardData.summary.totalOrders,
+          previousDashboardData.summary.totalOrders
+        ),
+        icon: 'orders',
+      },
+      {
+        title: 'العملاء',
+        value: uniqueCustomersCount.toString(),
+        growth: resolveGrowthPercent(
+          uniqueCustomersCount,
+          previousUniqueCustomersCount
+        ),
+        icon: 'customers',
+      },
+      {
+        title: 'الطلبات النشطة',
+        value: activeOrdersCount.toString(),
+        growth: resolveGrowthPercent(
+          activeOrdersCount,
+          previousActiveOrdersCount
+        ),
+        icon: 'active',
+      },
+    ],
+    [
+      dashboardData.summary.totalOrders,
+      dashboardData.summary.totalSales,
+      previousDashboardData.summary.totalOrders,
+      previousDashboardData.summary.totalSales,
+      uniqueCustomersCount,
+      activeOrdersCount,
+      previousUniqueCustomersCount,
+      previousActiveOrdersCount,
+    ]
+  )
 
   if (authLoading) {
     return (
-      <div className="app-shell">
-        <div className="page-wrap" />
+      <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-5 text-slate-200">
+        جارٍ التحقق من الصلاحية...
       </div>
     )
   }
 
   if (!allowed) {
     return (
-      <div className="app-shell">
-        <div className="page-wrap">
-          <div className="page-card">جارٍ التحويل...</div>
-        </div>
+      <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-5 text-slate-200">
+        جارٍ التحويل...
       </div>
     )
   }
 
   if (loading) {
-    return <DashboardShellPlaceholder />
-  }
-
-  const latestOrdersCard = (
-    <div className="page-card">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="section-title">آخر الطلبات</h2>
-        <button
-          onClick={() => fetchDashboardData()}
-          className="secondary-btn"
-        >
-          تحديث
-        </button>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-3 py-3 text-right">رقم الطلب</th>
-              <th className="px-3 py-3 text-right">العميل</th>
-              <th className="px-3 py-3 text-right">الدفع</th>
-              <th className="px-3 py-3 text-right">الحالة</th>
-              <th className="px-3 py-3 text-right">الإجمالي</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentOrders.map((order) => (
-              <tr key={order.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-3 py-4 font-bold text-slate-900">
-                  {order.order_number}
-                </td>
-                <td className="px-3 py-4 text-slate-700">
-                  {order.customer_name}
-                </td>
-                <td className="px-3 py-4 text-slate-700">
-                  {formatPaymentMethod(order.payment_method)}
-                </td>
-                <td className="px-3 py-4">
-                  <span className={DASHBOARD_STATUS_MAP[order.status].className}>
-                    {DASHBOARD_STATUS_MAP[order.status].label}
-                  </span>
-                </td>
-                <td className="px-3 py-4 font-bold text-slate-900">
-                  {formatCurrency(order.total)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-
-  const statusCard = (
-    <div className="page-card">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="section-title">حالة الطلبات</h2>
-        <button
-          onClick={() => {
-            if (range === 'today') setRange('week')
-            else if (range === 'week') setRange('month')
-            else setRange('today')
-          }}
-          className="secondary-btn"
-        >
-          {rangeLabel}
-        </button>
-      </div>
-
-      <div className="space-y-5">
-        {statusItems.map((item) => {
-          const percentage =
-            maxStatusCount === 0 ? 0 : (item.count / maxStatusCount) * 100
-
-          return (
-            <div key={item.label}>
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-bold text-slate-700">{item.label}</span>
-                <span className="text-slate-500">{item.count} طلب</span>
-              </div>
-
-              <div className="h-3 rounded-full bg-slate-100">
-                <div
-                  className={`h-3 rounded-full ${item.color}`}
-                  style={{ width: `${Math.max(percentage, item.count > 0 ? 12 : 0)}%` }}
-                />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-
-  const activityCard = (
-    <div className="page-card">
-      <h2 className="section-title">النشاط الأخير</h2>
-
-      <div className="mt-4 space-y-3">
-        {recentOrders.length === 0 ? (
-          <div className="inner-card text-sm text-slate-500">
-            لا يوجد نشاط حديث
-          </div>
-        ) : (
-          recentOrders.map((order) => (
-            <div key={order.id} className="inner-card text-sm text-slate-700">
-              تم تسجيل الطلب {order.order_number} للعميل {order.customer_name}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  )
-
-  const summaryCard = (
-    <div className="page-card">
-      <h2 className="section-title">ملخص سريع</h2>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <SummaryRow
-          label="إجمالي الطلبات"
-          value={stats.totalOrders.toString()}
-        />
-        <SummaryRow
-          label="طلبات اليوم"
-          value={stats.todayOrdersCount.toString()}
-        />
-        <SummaryRow
-          label="إجمالي الكاش"
-          value={formatCurrency(stats.cashTotal)}
-        />
-        <SummaryRow
-          label="إجمالي الشبكة"
-          value={formatCurrency(stats.cardTotal)}
-        />
-      </div>
-    </div>
-  )
-
-  const cashCard = (
-    <div className="page-card">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="section-title">النقدية</h2>
-        <span className="badge badge-slate">{rangeLabel}</span>
-      </div>
-
-      <div className="space-y-3">
-        <SummaryRow
-          label="المبالغ المستلمة نقدًا"
-          value={formatCurrency(stats.cashReceived)}
-        />
-        <SummaryRow
-          label="المتبقي من العملاء"
-          value={formatCurrency(stats.outstandingFromCustomers)}
-        />
-        <SummaryRow
-          label="الباقي للعملاء"
-          value={formatCurrency(stats.changeForCustomers)}
-        />
-      </div>
-    </div>
-  )
-
-  if (section !== 'full') {
-    return (
-      <div className="app-shell">
-        <div className="page-wrap">
-          {errorMessage && <div className="error-alert">{errorMessage}</div>}
-
-          <main className="space-y-5">
-            <div className="page-card">
-              <div className="mb-2 flex items-center justify-between">
-                <h1 className="text-3xl font-extrabold text-slate-900">
-                  {sectionTitleMap[section]}
-                </h1>
-                {refreshing ? (
-                  <span className="badge badge-slate">جاري التحديث...</span>
-                ) : null}
-              </div>
-              <p className="text-sm text-slate-500">
-                المحتوى يفتح هنا داخل نفس الصفحة
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-              يتم عرض آخر {DASHBOARD_FETCH_LIMIT} طلب فقط لتحسين السرعة والأداء.
-            </div>
-
-            {section === 'latest' ? latestOrdersCard : null}
-            {section === 'status' ? statusCard : null}
-            {section === 'summary' ? summaryCard : null}
-            {section === 'activity' ? activityCard : null}
-            {section === 'cash' ? cashCard : null}
-          </main>
-        </div>
-      </div>
-    )
+    return <ExecutiveDashboardPlaceholder />
   }
 
   return (
-    <div className="app-shell">
-      <div className="page-wrap">
-        {errorMessage && <div className="error-alert">{errorMessage}</div>}
+    <div className="min-h-full">
+      <div className="mx-auto max-w-7xl space-y-6">
+        {errorMessage ? (
+          <div className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-100">
+            {errorMessage}
+          </div>
+        ) : null}
 
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 mb-5">
-          يتم عرض آخر {DASHBOARD_FETCH_LIMIT} طلب فقط لتحسين السرعة والأداء.
+        <div className="rounded-[30px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_28px_110px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="text-right">
+            <h1 className="text-4xl font-black text-white">لوحة التحكم</h1>
+            <p className="mt-2 text-sm text-slate-300">
+              مرحبًا بك في نظام AFEX
+            </p>
+            <p className="mt-3 text-xs font-semibold text-slate-500">
+              آخر تحديث: {lastUpdated || '—'}
+              {refreshing ? ' • جارٍ التحديث...' : ''}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: 'today' as const, label: 'اليوم' },
+              { key: 'this-week' as const, label: 'الأسبوع' },
+              { key: 'this-month' as const, label: 'الشهر' },
+            ].map((option) => {
+              const isActive = period === option.key
+
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => {
+                    const nextState = resolvePeriodPreset(option.key)
+                    setPeriod(option.key)
+                    setRange(nextState.range)
+                    setDateFrom(nextState.dateFrom)
+                    setDateTo(nextState.dateTo)
+                  }}
+                  className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                    isActive
+                      ? 'border border-cyan-300/35 bg-cyan-300/10 text-cyan-100 shadow-[0_0_26px_rgba(34,211,238,0.18)]'
+                      : 'border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+          </div>
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[320px_1fr]">
-          <aside className="space-y-5 xl:order-1">
-            <div className="page-card bg-slate-950 text-white ring-0 shadow-none">
-              <p className="text-xs text-slate-400">Admin Panel</p>
-              <h2 className="mt-3 text-3xl font-extrabold">Leather Fix APP</h2>
-              <p className="mt-4 text-sm leading-8 text-slate-300">
-                لوحة تحكم أنيقة لإدارة التشغيل والفواتير والطلبات بشكل يومي.
-              </p>
-              <div className="mt-4">
-                <span className="badge badge-green">الصلاحية: {roleLabel}</span>
-              </div>
+        <div className="flex flex-col gap-3 rounded-[24px] border border-white/10 bg-white/[0.035] p-4 backdrop-blur lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
+            <span className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1 text-slate-200">
+              الفترة: {getPeriodLabel(period)}
+            </span>
+            {roleLabel ? (
+              <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-cyan-100">
+                الصلاحية: {roleLabel}
+              </span>
+            ) : null}
+          </div>
 
-              {isSystemAdmin ? (
-                <div className="mt-4">
-                  <AdminBranchFilter
-                    branches={branches}
-                    selectedBranchId={selectedBranchId}
-                    loading={loadingBranches}
-                    onChange={setSelectedBranchId}
-                    allLabel="كل الفروع"
-                  />
-                </div>
-              ) : null}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {isSystemAdmin ? (
+              <AdminBranchFilter
+                branches={branches}
+                selectedBranchId={selectedBranchId}
+                loading={loadingBranches}
+                onChange={setSelectedBranchId}
+                label="الفرع"
+                allLabel="كل الفروع"
+                className="min-w-[220px]"
+              />
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void fetchDashboardData(true)}
+              className="rounded-xl border border-white/10 bg-white/[0.045] px-4 py-2 text-sm font-bold text-white transition hover:bg-white/[0.08]"
+            >
+              تحديث البيانات
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {statCards.map((card) => (
+            <KpiCard
+              key={card.title}
+              title={card.title}
+              value={card.value}
+              growth={card.growth}
+              icon={card.icon}
+            />
+          ))}
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.9fr_0.95fr]">
+          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur xl:col-span-1">
+            <div className="mb-5 text-right">
+              <h2 className="text-xl font-black text-white">نظرة الأداء</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                مقارنة المبيعات خلال الفترة
+              </p>
             </div>
 
-            <div className="page-card !p-4">
-              <div className="mb-3">
-                <Link
-                  href="/admin/dashboard"
-                  className="inline-flex w-full items-center justify-between rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition"
+            <div className="mb-4 grid grid-cols-3 gap-3">
+              {performanceChartData.items.map((item) => (
+                <div
+                  key={item.key}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-3 py-2"
                 >
-                  <span>لوحة التحكم</span>
-                  <span>•</span>
-                </Link>
-              </div>
+                  <p className="truncate text-xs text-slate-500">{item.label}</p>
+                  <p className="mt-1 truncate text-sm font-black text-white">
+                    {item.displayValue}
+                  </p>
+                </div>
+              ))}
+            </div>
 
-              <div className="space-y-2">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className="inline-flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-900 hover:text-white"
-                  >
-                    <span>{item.label}</span>
-                    <span>•</span>
-                  </Link>
+            <div className="relative h-[300px] overflow-hidden rounded-3xl border border-white/[0.08] bg-[#07111f] p-5">
+              <div className="absolute inset-x-5 top-10 h-px bg-white/[0.08]" />
+              <div className="absolute inset-x-5 top-24 h-px bg-white/[0.08]" />
+              <div className="absolute inset-x-5 top-40 h-px bg-white/[0.08]" />
+              <div className="absolute inset-x-5 bottom-14 h-px bg-white/[0.08]" />
+              {salesTrendPoints ? (
+                <svg
+                  viewBox="0 0 100 100"
+                  className="absolute inset-x-5 top-10 h-[210px] w-[calc(100%-2.5rem)]"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points={salesTrendPoints}
+                    fill="none"
+                    stroke="rgba(45,212,191,0.95)"
+                    strokeWidth="2.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <polyline
+                    points={`${salesTrendPoints} 100,100 0,100`}
+                    fill="rgba(45,212,191,0.12)"
+                    stroke="none"
+                  />
+                </svg>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm font-bold text-slate-500">
+                  لا توجد بيانات كافية لعرض الأداء
+                </div>
+              )}
+              <div className="absolute inset-x-5 bottom-4 flex justify-between gap-2 text-[10px] font-bold text-slate-500">
+                {dashboardData.trend.slice(0, 7).map((item) => (
+                  <span key={item.periodKey} className="truncate">
+                    {item.periodLabel.slice(5)}
+                  </span>
                 ))}
               </div>
             </div>
+          </div>
 
-            {cashCard}
-          </aside>
+          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur">
+            <div className="mb-5 text-right">
+              <h2 className="text-xl font-black text-white">توزيع المبيعات حسب الفئة</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                نسبة المبيعات لكل فئة
+              </p>
+            </div>
 
-          <main className="space-y-5 xl:order-2">
-            <PageHero>
-              <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-                <div>
-                  <p className="text-sm text-slate-500">أهلاً بك من جديد</p>
-                  <h1 className="mt-2 text-4xl font-extrabold text-slate-900">
-                    لوحة تحكم الأدمن
-                  </h1>
-                  <p className="mt-3 max-w-[760px] text-base leading-8 text-slate-500">
-                    هذه النسخة مخصصة للإدارة، وواجهة الموظف بنخليها أبسط وأسرع
-                    لاحقًا، مع الحفاظ على نفس البيانات والوظائف الحالية.
-                  </p>
-
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    {quickActions.map((item) => (
-                      <Link
-                        key={item.label}
-                        href={item.href}
-                        className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-900 hover:text-white"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <StatCard
-                    title="إجمالي اليوم"
-                    value={formatCurrency(stats.totalRevenue)}
-                    className="!p-5"
-                  />
-                  <StatCard
-                    title="طلبات اليوم"
-                    value={stats.todayOrdersCount.toString()}
-                    className="!p-5"
-                  />
-                  <StatCard
-                    title="فواتير النطاق"
-                    value={stats.rangeOrdersCount.toString()}
-                    className="!p-5"
-                  />
-                  <StatCard
-                    title="آخر تحديث"
-                    value={lastUpdated || '—'}
-                    valueClassName="text-lg sm:text-xl"
-                    className="!p-5"
-                  />
-                </div>
+            <div className="flex flex-col items-center gap-5">
+              <div
+                className="relative h-44 w-44 rounded-full shadow-[0_0_45px_rgba(45,212,191,0.16)]"
+                style={{ background: donutGradient }}
+              >
+                <div className="absolute inset-12 rounded-full border border-white/10 bg-[#07111f]" />
               </div>
-            </PageHero>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard title="طلبات جديدة" value={stats.newCount.toString()} valueClassName="text-blue-700" />
-              <StatCard title="قيد التنفيذ" value={stats.inProgressCount.toString()} valueClassName="text-amber-700" />
-              <StatCard title="جاهز" value={stats.readyCount.toString()} valueClassName="text-emerald-700" />
-              <StatCard title="تم التسليم" value={stats.deliveredCount.toString()} valueClassName="text-slate-800" />
+              <div className="w-full space-y-3">
+                {donutSegments.length > 0 ? (
+                  donutSegments.map((item) => (
+                    <div key={item.categoryKey} className="flex items-center justify-between gap-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-bold text-slate-300">
+                          {getDisplayText(item.categoryName, 'أخرى')}
+                        </span>
+                      </div>
+                      <span className="font-black text-white">
+                        %{item.percent.toFixed(0)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-8 text-center text-sm text-slate-500">
+                    لا توجد فئات لعرضها
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <Link
+                href="/admin/orders"
+                className="text-sm font-bold text-cyan-200 transition hover:text-cyan-100"
+              >
+                عرض الكل
+              </Link>
+              <div className="text-right">
+                <h2 className="text-xl font-black text-white">آخر الطلبات</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  آخر 5 طلبات ضمن الفترة الحالية
+                </p>
+              </div>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[1.25fr_0.95fr]">
-              {latestOrdersCard}
-              {statusCard}
-            </div>
+            <div className="max-w-full space-y-3 overflow-hidden">
+              {recentOrders.length > 0 ? (
+                recentOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="flex max-w-full items-center justify-between gap-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#07111f] px-4 py-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-3 overflow-hidden">
+                      <span
+                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${resolveDashboardOrderStatusBadgeClassName(order.status)}`}
+                      >
+                        {resolveDashboardOrderStatusLabel(order.status)}
+                      </span>
+                      <div className="min-w-0 text-left">
+                        <div className="truncate text-sm font-black text-white">
+                          {formatCurrency(order.total)}
+                        </div>
+                      </div>
+                    </div>
 
-            <div className="grid gap-5 lg:grid-cols-2">
-              {activityCard}
-              {summaryCard}
+                    <div className="min-w-0 overflow-hidden text-right">
+                      <div className="truncate text-sm font-black text-white">
+                        {getDisplayText(order.order_number, 'طلب بدون رقم')}
+                      </div>
+                      <div className="mt-1 truncate text-sm text-slate-400">
+                        {getDisplayText(order.customer_name, 'عميل بدون اسم')}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-white/[0.08] bg-[#07111f] px-4 py-10 text-center text-sm text-slate-500">
+                  لا توجد طلبات لعرضها حالياً
+                </div>
+              )}
             </div>
-          </main>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur">
+          <div className="mb-5 text-right">
+            <h2 className="text-xl font-black text-white">إجراءات سريعة</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              الوصول السريع لأهم العمليات
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                href: '/admin/catalog',
+                label: 'إضافة منتج',
+                description: 'إضافة عنصر جديد للمخزون',
+                icon: 'orders',
+              },
+              {
+                href: '/pos',
+                label: 'فتح POS',
+                description: 'الانتقال لنقطة البيع',
+                icon: 'sales',
+              },
+              {
+                href: '/pos/sale/customer',
+                label: 'إنشاء طلب',
+                description: 'بدء طلب جديد للعميل',
+                icon: 'orders',
+              },
+              {
+                href: '/admin/reports',
+                label: 'تقرير المبيعات',
+                description: 'عرض تقارير المبيعات',
+                icon: 'active',
+              },
+            ].map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="group flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#07111f] px-5 py-4 text-right transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:shadow-[0_18px_50px_rgba(34,211,238,0.12)]"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200 transition group-hover:scale-105">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-6 w-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <DashboardIcon type={action.icon} />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-base font-black text-white">
+                    {action.label}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-slate-500">
+                    {action.description}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   )
 }
-
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={<DashboardShellPlaceholder />}>
-      <DashboardPageContent />
-    </Suspense>
-  )
-}
-

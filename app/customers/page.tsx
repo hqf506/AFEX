@@ -100,7 +100,7 @@ export default function CustomersPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="page-title">العملاء</h1>
-              <p className="page-subtitle">Leather Fix ERP</p>
+              <p className="page-subtitle">AFEX</p>
             </div>
 
             <div className="flex flex-wrap gap-2">

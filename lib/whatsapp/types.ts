@@ -4,6 +4,7 @@ export type WhatsAppSendTextInput = {
   to: string
   text: string
   branchId?: string | null
+  tenantId?: string | null
   metadata?: Record<string, unknown>
 }
 
@@ -13,6 +14,7 @@ export type WhatsAppSendFileInput = {
   filename?: string
   caption?: string
   branchId?: string | null
+  tenantId?: string | null
   metadata?: Record<string, unknown>
 }
 

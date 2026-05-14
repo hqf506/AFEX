@@ -4,16 +4,23 @@ import { jsonResponse } from '@/lib/api/responses'
 import {
   CATALOG_IMAGE_BUCKET,
   getCatalogImagePath,
+  isAllowedCatalogImageMimeType,
   isSystemScopedCatalogAdmin,
   normalizeCatalogItemId,
 } from '@/lib/admin/catalog'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
 
 function getFileExtension(fileName: string) {
   const parts = fileName.split('.')
   return parts.length > 1 ? parts.at(-1) || 'png' : 'png'
+}
+
+function isAllowedCatalogImageExtension(fileName: string) {
+  const extension = getFileExtension(fileName).toLowerCase()
+  return ['jpg', 'jpeg', 'png', 'webp'].includes(extension)
 }
 
 export async function POST(request: NextRequest) {
@@ -31,6 +38,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse({ error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' }, 400)
+      )
+    }
+
     const formData = await request.formData()
     const itemId = normalizeCatalogItemId(formData.get('itemId'))
     const file = formData.get('file')
@@ -49,7 +65,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!file.type.startsWith('image/')) {
+    if (!isAllowedCatalogImageMimeType(file.type) || !isAllowedCatalogImageExtension(file.name)) {
       return withAuthCookies(
         auth.response,
         jsonResponse({ error: 'يجب رفع ملف صورة صالح' }, 400)
@@ -63,10 +79,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: existingItem, error: existingItemError } = await supabaseAdmin
+    let existingItemQuery = supabaseAdmin
       .from('catalog_items')
       .select('id')
       .eq('id', itemId)
+
+    existingItemQuery = applyTenantFilter(existingItemQuery, tenantId)
+
+    const { data: existingItem, error: existingItemError } =
+      await existingItemQuery
       .maybeSingle()
 
     if (existingItemError) {
@@ -124,6 +145,7 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', itemId)
+      .eq('tenant_id', tenantId)
       .select(
         'id, code, name, category, item_type, default_price, image_url, is_active, created_at, updated_at'
       )

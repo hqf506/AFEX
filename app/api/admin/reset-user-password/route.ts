@@ -22,6 +22,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      const response = jsonResponse(
+        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
     const body = (await request.json()) as ResetUserPasswordBody
     const userId = normalizeAdminUserId(body.userId)
     const newPassword = normalizeAdminPassword(body.newPassword)
@@ -44,6 +54,7 @@ export async function POST(request: NextRequest) {
         .from('profiles')
         .select('id, username, branch_id')
         .eq('id', userId)
+        .eq('tenant_id', tenantId)
         .maybeSingle()
 
     if (existingProfileError) {

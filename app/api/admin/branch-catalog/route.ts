@@ -15,6 +15,7 @@ import {
   normalizeBranchCatalogPrice,
 } from '@/lib/admin/branch-catalog'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type BranchCatalogBody = {
   branchId?: string
@@ -51,11 +52,28 @@ export async function GET(request: NextRequest) {
     const requestedBranchId = normalizeBranchCatalogBranchId(
       request.nextUrl.searchParams.get('branchId')
     )
+    const tenantId = auth.profile.tenant_id
 
-    const { data: branches, error: branchesError } = await supabaseAdmin
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse({
+          success: true,
+          branches: [],
+          selectedBranchId: '',
+          items: [],
+        })
+      )
+    }
+
+    let branchesQuery = supabaseAdmin
       .from('branches')
       .select('id, code, name, is_active, created_at, updated_at')
       .order('created_at', { ascending: true })
+
+    branchesQuery = applyTenantFilter(branchesQuery, tenantId)
+
+    const { data: branches, error: branchesError } = await branchesQuery
 
     if (branchesError) {
       return withAuthCookies(
@@ -77,12 +95,16 @@ export async function GET(request: NextRequest) {
       ''
     const selectedBranchId = requestedBranchId || fallbackBranchId
 
-    const { data: catalogItems, error: catalogError } = await supabaseAdmin
+    let catalogItemsQuery = supabaseAdmin
       .from('catalog_items')
       .select(
         'id, code, name, category, item_type, default_price, is_active, created_at, updated_at'
       )
       .order('created_at', { ascending: true })
+
+    catalogItemsQuery = applyTenantFilter(catalogItemsQuery, tenantId)
+
+    const { data: catalogItems, error: catalogError } = await catalogItemsQuery
 
     if (catalogError) {
       return withAuthCookies(
@@ -100,10 +122,14 @@ export async function GET(request: NextRequest) {
     let branchOverrides: BranchCatalogRow[] = []
 
     if (selectedBranchId) {
-      const { data, error } = await supabaseAdmin
+      let branchOverridesQuery = supabaseAdmin
         .from('branch_catalog_items')
         .select('id, branch_id, catalog_item_id, price, is_active, display_order')
         .eq('branch_id', selectedBranchId)
+
+      branchOverridesQuery = applyTenantFilter(branchOverridesQuery, tenantId)
+
+      const { data, error } = await branchOverridesQuery
 
       if (error) {
         return withAuthCookies(
@@ -222,10 +248,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: branch, error: branchError } = await supabaseAdmin
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse({ error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' }, 400)
+      )
+    }
+
+    let branchQuery = supabaseAdmin
       .from('branches')
       .select('id')
       .eq('id', branchId)
+
+    branchQuery = applyTenantFilter(branchQuery, tenantId)
+
+    const { data: branch, error: branchError } = await branchQuery
       .maybeSingle()
 
     if (branchError) {
@@ -248,10 +287,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: item, error: itemError } = await supabaseAdmin
+    let itemQuery = supabaseAdmin
       .from('catalog_items')
       .select('id')
       .eq('id', catalogItemId)
+
+    itemQuery = applyTenantFilter(itemQuery, tenantId)
+
+    const { data: item, error: itemError } = await itemQuery
       .maybeSingle()
 
     if (itemError) {
@@ -282,6 +325,7 @@ export async function POST(request: NextRequest) {
         {
           branch_id: branchId,
           catalog_item_id: catalogItemId,
+          tenant_id: tenantId,
           price,
           is_active: isActive,
           display_order: displayOrder,

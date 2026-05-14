@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
 import type { AppRole } from '@/lib/app-roles'
 import {
@@ -7,6 +6,7 @@ import {
   type AuthScopeType,
   type BranchAwareProfileFields,
 } from '@/lib/auth-profile'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export type ApiAuthProfile = {
   id: string
@@ -14,12 +14,13 @@ export type ApiAuthProfile = {
   is_active: boolean
   username: string | null
   full_name: string | null
+  tenant_id: string | null
 } & BranchAwareProfileFields
 
 type ApiAuthSuccess = {
   ok: true
   response: NextResponse
-  supabase: ReturnType<typeof createServerClient>
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
   user: User
   profile: ApiAuthProfile
 }
@@ -31,39 +32,6 @@ type ApiAuthFailure = {
 
 export type ApiAuthResult = ApiAuthSuccess | ApiAuthFailure
 
-function buildSupabaseServerClient(request: NextRequest, response: NextResponse) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY'
-    )
-  }
-
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value
-      },
-      set(name: string, value: string, options: Record<string, unknown>) {
-        response.cookies.set({
-          name,
-          value,
-          ...(options as object),
-        })
-      },
-      remove(name: string, options: Record<string, unknown>) {
-        response.cookies.set({
-          name,
-          value: '',
-          ...(options as object),
-        })
-      },
-    },
-  })
-}
-
 export async function requireApiAuth(
   request: NextRequest,
   allowedRoles: AppRole[] = []
@@ -71,7 +39,7 @@ export async function requireApiAuth(
   const response = NextResponse.next()
 
   try {
-    const supabase = buildSupabaseServerClient(request, response)
+    const supabase = await createSupabaseServerClient()
 
     const {
       data: { user },
@@ -93,7 +61,7 @@ export async function requireApiAuth(
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, role, is_active, username, full_name, branch_id')
+      .select('id, role, is_active, username, full_name, branch_id, tenant_id')
       .eq('id', user.id)
       .single()
 
@@ -112,10 +80,13 @@ export async function requireApiAuth(
 
     const branchId =
       typeof profile.branch_id === 'string' ? profile.branch_id : null
+    const tenantId =
+      typeof profile.tenant_id === 'string' ? profile.tenant_id : null
 
     const typedProfile = {
       ...(profile as Omit<ApiAuthProfile, 'branch_id' | 'scope_type'>),
       branch_id: branchId,
+      tenant_id: tenantId,
       scope_type: resolveAuthScopeType(profile.role as AppRole, branchId),
     } as ApiAuthProfile
 

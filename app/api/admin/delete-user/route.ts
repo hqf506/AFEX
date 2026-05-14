@@ -20,6 +20,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      const response = jsonResponse(
+        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
     const body = (await request.json()) as DeleteUserBody
     const userId = normalizeAdminUserId(body.userId)
 
@@ -33,6 +43,7 @@ export async function POST(request: NextRequest) {
         .from('profiles')
         .select('id, username, role, branch_id')
         .eq('id', userId)
+        .eq('tenant_id', tenantId)
         .maybeSingle()
 
     if (existingProfileError) {
@@ -82,6 +93,7 @@ export async function POST(request: NextRequest) {
       .from('profiles')
       .delete()
       .eq('id', userId)
+      .eq('tenant_id', tenantId)
 
     if (deleteProfileError) {
       const response = jsonResponse(

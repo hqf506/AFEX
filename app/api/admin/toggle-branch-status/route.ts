@@ -30,6 +30,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      const response = jsonResponse(
+        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
     const body = (await request.json()) as ToggleBranchStatusBody
     const branchId = normalizeAdminBranchId(body.branchId)
     const isActive = body.is_active
@@ -54,6 +64,7 @@ export async function POST(request: NextRequest) {
       .from('branches')
       .select('id, code, name, is_active')
       .eq('id', branchId)
+      .eq('tenant_id', tenantId)
       .maybeSingle()
 
     if (branchError) {
@@ -82,6 +93,7 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', branchId)
+      .eq('tenant_id', tenantId)
 
     if (updateError) {
       const response = jsonResponse(

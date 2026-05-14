@@ -1,3 +1,7 @@
+import type { DigitalInvoiceTemplateSettings } from '@/lib/admin/settings'
+import { renderInvoiceHtmlFromPayload } from '@/lib/invoices/receipt-template'
+export { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
+
 export type InvoiceCatalogItem = {
   id: string
   name: string
@@ -22,6 +26,40 @@ export type CreatedInvoiceRecord = {
   invoice_id: string
   invoice_number: string
   status: string
+}
+
+export const INVOICE_ALL_FILTER = 'الكل'
+const INVOICE_UNCATEGORIZED_FILTER = 'دون فئة'
+
+function isVisibleInvoiceCategory(categoryName: string) {
+  const normalizedCategoryName = categoryName.trim()
+  return (
+    normalizedCategoryName !== '' &&
+    normalizedCategoryName !== INVOICE_UNCATEGORIZED_FILTER
+  )
+}
+
+export function buildInvoiceFilters(
+  categoryNames: string[],
+  products: InvoiceCatalogItem[]
+) {
+  const filters = new Set<string>([INVOICE_ALL_FILTER])
+
+  for (const categoryName of categoryNames) {
+    const normalizedCategoryName = categoryName.trim()
+    if (isVisibleInvoiceCategory(normalizedCategoryName)) {
+      filters.add(normalizedCategoryName)
+    }
+  }
+
+  for (const product of products) {
+    const normalizedCategoryName = product.category.trim()
+    if (isVisibleInvoiceCategory(normalizedCategoryName)) {
+      filters.add(normalizedCategoryName)
+    }
+  }
+
+  return Array.from(filters)
 }
 
 export const INVOICE_PRODUCTS: InvoiceCatalogItem[] = [
@@ -110,7 +148,7 @@ export function parseCashReceivedAmount(value: string) {
 }
 
 export function calculateRemainingFromCustomer(
-  paymentMethod: 'cash' | 'card' | 'transfer',
+  paymentMethod: 'mada' | 'cash' | 'visa' | 'cod',
   finalTotal: number,
   numericCashReceived: number
 ) {
@@ -119,7 +157,7 @@ export function calculateRemainingFromCustomer(
 }
 
 export function calculateCashChange(
-  paymentMethod: 'cash' | 'card' | 'transfer',
+  paymentMethod: 'mada' | 'cash' | 'visa' | 'cod',
   numericCashReceived: number,
   finalTotal: number
 ) {
@@ -131,6 +169,8 @@ export function addInvoiceLineItem(
   invoiceItems: InvoiceLineItem[],
   product: InvoiceCatalogItem
 ) {
+  const normalizedItemId =
+    typeof product.id === 'string' && product.id.trim() ? product.id.trim() : null
   const existing = invoiceItems.find((item) => item.item_name === product.name)
 
   if (existing) {
@@ -144,7 +184,7 @@ export function addInvoiceLineItem(
   return [
     ...invoiceItems,
     {
-      item_id: null,
+      item_id: normalizedItemId,
       item_name: product.name,
       item_type: product.type,
       quantity: 1,
@@ -188,7 +228,13 @@ export function createInvoicePrintHtml(params: {
   orderNumber?: string
   customerName: string
   customerPhone: string
-  paymentMethod: 'cash' | 'card' | 'transfer'
+  paymentMethod:
+    | 'mada'
+    | 'cash'
+    | 'cod'
+    | 'visa'
+  paymentMethodLabel?: string
+  cashReceived?: number
   numericCashReceived: number
   remainingFromCustomer: number
   cashChange: number
@@ -198,6 +244,7 @@ export function createInvoicePrintHtml(params: {
   finalTotal: number
   note: string
   now: Date
+  digitalInvoiceSettings?: DigitalInvoiceTemplateSettings
 }) {
   const {
     invoiceItems,
@@ -206,6 +253,7 @@ export function createInvoicePrintHtml(params: {
     customerName,
     customerPhone,
     paymentMethod,
+    cashReceived,
     numericCashReceived,
     remainingFromCustomer,
     cashChange,
@@ -215,151 +263,40 @@ export function createInvoicePrintHtml(params: {
     finalTotal,
     note,
     now,
+    digitalInvoiceSettings,
   } = params
 
-  const itemsHtml = invoiceItems
-    .map(
-      (item) => `
-          <tr>
-            <td>${item.item_name}</td>
-            <td>${item.quantity}</td>
-            <td>${item.unit_price} ر.س</td>
-            <td>${item.quantity * item.unit_price} ر.س</td>
-          </tr>
-        `
-    )
-    .join('')
-
-  return `
-      <html lang="ar" dir="rtl">
-        <head>
-          <title>فاتورة ${invoiceNumber || ''}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 24px;
-              color: #111827;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              margin-bottom: 24px;
-            }
-            .title {
-              font-size: 28px;
-              font-weight: bold;
-            }
-            .muted {
-              color: #6b7280;
-              font-size: 14px;
-            }
-            .box {
-              border: 1px solid #e5e7eb;
-              border-radius: 16px;
-              padding: 16px;
-              margin-bottom: 16px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 12px;
-            }
-            th, td {
-              border-bottom: 1px solid #e5e7eb;
-              padding: 12px;
-              text-align: right;
-            }
-            th {
-              background: #f8fafc;
-            }
-            .totals {
-              margin-top: 20px;
-            }
-            .totals div {
-              display: flex;
-              justify-content: space-between;
-              padding: 8px 0;
-            }
-            .final {
-              font-size: 20px;
-              font-weight: bold;
-              border-top: 2px solid #111827;
-              margin-top: 10px;
-              padding-top: 10px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <div class="title">Leather Fix ERP</div>
-              <div class="muted">فاتورة عميل</div>
-            </div>
-            <div>
-              <div><strong>رقم الفاتورة:</strong> ${invoiceNumber || '—'}</div>
-              <div><strong>رقم الطلب:</strong> ${orderNumber || '—'}</div>
-              <div><strong>التاريخ:</strong> ${now.toLocaleDateString('ar-SA')}</div>
-              <div><strong>الوقت:</strong> ${now.toLocaleTimeString('ar-SA')}</div>
-            </div>
-          </div>
-
-          <div class="box">
-            <div><strong>اسم العميل:</strong> ${customerName}</div>
-            <div><strong>رقم الجوال:</strong> ${customerPhone}</div>
-            <div><strong>طريقة الدفع:</strong> ${
-              paymentMethod === 'cash'
-                ? 'كاش'
-                : paymentMethod === 'card'
-                ? 'شبكة'
-                : 'تحويل'
-            }</div>
-            ${
-              paymentMethod === 'cash'
-                ? `
-                  <div><strong>المبلغ المستلم:</strong> ${numericCashReceived} ر.س</div>
-                  <div><strong>المتبقي من العميل:</strong> ${remainingFromCustomer} ر.س</div>
-                  <div><strong>الباقي للعميل:</strong> ${cashChange} ر.س</div>
-                `
-                : ''
-            }
-          </div>
-
-          <div class="box">
-            <table>
-              <thead>
-                <tr>
-                  <th>العنصر</th>
-                  <th>الكمية</th>
-                  <th>سعر الوحدة</th>
-                  <th>الإجمالي</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml}
-              </tbody>
-            </table>
-
-            <div class="totals">
-              <div><span>المجموع الفرعي</span><span>${subtotal} ر.س</span></div>
-              <div><span>الخصم</span><span>${discount} ر.س</span></div>
-              <div><span>الضريبة</span><span>${tax} ر.س</span></div>
-              <div class="final"><span>الإجمالي النهائي</span><span>${finalTotal} ر.س</span></div>
-            </div>
-          </div>
-
-          ${
-            note.trim()
-              ? `<div class="box"><strong>ملاحظة:</strong> ${note}</div>`
-              : ''
-          }
-
-          <script>
-            window.onload = function() {
-              window.print();
-            }
-          </script>
-        </body>
-      </html>
-    `
+  return renderInvoiceHtmlFromPayload({
+    brandName: digitalInvoiceSettings?.brandName,
+    brandBackgroundColor: digitalInvoiceSettings?.brandBackgroundColor,
+    brandTextColor: digitalInvoiceSettings?.brandTextColor,
+    invoiceItems,
+    invoiceNumber,
+    orderNumber,
+    customerName,
+    customerPhone,
+    addressLine1: digitalInvoiceSettings?.addressLine1,
+    addressLine2: digitalInvoiceSettings?.addressLine2,
+    whatsappNumber: digitalInvoiceSettings?.whatsappNumber,
+    whatsappEnabled: digitalInvoiceSettings?.whatsappEnabled,
+    googleReviewLink: digitalInvoiceSettings?.googleReviewLink,
+    googleReviewEnabled: digitalInvoiceSettings?.googleReviewEnabled,
+    mapLink: digitalInvoiceSettings?.mapLink,
+    mapEnabled: digitalInvoiceSettings?.mapEnabled,
+    instagramEnabled: digitalInvoiceSettings?.instagramEnabled,
+    instagramLink: digitalInvoiceSettings?.instagramLink,
+    tiktokEnabled: digitalInvoiceSettings?.tiktokEnabled,
+    tiktokLink: digitalInvoiceSettings?.tiktokLink,
+    paymentMethod,
+    cashReceived: cashReceived ?? numericCashReceived,
+    remainingFromCustomer,
+    cashChange,
+    branchName: digitalInvoiceSettings?.branchName,
+    subtotal,
+    discountAmount: discount,
+    taxAmount: tax,
+    finalTotal,
+    note: note ?? digitalInvoiceSettings?.note,
+    issuedAt: now.toISOString(),
+  })
 }

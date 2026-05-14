@@ -20,6 +20,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse(
+          {
+            error: 'tenant context missing',
+          },
+          400
+        )
+      )
+    }
+
     const requestedBranchId = normalizeBranchId(
       request.nextUrl.searchParams.get('branchId')
     )
@@ -41,11 +55,48 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const branchQuery = supabaseAdmin
+      .from('branches')
+      .select('id')
+      .eq('id', resolvedBranchId)
+      .eq('tenant_id', tenantId)
+
+    const { data: branch, error: branchError } =
+      await branchQuery.maybeSingle()
+
+    if (branchError) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse(
+          {
+            error: 'Failed to validate branch',
+            details: branchError.message,
+          },
+          500
+        )
+      )
+    }
+
+    if (!branch) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse(
+          {
+            error: 'Branch is not available for this account',
+          },
+          404
+        )
+      )
+    }
+
+    const branchOverridesQuery = supabaseAdmin
+      .from('branch_catalog_items')
+      .select('id, catalog_item_id, price, is_active, display_order')
+      .eq('branch_id', resolvedBranchId)
+      .eq('tenant_id', tenantId)
+
     const { data: branchOverrides, error: branchOverridesError } =
-      await supabaseAdmin
-        .from('branch_catalog_items')
-        .select('catalog_item_id, price, is_active, display_order')
-        .eq('branch_id', resolvedBranchId)
+      await branchOverridesQuery
 
     if (branchOverridesError) {
       return withAuthCookies(
@@ -60,9 +111,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: catalogItems, error: catalogError } = await supabaseAdmin
+    const catalogItemsQuery = supabaseAdmin
       .from('catalog_items')
-      .select('id, name, category, item_type, default_price, image_url, is_active')
+      .select(
+        'id, name, category, item_type, default_price, image_url, pos_display_mode, pos_color, pos_shape, is_active'
+      )
+      .eq('tenant_id', tenantId)
+
+    const { data: catalogItems, error: catalogError } = await catalogItemsQuery
 
     if (catalogError) {
       return withAuthCookies(
@@ -77,7 +133,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const products = mapBranchCatalogToInvoiceProducts(
+    const items = mapBranchCatalogToInvoiceProducts(
       (catalogItems || []) as CatalogItemRow[],
       (branchOverrides || []) as BranchCatalogItemRow[]
     )
@@ -87,7 +143,7 @@ export async function GET(request: NextRequest) {
       jsonResponse({
         success: true,
         branchId: resolvedBranchId,
-        products,
+        products: items,
       })
     )
   } catch (error) {

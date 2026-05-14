@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reports Date Picker Disabled Preview</title>
+  <style>
+    body { margin:0; background:#f8fafc; font-family:Tahoma, Arial, sans-serif; }
+    .frame { width: 1280px; margin: 0 auto; padding: 48px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items:start; }
+    .card { background:#fff; border:1px solid #e2e8f0; border-radius:24px; box-shadow:0 10px 25px rgba(15,23,42,.06); padding:28px; }
+    .title { font-size:18px; font-weight:700; color:#0f172a; margin-bottom:16px; }
+    .label { font-size:14px; font-weight:700; color:#334155; margin-bottom:8px; display:block; }
+    .field { height:44px; border:1px solid #e2e8f0; border-radius:12px; padding:0 16px; display:flex; align-items:center; justify-content:space-between; font-size:14px; }
+    .field.disabled { background:#f8fafc; color:#94a3b8; opacity:.7; cursor:not-allowed; }
+    .field.enabled { background:#fff; color:#0f172a; }
+    .iconDisabled { color:#cbd5e1; }
+    .iconEnabled { color:#94a3b8; }
+    .badge { display:inline-flex; align-items:center; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600; margin-bottom:14px; }
+    .badge.disabled { background:#f1f5f9; color:#64748b; }
+    .badge.enabled { background:#111827; color:#fff; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="grid">
+      <div class="card">
+        <div class="badge disabled">الفترة: اليوم</div>
+        <div class="title">الحقول معطلة</div>
+        <label class="label">من تاريخ</label>
+        <div class="field disabled">
+          <span class="iconDisabled">🗓</span>
+          <span>2026-04-27</span>
+        </div>
+        <div style="height:16px"></div>
+        <label class="label">إلى تاريخ</label>
+        <div class="field disabled">
+          <span class="iconDisabled">🗓</span>
+          <span>2026-04-27</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="badge enabled">الفترة: مخصص</div>
+        <div class="title">الحقول مفعلة</div>
+        <label class="label">من تاريخ</label>
+        <div class="field enabled">
+          <span class="iconEnabled">🗓</span>
+          <span>2026-04-27</span>
+        </div>
+        <div style="height:16px"></div>
+        <label class="label">إلى تاريخ</label>
+        <div class="field enabled">
+          <span class="iconEnabled">🗓</span>
+          <span>2026-04-27</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

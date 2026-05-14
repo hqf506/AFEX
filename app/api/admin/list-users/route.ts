@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { shouldFilterByBranch } from '@/lib/branch-access'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin'])
@@ -11,6 +12,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      const response = NextResponse.json({
+        success: true,
+        users: [],
+      })
+
+      return withAuthCookies(auth.response, response)
+    }
+
     if (auth.profile.scope_type === 'branch' && !auth.profile.branch_id) {
       const response = NextResponse.json({
         success: true,
@@ -26,6 +38,8 @@ export async function GET(request: NextRequest) {
         'id, full_name, username, role, is_active, branch_id, created_at, updated_at'
       )
       .order('username', { ascending: true })
+
+    query = applyTenantFilter(query, tenantId)
 
     if (
       shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)

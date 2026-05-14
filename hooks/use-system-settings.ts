@@ -1,6 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import {
+  createProtectedResourceAuthError,
+  isClientResourceFresh,
+  isProtectedResourceAuthError,
+  loadClientResource,
+  markProtectedResourcesUnauthorized,
+  peekClientResource,
+} from '@/lib/client-resource-cache'
 
 export type SystemSettings = {
   id: string
@@ -30,60 +39,124 @@ type SystemSettingsHookResult = {
   refresh: () => Promise<void>
 }
 
+const SYSTEM_SETTINGS_CACHE_KEY = 'admin-system-settings'
+const SYSTEM_SETTINGS_CACHE_TTL_MS = 60_000
+
 export function useSystemSettings(enabled = true): SystemSettingsHookResult {
-  const [settings, setSettings] = useState<SystemSettings | null>(null)
-  const [loading, setLoading] = useState(enabled)
+  const pathname = usePathname()
+  const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
+  const shouldFetch = enabled && !isPosLoginPage
+  const [settings, setSettings] = useState<SystemSettings | null>(() =>
+    shouldFetch ? peekClientResource<SystemSettings>(SYSTEM_SETTINGS_CACHE_KEY) : null
+  )
+  const [loading, setLoading] = useState(
+    shouldFetch && !peekClientResource<SystemSettings>(SYSTEM_SETTINGS_CACHE_KEY)
+  )
   const [error, setError] = useState('')
 
-  const refresh = useCallback(async () => {
-    if (!enabled) {
+  const refresh = useCallback(async (force = false) => {
+    if (!shouldFetch) {
       setLoading(false)
       return
     }
 
-    setLoading(true)
+    const cachedSettings = peekClientResource<SystemSettings>(
+      SYSTEM_SETTINGS_CACHE_KEY
+    )
+
+    if (cachedSettings) {
+      setSettings(cachedSettings)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
+
     setError('')
 
     try {
-      const response = await fetch('/api/admin/system-settings', {
-        method: 'GET',
-        credentials: 'include',
-      })
+      const nextSettings = await loadClientResource(
+        SYSTEM_SETTINGS_CACHE_KEY,
+        async () => {
+          const response = await fetch('/api/admin/system-settings', {
+            method: 'GET',
+            credentials: 'include',
+          })
 
-      const result = await response.json().catch(() => null)
+          if (response.status === 401) {
+            markProtectedResourcesUnauthorized()
+            throw createProtectedResourceAuthError()
+          }
 
-      if (!response.ok || !result?.success) {
-        setSettings(null)
-        setError(result?.error || 'فشل تحميل إعدادات النظام')
-        setLoading(false)
-        return
-      }
+          const result = await response.json().catch(() => null)
 
-      setSettings((result.settings || null) as SystemSettings | null)
+          if (!response.ok || !result?.success) {
+            throw new Error(result?.error || 'فشل تحميل إعدادات النظام')
+          }
+
+          return (result.settings || null) as SystemSettings | null
+        },
+        {
+          ttlMs: SYSTEM_SETTINGS_CACHE_TTL_MS,
+          force,
+          logLabel: 'fetch system settings',
+          protectedResource: true,
+        }
+      )
+
+      setSettings(nextSettings)
       setLoading(false)
     } catch (fetchError) {
-      setSettings(null)
+      if (isProtectedResourceAuthError(fetchError)) {
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/pos')) {
+          window.location.href = '/pos/login'
+          return
+        }
+      }
+
+      setSettings(cachedSettings || null)
       setError(
-        fetchError instanceof Error
-          ? fetchError.message
-          : 'فشل تحميل إعدادات النظام'
+        fetchError instanceof Error ? fetchError.message : 'فشل تحميل إعدادات النظام'
       )
       setLoading(false)
     }
-  }, [enabled])
+  }, [shouldFetch])
 
   useEffect(() => {
+    if (!shouldFetch) {
+      const timeoutId = window.setTimeout(() => {
+        setSettings(null)
+        setError('')
+        setLoading(false)
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
+    }
+
+    if (
+      settings &&
+      isClientResourceFresh(
+        SYSTEM_SETTINGS_CACHE_KEY,
+        SYSTEM_SETTINGS_CACHE_TTL_MS
+      )
+    ) {
+      const timeoutId = window.setTimeout(() => {
+        setLoading(false)
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
+    }
+
     const timeoutId = window.setTimeout(() => {
       void refresh()
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [refresh])
+  }, [refresh, settings, shouldFetch])
 
   return {
     settings,
     loading,
     error,
-    refresh,
+    refresh: () => refresh(true),
   }
 }

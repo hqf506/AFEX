@@ -199,15 +199,15 @@ function AdminBranchCatalogPageContent() {
 
   if (accessLoading) {
     return (
-      <main className="min-h-screen bg-slate-50 p-4 md:p-6">
+      <div>
         <div className="mx-auto max-w-7xl" />
-      </main>
+      </div>
     )
   }
 
   if (!allowed || !isSystemAdmin) {
     return (
-      <main className="min-h-screen bg-slate-50 p-4 md:p-6">
+      <div>
         <div className="mx-auto max-w-7xl">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 text-right shadow-sm">
             <h1 className="text-2xl font-black text-slate-900">غير مصرح لك</h1>
@@ -231,12 +231,12 @@ function AdminBranchCatalogPageContent() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 md:p-6">
+    <div>
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           title="كتالوج الفروع"
@@ -288,7 +288,7 @@ function AdminBranchCatalogPageContent() {
                 href="/admin/branch-catalog"
                 className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900"
               >
-                عرض جميع الأصناف
+                عرض جميع العناصر
               </Link>
             </div>
           </div>
@@ -508,7 +508,7 @@ function AdminBranchCatalogPageContent() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   )
 }
 
@@ -516,9 +516,9 @@ export default function AdminBranchCatalogPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-slate-50 p-4 md:p-6">
+        <div>
           <div className="mx-auto max-w-7xl" />
-        </main>
+        </div>
       }
     >
       <AdminBranchCatalogPageContent />

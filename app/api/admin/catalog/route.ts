@@ -2,17 +2,17 @@ import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import {
+  getNextCatalogCode,
   isSystemScopedCatalogAdmin,
-  isValidCatalogCode,
   isValidCatalogItemType,
   isValidCatalogPrice,
   normalizeCatalogCategory,
-  normalizeCatalogCode,
   normalizeCatalogName,
   normalizeCatalogPrice,
   type CatalogItemType,
 } from '@/lib/admin/catalog'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type CreateCatalogItemBody = {
   name?: string
@@ -20,6 +20,62 @@ type CreateCatalogItemBody = {
   category?: string
   item_type?: CatalogItemType
   default_price?: number | string
+  cost_price?: number | string
+  image_url?: string | null
+  is_active?: boolean
+  pos_display_mode?: 'style' | 'image'
+  pos_color?: string | null
+  pos_shape?: string | null
+}
+
+type ImportCatalogItemsBody = {
+  items?: CreateCatalogItemBody[]
+}
+
+function normalizePosDisplayMode(value: unknown): 'style' | 'image' {
+  return value === 'image' ? 'image' : 'style'
+}
+
+function normalizeOptionalText(value: unknown) {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized || null
+}
+
+function normalizeImportItemType(value: unknown): CatalogItemType {
+  if (value === 'product' || value === 'service') {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (
+      normalized === 'product' ||
+      normalized === 'products' ||
+      normalized === 'منتج' ||
+      normalized === 'المنتجات'
+    ) {
+      return 'product'
+    }
+  }
+
+  return 'service'
+}
+
+function normalizeImportBoolean(value: unknown) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (!normalized) return true
+    return ['true', '1', 'yes', 'y', 'نعم', 'نشط', 'active'].includes(normalized)
+  }
+  return true
+}
+
+function utf8JsonResponse(data: Record<string, unknown>, status = 200) {
+  const response = jsonResponse(data, status)
+  response.headers.set('Content-Type', 'application/json; charset=utf-8')
+  return response
 }
 
 export async function GET(request: NextRequest) {
@@ -32,22 +88,38 @@ export async function GET(request: NextRequest) {
   if (!isSystemScopedCatalogAdmin(auth.profile.scope_type)) {
     return withAuthCookies(
       auth.response,
-      jsonResponse({ error: 'هذه الصفحة متاحة لمدير النظام فقط' }, 403)
+      utf8JsonResponse({ error: 'هذه الصفحة متاحة لمدير النظام فقط' }, 403)
     )
   }
 
   try {
-    const { data, error } = await supabaseAdmin
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse({
+          success: true,
+          items: [],
+        })
+      )
+    }
+
+    let query = supabaseAdmin
       .from('catalog_items')
       .select(
-        'id, code, name, category, item_type, default_price, image_url, is_active, created_at, updated_at'
+        'id, code, name, category, item_type, default_price, cost_price, image_url, pos_display_mode, pos_color, pos_shape, is_active, created_at, updated_at'
       )
       .order('created_at', { ascending: true })
+
+    query = applyTenantFilter(query, tenantId)
+
+    const { data, error } = await query
 
     if (error) {
       return withAuthCookies(
         auth.response,
-        jsonResponse(
+        utf8JsonResponse(
           {
             error: 'تعذر تحميل عناصر الكتالوج',
             details: error.message,
@@ -59,7 +131,7 @@ export async function GET(request: NextRequest) {
 
     return withAuthCookies(
       auth.response,
-      jsonResponse({
+      utf8JsonResponse({
         success: true,
         items: data || [],
       })
@@ -67,7 +139,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return withAuthCookies(
       auth.response,
-      jsonResponse(
+      utf8JsonResponse(
         {
           error: 'حدث خطأ غير متوقع',
           details: error instanceof Error ? error.message : 'Unknown error',
@@ -88,93 +160,281 @@ export async function POST(request: NextRequest) {
   if (!isSystemScopedCatalogAdmin(auth.profile.scope_type)) {
     return withAuthCookies(
       auth.response,
-      jsonResponse({ error: 'هذه العملية متاحة لمدير النظام فقط' }, 403)
+      utf8JsonResponse({ error: 'هذه العملية متاحة لمدير النظام فقط' }, 403)
     )
   }
 
   try {
-    const body = (await request.json()) as CreateCatalogItemBody
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse({ error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' }, 400)
+      )
+    }
+
+    const body = (await request.json()) as CreateCatalogItemBody & ImportCatalogItemsBody
+
+    if (Array.isArray(body.items)) {
+      let existingItemsQuery = supabaseAdmin
+        .from('catalog_items')
+        .select(
+          'id, code, name, category, item_type, default_price, cost_price, image_url, pos_display_mode, pos_color, pos_shape, is_active'
+        )
+
+      existingItemsQuery = applyTenantFilter(existingItemsQuery, tenantId)
+
+      const { data: existingItems, error: existingItemsError } =
+        await existingItemsQuery
+
+      if (existingItemsError) {
+        return withAuthCookies(
+          auth.response,
+          utf8JsonResponse(
+            {
+              error: 'تعذر قراءة عناصر الكتالوج الحالية',
+              details: existingItemsError.message,
+            },
+            500
+          )
+        )
+      }
+
+      const itemsByCode = new Map(
+        (existingItems || [])
+          .filter((item) => item.code)
+          .map((item) => [item.code, item])
+      )
+      const knownCodes = new Set((existingItems || []).map((item) => item.code || ''))
+
+      let created = 0
+      let updated = 0
+      let failed = 0
+      const errors: Array<{
+        code: string
+        name: string
+        message: string
+      }> = []
+
+      for (const entry of body.items) {
+        const name = normalizeCatalogName(entry.name)
+        if (!name) {
+          failed += 1
+          errors.push({
+            code: typeof entry.code === 'string' ? entry.code.trim() : '',
+            name: '',
+            message: 'اسم العنصر مطلوب',
+          })
+          continue
+        }
+
+        let code = typeof entry.code === 'string' ? entry.code.trim() : ''
+        if (!code) {
+          code = getNextCatalogCode(Array.from(knownCodes))
+        }
+
+        knownCodes.add(code)
+
+        const category = normalizeCatalogCategory(entry.category) || ''
+        const itemType = normalizeImportItemType(entry.item_type)
+        const salePrice = Number.isFinite(normalizeCatalogPrice(entry.default_price))
+          ? normalizeCatalogPrice(entry.default_price)
+          : 0
+        const costPrice = Number.isFinite(normalizeCatalogPrice(entry.cost_price))
+          ? normalizeCatalogPrice(entry.cost_price)
+          : 0
+        const posDisplayMode = normalizePosDisplayMode(entry.pos_display_mode)
+        const posColor = normalizeOptionalText(entry.pos_color)
+        const posShape = normalizeOptionalText(entry.pos_shape)
+        const imageUrl = normalizeOptionalText(entry.image_url)
+        const isActive = normalizeImportBoolean(entry.is_active)
+        const timestamp = new Date().toISOString()
+        const existingItem = itemsByCode.get(code)
+
+        if (existingItem) {
+          const { data: updatedItem, error: updateError } = await supabaseAdmin
+            .from('catalog_items')
+            .update({
+              name,
+              category,
+              item_type: itemType,
+              default_price: salePrice,
+              cost_price: costPrice,
+              image_url: imageUrl,
+              pos_display_mode: posDisplayMode,
+              pos_color: posColor,
+              pos_shape: posShape,
+              is_active: isActive,
+              updated_at: timestamp,
+            })
+            .eq('id', existingItem.id)
+            .eq('tenant_id', tenantId)
+            .select('id, code')
+            .single()
+
+          if (updateError || !updatedItem) {
+            failed += 1
+            errors.push({
+              code,
+              name,
+              message: updateError?.message || 'تعذر تحديث العنصر',
+            })
+            continue
+          }
+
+          itemsByCode.set(code, {
+            ...existingItem,
+            ...updatedItem,
+            name,
+            category,
+            item_type: itemType,
+            default_price: salePrice,
+            cost_price: costPrice,
+            image_url: imageUrl,
+            pos_display_mode: posDisplayMode,
+            pos_color: posColor,
+            pos_shape: posShape,
+            is_active: isActive,
+          })
+          updated += 1
+          continue
+        }
+
+        const { data: createdItem, error: createError } = await supabaseAdmin
+          .from('catalog_items')
+          .insert({
+            name,
+            code,
+            category,
+            item_type: itemType,
+            default_price: salePrice,
+            cost_price: costPrice,
+            image_url: imageUrl,
+            pos_display_mode: posDisplayMode,
+            pos_color: posColor,
+            pos_shape: posShape,
+            tenant_id: tenantId,
+            is_active: isActive,
+            created_at: timestamp,
+            updated_at: timestamp,
+          })
+          .select('id, code')
+          .single()
+
+        if (createError || !createdItem) {
+          failed += 1
+          errors.push({
+            code,
+            name,
+            message: createError?.message || 'تعذر إنشاء العنصر',
+          })
+          continue
+        }
+
+        itemsByCode.set(code, {
+          ...createdItem,
+          name,
+          category,
+          item_type: itemType,
+          default_price: salePrice,
+          cost_price: costPrice,
+          image_url: imageUrl,
+          pos_display_mode: posDisplayMode,
+          pos_color: posColor,
+          pos_shape: posShape,
+          is_active: isActive,
+        })
+        created += 1
+      }
+
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse({
+          success: true,
+          message: 'تم إدخال العناصر بنجاح',
+          inserted: created,
+          updated,
+          failed,
+          errors,
+          summary: {
+            created,
+            updated,
+            failed,
+          },
+        })
+      )
+    }
+
     const name = normalizeCatalogName(body.name)
-    const code = normalizeCatalogCode(body.code)
     const category = normalizeCatalogCategory(body.category)
     const itemType = body.item_type
-    const defaultPrice = normalizeCatalogPrice(body.default_price)
+    const salePrice = normalizeCatalogPrice(body.default_price)
+    const costPrice = normalizeCatalogPrice(body.cost_price)
+    const posDisplayMode = normalizePosDisplayMode(body.pos_display_mode)
+    const posColor = normalizeOptionalText(body.pos_color)
+    const posShape = normalizeOptionalText(body.pos_shape)
 
     if (!name) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'اسم العنصر مطلوب' }, 400)
-      )
-    }
-
-    if (!code) {
-      return withAuthCookies(
-        auth.response,
-        jsonResponse({ error: 'الكود الداخلي مطلوب' }, 400)
-      )
-    }
-
-    if (!isValidCatalogCode(code)) {
-      return withAuthCookies(
-        auth.response,
-        jsonResponse(
-          {
-            error: 'الكود الداخلي غير صالح',
-            details:
-              'استخدم أحرفًا إنجليزية صغيرة أو أرقامًا أو - فقط، بين 2 و64 حرفًا',
-          },
-          400
-        )
+        utf8JsonResponse({ error: 'اسم العنصر مطلوب' }, 400)
       )
     }
 
     if (!category) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'التصنيف مطلوب' }, 400)
+        utf8JsonResponse({ error: 'التصنيف مطلوب' }, 400)
       )
     }
 
     if (!isValidCatalogItemType(itemType)) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'نوع العنصر غير صالح' }, 400)
+        utf8JsonResponse({ error: 'نوع العنصر غير صالح' }, 400)
       )
     }
 
-    if (!isValidCatalogPrice(defaultPrice)) {
+    if (!isValidCatalogPrice(costPrice)) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'السعر الافتراضي غير صالح' }, 400)
+        utf8JsonResponse({ error: 'سعر التكلفة غير صالح' }, 400)
       )
     }
 
-    const { data: existingItem, error: existingItemError } = await supabaseAdmin
+    if (!isValidCatalogPrice(salePrice)) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse({ error: 'سعر البيع غير صالح' }, 400)
+      )
+    }
+
+    let existingCodesQuery = supabaseAdmin
       .from('catalog_items')
-      .select('id')
-      .eq('code', code)
-      .maybeSingle()
+      .select('code')
 
-    if (existingItemError) {
+    existingCodesQuery = applyTenantFilter(existingCodesQuery, tenantId)
+
+    const { data: existingCodes, error: existingCodesError } =
+      await existingCodesQuery
+
+    if (existingCodesError) {
       return withAuthCookies(
         auth.response,
-        jsonResponse(
+        utf8JsonResponse(
           {
-            error: 'تعذر التحقق من الكود الداخلي',
-            details: existingItemError.message,
+            error: 'تعذر توليد كود العنصر',
+            details: existingCodesError.message,
           },
           500
         )
       )
     }
 
-    if (existingItem) {
-      return withAuthCookies(
-        auth.response,
-        jsonResponse({ error: 'الكود الداخلي مستخدم بالفعل' }, 409)
-      )
-    }
-
+    const code = getNextCatalogCode(
+      (existingCodes || []).map((item) => item.code || '')
+    )
     const timestamp = new Date().toISOString()
 
     const { data, error } = await supabaseAdmin
@@ -184,21 +444,26 @@ export async function POST(request: NextRequest) {
         code,
         category,
         item_type: itemType,
-        default_price: defaultPrice,
+        default_price: salePrice,
+        cost_price: costPrice,
         image_url: null,
+        pos_display_mode: posDisplayMode,
+        pos_color: posColor,
+        pos_shape: posShape,
+        tenant_id: tenantId,
         is_active: true,
         created_at: timestamp,
         updated_at: timestamp,
       })
       .select(
-        'id, code, name, category, item_type, default_price, image_url, is_active, created_at, updated_at'
+        'id, code, name, category, item_type, default_price, cost_price, image_url, pos_display_mode, pos_color, pos_shape, is_active, created_at, updated_at'
       )
       .single()
 
     if (error || !data) {
       return withAuthCookies(
         auth.response,
-        jsonResponse(
+        utf8JsonResponse(
           {
             error: 'فشل إنشاء عنصر الكتالوج',
             details: error?.message || 'Unknown error',
@@ -210,7 +475,7 @@ export async function POST(request: NextRequest) {
 
     return withAuthCookies(
       auth.response,
-      jsonResponse({
+      utf8JsonResponse({
         success: true,
         message: 'تم إنشاء عنصر الكتالوج بنجاح',
         item: data,
@@ -219,7 +484,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return withAuthCookies(
       auth.response,
-      jsonResponse(
+      utf8JsonResponse(
         {
           error: 'حدث خطأ غير متوقع',
           details: error instanceof Error ? error.message : 'Unknown error',

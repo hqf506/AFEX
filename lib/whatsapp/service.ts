@@ -40,7 +40,10 @@ export async function sendWhatsAppText(
   let providerKey: WhatsAppProviderKey = 'ultramsg'
 
   try {
-    const config = await getBranchWhatsAppProviderConfig(input.branchId)
+    const config = await getBranchWhatsAppProviderConfig(
+      input.branchId,
+      input.tenantId
+    )
 
     if (!config) {
       return {
@@ -109,7 +112,10 @@ export async function sendWhatsAppFile(
   let providerKey: WhatsAppProviderKey = 'ultramsg'
 
   try {
-    const config = await getBranchWhatsAppProviderConfig(input.branchId)
+    const config = await getBranchWhatsAppProviderConfig(
+      input.branchId,
+      input.tenantId
+    )
 
     if (!config) {
       return {
@@ -166,15 +172,17 @@ export async function sendWhatsAppFile(
 export async function sendWhatsAppTestMessage(
   to: string,
   branchId?: string | null,
+  tenantId?: string | null,
   message?: string
 ): Promise<WhatsAppServiceResult> {
   return sendWhatsAppText(
     {
       to,
       branchId: branchId || null,
+      tenantId: tenantId || null,
       text:
         message?.trim() ||
-        'هذه رسالة اختبار من نظام Leather Fix ERP عبر تكامل واتساب.',
+        'هذه رسالة اختبار من نظام AFEX عبر تكامل واتساب.',
       metadata: {
         type: 'test',
       },

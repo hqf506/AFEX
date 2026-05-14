@@ -12,10 +12,13 @@ import {
 } from 'react'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import {
+  clearCurrentUserProfileCache,
   getCurrentUserProfile,
   isSupabaseAuthLockError,
+  primeCurrentUserProfileCache,
   type CurrentUserProfile,
 } from '@/lib/auth'
+import { resetProtectedResourceUnauthorized } from '@/lib/client-resource-cache'
 import { supabase } from '@/lib/supabase/client'
 
 type SharedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
@@ -24,13 +27,62 @@ type SharedAuthState = {
   status: SharedAuthStatus
   loading: boolean
   profile: CurrentUserProfile | null
+  error: string | null
   refreshAuthState: () => Promise<void>
 }
 
 const AuthStateContext = createContext<SharedAuthState | null>(null)
 const AUTH_STATE_CACHE_KEY = 'lf_shared_auth_profile'
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 7000
+const AUTH_LOCK_RETRY_DELAY_MS = 75
+const AUTH_LOCK_MAX_RETRIES = 6
 
-function readCachedAuthProfile(): CurrentUserProfile | null {
+type CachedAuthProfile = {
+  profile: CurrentUserProfile
+  userId: string
+}
+
+function redirectToPosLoginIfNeeded() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const pathname = window.location.pathname
+
+  if (pathname.startsWith('/pos') && !pathname.startsWith('/pos/login')) {
+    window.location.href = '/pos/login'
+  }
+}
+
+function createAuthTimeoutError() {
+  const error = new Error('AUTH_BOOTSTRAP_TIMEOUT')
+  error.name = 'AuthBootstrapTimeoutError'
+  return error
+}
+
+function isAuthTimeoutError(error: unknown) {
+  return error instanceof Error && error.name === 'AuthBootstrapTimeoutError'
+}
+
+function withAuthTimeout<T>(promise: Promise<T>, timeoutMs = AUTH_BOOTSTRAP_TIMEOUT_MS) {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(createAuthTimeoutError())
+    }, timeoutMs)
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId)
+        resolve(value)
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId)
+        reject(error)
+      })
+  })
+}
+
+function readCachedAuthProfile(): CachedAuthProfile | null {
   if (typeof window === 'undefined') {
     return null
   }
@@ -42,7 +94,33 @@ function readCachedAuthProfile(): CurrentUserProfile | null {
       return null
     }
 
-    return JSON.parse(rawValue) as CurrentUserProfile
+    const parsedValue = JSON.parse(rawValue) as
+      | CachedAuthProfile
+      | CurrentUserProfile
+
+    if (
+      parsedValue &&
+      typeof parsedValue === 'object' &&
+      'profile' in parsedValue &&
+      parsedValue.profile &&
+      typeof parsedValue.userId === 'string'
+    ) {
+      return parsedValue
+    }
+
+    if (
+      parsedValue &&
+      typeof parsedValue === 'object' &&
+      'id' in parsedValue &&
+      typeof parsedValue.id === 'string'
+    ) {
+      return {
+        profile: parsedValue as CurrentUserProfile,
+        userId: parsedValue.id,
+      }
+    }
+
+    return null
   } catch {
     return null
   }
@@ -59,14 +137,39 @@ function writeCachedAuthProfile(profile: CurrentUserProfile | null) {
       return
     }
 
-    window.sessionStorage.setItem(AUTH_STATE_CACHE_KEY, JSON.stringify(profile))
+    const payload: CachedAuthProfile = {
+      profile,
+      userId: profile.id,
+    }
+
+    window.sessionStorage.setItem(AUTH_STATE_CACHE_KEY, JSON.stringify(payload))
   } catch {
     // Ignore session storage failures and keep auth flow working.
   }
 }
 
-async function resolveSharedAuthProfile(): Promise<CurrentUserProfile | null> {
-  const profile = await getCurrentUserProfile()
+type SessionUserSnapshot = {
+  id: string
+  email?: string
+}
+
+function toSessionUserSnapshot(session: Session | null): SessionUserSnapshot | null {
+  const user = session?.user ?? null
+
+  if (!user) {
+    return null
+  }
+
+  return {
+    id: user.id,
+    email: user.email ?? undefined,
+  }
+}
+
+async function resolveSharedAuthProfile(
+  sessionUser: SessionUserSnapshot | null = null
+): Promise<CurrentUserProfile | null> {
+  const profile = await getCurrentUserProfile({ user: sessionUser })
 
   if (!profile) {
     return null
@@ -86,12 +189,25 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
   const refreshInFlightRef = useRef<Promise<void> | null>(null)
   const refreshAuthStateRef = useRef<(() => Promise<void>) | null>(null)
   const retryTimeoutRef = useRef<number | null>(null)
+  const lockRetryCountRef = useRef(0)
+  const latestSessionUserRef = useRef<SessionUserSnapshot | null>(null)
   const profileRef = useRef<CurrentUserProfile | null>(null)
   const statusRef = useRef<SharedAuthStatus>('loading')
   const [status, setStatus] = useState<SharedAuthStatus>('loading')
   const [profile, setProfile] = useState<CurrentUserProfile | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const refreshAuthState = useCallback(() => {
+  const setUnauthenticatedState = useCallback((nextError: string | null = null) => {
+    profileRef.current = null
+    clearCurrentUserProfileCache()
+    statusRef.current = 'unauthenticated'
+    setProfile(null)
+    setStatus('unauthenticated')
+    setError(nextError)
+    writeCachedAuthProfile(null)
+  }, [])
+
+  const refreshAuthState = useCallback((sessionUser: SessionUserSnapshot | null = null) => {
     if (refreshInFlightRef.current) {
       return refreshInFlightRef.current
     }
@@ -99,32 +215,66 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
     const requestId = ++requestIdRef.current
 
     if (mountedRef.current) {
+      setError(null)
       setStatus((current) => (current === 'authenticated' ? current : 'loading'))
     }
 
     const refreshPromise = (async () => {
       try {
-        const nextProfile = await resolveSharedAuthProfile()
+        const nextProfile = await withAuthTimeout(
+          resolveSharedAuthProfile(sessionUser ?? latestSessionUserRef.current)
+        )
 
         if (!mountedRef.current || requestId !== requestIdRef.current) {
           return
         }
 
         profileRef.current = nextProfile
+        lockRetryCountRef.current = 0
+        primeCurrentUserProfileCache(nextProfile)
         statusRef.current = nextProfile ? 'authenticated' : 'unauthenticated'
+        if (nextProfile) {
+          resetProtectedResourceUnauthorized()
+        }
         setProfile(nextProfile)
         setStatus(statusRef.current)
+        setError(null)
         writeCachedAuthProfile(nextProfile)
       } catch (error) {
         if (!mountedRef.current || requestId !== requestIdRef.current) {
           return
         }
 
+        if (isAuthTimeoutError(error)) {
+          setUnauthenticatedState('timeout')
+          redirectToPosLoginIfNeeded()
+          return
+        }
+
         if (isSupabaseAuthLockError(error)) {
+          lockRetryCountRef.current += 1
+
+          console.warn('[POS AUTH] Auth session refresh hit a temporary lock.', {
+            requestId,
+            retryCount: lockRetryCountRef.current,
+            sessionUserId: sessionUser?.id ?? latestSessionUserRef.current?.id ?? null,
+          })
+
           if (profileRef.current) {
             setProfile(profileRef.current)
             setStatus('authenticated')
             statusRef.current = 'authenticated'
+            setError(null)
+            return
+          }
+
+          if (lockRetryCountRef.current >= AUTH_LOCK_MAX_RETRIES) {
+            console.error('[POS AUTH] Auth session refresh exceeded the retry limit.', {
+              requestId,
+              retryCount: lockRetryCountRef.current,
+              sessionUserId: sessionUser?.id ?? latestSessionUserRef.current?.id ?? null,
+            })
+            setUnauthenticatedState('auth-lock')
             return
           }
 
@@ -135,18 +285,18 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
               if (mountedRef.current) {
                 void refreshAuthStateRef.current?.()
               }
-            }, 75)
+            }, AUTH_LOCK_RETRY_DELAY_MS)
           }
 
           return
         }
 
-        console.error('Shared auth state error:', error)
-        profileRef.current = null
-        statusRef.current = 'unauthenticated'
-        setProfile(null)
-        setStatus('unauthenticated')
-        writeCachedAuthProfile(null)
+        console.error('[POS AUTH] Auth session refresh failed.', {
+          requestId,
+          sessionUserId: sessionUser?.id ?? latestSessionUserRef.current?.id ?? null,
+          error,
+        })
+        setUnauthenticatedState('auth-error')
       }
     })().finally(() => {
       if (refreshInFlightRef.current === refreshPromise) {
@@ -156,11 +306,11 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
 
     refreshInFlightRef.current = refreshPromise
     return refreshPromise
-  }, [])
+  }, [setUnauthenticatedState])
 
   useEffect(() => {
     refreshAuthStateRef.current = refreshAuthState
-  }, [refreshAuthState])
+  }, [refreshAuthState, setUnauthenticatedState])
 
   useEffect(() => {
     profileRef.current = profile
@@ -169,25 +319,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     mountedRef.current = true
-    const cachedProfile = readCachedAuthProfile()
-    let cachedProfileTimeout: number | null = null
-
-    if (cachedProfile) {
-      cachedProfileTimeout = window.setTimeout(() => {
-        if (!mountedRef.current) {
-          return
-        }
-
-        profileRef.current = cachedProfile
-        statusRef.current = 'authenticated'
-        setProfile(cachedProfile)
-        setStatus('authenticated')
-      }, 0)
-    }
-
-    const initialRefreshTimeout = window.setTimeout(() => {
-      void refreshAuthState()
-    }, 0)
+    let cancelled = false
 
     const {
       data: { subscription },
@@ -197,45 +329,101 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        latestSessionUserRef.current = toSessionUserSnapshot(session)
+
         if (!session) {
           requestIdRef.current += 1
-          profileRef.current = null
-          statusRef.current = 'unauthenticated'
-          setProfile(null)
-          setStatus('unauthenticated')
-          writeCachedAuthProfile(null)
+          lockRetryCountRef.current = 0
+          setUnauthenticatedState(null)
+          redirectToPosLoginIfNeeded()
           return
         }
 
-        void refreshAuthState()
+        if (profileRef.current?.id === session.user.id) {
+          primeCurrentUserProfileCache(profileRef.current)
+          return
+        }
+
+        void refreshAuthState(latestSessionUserRef.current)
       }
     )
 
+    void (async () => {
+      const cachedProfileEntry = readCachedAuthProfile()
+
+      try {
+        const sessionResponse = await withAuthTimeout<
+          Awaited<ReturnType<typeof supabase.auth.getSession>>
+        >(supabase.auth.getSession())
+
+        const {
+          data: { session },
+        } = sessionResponse
+        latestSessionUserRef.current = toSessionUserSnapshot(session)
+
+        if (cancelled || !mountedRef.current) {
+          return
+        }
+
+        if (!session) {
+          requestIdRef.current += 1
+          lockRetryCountRef.current = 0
+          setUnauthenticatedState(null)
+          redirectToPosLoginIfNeeded()
+          return
+        }
+
+        if (
+          cachedProfileEntry &&
+          cachedProfileEntry.userId === session.user.id
+        ) {
+          profileRef.current = cachedProfileEntry.profile
+          primeCurrentUserProfileCache(cachedProfileEntry.profile)
+          statusRef.current = 'authenticated'
+          setProfile(cachedProfileEntry.profile)
+          setStatus('authenticated')
+          setError(null)
+          return
+        }
+
+        void refreshAuthState(latestSessionUserRef.current)
+      } catch (error) {
+        if (cancelled || !mountedRef.current) {
+          return
+        }
+
+        if (isAuthTimeoutError(error)) {
+          setUnauthenticatedState('timeout')
+          redirectToPosLoginIfNeeded()
+          return
+        }
+
+        console.error('[POS AUTH] Auth bootstrap failed before profile resolution.', error)
+        void refreshAuthState(latestSessionUserRef.current)
+      }
+    })()
+
     return () => {
       mountedRef.current = false
-
-      if (cachedProfileTimeout !== null) {
-        window.clearTimeout(cachedProfileTimeout)
-      }
+      cancelled = true
 
       if (retryTimeoutRef.current !== null) {
         window.clearTimeout(retryTimeoutRef.current)
         retryTimeoutRef.current = null
       }
-
-      window.clearTimeout(initialRefreshTimeout)
       subscription.unsubscribe()
     }
-  }, [refreshAuthState])
+  }, [refreshAuthState, setUnauthenticatedState])
 
   const value = useMemo<SharedAuthState>(
     () => ({
       status,
       loading: status === 'loading',
       profile,
+      error,
       refreshAuthState,
     }),
-    [profile, refreshAuthState, status]
+    [error, profile, refreshAuthState, status]
   )
 
   return (

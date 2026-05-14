@@ -1,0 +1,249 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useAuthState } from '@/components/auth-state-provider'
+import { PosTabletFrame } from '@/components/pos-tablet-frame'
+import {
+  readActivePosEmployee,
+  type ActivePosEmployee,
+} from '@/lib/pos-employee-session'
+import { syncPosOfflineDrafts } from '@/lib/pos-offline-draft'
+
+type PosShellLayoutProps = {
+  children: React.ReactNode
+}
+
+const ALLOWED_POS_ROLES = new Set(['admin', 'employee'])
+
+function PosShellViewport({
+  children,
+  isLoginPage = false,
+}: {
+  children: React.ReactNode
+  isLoginPage?: boolean
+}) {
+  return (
+    <div className="min-h-screen w-screen bg-slate-100 text-slate-900 xl:bg-black">
+      <div className="h-full w-full min-h-screen px-0 py-0 xl:min-h-screen xl:px-0 xl:py-0">
+        <PosTabletFrame isLoginPage={isLoginPage}>{children}</PosTabletFrame>
+      </div>
+    </div>
+  )
+}
+
+export function PosShellLayout({ children }: PosShellLayoutProps) {
+  const pathname = usePathname()
+  const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
+  const isPosEmployeePinPage =
+    pathname?.startsWith('/pos/employee-pin') ?? false
+
+  if (isPosLoginPage) {
+    return <PosShellViewport isLoginPage>{children}</PosShellViewport>
+  }
+
+  return (
+    <ProtectedPosShellLayout
+      key={isPosEmployeePinPage ? 'employee-pin' : 'employee-required'}
+      requireEmployee={!isPosEmployeePinPage}
+    >
+      {children}
+    </ProtectedPosShellLayout>
+  )
+}
+
+function ProtectedPosShellLayout({
+  children,
+  requireEmployee = true,
+}: PosShellLayoutProps & { requireEmployee?: boolean }) {
+  const router = useRouter()
+  const authState = useAuthState()
+  const [retrying, setRetrying] = useState(false)
+  const [employeeCheckReady, setEmployeeCheckReady] = useState(false)
+  const [activeEmployee, setActiveEmployee] =
+    useState<ActivePosEmployee | null>(null)
+  const allowed = Boolean(
+    authState.profile && ALLOWED_POS_ROLES.has(authState.profile.role)
+  )
+  const hasAuthError = Boolean(authState.error)
+  const isTimeoutError = authState.error === 'timeout'
+  const isLockError = authState.error === 'auth-lock'
+
+  useEffect(() => {
+    if (!requireEmployee) {
+      setActiveEmployee(null)
+      setEmployeeCheckReady(true)
+      return
+    }
+
+    setActiveEmployee(readActivePosEmployee())
+    setEmployeeCheckReady(true)
+  }, [requireEmployee])
+
+  useEffect(() => {
+    if (authState.loading || authState.error) {
+      return
+    }
+
+    if (!authState.profile || !allowed) {
+      router.replace('/pos/login')
+    }
+  }, [allowed, authState.error, authState.loading, authState.profile, router])
+
+  useEffect(() => {
+    if (
+      !requireEmployee ||
+      authState.loading ||
+      authState.error ||
+      !allowed ||
+      !employeeCheckReady
+    ) {
+      return
+    }
+
+    if (!activeEmployee) {
+      router.replace('/pos/employee-pin')
+    }
+  }, [
+    activeEmployee,
+    allowed,
+    authState.error,
+    authState.loading,
+    employeeCheckReady,
+    requireEmployee,
+    router,
+  ])
+
+  useEffect(() => {
+    if (!authState.loading) {
+      setRetrying(false)
+    }
+  }, [authState.loading])
+
+  useEffect(() => {
+    if (
+      !requireEmployee ||
+      authState.loading ||
+      authState.error ||
+      !allowed ||
+      !employeeCheckReady ||
+      !activeEmployee
+    ) {
+      return
+    }
+
+    const handleOnline = () => {
+      void syncPosOfflineDrafts()
+    }
+
+    window.addEventListener('online', handleOnline)
+
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+      void syncPosOfflineDrafts()
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [
+    activeEmployee,
+    allowed,
+    authState.error,
+    authState.loading,
+    employeeCheckReady,
+    requireEmployee,
+  ])
+
+  const handleRetry = async () => {
+    try {
+      setRetrying(true)
+      await authState.refreshAuthState()
+    } finally {
+      setRetrying(false)
+    }
+  }
+
+  if (authState.loading || (requireEmployee && allowed && !employeeCheckReady)) {
+    return (
+      <PosShellViewport>
+        <div className="page-wrap">
+          <div className="page-card">جار تجهيز نقطة البيع...</div>
+        </div>
+      </PosShellViewport>
+    )
+  }
+
+  if (hasAuthError) {
+    return (
+      <PosShellViewport>
+        <div className="page-wrap">
+          <div className="page-card mx-auto max-w-md space-y-4 text-right">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-slate-900">
+                تعذر تجهيز نقطة البيع
+              </h2>
+              <p className="text-sm text-slate-600">
+                {isTimeoutError
+                  ? 'استغرق التحقق من الجلسة وقتًا أطول من المتوقع. أعد المحاولة أو سجّل الدخول من جديد.'
+                  : isLockError
+                    ? 'حصل تعارض مؤقت أثناء تجهيز الجلسة. أعد المحاولة لاستكمال الدخول إلى نقطة البيع.'
+                    : 'حدث خطأ أثناء تجهيز الجلسة. أعد المحاولة أو انتقل إلى تسجيل الدخول.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={retrying}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {retrying ? 'جار إعادة المحاولة...' : 'إعادة المحاولة'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = '/pos/login'
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                تسجيل الدخول
+              </button>
+            </div>
+          </div>
+        </div>
+      </PosShellViewport>
+    )
+  }
+
+  if (!allowed) {
+    return (
+      <PosShellViewport>
+        <div className="page-wrap">
+          <div className="page-card">جار التحويل...</div>
+        </div>
+      </PosShellViewport>
+    )
+  }
+
+  if (requireEmployee && allowed && employeeCheckReady && !activeEmployee) {
+    return (
+      <PosShellViewport>
+        <div className="page-wrap">
+          <div className="page-card">جاري فتح شاشة رمز الموظف...</div>
+        </div>
+      </PosShellViewport>
+    )
+  }
+
+  return (
+    <PosShellViewport>
+      <div className="page-wrap flex h-full w-full min-h-0 flex-col px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-[max(env(safe-area-inset-top),0.5rem)] sm:px-3 md:px-4 lg:overflow-hidden">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col text-right">
+          <div className="space-y-3 md:space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
+            {children}
+          </div>
+        </main>
+      </div>
+    </PosShellViewport>
+  )
+}

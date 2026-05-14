@@ -45,10 +45,9 @@ export type DashboardOrderSummary = {
   outstandingFromCustomers: number
   changeForCustomers: number
   cashReceived: number
-  newCount: number
   inProgressCount: number
   readyCount: number
-  deliveredCount: number
+  closedCount: number
 }
 
 export const DASHBOARD_FETCH_LIMIT = 100
@@ -57,16 +56,16 @@ export const DASHBOARD_STATUS_MAP: Record<
   DashboardOrderRecord['status'],
   { label: string; className: string }
 > = {
-  new: { label: 'جديد', className: 'badge badge-blue' },
   in_progress: { label: 'قيد التنفيذ', className: 'badge badge-amber' },
   ready: { label: 'جاهز', className: 'badge badge-green' },
-  delivered: { label: 'تم التسليم', className: 'badge badge-slate' },
+  closed: { label: 'تم تسليم', className: 'badge badge-slate' },
+  unknown: { label: 'غير معروفة', className: 'badge badge-rose' },
 }
 
 export const DASHBOARD_QUICK_ACTIONS = [
   { label: 'الصفحة الرئيسية', href: '/' },
   { label: 'فاتورة جديدة', href: '/invoice/new' },
-  { label: 'الطلبات', href: '/orders' },
+  { label: 'الطلبات', href: '/admin/orders' },
   { label: 'التقارير', href: '/admin/reports' },
   { label: 'المستخدمون', href: '/admin/users' },
 ]
@@ -74,7 +73,7 @@ export const DASHBOARD_QUICK_ACTIONS = [
 export const DASHBOARD_NAV_ITEMS = [
   { label: 'الرئيسية', href: '/' },
   { label: 'الفواتير', href: '/invoice/new' },
-  { label: 'الطلبات', href: '/orders' },
+  { label: 'الطلبات', href: '/admin/orders' },
   { label: 'التقارير', href: '/admin/reports' },
   { label: 'المستخدمون', href: '/admin/users' },
 ]
@@ -150,10 +149,9 @@ export function buildDashboardOrderSummary(
   let outstandingFromCustomers = 0
   let changeForCustomers = 0
   let cashReceived = 0
-  let newCount = 0
   let inProgressCount = 0
   let readyCount = 0
-  let deliveredCount = 0
+  let closedCount = 0
 
   for (const order of rangeOrders) {
     totalRevenue += order.total
@@ -169,14 +167,12 @@ export function buildDashboardOrderSummary(
       transferTotal += order.total
     }
 
-    if (order.status === 'new') {
-      newCount += 1
-    } else if (order.status === 'in_progress') {
+    if (order.status === 'in_progress') {
       inProgressCount += 1
     } else if (order.status === 'ready') {
       readyCount += 1
-    } else if (order.status === 'delivered') {
-      deliveredCount += 1
+    } else if (order.status === 'closed') {
+      closedCount += 1
     }
   }
 
@@ -191,19 +187,21 @@ export function buildDashboardOrderSummary(
     outstandingFromCustomers,
     changeForCustomers,
     cashReceived,
-    newCount,
     inProgressCount,
     readyCount,
-    deliveredCount,
+    closedCount,
   }
 }
 
 export function getDashboardStatusItems(stats: DashboardOrderSummary) {
   return [
-    { label: 'جديد', count: stats.newCount, color: 'bg-blue-900' },
-    { label: 'قيد التنفيذ', count: stats.inProgressCount, color: 'bg-amber-500' },
+    {
+      label: 'قيد التنفيذ',
+      count: stats.inProgressCount,
+      color: 'bg-amber-500',
+    },
     { label: 'جاهز', count: stats.readyCount, color: 'bg-emerald-500' },
-    { label: 'تم التسليم', count: stats.deliveredCount, color: 'bg-slate-700' },
+    { label: 'تم تسليم', count: stats.closedCount, color: 'bg-slate-700' },
   ]
 }
 
@@ -211,6 +209,6 @@ export function getDashboardRangeLabel(range: DashboardRange) {
   return range === 'today'
     ? 'اليوم'
     : range === 'week'
-    ? 'هذا الأسبوع'
-    : 'هذا الشهر'
+      ? 'هذا الأسبوع'
+      : 'هذا الشهر'
 }
