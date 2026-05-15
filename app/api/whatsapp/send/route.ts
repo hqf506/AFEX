@@ -45,14 +45,18 @@ const whatsappRateLimitStore = new Map<string, WhatsAppRateLimitEntry>()
 
 function resolveRequestBranchId(
   requestedBranchId: string,
-  scopeType: 'system' | 'branch',
+  role: string | null | undefined,
   actorBranchId: string | null
 ) {
-  if (scopeType === 'system') {
+  if (role === 'admin' || role === 'manager') {
     return requestedBranchId
   }
 
   return actorBranchId || ''
+}
+
+function resolveRoleScopeType(role: string | null | undefined) {
+  return role === 'admin' || role === 'manager' ? 'system' : 'branch'
 }
 
 function getClientIp(request: NextRequest) {
@@ -198,9 +202,10 @@ export async function POST(req: NextRequest) {
     const caption = getTrimmedString(body.caption)
     const tenantId = auth.profile.tenant_id
     const requestedBranchId = getTrimmedString(body.branchId)
+    const roleScopeType = resolveRoleScopeType(auth.profile.role)
     const branchId = resolveRequestBranchId(
       requestedBranchId,
-      auth.profile.scope_type,
+      auth.profile.role,
       auth.profile.branch_id
     )
     const notificationOrderId = getTrimmedString(body.notification?.orderId)
@@ -299,7 +304,7 @@ export async function POST(req: NextRequest) {
           profileBranchMasked: maskOptionalId(auth?.profile?.branch_id),
           requestedBranchMasked: maskOptionalId(requestedBranchId),
           resolvedBranchMasked: maskOptionalId(branchId),
-          scopeType: auth?.profile?.scope_type || null,
+          scopeType: roleScopeType,
           hasRecipient: Boolean(to),
           mode,
           type,
@@ -384,7 +389,7 @@ export async function POST(req: NextRequest) {
       profileBranchMasked: maskOptionalId(auth?.profile?.branch_id),
       requestedBranchMasked: maskOptionalId(requestedBranchId),
       resolvedBranchMasked: maskOptionalId(branchId),
-      scopeType: auth?.profile?.scope_type || null,
+      scopeType: roleScopeType,
       hasRecipient: Boolean(to),
       mode,
       type,
