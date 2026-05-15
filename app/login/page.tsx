@@ -10,6 +10,7 @@ import { normalizeUsername } from '@/lib/usernames'
 
 const highlights = ['آمن وموثوق', 'سريع وفعال', 'تقارير ذكية']
 const miniBars = [42, 72, 54, 88, 62, 78]
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function LoginPage() {
   const router = useRouter()
@@ -21,21 +22,51 @@ export default function LoginPage() {
   const [resetModalOpen, setResetModalOpen] = useState(false)
   const [resetIdentifier, setResetIdentifier] = useState('')
   const [resetMessage, setResetMessage] = useState('')
+  const [resetError, setResetError] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
 
   function openResetModal() {
     setResetIdentifier(username)
     setResetMessage('')
+    setResetError('')
     setResetModalOpen(true)
   }
 
   function closeResetModal() {
     setResetModalOpen(false)
     setResetMessage('')
+    setResetError('')
   }
 
-  function handleResetRequest(e: React.FormEvent) {
+  async function handleResetRequest(e: React.FormEvent) {
     e.preventDefault()
-    setResetMessage('سيتم إرسال رابط إعادة التعيين قريبًا')
+    setResetMessage('')
+    setResetError('')
+
+    const email = resetIdentifier.trim()
+
+    if (!emailPattern.test(email)) {
+      setResetError('أدخل البريد الإلكتروني المرتبط بالحساب')
+      return
+    }
+
+    try {
+      setResetLoading(true)
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      setResetMessage('إذا كان البريد مسجلًا، سيتم إرسال رابط إعادة التعيين')
+    } catch {
+      setResetError('تعذر إرسال رابط إعادة التعيين. حاول مرة أخرى.')
+    } finally {
+      setResetLoading(false)
+    }
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -330,6 +361,12 @@ export default function LoginPage() {
                 </div>
               ) : null}
 
+              {resetError ? (
+                <div className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-100">
+                  {resetError}
+                </div>
+              ) : null}
+
               <div className="flex justify-end gap-3 pt-1">
                 <button
                   type="button"
@@ -341,9 +378,10 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  className="h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_0_34px_rgba(34,211,238,0.28)]"
+                  disabled={resetLoading}
+                  className="h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_0_34px_rgba(34,211,238,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  إرسال رابط إعادة التعيين
+                  {resetLoading ? 'جاري الإرسال...' : 'إرسال رابط إعادة التعيين'}
                 </button>
               </div>
             </form>
