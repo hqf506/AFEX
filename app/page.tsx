@@ -425,6 +425,8 @@ export default function LandingPage() {
               <Link
                 key={link.href}
                 href={link.href}
+                target={link.href === '/pos' ? '_blank' : undefined}
+                rel={link.href === '/pos' ? 'noopener noreferrer' : undefined}
                 className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-bold text-white/70 backdrop-blur transition hover:border-cyan-200/30 hover:text-cyan-100"
               >
                 {link.label}
