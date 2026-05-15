@@ -174,20 +174,22 @@ export default function LandingPage() {
   const [loginError, setLoginError] = useState('')
   const [localFirstName, setLocalFirstName] = useState('')
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [protectedNavLoading, setProtectedNavLoading] = useState(false)
+  const [protectedNavMessage, setProtectedNavMessage] = useState('')
 
   const profileName = authState.profile?.full_name?.trim() || ''
   const displayFirstName = localFirstName || (profileName ? getFirstName(profileName) : '')
-  const isSignedIn =
-    authState.status === 'authenticated' ||
-    Boolean(authState.profile || localFirstName)
-  const visibleQuickLinks = isSignedIn
+  const isSignedInForUi = Boolean(authState.profile || localFirstName)
+  const isAuthReadyForProtectedNav =
+    authState.status === 'authenticated' && Boolean(authState.profile)
+  const visibleQuickLinks = isSignedInForUi
     ? quickLinks.filter((link) =>
         ['/pos', '/admin/dashboard'].includes(link.href)
       )
     : quickLinks
 
   function openLoginModal() {
-    if (isSignedIn) {
+    if (isSignedInForUi) {
       return
     }
 
@@ -204,16 +206,39 @@ export default function LandingPage() {
     await supabase.auth.signOut()
     setAccountMenuOpen(false)
     setLocalFirstName('')
+    setProtectedNavMessage('')
     router.replace('/')
   }
 
-  function handleDashboardClick() {
-    if (isSignedIn) {
+  async function handleDashboardClick() {
+    if (!isSignedInForUi) {
+      openLoginModal()
+      return
+    }
+
+    if (isAuthReadyForProtectedNav) {
       router.push('/admin/dashboard')
       return
     }
 
-    openLoginModal()
+    try {
+      setProtectedNavLoading(true)
+      setProtectedNavMessage('جاري تجهيز الجلسة...')
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        setProtectedNavMessage('جاري تجهيز الجلسة، حاول مرة أخرى بعد لحظة.')
+        return
+      }
+
+      await authState.refreshAuthState()
+      router.push('/admin/dashboard')
+    } finally {
+      setProtectedNavLoading(false)
+    }
   }
 
   async function handleLandingLogin(e: React.FormEvent) {
@@ -278,6 +303,8 @@ export default function LandingPage() {
       setLocalFirstName(nextFirstName)
       setAccountMenuOpen(false)
       setLoginPassword('')
+      setProtectedNavMessage('')
+      void authState.refreshAuthState()
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : 'حدث خطأ أثناء تسجيل الدخول')
     } finally {
@@ -328,7 +355,7 @@ export default function LandingPage() {
                   <span>مرحباً، {displayFirstName}</span>
                 </button>
 
-                {isSignedIn && accountMenuOpen ? (
+                {isSignedInForUi && accountMenuOpen ? (
                   <div className="absolute left-0 top-[calc(100%+0.65rem)] z-[999] w-56 rounded-2xl border border-cyan-300/25 bg-[#06111f]/95 p-2 text-right shadow-[0_28px_90px_rgba(0,0,0,0.58),0_0_45px_rgba(34,211,238,0.16)] backdrop-blur-xl">
                     <Link
                       href="/account"
@@ -356,7 +383,7 @@ export default function LandingPage() {
                 تسجيل الدخول
               </button>
             )}
-            {!isSignedIn ? (
+            {!isSignedInForUi ? (
               <Link
                 href="/signup"
                 className="rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-4 py-3 text-slate-950 shadow-[0_0_28px_rgba(45,212,191,0.35)] transition hover:brightness-110"
@@ -374,9 +401,10 @@ export default function LandingPage() {
                 key={link.href}
                 type="button"
                 onClick={handleDashboardClick}
-                className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-bold text-white/70 backdrop-blur transition hover:border-cyan-200/30 hover:text-cyan-100"
+                disabled={protectedNavLoading}
+                className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-bold text-white/70 backdrop-blur transition hover:border-cyan-200/30 hover:text-cyan-100 disabled:cursor-wait disabled:opacity-70"
               >
-                {link.label}
+                {protectedNavLoading ? 'جاري تجهيز الجلسة...' : link.label}
               </button>
             ) : (
               <Link
@@ -389,6 +417,11 @@ export default function LandingPage() {
             )
           ))}
         </div>
+        {protectedNavMessage ? (
+          <p className="mx-auto mt-2 max-w-7xl text-center text-xs font-bold text-cyan-100/80 lg:text-left">
+            {protectedNavMessage}
+          </p>
+        ) : null}
       </header>
 
       <section className="relative z-10 px-4 pb-12 pt-10 sm:px-6 lg:px-8 lg:pb-14 lg:pt-16">
@@ -413,7 +446,7 @@ export default function LandingPage() {
               واحدة متكاملة وآمنة.
             </p>
 
-            {!isSignedIn ? (
+            {!isSignedInForUi ? (
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
                 <Link
                   href="/signup"
@@ -596,7 +629,7 @@ export default function LandingPage() {
                 والفواتير ونقاط البيع بثقة وكفاءة.
               </p>
 
-              {!isSignedIn ? (
+              {!isSignedInForUi ? (
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <Link
                     href="/signup"
@@ -618,7 +651,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {loginModalOpen && !isSignedIn ? (
+      {loginModalOpen && !isSignedInForUi ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
           <div
             role="dialog"
