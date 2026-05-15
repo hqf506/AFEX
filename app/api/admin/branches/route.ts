@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر تحميل الفروع',
-          ...safeErrorDetails(error),
+          ...safeErrorDetails(error, 'تعذر تحميل الفروع'),
         },
         500
       )
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        ...safeErrorDetails(error),
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       },
       500
     )
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من كود الفرع',
-          ...safeErrorDetails(existingBranchError),
+          ...safeErrorDetails(existingBranchError, 'تعذر التحقق من كود الفرع'),
         },
         500
       )
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل إنشاء الفرع',
-          ...safeErrorDetails(error),
+          ...safeErrorDetails(error, 'فشل إنشاء الفرع'),
         },
         400
       )
@@ -264,7 +264,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        ...safeErrorDetails(error),
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       },
       500
     )
@@ -371,7 +371,7 @@ export async function PATCH(request: NextRequest) {
         const response = jsonResponse(
           {
             error: 'تعذر التحقق من كود الفرع',
-            ...safeErrorDetails(duplicateBranchError),
+            ...safeErrorDetails(duplicateBranchError, 'تعذر التحقق من كود الفرع'),
           },
           500
         )
@@ -423,7 +423,7 @@ export async function PATCH(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل تحديث رابط موقع الفرع',
-          ...safeErrorDetails(error),
+          ...safeErrorDetails(error, 'فشل تحديث الفرع'),
         },
         400
       )
@@ -458,7 +458,7 @@ export async function PATCH(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        ...safeErrorDetails(error),
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       },
       500
     )

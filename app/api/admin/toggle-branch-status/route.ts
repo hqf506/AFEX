@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من الفرع',
-          ...safeErrorDetails(branchError),
+          ...safeErrorDetails(branchError, 'تعذر التحقق من الفرع'),
         },
         500
       )
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل تحديث حالة الفرع',
-          ...safeErrorDetails(updateError),
+          ...safeErrorDetails(updateError, 'فشل تحديث حالة الفرع'),
         },
         400
       )
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        ...safeErrorDetails(error),
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       },
       500
     )

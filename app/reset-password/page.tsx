@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 
 export default function ResetPasswordPage() {
@@ -18,25 +19,29 @@ export default function ResetPasswordPage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) {
-        return
-      }
+    } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        if (!mounted) {
+          return
+        }
 
-      if (event === 'PASSWORD_RECOVERY') {
+        if (event === 'PASSWORD_RECOVERY') {
+          setHasRecoverySession(Boolean(session))
+          setSessionChecked(true)
+        }
+      }
+    )
+
+    void supabase.auth.getSession().then(
+      ({ data: { session } }: { data: { session: Session | null } }) => {
+        if (!mounted) {
+          return
+        }
+
         setHasRecoverySession(Boolean(session))
         setSessionChecked(true)
       }
-    })
-
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) {
-        return
-      }
-
-      setHasRecoverySession(Boolean(session))
-      setSessionChecked(true)
-    })
+    )
 
     return () => {
       mounted = false
