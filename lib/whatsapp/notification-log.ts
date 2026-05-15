@@ -13,6 +13,10 @@ const NOTIFICATION_LOG_DIR = path.join(
   'whatsapp-order-status-notifications'
 )
 
+function isReadOnlyServerlessRuntime() {
+  return Boolean(process.env.VERCEL)
+}
+
 function normalizeKeyPart(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9_-]/g, '_')
 }
@@ -39,6 +43,10 @@ async function ensureNotificationLogDir() {
 export async function hasSentWhatsAppOrderStatusNotification(
   input: WhatsAppNotificationKeyInput
 ) {
+  if (isReadOnlyServerlessRuntime()) {
+    return false
+  }
+
   try {
     await fs.access(getSentFilePath(input))
     return true
@@ -50,6 +58,10 @@ export async function hasSentWhatsAppOrderStatusNotification(
 export async function acquireWhatsAppOrderStatusNotificationLock(
   input: WhatsAppNotificationKeyInput
 ) {
+  if (isReadOnlyServerlessRuntime()) {
+    return true
+  }
+
   await ensureNotificationLogDir()
 
   try {
@@ -69,6 +81,10 @@ export async function acquireWhatsAppOrderStatusNotificationLock(
 export async function releaseWhatsAppOrderStatusNotificationLock(
   input: WhatsAppNotificationKeyInput
 ) {
+  if (isReadOnlyServerlessRuntime()) {
+    return
+  }
+
   try {
     await fs.unlink(getLockFilePath(input))
   } catch (error) {
@@ -82,6 +98,10 @@ export async function markWhatsAppOrderStatusNotificationSent(
   input: WhatsAppNotificationKeyInput,
   payload: Record<string, unknown>
 ) {
+  if (isReadOnlyServerlessRuntime()) {
+    return
+  }
+
   await ensureNotificationLogDir()
 
   await fs.writeFile(
