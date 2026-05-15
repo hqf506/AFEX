@@ -18,6 +18,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [resetModalOpen, setResetModalOpen] = useState(false)
+  const [resetIdentifier, setResetIdentifier] = useState('')
+  const [resetMessage, setResetMessage] = useState('')
+
+  function openResetModal() {
+    setResetIdentifier(username)
+    setResetMessage('')
+    setResetModalOpen(true)
+  }
+
+  function closeResetModal() {
+    setResetModalOpen(false)
+    setResetMessage('')
+  }
+
+  function handleResetRequest(e: React.FormEvent) {
+    e.preventDefault()
+    setResetMessage('سيتم إرسال رابط إعادة التعيين قريبًا')
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -166,6 +185,16 @@ export default function LoginPage() {
               >
                 {loading ? 'جاري تسجيل الدخول...' : 'دخول'}
               </button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={openResetModal}
+                  className="text-sm font-black text-cyan-200/85 underline decoration-cyan-300/30 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-200/60"
+                >
+                  نسيت كلمة المرور؟
+                </button>
+              </div>
             </form>
 
             <p className="mt-6 text-center text-sm text-slate-400">
@@ -262,6 +291,65 @@ export default function LoginPage() {
           </section>
         </div>
       </div>
+
+      {resetModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-password-title"
+            className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]"
+          >
+            <div className="mb-5">
+              <h3 id="reset-password-title" className="text-2xl font-black text-white">
+                إعادة تعيين كلمة المرور
+              </h3>
+              <p className="mt-1 text-sm leading-7 text-slate-400">
+                أدخل البريد الإلكتروني أو اسم المستخدم لإرسال رابط إعادة التعيين.
+              </p>
+            </div>
+
+            <form onSubmit={handleResetRequest} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-200">
+                  البريد الإلكتروني أو اسم المستخدم
+                </label>
+                <input
+                  type="text"
+                  value={resetIdentifier}
+                  onChange={(e) => setResetIdentifier(e.target.value)}
+                  placeholder="example@afex.com أو اسم المستخدم"
+                  className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
+                  autoComplete="username"
+                />
+              </div>
+
+              {resetMessage ? (
+                <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-100">
+                  {resetMessage}
+                </div>
+              ) : null}
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={closeResetModal}
+                  className="h-12 rounded-2xl border border-white/10 bg-white/[0.045] px-5 text-sm font-bold text-slate-200 transition hover:bg-white/[0.075]"
+                >
+                  إلغاء
+                </button>
+
+                <button
+                  type="submit"
+                  className="h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_0_34px_rgba(34,211,238,0.28)]"
+                >
+                  إرسال رابط إعادة التعيين
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }
