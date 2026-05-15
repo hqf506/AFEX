@@ -50,8 +50,13 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([])
 
   function updateField(field: keyof SignupFormState, value: string) {
+    if (field === 'username') {
+      setUsernameSuggestions([])
+    }
+
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -107,6 +112,7 @@ export default function SignupPage() {
       setLoading(true)
       setError('')
       setSuccess('')
+      setUsernameSuggestions([])
 
       const payload = validateForm()
       const response = await fetch('/api/onboarding/create-tenant', {
@@ -120,6 +126,16 @@ export default function SignupPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
+        if (response.status === 409 && Array.isArray(result?.suggestions)) {
+          setUsernameSuggestions(
+            result.suggestions.filter(
+              (suggestion: unknown): suggestion is string =>
+                typeof suggestion === 'string'
+            )
+          )
+          throw new Error('اسم المستخدم مستخدم بالفعل')
+        }
+
         throw new Error(getApiErrorMessage(result))
       }
 
@@ -208,6 +224,26 @@ export default function SignupPage() {
                     autoComplete="username"
                     dir="ltr"
                   />
+                  {usernameSuggestions.length > 0 ? (
+                    <div className="mt-3 rounded-2xl border border-cyan-300/18 bg-cyan-300/10 p-3 text-right">
+                      <p className="text-xs font-bold text-cyan-100/80">
+                        أسماء متاحة مقترحة:
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {usernameSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => updateField('username', suggestion)}
+                            className="rounded-xl border border-cyan-300/20 bg-[#06111f]/80 px-3 py-1.5 text-xs font-black text-cyan-100 transition hover:border-cyan-200/40 hover:bg-cyan-300/15"
+                            dir="ltr"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </label>
 
                 <label className="block">

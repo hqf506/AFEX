@@ -1,7 +1,8 @@
 import { jsonResponse } from '@/lib/api/responses'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
+import { normalizeUsername } from '@/lib/usernames'
 import { hasTrimmedString } from '@/lib/api/validation'
+import { safeErrorDetails } from '@/lib/security/redaction'
 
 type Body = {
   username?: string
@@ -14,8 +15,60 @@ type ProfileLookupResult = {
   contact_email: string | null
 }
 
+type UsernameCheckRateLimitEntry = {
+  count: number
+  resetAt: number
+}
+
+const USERNAME_CHECK_RATE_LIMIT_MAX_ATTEMPTS = 30
+const USERNAME_CHECK_RATE_LIMIT_WINDOW_MS = 60 * 1000
+const usernameCheckRateLimitStore = new Map<
+  string,
+  UsernameCheckRateLimitEntry
+>()
+
+function getClientIp(request: Request) {
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  const forwardedIp = forwardedFor?.split(',')[0]?.trim()
+
+  return (
+    forwardedIp ||
+    request.headers.get('x-real-ip') ||
+    request.headers.get('cf-connecting-ip') ||
+    'unknown'
+  )
+}
+
+function checkUsernameRateLimit(request: Request) {
+  const key = getClientIp(request)
+  const now = Date.now()
+  const current = usernameCheckRateLimitStore.get(key)
+
+  if (!current || current.resetAt <= now) {
+    usernameCheckRateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + USERNAME_CHECK_RATE_LIMIT_WINDOW_MS,
+    })
+    return true
+  }
+
+  if (current.count >= USERNAME_CHECK_RATE_LIMIT_MAX_ATTEMPTS) {
+    return false
+  }
+
+  current.count += 1
+  return true
+}
+
 export async function POST(request: Request) {
   try {
+    if (!checkUsernameRateLimit(request)) {
+      return jsonResponse(
+        { error: 'محاولات كثيرة، حاول لاحقًا' },
+        429
+      )
+    }
+
     const body = (await request.json()) as Body
     const identifier = normalizeUsername(body.username || '')
     const isEmailIdentifier = identifier.includes('@')
@@ -26,42 +79,61 @@ export async function POST(request: Request) {
     }
 
     let profile: ProfileLookupResult | null = null
-    let authEmail: string | null = null
 
-    const { data: usernameProfile, error: usernameError } = await supabaseAdmin
+    const { data: usernameProfiles, error: usernameError } = await supabaseAdmin
       .from('profiles')
       .select('id, username, is_active, contact_email')
-      .eq('username', identifier)
-      .maybeSingle()
+      .ilike('username', identifier)
+      .limit(2)
 
     if (usernameError) {
       return jsonResponse(
         {
           error: 'تعذر التحقق من اسم المستخدم',
-          details: usernameError.message,
+          ...safeErrorDetails(usernameError, 'تعذر التحقق من اسم المستخدم'),
         }, 500)
     }
 
-    profile = usernameProfile
+    if ((usernameProfiles || []).length > 1) {
+      return jsonResponse(
+        {
+          error: 'اسم المستخدم مستخدم بالفعل',
+          details: 'يوجد أكثر من حساب بنفس اسم المستخدم. تواصل مع الدعم لتصحيح البيانات.',
+        },
+        409
+      )
+    }
+
+    profile = usernameProfiles?.[0] || null
 
     if (!profile && isEmailIdentifier) {
-      const { data: contactProfile, error: contactError } = await supabaseAdmin
+      const { data: contactProfiles, error: contactError } = await supabaseAdmin
         .from('profiles')
         .select('id, username, is_active, contact_email')
         .eq('contact_email', identifier)
-        .maybeSingle()
+        .limit(2)
 
       if (contactError) {
         return jsonResponse(
           {
             error: 'تعذر التحقق من البريد المرتبط',
-            details: contactError.message,
+            ...safeErrorDetails(contactError, 'تعذر التحقق من البريد المرتبط'),
           },
           500
         )
       }
 
-      profile = contactProfile
+      if ((contactProfiles || []).length > 1) {
+        return jsonResponse(
+          {
+            error: 'تعذر تسجيل الدخول',
+            details: 'يوجد أكثر من حساب بنفس البريد. تواصل مع الدعم لتصحيح البيانات.',
+          },
+          409
+        )
+      }
+
+      profile = contactProfiles?.[0] || null
     }
 
     if (!profile && isEmailIdentifier) {
@@ -72,7 +144,7 @@ export async function POST(request: Request) {
         return jsonResponse(
           {
             error: 'تعذر التحقق من بريد تسجيل الدخول',
-            details: usersError.message,
+            ...safeErrorDetails(usersError, 'تعذر التحقق من بريد تسجيل الدخول'),
           },
           500
         )
@@ -83,8 +155,6 @@ export async function POST(request: Request) {
       )
 
       if (matchedAuthUser) {
-        authEmail = matchedAuthUser.email || null
-
         const { data: authProfile, error: authProfileError } =
           await supabaseAdmin
             .from('profiles')
@@ -96,7 +166,7 @@ export async function POST(request: Request) {
           return jsonResponse(
             {
               error: 'تعذر التحقق من ملف المستخدم',
-              details: authProfileError.message,
+              ...safeErrorDetails(authProfileError, 'تعذر التحقق من ملف المستخدم'),
             },
             500
           )
@@ -106,30 +176,15 @@ export async function POST(request: Request) {
       }
     }
 
-    if (profile && !authEmail) {
-      const { data: authUserData, error: authUserError } =
-        await supabaseAdmin.auth.admin.getUserById(profile.id)
-
-      if (!authUserError && authUserData.user?.email) {
-        authEmail = authUserData.user.email
-      }
-    }
-
-    const loginEmail =
-      authEmail?.trim() ||
-      profile?.contact_email?.trim() ||
-      (profile?.username ? usernameToInternalEmail(profile.username) : null)
-
     return jsonResponse({
+      ok: true,
       exists: !!profile,
-      login_email: loginEmail,
-      user: profile || null,
     })
   } catch (error) {
     return jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       }, 500)
   }
 }

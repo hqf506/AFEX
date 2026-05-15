@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import {
   isSystemScopedAdmin,
   isValidAdminBranchCode,
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر تحميل الفروع',
-          details: error.message,
+          ...safeErrorDetails(error),
         },
         500
       )
@@ -102,7 +104,7 @@ export async function GET(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error),
       },
       500
     )
@@ -192,7 +194,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من كود الفرع',
-          details: existingBranchError.message,
+          ...safeErrorDetails(existingBranchError),
         },
         500
       )
@@ -230,12 +232,26 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل إنشاء الفرع',
-          details: error?.message || 'Unknown error',
+          ...safeErrorDetails(error),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'branch.created',
+      entityType: 'branch',
+      entityId: data.id,
+      branchId: data.id,
+      metadata: {
+        code,
+        name,
+        has_map_url: Boolean(mapUrl),
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -248,7 +264,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error),
       },
       500
     )
@@ -355,7 +371,7 @@ export async function PATCH(request: NextRequest) {
         const response = jsonResponse(
           {
             error: 'تعذر التحقق من كود الفرع',
-            details: duplicateBranchError.message,
+            ...safeErrorDetails(duplicateBranchError),
           },
           500
         )
@@ -407,12 +423,29 @@ export async function PATCH(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل تحديث رابط موقع الفرع',
-          details: error?.message || 'Unknown error',
+          ...safeErrorDetails(error),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'branch.updated',
+      entityType: 'branch',
+      entityId: data.id,
+      branchId: data.id,
+      metadata: {
+        updated_fields: Object.keys(updatePayload).filter(
+          (field) => field !== 'updated_at'
+        ),
+        has_map_url: Boolean(data.map_url),
+        has_display_store_name: Boolean(data.display_store_name),
+        has_display_branch_name: Boolean(data.display_branch_name),
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -425,7 +458,7 @@ export async function PATCH(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error),
       },
       500
     )

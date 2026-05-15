@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth, type ApiAuthProfile } from '@/lib/api-auth'
+import { writeAuditLog } from '@/lib/audit-log'
 import {
   isBranchScopedWithoutBranchId,
   shouldFilterByBranch,
@@ -537,9 +538,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const createdOrder = normalizeCreatedOrderData(data)
+    const createdOrderRecord =
+      createdOrder && typeof createdOrder === 'object' && !Array.isArray(createdOrder)
+        ? (createdOrder as Record<string, unknown>)
+        : {}
+    const orderId = stringValue(createdOrderRecord.order_id)
+    const orderNumber = stringValue(createdOrderRecord.order_number)
+    const invoiceId = stringValue(createdOrderRecord.invoice_id)
+    const invoiceNumber = stringValue(createdOrderRecord.invoice_number)
+    const totalValue = Number(createdOrderRecord.total)
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'order.created',
+      entityType: 'order',
+      entityId: orderId || null,
+      branchId: branchId || null,
+      metadata: {
+        order_number: orderNumber || null,
+        invoice_id: invoiceId || null,
+        invoice_number: invoiceNumber || null,
+        created_by_employee_id: createdByEmployeeId || null,
+        branch_id: branchId || null,
+        items_count: validItems.length,
+        payment_method: rpcPayload.p_payment_method,
+        total: Number.isFinite(totalValue) ? totalValue : null,
+        source: 'pos',
+      },
+    })
+
     return jsonWithAuthCookies(auth.response, {
       success: true,
-      data: normalizeCreatedOrderData(data),
+      data: createdOrder,
     })
   } catch {
     return jsonWithAuthCookies(

@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { isBooleanValue } from '@/lib/api/validation'
+import { writeAuditLog } from '@/lib/audit-log'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import {
   isSystemScopedAdmin,
   normalizeAdminBranchId,
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من الفرع',
-          details: branchError.message,
+          ...safeErrorDetails(branchError),
         },
         500
       )
@@ -99,12 +101,25 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل تحديث حالة الفرع',
-          details: updateError.message,
+          ...safeErrorDetails(updateError),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'branch.status_toggled',
+      entityType: 'branch',
+      entityId: branchId,
+      branchId,
+      metadata: {
+        old_is_active: existingBranch.is_active,
+        new_is_active: isActive,
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -122,7 +137,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error),
       },
       500
     )

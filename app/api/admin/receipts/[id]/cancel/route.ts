@@ -1,6 +1,12 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
+import {
+  maskId,
+  redactSensitive,
+  safeErrorDetails,
+} from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -13,8 +19,11 @@ type SupabaseErrorDetails = {
 
 type InvoiceRecord = {
   id: string
+  order_id: string | null
   invoice_number: string | null
   payment_status: string | null
+  total: number | null
+  branch_id: string | null
 }
 
 type ResolvedReceiptInvoice = {
@@ -40,11 +49,43 @@ function isCancelledPaymentStatus(value: string | null | undefined) {
 }
 
 function formatSupabaseError(error: SupabaseErrorDetails | null | undefined) {
+  const formattedError =
+    process.env.NODE_ENV === 'production'
+      ? { code: error?.code }
+      : {
+          code: error?.code,
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+        }
+
+  return redactSensitive(formattedError) as Record<string, unknown>
+}
+
+function sanitizeLogMeta(meta: Record<string, unknown>) {
+  const maskedMeta = Object.fromEntries(
+    Object.entries(meta).map(([key, value]) => {
+      if (
+        typeof value === 'string' &&
+        ['receiptId', 'tenantId', 'invoiceId'].includes(key)
+      ) {
+        return [key, maskId(value)]
+      }
+
+      return [key, value]
+    })
+  )
+
+  return redactSensitive(maskedMeta) as Record<string, unknown>
+}
+
+function safeErrorCode(error: SupabaseErrorDetails | null | undefined) {
+  if (process.env.NODE_ENV === 'production') {
+    return {}
+  }
+
   return {
     code: error?.code,
-    message: error?.message,
-    details: error?.details,
-    hint: error?.hint,
   }
 }
 
@@ -54,7 +95,7 @@ function logSupabaseError(
   meta: Record<string, unknown> = {},
 ) {
   console.error('[admin-receipts-cancel]', step, {
-    ...meta,
+    ...sanitizeLogMeta(meta),
     ...formatSupabaseError(error),
   })
 }
@@ -62,7 +103,7 @@ function logSupabaseError(
 async function findInvoiceById(receiptId: string, tenantId: string) {
   let invoiceQuery = supabaseAdmin
     .from('invoices')
-    .select('id, invoice_number, payment_status')
+    .select('id, order_id, invoice_number, payment_status, total, branch_id')
     .eq('id', receiptId)
 
   invoiceQuery = applyTenantFilter(invoiceQuery, tenantId)
@@ -104,7 +145,7 @@ async function findOrderById(receiptId: string, tenantId: string) {
 async function findInvoiceByOrderId(receiptId: string, tenantId: string) {
   let invoiceQuery = supabaseAdmin
     .from('invoices')
-    .select('id, invoice_number, payment_status')
+    .select('id, order_id, invoice_number, payment_status, total, branch_id')
     .eq('order_id', receiptId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -195,7 +236,10 @@ export async function POST(
         utf8JsonResponse(
           {
             error: 'تعذر التحقق من الإيصال أو الفاتورة المرتبطة',
-            details: error instanceof Error ? error.message : 'Unknown error',
+            ...safeErrorDetails(
+              error,
+              'تعذر التحقق من الإيصال أو الفاتورة المرتبطة'
+            ),
           },
           500,
         ),
@@ -237,7 +281,7 @@ export async function POST(
       })
       .eq('id', invoice.id)
       .eq('tenant_id', tenantId)
-      .select('id, invoice_number, payment_status')
+      .select('id, order_id, invoice_number, payment_status, total, branch_id')
       .single()
 
     if (updateError || !updatedInvoice) {
@@ -255,8 +299,8 @@ export async function POST(
           utf8JsonResponse(
             {
               error: 'قيمة الإلغاء غير مسموحة في قيد حالة الدفع الحالي',
-              details: updateError.message,
-              code: updateError.code,
+              ...safeErrorDetails(updateError, 'قيمة الإلغاء غير مسموحة'),
+              ...safeErrorCode(updateError),
               attempted_payment_status: cancellationPaymentStatus,
             },
             409,
@@ -269,13 +313,30 @@ export async function POST(
         utf8JsonResponse(
           {
             error: 'تعذر إلغاء الإيصال',
-            details: updateError?.message || 'Unknown error',
-            code: updateError?.code,
+            ...safeErrorDetails(updateError, 'تعذر إلغاء الإيصال'),
+            ...safeErrorCode(updateError),
           },
           500,
         ),
       )
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'receipt.cancelled',
+      entityType: 'receipt',
+      entityId: receiptId,
+      branchId: updatedInvoice.branch_id || invoice.branch_id || null,
+      metadata: {
+        order_id: updatedInvoice.order_id || invoice.order_id || null,
+        invoice_number: updatedInvoice.invoice_number || null,
+        receipt_number: null,
+        reason_provided: false,
+        amount: updatedInvoice.total ?? invoice.total ?? null,
+        branch_id: updatedInvoice.branch_id || invoice.branch_id || null,
+      },
+    })
 
     return withAuthCookies(
       auth.response,
@@ -292,16 +353,27 @@ export async function POST(
       }),
     )
   } catch (error) {
-    console.error('[admin-receipts-cancel] unexpected failure', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-    })
+    console.error(
+      '[admin-receipts-cancel] unexpected failure',
+      redactSensitive({
+        message:
+          process.env.NODE_ENV === 'production'
+            ? 'Unexpected receipt cancellation failure'
+            : error instanceof Error
+              ? error.message
+              : 'Unknown error',
+      })
+    )
 
     return withAuthCookies(
       auth.response,
       utf8JsonResponse(
         {
           error: 'حدث خطأ غير متوقع أثناء إلغاء الإيصال',
-          details: error instanceof Error ? error.message : 'Unknown error',
+          ...safeErrorDetails(
+            error,
+            'حدث خطأ غير متوقع أثناء إلغاء الإيصال'
+          ),
         },
         500,
       ),

@@ -6,6 +6,7 @@ import {
   type AuthScopeType,
   type BranchAwareProfileFields,
 } from '@/lib/auth-profile'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export type ApiAuthProfile = {
@@ -137,7 +138,7 @@ export async function requireApiAuth(
       response: NextResponse.json(
         {
           error: 'فشل التحقق الأمني',
-          details: error instanceof Error ? error.message : 'Unknown error',
+          ...safeErrorDetails(error, 'تعذر التحقق الأمني'),
         },
         { status: 500 }
       ),

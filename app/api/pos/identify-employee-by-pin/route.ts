@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import type { AppRole } from '@/lib/app-roles'
+import { redactSensitive, safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type IdentifyEmployeeByPinBody = {
@@ -9,6 +10,8 @@ type IdentifyEmployeeByPinBody = {
 }
 
 const PIN_RESPONSE_DELAY_MS = 300
+const PIN_RATE_LIMIT_MAX_ATTEMPTS = 5
+const PIN_RATE_LIMIT_WINDOW_MS = 60 * 1000
 
 type PosEmployeeRpcRow = {
   id?: string | null
@@ -17,6 +20,13 @@ type PosEmployeeRpcRow = {
   role?: AppRole | string | null
   branch_id?: string | null
 }
+
+type PinRateLimitEntry = {
+  attempts: number
+  resetAt: number
+}
+
+const pinRateLimitStore = new Map<string, PinRateLimitEntry>()
 
 function normalizePin(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
@@ -39,6 +49,50 @@ function sanitizeEmployee(row: PosEmployeeRpcRow | null | undefined) {
     role: row.role as AppRole,
     branch_id: typeof row.branch_id === 'string' ? row.branch_id : null,
   }
+}
+
+function getClientIp(request: NextRequest) {
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  const forwardedIp = forwardedFor?.split(',')[0]?.trim()
+
+  return (
+    forwardedIp ||
+    request.headers.get('x-real-ip') ||
+    request.headers.get('cf-connecting-ip') ||
+    'unknown'
+  )
+}
+
+function buildPinRateLimitKey(
+  request: NextRequest,
+  tenantId: string,
+  branchId: string | null
+) {
+  return [getClientIp(request), tenantId, branchId || 'all-branches'].join(':')
+}
+
+function checkPinRateLimit(key: string) {
+  const now = Date.now()
+  const current = pinRateLimitStore.get(key)
+
+  if (!current || current.resetAt <= now) {
+    pinRateLimitStore.set(key, {
+      attempts: 1,
+      resetAt: now + PIN_RATE_LIMIT_WINDOW_MS,
+    })
+    return true
+  }
+
+  if (current.attempts >= PIN_RATE_LIMIT_MAX_ATTEMPTS) {
+    return false
+  }
+
+  current.attempts += 1
+  return true
+}
+
+function clearPinRateLimit(key: string) {
+  pinRateLimitStore.delete(key)
 }
 
 export async function POST(request: NextRequest) {
@@ -70,23 +124,45 @@ export async function POST(request: NextRequest) {
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
+    const rateLimitKey = buildPinRateLimitKey(
+      request,
+      tenantId,
+      auth.profile.branch_id
+    )
+
+    if (!checkPinRateLimit(rateLimitKey)) {
+      const response = jsonResponse(
+        { error: 'محاولات كثيرة، حاول مرة أخرى بعد دقيقة' },
+        429
+      )
+      return withFixedPinDelay(withAuthCookies(auth.response, response))
+    }
+
     const { data, error } = await supabaseAdmin.rpc('verify_pos_pin', {
       raw_pin: pin,
       tenant_id: tenantId,
     })
 
     if (error) {
-      console.error('[POS PIN] verify_pos_pin RPC failed.', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      })
+      const rpcErrorLog =
+        process.env.NODE_ENV === 'production'
+          ? { code: error.code }
+          : {
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code,
+            }
+
+      console.error(
+        '[POS PIN] verify_pos_pin RPC failed.',
+        redactSensitive(rpcErrorLog)
+      )
 
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من رمز الموظف',
-          details: error.message,
+          ...safeErrorDetails(error, 'تعذر التحقق من رمز الموظف'),
         },
         500
       )
@@ -104,6 +180,8 @@ export async function POST(request: NextRequest) {
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
+    clearPinRateLimit(rateLimitKey)
+
     const response = jsonResponse({
       success: true,
       employee,
@@ -114,7 +192,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ أثناء التحقق من رمز الموظف',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'حدث خطأ أثناء التحقق من رمز الموظف'),
       },
       500
     )

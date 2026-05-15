@@ -1,15 +1,48 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sessionChecked, setSessionChecked] = useState(false)
+  const [hasRecoverySession, setHasRecoverySession] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    let mounted = true
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) {
+        return
+      }
+
+      if (event === 'PASSWORD_RECOVERY') {
+        setHasRecoverySession(Boolean(session))
+        setSessionChecked(true)
+      }
+    })
+
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) {
+        return
+      }
+
+      setHasRecoverySession(Boolean(session))
+      setSessionChecked(true)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
 
   async function handleUpdatePassword(e: React.FormEvent) {
     e.preventDefault()
@@ -82,43 +115,53 @@ export default function ResetPasswordPage() {
             </div>
           ) : null}
 
-          <form onSubmit={handleUpdatePassword} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-200">
-                كلمة المرور الجديدة
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="6 أحرف أو أكثر"
-                className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
-                autoComplete="new-password"
-              />
+          {!sessionChecked ? (
+            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100">
+              جاري التحقق من رابط إعادة التعيين...
             </div>
+          ) : hasRecoverySession ? (
+            <form onSubmit={handleUpdatePassword} className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-200">
+                  كلمة المرور الجديدة
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="6 أحرف أو أكثر"
+                  className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
+                  autoComplete="new-password"
+                />
+              </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-200">
-                تأكيد كلمة المرور
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="أعد كتابة كلمة المرور"
-                className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
-                autoComplete="new-password"
-              />
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-200">
+                  تأكيد كلمة المرور
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="أعد كتابة كلمة المرور"
+                  className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="h-14 w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-base font-black text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(45,212,191,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? 'جاري التحديث...' : 'تحديث كلمة المرور'}
+              </button>
+            </form>
+          ) : (
+            <div className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold leading-7 text-rose-100 shadow-[0_0_35px_rgba(251,113,133,0.08)]">
+              رابط إعادة التعيين غير صالح أو منتهي. اطلب رابطًا جديدًا.
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-14 w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-base font-black text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(45,212,191,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? 'جاري التحديث...' : 'تحديث كلمة المرور'}
-            </button>
-          </form>
+          )}
 
           <p className="mt-6 text-center text-sm text-slate-400">
             تذكرت كلمة المرور؟{' '}

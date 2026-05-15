@@ -2,8 +2,15 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useMemo, type ComponentType, type ReactNode, type SVGProps } from 'react'
-import { usePathname } from 'next/navigation'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+} from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess, type AppRole } from '@/hooks/use-page-access'
@@ -12,6 +19,8 @@ import { supabase } from '@/lib/supabase/client'
 type AdminShellLayoutProps = {
   children: ReactNode
 }
+
+const LOGOUT_REDIRECT_SECONDS = 5
 
 type NavChild = {
   label: string
@@ -111,6 +120,19 @@ function UsersIcon({ className }: { className?: string }) {
       <circle cx="9.5" cy="7" r="3.5" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a3.5 3.5 0 0 1 0 6.74" />
+    </IconBase>
+  )
+}
+
+function ActivityIcon({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <path d="M4 19V5" />
+      <path d="M20 19V5" />
+      <path d="M8 19v-6" />
+      <path d="M12 19V9" />
+      <path d="M16 19v-3" />
+      <path d="M4 19h16" />
     </IconBase>
   )
 }
@@ -260,6 +282,13 @@ const adminNavItems: AdminNavItem[] = [
     icon: UsersIcon,
   },
   {
+    label: 'سجل النشاط',
+    href: '/admin/audit-logs',
+    roles: ['admin'],
+    exact: true,
+    icon: ActivityIcon,
+  },
+  {
     label: 'الإعدادات',
     href: '/admin/settings',
     roles: ['admin'],
@@ -315,10 +344,14 @@ function SidebarLink({
 }
 
 export function AdminShellLayout({ children }: AdminShellLayoutProps) {
+  const router = useRouter()
   const pathname = usePathname()
+  const [logoutOverlayVisible, setLogoutOverlayVisible] = useState(false)
+  const [logoutSignedOut, setLogoutSignedOut] = useState(false)
+  const [logoutCountdown, setLogoutCountdown] = useState(LOGOUT_REDIRECT_SECONDS)
 
   const authState = useAuthState()
-  const access = usePageAccess()
+  const access = usePageAccess([], logoutOverlayVisible ? pathname : '/')
   const {
     loading: authLoading,
     allowed,
@@ -368,12 +401,37 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
     ? profileFullName.split(/\s+/)[0]
     : profileUsername || 'مستخدم'
 
+  useEffect(() => {
+    if (!logoutSignedOut) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      setLogoutCountdown((current) => Math.max(1, current - 1))
+    }, 1000)
+
+    const redirectTimeoutId = window.setTimeout(() => {
+      router.replace('/')
+    }, LOGOUT_REDIRECT_SECONDS * 1000)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.clearTimeout(redirectTimeoutId)
+    }
+  }, [logoutSignedOut, router])
+
   const handleLogout = async () => {
+    if (logoutOverlayVisible) {
+      return
+    }
+
+    setLogoutOverlayVisible(true)
+    setLogoutCountdown(LOGOUT_REDIRECT_SECONDS)
     await supabase.auth.signOut()
-    window.location.href = '/login'
+    setLogoutSignedOut(true)
   }
 
-  if (authLoading) {
+  if (authLoading && !logoutOverlayVisible) {
     return (
       <div className="min-h-screen bg-[#030714] text-white">
         <div className="page-wrap">
@@ -385,7 +443,7 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
     )
   }
 
-  if (!allowed) {
+  if (!allowed && !logoutOverlayVisible) {
     return (
       <div className="min-h-screen bg-[#030714] text-white">
         <div className="page-wrap">
@@ -516,6 +574,7 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
                 <button
                   type="button"
                   onClick={handleLogout}
+                  disabled={logoutOverlayVisible}
                   className="mt-4 flex w-full flex-row-reverse items-center justify-between gap-2.5 rounded-2xl border border-red-400/25 bg-red-500/10 px-3.5 py-3 text-sm font-black text-red-300 transition-all duration-150 hover:bg-red-500/15"
                 >
                   <span className="flex-1 text-right">تسجيل الخروج</span>
@@ -528,6 +587,35 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
           <main className="min-w-0 text-right">{children}</main>
         </div>
       </div>
+
+      {logoutOverlayVisible ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 text-right backdrop-blur-md">
+          <div className="animate-[logout-pop_320ms_ease-out] rounded-[30px] border border-cyan-300/20 bg-[#07111f] px-7 py-8 text-center shadow-[0_30px_110px_rgba(0,0,0,0.62),0_0_70px_rgba(34,211,238,0.16)]">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-300/10 text-emerald-200 shadow-[0_0_34px_rgba(52,211,153,0.2)]">
+              <LogoutIcon className="h-7 w-7" />
+            </div>
+            <h2 className="text-2xl font-black text-white">تم تسجيل خروجك</h2>
+            <p className="mt-3 text-sm font-bold text-slate-400">
+              سيتم توجيهك إلى الصفحة الرئيسية خلال {logoutCountdown} ثوانٍ
+            </p>
+            <div className="mx-auto mt-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-3xl font-black text-cyan-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_35px_rgba(34,211,238,0.16)]">
+              {logoutCountdown}s
+            </div>
+            <style jsx>{`
+              @keyframes logout-pop {
+                from {
+                  opacity: 0;
+                  transform: translateY(10px) scale(0.96);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0) scale(1);
+                }
+              }
+            `}</style>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

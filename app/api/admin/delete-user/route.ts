@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
 import { canManageBranchScopedTarget } from '@/lib/admin/branches'
 import {
   isPrimaryAdminUsername,
   normalizeAdminUserId,
 } from '@/lib/admin/users'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type DeleteUserBody = {
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
     const { data: existingProfile, error: existingProfileError } =
       await supabaseAdmin
         .from('profiles')
-        .select('id, username, role, branch_id')
+        .select('id, username, role, branch_id, is_active')
         .eq('id', userId)
         .eq('tenant_id', tenantId)
         .maybeSingle()
@@ -50,7 +52,10 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
-          details: existingProfileError.message,
+          ...safeErrorDetails(
+            existingProfileError,
+            'تعذر التحقق من المستخدم'
+          ),
         },
         500
       )
@@ -99,7 +104,10 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل حذف المستخدم من profiles',
-          details: deleteProfileError.message,
+          ...safeErrorDetails(
+            deleteProfileError,
+            'تعذر حذف المستخدم من profiles'
+          ),
         },
         400
       )
@@ -114,12 +122,30 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تم حذف المستخدم من profiles لكن فشل حذفه من auth',
-          details: deleteAuthError.message,
+          ...safeErrorDetails(deleteAuthError, 'تعذر حذف المستخدم من auth'),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'user.deleted',
+      entityType: 'profile',
+      entityId: userId,
+      branchId:
+        typeof existingProfile.branch_id === 'string'
+          ? existingProfile.branch_id
+          : null,
+      metadata: {
+        role: existingProfile.role,
+        username: existingProfile.username,
+        branch_id: existingProfile.branch_id,
+        was_active: existingProfile.is_active,
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -131,7 +157,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'تعذر حذف المستخدم'),
       },
       500
     )

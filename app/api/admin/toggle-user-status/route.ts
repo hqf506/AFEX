@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
 import { canManageBranchScopedTarget } from '@/lib/admin/branches'
 import {
   isPrimaryAdminUsername,
   normalizeAdminUserId,
 } from '@/lib/admin/users'
 import { isBooleanValue } from '@/lib/api/validation'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type ToggleUserStatusBody = {
@@ -58,7 +60,10 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
-          details: existingProfileError.message,
+          ...safeErrorDetails(
+            existingProfileError,
+            'تعذر التحقق من المستخدم'
+          ),
         },
         500
       )
@@ -107,12 +112,28 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل تحديث حالة المستخدم',
-          details: updateError.message,
+          ...safeErrorDetails(updateError, 'تعذر تحديث حالة المستخدم'),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'user.status_toggled',
+      entityType: 'profile',
+      entityId: userId,
+      branchId:
+        typeof existingProfile.branch_id === 'string'
+          ? existingProfile.branch_id
+          : null,
+      metadata: {
+        old_is_active: existingProfile.is_active,
+        new_is_active: isActive,
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -131,7 +152,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'تعذر تحديث حالة المستخدم'),
       },
       500
     )

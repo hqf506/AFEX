@@ -7,6 +7,7 @@ import {
 } from '@/lib/admin/settings'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import { safeErrorDetails } from '@/lib/security/redaction'
 
 type OrganizationInfo = {
   storeName: string | null
@@ -23,6 +24,48 @@ type VatSettingInfo = {
   rate: number
   isActive: boolean
   branchId: string | null
+}
+
+const SENSITIVE_SETTINGS_FIELDS = new Set([
+  'ultramsg_token',
+  'ultramsg_instance_id',
+  'ultramsg_api_url',
+])
+
+function isSensitiveSettingsField(key: string) {
+  const normalizedKey = key.toLowerCase()
+
+  return (
+    SENSITIVE_SETTINGS_FIELDS.has(normalizedKey) ||
+    normalizedKey.includes('token') ||
+    normalizedKey.includes('secret') ||
+    normalizedKey.includes('api_key') ||
+    normalizedKey.includes('apikey') ||
+    normalizedKey.includes('access_key')
+  )
+}
+
+function hasStoredSettingValue(value: unknown) {
+  return typeof value === 'string' ? value.trim().length > 0 : Boolean(value)
+}
+
+function sanitizeSystemSettings(settings: unknown) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+    return null
+  }
+
+  const sanitized: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(settings)) {
+    if (isSensitiveSettingsField(key)) {
+      sanitized[`has_${key}`] = hasStoredSettingValue(value)
+      continue
+    }
+
+    sanitized[key] = value
+  }
+
+  return sanitized
 }
 
 export async function GET(request: NextRequest) {
@@ -58,7 +101,7 @@ export async function GET(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل تحميل إعدادات النظام',
-          details: error.message,
+          ...safeErrorDetails(error, 'فشل تحميل إعدادات النظام'),
         },
         500
       )
@@ -123,15 +166,17 @@ export async function GET(request: NextRequest) {
       branchVatResult.error ||
       globalVatResult.error
     ) {
+      const organizationError =
+        tenantResult.error ||
+        ownerResult.error ||
+        branchResult.error ||
+        branchVatResult.error ||
+        globalVatResult.error
+
       const response = jsonResponse(
         {
           error: 'فشل تحميل معلومات المنشأة',
-          details:
-            tenantResult.error?.message ||
-            ownerResult.error?.message ||
-            branchResult.error?.message ||
-            branchVatResult.error?.message ||
-            globalVatResult.error?.message,
+          ...safeErrorDetails(organizationError, 'فشل تحميل معلومات المنشأة'),
         },
         500
       )
@@ -165,7 +210,7 @@ export async function GET(request: NextRequest) {
 
     const response = jsonResponse({
       success: true,
-      settings: data || null,
+      settings: sanitizeSystemSettings(data),
       organizationInfo,
       vatSetting,
     })
@@ -175,7 +220,7 @@ export async function GET(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع أثناء تحميل الإعدادات',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع أثناء تحميل الإعدادات'),
       },
       500
     )
@@ -220,7 +265,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل التحقق من سجل الإعدادات الحالي',
-          details: existingError.message,
+          ...safeErrorDetails(existingError, 'فشل التحقق من سجل الإعدادات الحالي'),
         },
         500
       )
@@ -254,7 +299,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل حفظ إعدادات النظام',
-          details: error.message,
+          ...safeErrorDetails(error, 'فشل حفظ إعدادات النظام'),
         },
         400
       )
@@ -273,7 +318,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع أثناء حفظ الإعدادات',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع أثناء حفظ الإعدادات'),
       },
       500
     )

@@ -1,5 +1,12 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuthState } from '@/components/auth-state-provider'
+import { supabase } from '@/lib/supabase/client'
+import { normalizeUsername } from '@/lib/usernames'
 
 const navLinks = [
   { href: '/', label: 'الرئيسية' },
@@ -10,7 +17,7 @@ const navLinks = [
 
 const quickLinks = [
   { href: '/pos', label: 'نقطة البيع POS' },
-  { href: '/admin/dashboard', label: 'Admin' },
+  { href: '/admin/dashboard', label: 'لوحة التحكم' },
   { href: '/admin/orders', label: 'Orders' },
 ]
 
@@ -133,11 +140,144 @@ function Logo({ className = '' }: { className?: string }) {
   )
 }
 
+function UserIcon() {
+  return (
+    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-300/10 text-cyan-100">
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+        <path
+          d="M16 9a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M5 20a7 7 0 0 1 14 0"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="1.8"
+        />
+      </svg>
+    </span>
+  )
+}
+
+function getFirstName(value: string) {
+  return value.trim().split(/\s+/)[0] || value.trim()
+}
+
 export default function LandingPage() {
+  const router = useRouter()
+  const authState = useAuthState()
+  const [loginModalOpen, setLoginModalOpen] = useState(false)
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [loginError, setLoginError] = useState('')
+  const [localFirstName, setLocalFirstName] = useState('')
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+
+  const profileName = authState.profile?.full_name?.trim() || ''
+  const displayFirstName = localFirstName || (profileName ? getFirstName(profileName) : '')
+  const isSignedIn = authState.status === 'authenticated'
+
+  function openLoginModal() {
+    setLoginError('')
+    setLoginModalOpen(true)
+  }
+
+  function closeLoginModal() {
+    setLoginModalOpen(false)
+    setLoginError('')
+  }
+
+  async function handleLandingLogout() {
+    await supabase.auth.signOut()
+    setAccountMenuOpen(false)
+    setLocalFirstName('')
+    router.replace('/')
+  }
+
+  function handleDashboardClick() {
+    if (isSignedIn) {
+      router.push('/admin/dashboard')
+      return
+    }
+
+    openLoginModal()
+  }
+
+  async function handleLandingLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setLoginError('')
+
+    try {
+      setLoginLoading(true)
+
+      const normalizedUsername = normalizeUsername(loginUsername)
+
+      if (!normalizedUsername) {
+        throw new Error('يرجى كتابة اسم المستخدم')
+      }
+
+      if (!loginPassword.trim()) {
+        throw new Error('يرجى كتابة كلمة المرور')
+      }
+
+      const checkResponse = await fetch('/api/auth/check-username', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: normalizedUsername,
+        }),
+      })
+
+      const checkResult = await checkResponse.json()
+
+      if (!checkResponse.ok) {
+        throw new Error(checkResult?.details || checkResult?.error || 'تعذر التحقق من المستخدم')
+      }
+
+      if (!checkResult?.exists) {
+        throw new Error('اسم المستخدم غير صحيح')
+      }
+
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: normalizedUsername,
+          password: loginPassword,
+        }),
+      })
+      const loginResult = await loginResponse.json().catch(() => null)
+
+      if (!loginResponse.ok || !loginResult?.success) {
+        throw new Error(loginResult?.error || 'كلمة المرور غير صحيحة')
+      }
+
+      const nextFirstName =
+        typeof loginResult.firstName === 'string' && loginResult.firstName.trim()
+          ? loginResult.firstName.trim()
+          : normalizedUsername
+
+      setLocalFirstName(nextFirstName)
+      setAccountMenuOpen(false)
+      setLoginPassword('')
+      setLoginModalOpen(false)
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : 'حدث خطأ أثناء تسجيل الدخول')
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-hidden bg-[#030714] text-white"
+      className="min-h-screen overflow-x-hidden bg-[#030714] text-white"
     >
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_17%_20%,rgba(34,211,238,0.2),transparent_22%),radial-gradient(circle_at_88%_12%,rgba(45,212,191,0.16),transparent_24%),radial-gradient(circle_at_48%_88%,rgba(30,64,175,0.24),transparent_30%),linear-gradient(180deg,#030714_0%,#050b18_48%,#030714_100%)]" />
@@ -146,8 +286,8 @@ export default function LandingPage() {
         <div className="absolute bottom-0 h-[220px] w-full opacity-30 [background-image:linear-gradient(rgba(45,212,191,0.22)_1px,transparent_1px),linear-gradient(90deg,rgba(45,212,191,0.16)_1px,transparent_1px)] [background-size:58px_58px] [mask-image:linear-gradient(to_top,black,transparent)]" />
       </div>
 
-      <header className="relative z-20 px-4 pt-5 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl items-center justify-between rounded-3xl border border-white/12 bg-[#07101f]/75 px-4 py-3 shadow-[0_22px_80px_rgba(0,0,0,0.38)] backdrop-blur-xl">
+      <header className="relative z-[80] px-4 pt-5 sm:px-6 lg:px-8">
+        <div className="relative z-[80] mx-auto flex max-w-7xl items-center justify-between overflow-visible rounded-3xl border border-white/12 bg-[#07101f]/75 px-4 py-3 shadow-[0_22px_80px_rgba(0,0,0,0.38)] backdrop-blur-xl">
           <Link href="/" className="flex items-center">
             <Logo className="h-12 w-auto object-contain md:h-14" />
           </Link>
@@ -165,30 +305,77 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2 text-xs font-bold">
-            <Link
-              href="/login"
-              className="rounded-2xl border border-white/14 px-4 py-3 text-white/85 transition hover:border-white/30 hover:bg-white/8"
-            >
-              تسجيل الدخول
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-4 py-3 text-slate-950 shadow-[0_0_28px_rgba(45,212,191,0.35)] transition hover:brightness-110"
-            >
-              إنشاء حساب جديد
-            </Link>
+            {displayFirstName ? (
+              <div className="relative z-[90]">
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((current) => !current)}
+                  className="flex items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.035] px-3 py-2 text-white/85 transition hover:border-cyan-200/30 hover:bg-white/[0.07]"
+                  aria-expanded={accountMenuOpen}
+                >
+                  <UserIcon />
+                  <span>مرحباً، {displayFirstName}</span>
+                </button>
+
+                {isSignedIn && accountMenuOpen ? (
+                  <div className="absolute left-0 top-[calc(100%+0.65rem)] z-[999] w-56 rounded-2xl border border-cyan-300/25 bg-[#06111f]/95 p-2 text-right shadow-[0_28px_90px_rgba(0,0,0,0.58),0_0_45px_rgba(34,211,238,0.16)] backdrop-blur-xl">
+                    <Link
+                      href="/account"
+                      onClick={() => setAccountMenuOpen(false)}
+                      className="block rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-200 transition hover:bg-cyan-300/10 hover:text-cyan-100"
+                    >
+                      تعديل الحساب
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLandingLogout}
+                      className="mt-1 block w-full rounded-xl px-3.5 py-2.5 text-right text-sm font-bold text-rose-200 transition hover:bg-rose-400/10 hover:text-rose-100"
+                    >
+                      تسجيل الخروج
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={openLoginModal}
+                className="rounded-2xl border border-white/14 px-4 py-3 text-white/85 transition hover:border-white/30 hover:bg-white/8"
+              >
+                تسجيل الدخول
+              </button>
+            )}
+            {!isSignedIn ? (
+              <Link
+                href="/signup"
+                className="rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-4 py-3 text-slate-950 shadow-[0_0_28px_rgba(45,212,191,0.35)] transition hover:brightness-110"
+              >
+                إنشاء حساب جديد
+              </Link>
+            ) : null}
           </div>
         </div>
 
         <div className="mx-auto mt-5 flex max-w-7xl flex-wrap justify-center gap-2 lg:justify-end">
           {quickLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-bold text-white/70 backdrop-blur transition hover:border-cyan-200/30 hover:text-cyan-100"
-            >
-              {link.label}
-            </Link>
+            link.href === '/admin/dashboard' ? (
+              <button
+                key={link.href}
+                type="button"
+                onClick={handleDashboardClick}
+                className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-bold text-white/70 backdrop-blur transition hover:border-cyan-200/30 hover:text-cyan-100"
+              >
+                {link.label}
+              </button>
+            ) : (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-bold text-white/70 backdrop-blur transition hover:border-cyan-200/30 hover:text-cyan-100"
+              >
+                {link.label}
+              </Link>
+            )
           ))}
         </div>
       </header>
@@ -215,20 +402,23 @@ export default function LandingPage() {
               واحدة متكاملة وآمنة.
             </p>
 
-            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-              <Link
-                href="/signup"
-                className="inline-flex min-h-[56px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-8 text-sm font-black text-slate-950 shadow-[0_22px_60px_rgba(45,212,191,0.28)] transition hover:-translate-y-1 hover:shadow-[0_26px_70px_rgba(45,212,191,0.38)] active:scale-[0.98]"
-              >
-                ابدأ الآن مجانًا
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex min-h-[56px] items-center justify-center rounded-2xl border border-white/16 bg-white/[0.035] px-8 text-sm font-black text-white backdrop-blur transition hover:-translate-y-1 hover:bg-white/[0.07] active:scale-[0.98]"
-              >
-                تسجيل الدخول
-              </Link>
-            </div>
+            {!isSignedIn ? (
+              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
+                <Link
+                  href="/signup"
+                  className="inline-flex min-h-[56px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-8 text-sm font-black text-slate-950 shadow-[0_22px_60px_rgba(45,212,191,0.28)] transition hover:-translate-y-1 hover:shadow-[0_26px_70px_rgba(45,212,191,0.38)] active:scale-[0.98]"
+                >
+                  ابدأ الآن مجانًا
+                </Link>
+                <button
+                  type="button"
+                  onClick={openLoginModal}
+                  className="inline-flex min-h-[56px] items-center justify-center rounded-2xl border border-white/16 bg-white/[0.035] px-8 text-sm font-black text-white backdrop-blur transition hover:-translate-y-1 hover:bg-white/[0.07] active:scale-[0.98]"
+                >
+                  تسجيل الدخول
+                </button>
+              </div>
+            ) : null}
 
             <div className="mt-7 flex flex-wrap justify-center gap-5 text-sm font-semibold text-slate-300 lg:justify-start">
               {['بدون بطاقة ائتمان', 'إعداد سريع', 'دعم فني مباشر'].map((label) => (
@@ -402,17 +592,92 @@ export default function LandingPage() {
                 >
                   إنشاء حساب جديد
                 </Link>
-                <Link
-                  href="/login"
+                <button
+                  type="button"
+                  onClick={openLoginModal}
                   className="inline-flex min-h-[54px] items-center justify-center rounded-2xl border border-white/15 bg-white/[0.035] px-8 text-sm font-black text-white transition hover:-translate-y-1 hover:bg-white/[0.07] active:scale-[0.98]"
                 >
                   تسجيل الدخول
-                </Link>
+                </button>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      {loginModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="landing-login-title"
+            className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]"
+          >
+            <div className="mb-5">
+              <h3 id="landing-login-title" className="text-2xl font-black text-white">
+                تسجيل الدخول
+              </h3>
+              <p className="mt-1 text-sm leading-7 text-slate-400">
+                أدخل بياناتك للمتابعة داخل AFEX.
+              </p>
+            </div>
+
+            {loginError ? (
+              <div className="mb-4 rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-100">
+                {loginError}
+              </div>
+            ) : null}
+
+            <form onSubmit={handleLandingLogin} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-200">
+                  اسم المستخدم
+                </label>
+                <input
+                  type="text"
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  placeholder="يرجى كتابة اسم المستخدم"
+                  className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
+                  autoComplete="username"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-200">
+                  كلمة المرور
+                </label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="يرجى كتابة كلمة المرور"
+                  className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
+                  autoComplete="current-password"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={closeLoginModal}
+                  className="h-12 rounded-2xl border border-white/10 bg-white/[0.045] px-5 text-sm font-bold text-slate-200 transition hover:bg-white/[0.075]"
+                >
+                  إلغاء
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loginLoading}
+                  className="h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_0_34px_rgba(34,211,238,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loginLoading ? 'جاري الدخول...' : 'دخول'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

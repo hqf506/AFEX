@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
 import {
   canManageBranchScopedTarget,
   requiresAssignedBranch,
@@ -11,6 +12,7 @@ import {
   normalizeAdminUserId,
 } from '@/lib/admin/users'
 import { type AppRole } from '@/lib/app-roles'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type UpdateUserRoleBody = {
@@ -63,7 +65,10 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
-          details: profileCheckError.message,
+          ...safeErrorDetails(
+            profileCheckError,
+            'تعذر التحقق من المستخدم'
+          ),
         },
         500
       )
@@ -126,12 +131,25 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل تحديث الصلاحية',
-          details: updateError.message,
+          ...safeErrorDetails(updateError, 'تعذر تحديث الصلاحية'),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'user.role_updated',
+      entityType: 'profile',
+      entityId: userId,
+      branchId: targetBranchId,
+      metadata: {
+        old_role: existingProfile.role,
+        new_role: role,
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -148,7 +166,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'تعذر تحديث الصلاحية'),
       },
       500
     )

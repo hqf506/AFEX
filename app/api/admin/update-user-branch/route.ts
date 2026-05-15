@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
 import {
   canManageBranchScopedTarget,
   isSystemScopedAdmin,
@@ -11,6 +12,7 @@ import {
   isPrimaryAdminUsername,
   normalizeAdminUserId,
 } from '@/lib/admin/users'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type UpdateUserBranchBody = {
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
-          details: profileError.message,
+          ...safeErrorDetails(profileError, 'تعذر التحقق من المستخدم'),
         },
         500
       )
@@ -127,7 +129,7 @@ export async function POST(request: NextRequest) {
         const response = jsonResponse(
           {
             error: 'تعذر التحقق من الفرع',
-            details: branchError.message,
+            ...safeErrorDetails(branchError, 'تعذر التحقق من الفرع'),
           },
           500
         )
@@ -156,12 +158,25 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل تحديث فرع المستخدم',
-          details: updateError.message,
+          ...safeErrorDetails(updateError, 'تعذر تحديث فرع المستخدم'),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'user.branch_updated',
+      entityType: 'profile',
+      entityId: userId,
+      branchId: branchId || null,
+      metadata: {
+        old_branch_id: existingProfile.branch_id,
+        new_branch_id: branchId || null,
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -178,7 +193,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'تعذر تحديث فرع المستخدم'),
       },
       500
     )

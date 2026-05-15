@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { jsonResponse } from '@/lib/api/responses'
 import { getTrimmedString } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api-auth'
+import { writeAuditLog } from '@/lib/audit-log'
+import { maskPhone } from '@/lib/security/redaction'
 import { logWhatsAppSend } from '@/lib/whatsapp/logging'
 import {
   acquireWhatsAppOrderStatusNotificationLock,
@@ -14,6 +16,7 @@ import {
   sendWhatsAppTestMessage,
   sendWhatsAppText,
 } from '@/lib/whatsapp/service'
+import type { WhatsAppServiceResult } from '@/lib/whatsapp/types'
 
 type SendWhatsAppBody = {
   type?: 'text' | 'file'
@@ -31,6 +34,15 @@ type SendWhatsAppBody = {
   }
 }
 
+type WhatsAppRateLimitEntry = {
+  count: number
+  resetAt: number
+}
+
+const WHATSAPP_RATE_LIMIT_MAX_MESSAGES = 20
+const WHATSAPP_RATE_LIMIT_WINDOW_MS = 60 * 1000
+const whatsappRateLimitStore = new Map<string, WhatsAppRateLimitEntry>()
+
 function resolveRequestBranchId(
   requestedBranchId: string,
   scopeType: 'system' | 'branch',
@@ -41,6 +53,122 @@ function resolveRequestBranchId(
   }
 
   return actorBranchId || ''
+}
+
+function getClientIp(request: NextRequest) {
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  const forwardedIp = forwardedFor?.split(',')[0]?.trim()
+
+  return (
+    forwardedIp ||
+    request.headers.get('x-real-ip') ||
+    request.headers.get('cf-connecting-ip') ||
+    'unknown'
+  )
+}
+
+function buildWhatsAppRateLimitKey(
+  request: NextRequest,
+  tenantId: string,
+  branchId: string
+) {
+  return [getClientIp(request), tenantId, branchId].join(':')
+}
+
+function checkWhatsAppRateLimit(key: string) {
+  const now = Date.now()
+  const current = whatsappRateLimitStore.get(key)
+
+  if (!current || current.resetAt <= now) {
+    whatsappRateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + WHATSAPP_RATE_LIMIT_WINDOW_MS,
+    })
+    return true
+  }
+
+  if (current.count >= WHATSAPP_RATE_LIMIT_MAX_MESSAGES) {
+    return false
+  }
+
+  current.count += 1
+  return true
+}
+
+function rateLimitResponse() {
+  return jsonResponse(
+    {
+      success: false,
+      error: 'تم تجاوز حد إرسال الرسائل، حاول لاحقًا',
+    },
+    429
+  )
+}
+
+function whatsAppSuccessResponse(result: WhatsAppServiceResult) {
+  return jsonResponse({
+    success: true,
+    status: result.providerStatus || 'sent',
+    providerMessageId: result.providerMessageId || null,
+  })
+}
+
+function whatsAppFailureResponse() {
+  return jsonResponse(
+    {
+      success: false,
+      error: 'تعذر إرسال رسالة واتساب',
+    },
+    500
+  )
+}
+
+type SuccessfulWhatsAppAuditInput = {
+  auth: Extract<Awaited<ReturnType<typeof requireApiAuth>>, { ok: true }>
+  request: NextRequest
+  result: WhatsAppServiceResult
+  branchId: string
+  mode: 'text' | 'test'
+  type: 'text' | 'file'
+  to: string
+  hasText: boolean
+  hasFile: boolean
+  orderId?: string
+  orderStatus?: string
+}
+
+async function writeSuccessfulWhatsAppAudit({
+  auth,
+  request,
+  result,
+  branchId,
+  mode,
+  type,
+  to,
+  hasText,
+  hasFile,
+  orderId,
+  orderStatus,
+}: SuccessfulWhatsAppAuditInput) {
+  await writeAuditLog({
+    auth,
+    request,
+    action: 'whatsapp.message_sent',
+    entityType: 'whatsapp_message',
+    entityId: result.providerMessageId || orderId || null,
+    branchId,
+    metadata: {
+      channel: 'whatsapp',
+      mode: type === 'file' ? 'file' : mode,
+      type,
+      has_text: hasText,
+      has_file: hasFile,
+      order_id: orderId || null,
+      order_status: orderStatus || null,
+      recipient_masked: maskPhone(to),
+      provider_status: result.providerStatus || null,
+    },
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -82,6 +210,8 @@ export async function POST(req: NextRequest) {
             channel: notificationChannel,
           }
         : null
+    const rateLimitKey =
+      tenantId && branchId ? buildWhatsAppRateLimitKey(req, tenantId, branchId) : ''
 
     if (!to) {
       return jsonResponse(
@@ -154,6 +284,10 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        if (!checkWhatsAppRateLimit(rateLimitKey)) {
+          return rateLimitResponse()
+        }
+
         const result =
           type === 'file'
             ? await sendWhatsAppFile(
@@ -194,15 +328,7 @@ export async function POST(req: NextRequest) {
               )
 
         if (!result.success) {
-          return jsonResponse(
-            {
-              success: false,
-              providerKey: result.providerKey,
-              error: result.errorMessage || 'WhatsApp send failed',
-              result: result.raw ?? null,
-            },
-            500
-          )
+          return whatsAppFailureResponse()
         }
 
         await markWhatsAppOrderStatusNotificationSent(notificationKey, {
@@ -210,14 +336,28 @@ export async function POST(req: NextRequest) {
           phone: to,
         })
 
-        return jsonResponse({
-          success: true,
-          providerKey: result.providerKey,
-          result: result.raw ?? null,
+        await writeSuccessfulWhatsAppAudit({
+          auth,
+          request: req,
+          result,
+          branchId,
+          mode,
+          type,
+          to,
+          hasText: Boolean(text),
+          hasFile: type === 'file' && Boolean(fileUrl),
+          orderId: notificationOrderId,
+          orderStatus: notificationStatus,
         })
+
+        return whatsAppSuccessResponse(result)
       } finally {
         await releaseWhatsAppOrderStatusNotificationLock(notificationKey)
       }
+    }
+
+    if (!checkWhatsAppRateLimit(rateLimitKey)) {
+      return rateLimitResponse()
     }
 
     const result =
@@ -257,22 +397,22 @@ export async function POST(req: NextRequest) {
             )
 
     if (!result.success) {
-      return jsonResponse(
-        {
-          success: false,
-          providerKey: result.providerKey,
-          error: result.errorMessage || 'WhatsApp send failed',
-          result: result.raw ?? null,
-        },
-        500
-      )
+      return whatsAppFailureResponse()
     }
 
-    return jsonResponse({
-      success: true,
-      providerKey: result.providerKey,
-      result: result.raw ?? null,
+    await writeSuccessfulWhatsAppAudit({
+      auth,
+      request: req,
+      result,
+      branchId,
+      mode,
+      type,
+      to,
+      hasText: Boolean(text),
+      hasFile: type === 'file' && Boolean(fileUrl),
     })
+
+    return whatsAppSuccessResponse(result)
   } catch (error) {
     logWhatsAppSend({
       provider: 'unknown',
@@ -286,7 +426,7 @@ export async function POST(req: NextRequest) {
     return jsonResponse(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'تعذر إرسال رسالة واتساب',
       },
       500
     )

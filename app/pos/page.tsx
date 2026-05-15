@@ -408,7 +408,13 @@ export default function PosPage() {
       return
     }
 
-    setActivePosEmployee(readActivePosEmployee())
+    const timeoutId = window.setTimeout(() => {
+      setActivePosEmployee(readActivePosEmployee())
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
   }, [access.allowed, isPosLoginPage])
 
   useEffect(() => {
@@ -618,9 +624,9 @@ export default function PosPage() {
       setLoggingOut(true)
       clearActivePosEmployee()
       await supabase.auth.signOut()
+      router.push('/')
     } finally {
       clearActivePosEmployee()
-      window.location.href = '/pos/login'
     }
   }
 

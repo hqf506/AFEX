@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
 import { canManageBranchScopedTarget } from '@/lib/admin/branches'
 import {
   isValidAdminPosPin,
   normalizeAdminUserId,
 } from '@/lib/admin/users'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type ResetUserPosPinBody = {
@@ -64,7 +66,10 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر التحقق من المستخدم',
-          details: existingProfileError.message,
+          ...safeErrorDetails(
+            existingProfileError,
+            'تعذر التحقق من المستخدم'
+          ),
         },
         500
       )
@@ -101,12 +106,27 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر حفظ POS PIN بشكل آمن',
-          details: setPinError.message,
+          ...safeErrorDetails(setPinError, 'تعذر حفظ POS PIN بشكل آمن'),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'user.pos_pin_reset',
+      entityType: 'profile',
+      entityId: userId,
+      branchId:
+        typeof existingProfile.branch_id === 'string'
+          ? existingProfile.branch_id
+          : null,
+      metadata: {
+        reset_by_admin: true,
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -118,7 +138,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'تعذر إعادة تعيين POS PIN'),
       },
       500
     )

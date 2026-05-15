@@ -4,8 +4,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
-import { getCurrentUserProfile } from '@/lib/auth'
 import { normalizeUsername } from '@/lib/usernames'
 
 const highlights = ['آمن وموثوق', 'سريع وفعال', 'تقارير ذكية']
@@ -53,12 +51,15 @@ export default function LoginPage() {
     try {
       setResetLoading(true)
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
       })
-
-      if (error) {
-        throw error
+      if (!response.ok && response.status !== 429) {
+        throw new Error('reset request failed')
       }
 
       setResetMessage('إذا كان البريد مسجلًا، سيتم إرسال رابط إعادة التعيين')
@@ -106,40 +107,26 @@ export default function LoginPage() {
         throw new Error('اسم المستخدم غير صحيح')
       }
 
-      if (checkResult?.user && checkResult.user.is_active === false) {
-        throw new Error('هذا الحساب معطل، راجع الأدمن')
-      }
-
-      const profileEmail =
-        typeof checkResult?.login_email === 'string'
-          ? checkResult.login_email.trim()
-          : ''
-
-      if (!profileEmail) {
-        throw new Error('هذا المستخدم لا يملك بريد مرتبط')
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: profileEmail,
-        password,
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: normalizedUsername,
+          password,
+        }),
       })
+      const loginResult = await loginResponse.json().catch(() => null)
 
-      if (error) {
-        throw new Error('كلمة المرور غير صحيحة')
-      }
-
-      if (!data.user) {
-        throw new Error('تعذر تسجيل الدخول')
-      }
-
-      const profile = await getCurrentUserProfile({ user: data.user })
-
-      if (!profile?.role) {
-        throw new Error('تعذر العثور على ملف المستخدم أو الصلاحية')
+      if (!loginResponse.ok || !loginResult?.success) {
+        throw new Error(loginResult?.error || 'كلمة المرور غير صحيحة')
       }
 
       const redirectPath =
-        profile.role === 'admin' ? '/admin/dashboard' : '/pos'
+        typeof loginResult.redirectPath === 'string'
+          ? loginResult.redirectPath
+          : '/pos'
 
       router.replace(redirectPath)
       router.refresh()

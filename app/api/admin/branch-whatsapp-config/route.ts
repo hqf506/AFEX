@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
 import {
   canManageBranchWhatsAppConfig,
   isValidBranchWhatsAppApiUrl,
@@ -18,6 +19,8 @@ import {
   sanitizeBranchWhatsAppConfig,
   type BranchWhatsAppConfigRow,
 } from '@/lib/admin/branch-whatsapp-config'
+import { safeErrorDetails } from '@/lib/security/redaction'
+import { maskPhone } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -29,6 +32,23 @@ type BranchWhatsAppConfigBody = {
   token?: string
   api_url?: string
   is_active?: boolean | string
+}
+
+function sanitizeBranchWhatsAppConfigForResponse(
+  config: BranchWhatsAppConfigRow
+) {
+  const publicConfig = {
+    ...sanitizeBranchWhatsAppConfig(config),
+  } as Record<string, unknown>
+
+  delete publicConfig.token
+  delete publicConfig.instance_id
+  delete publicConfig.api_url
+
+  publicConfig.has_instance_id = Boolean(config.instance_id?.trim())
+  publicConfig.has_api_url = Boolean(config.api_url?.trim())
+
+  return publicConfig
 }
 
 async function getExistingConfig(branchId: string, tenantId: string) {
@@ -115,7 +135,7 @@ export async function GET(request: NextRequest) {
       auth.response,
       jsonResponse({
         success: true,
-        config: config ? sanitizeBranchWhatsAppConfig(config) : null,
+        config: config ? sanitizeBranchWhatsAppConfigForResponse(config) : null,
       })
     )
   } catch (error) {
@@ -124,7 +144,7 @@ export async function GET(request: NextRequest) {
       jsonResponse(
         {
           error: 'تعذر تحميل إعدادات واتساب',
-          details: error instanceof Error ? error.message : 'Unknown error',
+          ...safeErrorDetails(error),
         },
         500
       )
@@ -275,7 +295,7 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
         jsonResponse(
           {
             error: 'تعذر التحقق من الفرع',
-            details: branchError.message,
+            ...safeErrorDetails(branchError),
           },
           500
         )
@@ -346,7 +366,7 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
         jsonResponse(
           {
             error: 'فشل حفظ إعدادات واتساب',
-            details: saveError.message,
+            ...safeErrorDetails(saveError),
           },
           500
         )
@@ -355,6 +375,23 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
 
     const savedConfig = await getExistingConfig(resolvedBranchId, tenantId)
 
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'whatsapp.config_saved',
+      entityType: 'branch_whatsapp_config',
+      entityId: savedConfig?.id || resolvedBranchId,
+      branchId: resolvedBranchId,
+      metadata: {
+        provider,
+        phone_number_masked: phoneNumber ? maskPhone(phoneNumber) : null,
+        is_active: isActive,
+        has_token: Boolean(finalToken),
+        has_instance_id: Boolean(instanceId),
+        has_api_url: Boolean(apiUrl),
+      },
+    })
+
     return withAuthCookies(
       auth.response,
       jsonResponse({
@@ -362,7 +399,9 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
         message: existingConfig
           ? 'تم تحديث إعدادات واتساب بنجاح'
           : 'تم حفظ إعدادات واتساب بنجاح',
-        config: savedConfig ? sanitizeBranchWhatsAppConfig(savedConfig) : null,
+        config: savedConfig
+          ? sanitizeBranchWhatsAppConfigForResponse(savedConfig)
+          : null,
       })
     )
   } catch (error) {
@@ -371,7 +410,7 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
       jsonResponse(
         {
           error: 'حدث خطأ غير متوقع',
-          details: error instanceof Error ? error.message : 'Unknown error',
+          ...safeErrorDetails(error),
         },
         500
       )

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { writeAuditLog } from '@/lib/audit-log'
 import {
   normalizeAdminBranchId,
   requiresAssignedBranch,
@@ -13,6 +14,7 @@ import {
   normalizeAdminFullName,
 } from '@/lib/admin/users'
 import { type AppRole } from '@/lib/app-roles'
+import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
 
@@ -29,6 +31,40 @@ type CreateUserBody = {
 
 function normalizeOptionalText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+async function getAvailableUsernameSuggestions(username: string) {
+  const year = new Date().getFullYear()
+  const baseCandidates = [`${username}1`, `${username}_${year}`, `${username}_afex`]
+  const suggestions: string[] = []
+  let attempt = 0
+
+  while (suggestions.length < 3 && attempt < 12) {
+    const candidates = baseCandidates
+      .map((candidate) => (attempt === 0 ? candidate : `${candidate}${attempt + 1}`))
+      .filter((candidate) => !suggestions.includes(candidate))
+
+    for (const candidate of candidates) {
+      const { data: existingProfile, error } = await supabaseAdmin
+        .from('profiles')
+        .select('username')
+        .ilike('username', candidate)
+        .limit(1)
+        .maybeSingle()
+
+      if (error) {
+        throw error
+      }
+
+      if (!existingProfile && suggestions.length < 3) {
+        suggestions.push(candidate)
+      }
+    }
+
+    attempt += 1
+  }
+
+  return suggestions
 }
 
 export async function POST(request: NextRequest) {
@@ -125,7 +161,10 @@ export async function POST(request: NextRequest) {
         const response = jsonResponse(
           {
             error: 'تعذر التحقق من الفرع',
-            details: existingBranchError.message,
+            ...safeErrorDetails(
+              existingBranchError,
+              'تعذر التحقق من الفرع'
+            ),
           },
           500
         )
@@ -147,14 +186,18 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from('profiles')
         .select('id, username')
-        .eq('username', username)
+        .ilike('username', username)
+        .limit(1)
         .maybeSingle()
 
     if (existingProfileError) {
       const response = jsonResponse(
         {
           error: 'فشل التحقق من اسم المستخدم في profiles',
-          details: existingProfileError.message,
+          ...safeErrorDetails(
+            existingProfileError,
+            'تعذر التحقق من اسم المستخدم'
+          ),
         },
         500
       )
@@ -162,10 +205,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingProfile) {
+      const suggestions = await getAvailableUsernameSuggestions(username)
       const response = jsonResponse(
         {
           error: 'اسم المستخدم مستخدم بالفعل',
-          details: `username "${username}" موجود مسبقًا`,
+          details: 'اسم المستخدم موجود مسبقًا',
+          suggestions,
         },
         409
       )
@@ -179,7 +224,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل قراءة مستخدمي auth',
-          details: listUsersError.message,
+          ...safeErrorDetails(listUsersError, 'تعذر قراءة مستخدمي auth'),
         },
         500
       )
@@ -194,7 +239,7 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'المستخدم موجود مسبقًا في auth',
-          details: `email "${internalEmail}" موجود مسبقًا في auth.users`,
+          details: 'المستخدم موجود مسبقًا في auth',
         },
         409
       )
@@ -217,7 +262,10 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'فشل إنشاء المستخدم في auth',
-          details: createAuthError?.message || 'Unknown auth error',
+          ...safeErrorDetails(
+            createAuthError?.message || 'Unknown auth error',
+            'تعذر إنشاء المستخدم في auth'
+          ),
         },
         400
       )
@@ -241,10 +289,32 @@ export async function POST(request: NextRequest) {
     if (profileInsertError) {
       await supabaseAdmin.auth.admin.deleteUser(userId)
 
+      if (
+        profileInsertError.code === '23505' ||
+        profileInsertError.message.toLowerCase().includes('username')
+      ) {
+        const suggestions = await getAvailableUsernameSuggestions(username)
+        const response = jsonResponse(
+          {
+            error: 'اسم المستخدم مستخدم بالفعل',
+            ...safeErrorDetails(
+              profileInsertError,
+              'اسم المستخدم مستخدم بالفعل'
+            ),
+            suggestions,
+          },
+          409
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
       const response = jsonResponse(
         {
           error: 'تم إنشاء المستخدم في auth لكن فشل حفظه في profiles',
-          details: profileInsertError.message,
+          ...safeErrorDetails(
+            profileInsertError,
+            'تعذر حفظ ملف المستخدم'
+          ),
         },
         400
       )
@@ -272,7 +342,10 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر حفظ بيانات التواصل للمستخدم',
-          details: profileContactUpdateError.message,
+          ...safeErrorDetails(
+            profileContactUpdateError,
+            'تعذر حفظ بيانات التواصل'
+          ),
         },
         400
       )
@@ -295,12 +368,27 @@ export async function POST(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر حفظ POS PIN بشكل آمن',
-          details: setPinError.message,
+          ...safeErrorDetails(setPinError, 'تعذر حفظ POS PIN بشكل آمن'),
         },
         400
       )
       return withAuthCookies(auth.response, response)
     }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'user.created',
+      entityType: 'profile',
+      entityId: userId,
+      branchId: resolvedBranchId || null,
+      metadata: {
+        role,
+        branch_id: resolvedBranchId || null,
+        username,
+        has_pos_pin: Boolean(posPin),
+      },
+    })
 
     const response = jsonResponse({
       success: true,
@@ -322,7 +410,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        ...safeErrorDetails(error, 'تعذر إنشاء المستخدم'),
       },
       500
     )
