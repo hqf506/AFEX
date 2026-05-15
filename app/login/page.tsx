@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername } from '@/lib/usernames'
 
 const highlights = ['آمن وموثوق', 'سريع وفعال', 'تقارير ذكية']
@@ -121,6 +122,20 @@ export default function LoginPage() {
 
       if (!loginResponse.ok || !loginResult?.success) {
         throw new Error(loginResult?.error || 'كلمة المرور غير صحيحة')
+      }
+
+      if (
+        loginResult.session?.access_token &&
+        loginResult.session?.refresh_token
+      ) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: loginResult.session.access_token,
+          refresh_token: loginResult.session.refresh_token,
+        })
+
+        if (sessionError) {
+          throw sessionError
+        }
       }
 
       const redirectPath =

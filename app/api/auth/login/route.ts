@@ -167,6 +167,13 @@ export async function POST(request: NextRequest) {
         resolvedLogin.profile.full_name,
         resolvedLogin.profile.username || identifier
       ),
+      session:
+        data.session?.access_token && data.session?.refresh_token
+          ? {
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+            }
+          : null,
       redirectPath,
     })
   } catch (error) {

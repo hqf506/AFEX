@@ -294,6 +294,20 @@ export default function LandingPage() {
         throw new Error(loginResult?.error || 'كلمة المرور غير صحيحة')
       }
 
+      if (
+        loginResult.session?.access_token &&
+        loginResult.session?.refresh_token
+      ) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: loginResult.session.access_token,
+          refresh_token: loginResult.session.refresh_token,
+        })
+
+        if (sessionError) {
+          throw sessionError
+        }
+      }
+
       const nextFirstName =
         typeof loginResult.firstName === 'string' && loginResult.firstName.trim()
           ? loginResult.firstName.trim()
@@ -304,6 +318,7 @@ export default function LandingPage() {
       setAccountMenuOpen(false)
       setLoginPassword('')
       setProtectedNavMessage('')
+      router.refresh()
       void authState.refreshAuthState()
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : 'حدث خطأ أثناء تسجيل الدخول')
