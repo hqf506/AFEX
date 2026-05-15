@@ -3,7 +3,7 @@ import { jsonResponse } from '@/lib/api/responses'
 import { getTrimmedString } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api-auth'
 import { writeAuditLog } from '@/lib/audit-log'
-import { maskPhone } from '@/lib/security/redaction'
+import { maskId, maskPhone, redactSensitive } from '@/lib/security/redaction'
 import { logWhatsAppSend } from '@/lib/whatsapp/logging'
 import {
   acquireWhatsAppOrderStatusNotificationLock,
@@ -121,6 +121,10 @@ function whatsAppFailureResponse() {
     },
     500
   )
+}
+
+function maskOptionalId(value: string | null | undefined) {
+  return value ? maskId(value) : null
 }
 
 type SuccessfulWhatsAppAuditInput = {
@@ -288,6 +292,19 @@ export async function POST(req: NextRequest) {
           return rateLimitResponse()
         }
 
+        console.info({
+          scope: 'whatsapp-route-before-send',
+          hasAuthUser: Boolean(auth?.user?.id),
+          tenantIdMasked: maskOptionalId(auth?.profile?.tenant_id),
+          profileBranchMasked: maskOptionalId(auth?.profile?.branch_id),
+          requestedBranchMasked: maskOptionalId(requestedBranchId),
+          resolvedBranchMasked: maskOptionalId(branchId),
+          scopeType: auth?.profile?.scope_type || null,
+          hasRecipient: Boolean(to),
+          mode,
+          type,
+        })
+
         const result =
           type === 'file'
             ? await sendWhatsAppFile(
@@ -360,6 +377,19 @@ export async function POST(req: NextRequest) {
       return rateLimitResponse()
     }
 
+    console.info({
+      scope: 'whatsapp-route-before-send',
+      hasAuthUser: Boolean(auth?.user?.id),
+      tenantIdMasked: maskOptionalId(auth?.profile?.tenant_id),
+      profileBranchMasked: maskOptionalId(auth?.profile?.branch_id),
+      requestedBranchMasked: maskOptionalId(requestedBranchId),
+      resolvedBranchMasked: maskOptionalId(branchId),
+      scopeType: auth?.profile?.scope_type || null,
+      hasRecipient: Boolean(to),
+      mode,
+      type,
+    })
+
     const result =
       mode === 'test'
         ? await sendWhatsAppTestMessage(
@@ -421,6 +451,11 @@ export async function POST(req: NextRequest) {
       mode: type === 'file' ? 'file' : mode,
       success: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    })
+
+    console.error({
+      scope: 'whatsapp-route-catch',
+      error: redactSensitive(error),
     })
 
     return jsonResponse(
