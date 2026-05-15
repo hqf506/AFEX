@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
       jsonResponse(
         {
           error: 'تعذر تحميل إعدادات واتساب',
-          ...safeErrorDetails(error, 'تعذر تحميل إعدادات واتساب'),
+          ...safeErrorDetails(error, 'تعذر تنفيذ العملية'),
         },
         500
       )
@@ -410,7 +410,7 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
       jsonResponse(
         {
           error: 'حدث خطأ غير متوقع',
-          ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
+          ...safeErrorDetails(error, 'تعذر تنفيذ العملية'),
         },
         500
       )
