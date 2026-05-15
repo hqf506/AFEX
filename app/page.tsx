@@ -177,9 +177,20 @@ export default function LandingPage() {
 
   const profileName = authState.profile?.full_name?.trim() || ''
   const displayFirstName = localFirstName || (profileName ? getFirstName(profileName) : '')
-  const isSignedIn = authState.status === 'authenticated'
+  const isSignedIn =
+    authState.status === 'authenticated' ||
+    Boolean(authState.profile || localFirstName)
+  const visibleQuickLinks = isSignedIn
+    ? quickLinks.filter((link) =>
+        ['/pos', '/admin/dashboard'].includes(link.href)
+      )
+    : quickLinks
 
   function openLoginModal() {
+    if (isSignedIn) {
+      return
+    }
+
     setLoginError('')
     setLoginModalOpen(true)
   }
@@ -263,10 +274,10 @@ export default function LandingPage() {
           ? loginResult.firstName.trim()
           : normalizedUsername
 
+      setLoginModalOpen(false)
       setLocalFirstName(nextFirstName)
       setAccountMenuOpen(false)
       setLoginPassword('')
-      setLoginModalOpen(false)
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : 'حدث خطأ أثناء تسجيل الدخول')
     } finally {
@@ -357,7 +368,7 @@ export default function LandingPage() {
         </div>
 
         <div className="mx-auto mt-5 flex max-w-7xl flex-wrap justify-center gap-2 lg:justify-end">
-          {quickLinks.map((link) => (
+          {visibleQuickLinks.map((link) => (
             link.href === '/admin/dashboard' ? (
               <button
                 key={link.href}
@@ -585,27 +596,29 @@ export default function LandingPage() {
                 والفواتير ونقاط البيع بثقة وكفاءة.
               </p>
 
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/signup"
-                  className="inline-flex min-h-[54px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-8 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(45,212,191,0.25)] transition hover:-translate-y-1 active:scale-[0.98]"
-                >
-                  إنشاء حساب جديد
-                </Link>
-                <button
-                  type="button"
-                  onClick={openLoginModal}
-                  className="inline-flex min-h-[54px] items-center justify-center rounded-2xl border border-white/15 bg-white/[0.035] px-8 text-sm font-black text-white transition hover:-translate-y-1 hover:bg-white/[0.07] active:scale-[0.98]"
-                >
-                  تسجيل الدخول
-                </button>
-              </div>
+              {!isSignedIn ? (
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    href="/signup"
+                    className="inline-flex min-h-[54px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-8 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(45,212,191,0.25)] transition hover:-translate-y-1 active:scale-[0.98]"
+                  >
+                    إنشاء حساب جديد
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={openLoginModal}
+                    className="inline-flex min-h-[54px] items-center justify-center rounded-2xl border border-white/15 bg-white/[0.035] px-8 text-sm font-black text-white transition hover:-translate-y-1 hover:bg-white/[0.07] active:scale-[0.98]"
+                  >
+                    تسجيل الدخول
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
       </section>
 
-      {loginModalOpen ? (
+      {loginModalOpen && !isSignedIn ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
           <div
             role="dialog"
