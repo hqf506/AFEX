@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { maskId } from '@/lib/security/redaction'
 import type {
   MetaCompatibleProviderConfig,
   UltraMsgProviderConfig,
@@ -37,6 +38,19 @@ export async function getBranchWhatsAppProviderConfig(
   }
 
   const config = data as BranchWhatsAppConfigDbRow | null
+
+  console.info({
+    scope: 'whatsapp-config-lookup',
+    branchIdPresent: Boolean(normalizedBranchId),
+    tenantIdMasked: maskId(normalizedTenantId),
+    branchIdMasked: maskId(normalizedBranchId),
+    configFound: Boolean(config),
+    provider: config?.provider || null,
+    isActive: config?.is_active ?? null,
+    hasToken: Boolean(config?.token?.trim()),
+    hasInstanceId: Boolean(config?.instance_id?.trim()),
+    hasApiUrl: Boolean(config?.api_url?.trim()),
+  })
 
   if (!config || !config.is_active) {
     return null
