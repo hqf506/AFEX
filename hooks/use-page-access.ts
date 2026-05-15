@@ -75,18 +75,28 @@ export function usePageAccess(
   const profile = authState.profile
   const loading = authState.loading
   const userRole = profile?.role || null
+  const userRoleValue = userRole ? String(userRole) : ''
   const branchId = profile?.branch_id || null
   const tenantId = profile?.tenant_id || null
   const scopeType = profile?.scope_type || null
+  const roleAllowed =
+    stableAllowedRoles.length === 0 ||
+    (userRole ? stableAllowedRoles.includes(userRole) : false) ||
+    (stableAllowedRoles.includes('admin') && userRoleValue === 'manager')
   const allowed =
     Boolean(profile) &&
-    (stableAllowedRoles.length === 0 ||
-      (userRole ? stableAllowedRoles.includes(userRole) : false))
+    roleAllowed
 
   useEffect(() => {
     const stableAllowedRolesForEffect = allowedRolesKey
       ? (allowedRolesKey.split('|') as AppRole[])
       : []
+    const userRoleValueForEffect = userRole ? String(userRole) : ''
+    const roleAllowedForEffect =
+      stableAllowedRolesForEffect.length === 0 ||
+      (userRole ? stableAllowedRolesForEffect.includes(userRole) : false) ||
+      (stableAllowedRolesForEffect.includes('admin') &&
+        userRoleValueForEffect === 'manager')
 
     if (loading) {
       return
@@ -100,7 +110,7 @@ export function usePageAccess(
     if (
       stableAllowedRolesForEffect.length > 0 &&
       userRole &&
-      !stableAllowedRolesForEffect.includes(userRole)
+      !roleAllowedForEffect
     ) {
       router.replace(resolvedRedirectIfForbidden)
     }

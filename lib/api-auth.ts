@@ -89,6 +89,11 @@ export async function requireApiAuth(
       tenant_id: tenantId,
       scope_type: resolveAuthScopeType(profile.role as AppRole, branchId),
     } as ApiAuthProfile
+    const profileRole = String(typedProfile.role)
+    const roleAllowed =
+      allowedRoles.length === 0 ||
+      allowedRoles.includes(typedProfile.role) ||
+      (allowedRoles.includes('admin') && profileRole === 'manager')
 
     if (!typedProfile.is_active) {
       return {
@@ -105,7 +110,7 @@ export async function requireApiAuth(
 
     if (
       allowedRoles.length > 0 &&
-      !allowedRoles.includes(typedProfile.role)
+      !roleAllowed
     ) {
       return {
         ok: false,
