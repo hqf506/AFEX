@@ -5,6 +5,7 @@ import { mapBranchCatalogToInvoiceProducts } from '@/lib/invoices/catalog'
 import type {
   BranchCatalogItemRow,
   CatalogItemRow,
+  InventoryStockRow,
 } from '@/lib/invoices/catalog'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
           {
             error: 'tenant context missing',
           },
-          400
+          403
         )
       )
     }
@@ -38,10 +39,26 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get('branchId')
     )
 
-    const resolvedBranchId =
-      auth.profile.scope_type === 'system'
-        ? requestedBranchId
-        : auth.profile.branch_id || ''
+    const profileBranchId = normalizeBranchId(auth.profile.branch_id || null)
+
+    if (
+      auth.profile.scope_type !== 'system' &&
+      requestedBranchId &&
+      profileBranchId &&
+      requestedBranchId !== profileBranchId
+    ) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse(
+          {
+            error: 'Requested branch does not match this account branch',
+          },
+          403
+        )
+      )
+    }
+
+    const resolvedBranchId = requestedBranchId || profileBranchId
 
     if (!resolvedBranchId) {
       return withAuthCookies(
@@ -114,7 +131,7 @@ export async function GET(request: NextRequest) {
     const catalogItemsQuery = supabaseAdmin
       .from('catalog_items')
       .select(
-        'id, name, category, item_type, default_price, image_url, pos_display_mode, pos_color, pos_shape, is_active'
+        'id, name, category, item_type, default_price, image_url, pos_display_mode, pos_color, pos_shape, is_composite, track_inventory, is_active'
       )
       .eq('tenant_id', tenantId)
 
@@ -133,12 +150,44 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const catalogItemIds = (catalogItems || [])
+      .map((item) => (typeof item.id === 'string' ? item.id.trim() : ''))
+      .filter(Boolean)
+
+    let inventoryStock: InventoryStockRow[] = []
+
+    if (catalogItemIds.length > 0) {
+      const { data: stockRows, error: stockError } = await supabaseAdmin
+        .from('inventory_stock')
+        .select('catalog_item_id, quantity_on_hand, low_stock_threshold')
+        .eq('tenant_id', tenantId)
+        .eq('branch_id', resolvedBranchId)
+        .in('catalog_item_id', catalogItemIds)
+
+      if (stockError) {
+        return withAuthCookies(
+          auth.response,
+          jsonResponse(
+            {
+              error: 'Failed to load inventory stock',
+              details: stockError.message,
+            },
+            500
+          )
+        )
+      }
+
+      inventoryStock = (stockRows || []) as InventoryStockRow[]
+    }
+
     const items = mapBranchCatalogToInvoiceProducts(
       (catalogItems || []) as CatalogItemRow[],
-      (branchOverrides || []) as BranchCatalogItemRow[]
+      (branchOverrides || []) as BranchCatalogItemRow[],
+      inventoryStock,
+      resolvedBranchId
     )
 
-    return withAuthCookies(
+    const response = withAuthCookies(
       auth.response,
       jsonResponse({
         success: true,
@@ -146,6 +195,9 @@ export async function GET(request: NextRequest) {
         products: items,
       })
     )
+    response.headers.set('Cache-Control', 'no-store, max-age=0')
+
+    return response
   } catch (error) {
     return withAuthCookies(
       auth.response,

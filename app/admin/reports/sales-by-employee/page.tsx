@@ -268,7 +268,12 @@ export default function SalesByEmployeeReportPage() {
     selectedBranchId,
     effectiveBranchId,
     setSelectedBranchId,
-  } = useAdminBranchFilter(access.scopeType, access.branchId, access.allowed)
+  } = useAdminBranchFilter(
+    access.scopeType,
+    access.branchId,
+    access.allowed,
+    tenantId
+  )
 
   const [orders, setOrders] = useState<EmployeeReportOrder[]>([])
   const [employeeProfiles, setEmployeeProfiles] = useState<EmployeeProfileSource[]>([])
@@ -375,6 +380,25 @@ export default function SalesByEmployeeReportPage() {
           console.error('[sales-by-employee] failed to fetch employee profiles', profilesError)
         } else {
           profiles = (profileData ?? []) as EmployeeProfileSource[]
+        }
+
+        let posProfilesQuery = supabase
+          .from('pos_profiles')
+          .select('id, username, full_name, role')
+          .in('id', employeeIds)
+
+        posProfilesQuery = applyTenantFilter(posProfilesQuery, tenantId)
+
+        const { data: posProfileData, error: posProfilesError } =
+          await posProfilesQuery
+
+        if (posProfilesError) {
+          console.error('[sales-by-employee] failed to fetch POS profiles', posProfilesError)
+        } else {
+          profiles = [
+            ...profiles,
+            ...((posProfileData ?? []) as EmployeeProfileSource[]),
+          ]
         }
       }
 

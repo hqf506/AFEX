@@ -114,11 +114,10 @@ export default function EditBranchPage() {
 
   const canSubmit = useMemo(() => {
     return (
-      form.code.trim().length > 0 &&
       form.name.trim().length > 0 &&
       !loadingBranch
     )
-  }, [form.code, form.name, loadingBranch])
+  }, [form.name, loadingBranch])
 
   useEffect(() => {
     if (accessLoading || !allowed || !isSystemAdmin || !branchId) {
@@ -205,7 +204,6 @@ export default function EditBranchPage() {
         },
         body: JSON.stringify({
           branchId,
-          code: form.code,
           name: form.name,
           map_url: form.map_url,
           display_store_name: form.display_store_name,
@@ -303,7 +301,7 @@ export default function EditBranchPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <label className="block text-right">
+              <label className="hidden text-right">
                 <span className="mb-2 block text-sm font-bold text-slate-200">
                   كود الفرع
                 </span>

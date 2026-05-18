@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import {
+  clearActivePosEmployee,
   readActivePosEmployee,
   writeActivePosEmployee,
   type ActivePosEmployee,
@@ -14,6 +15,7 @@ const PIN_LOCK_ATTEMPTS = 3
 const PIN_LOCK_MS = 5000
 const PIN_CLEAR_AFTER_ERROR_MS = 500
 const ALLOWED_POS_ROLES = new Set(['admin', 'employee'])
+const INVALID_PIN_MESSAGE = 'رمز PIN غير صحيح'
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
 export default function PosEmployeePinPage() {
@@ -34,6 +36,7 @@ export default function PosEmployeePinPage() {
   const allowed = Boolean(
     authState.profile && ALLOWED_POS_ROLES.has(authState.profile.role)
   )
+  const currentBranchId = authState.profile?.branch_id ?? null
 
   const dots = useMemo(
     () => Array.from({ length: PIN_LENGTH }, (_, index) => index < pin.length),
@@ -68,14 +71,42 @@ export default function PosEmployeePinPage() {
     }
 
     if (!allowed) {
-      setError('غير مصرح لهذا الحساب باستخدام نقطة البيع')
+      const timer = window.setTimeout(() => {
+        setError('غير مصرح لهذا الحساب باستخدام نقطة البيع')
+      }, 0)
+      return () => window.clearTimeout(timer)
+    }
+
+    const activeEmployee = readActivePosEmployee()
+
+    if (activeEmployee) {
+      if (activeEmployee.branch_id === currentBranchId) {
+        router.replace('/pos')
+        return
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[POS PIN] Ignoring stale POS employee session.', {
+          currentBranchId,
+          employeeBranchId: activeEmployee.branch_id,
+        })
+      }
+      clearActivePosEmployee()
+    }
+  }, [allowed, authState.loading, authState.profile, currentBranchId, router])
+
+  useEffect(() => {
+    if (!allowed || !currentBranchId) {
       return
     }
 
-    if (readActivePosEmployee()) {
-      router.replace('/pos')
+    if (process.env.NODE_ENV === 'development') {
+      console.info('[POS PIN] Client POS context.', {
+        branchId: currentBranchId,
+        authRole: authState.profile?.role ?? null,
+      })
     }
-  }, [allowed, authState.loading, authState.profile, router])
+  }, [allowed, authState.profile?.role, currentBranchId])
 
   useEffect(() => {
     if (
@@ -112,15 +143,23 @@ export default function PosEmployeePinPage() {
         })
 
         const result = await response.json().catch(() => null)
+        const resultBody =
+          result && typeof result === 'object'
+            ? (result as Record<string, unknown>)
+            : null
 
         if (!response.ok || !result?.employee) {
-          console.error('[POS PIN] Employee identification failed.', {
-            status: response.status,
-            error: result?.error,
-            details: result?.details,
-          })
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[POS PIN] Employee identification failed.', {
+              status: response.status,
+              ok: response.ok,
+              statusText: response.statusText,
+              error:
+                typeof resultBody?.error === 'string' ? resultBody.error : null,
+            })
+          }
 
-          throw new Error(result?.error || 'رمز الموظف غير صحيح')
+          throw new Error(INVALID_PIN_MESSAGE)
         }
 
         writeActivePosEmployee(result.employee as ActivePosEmployee)
@@ -129,12 +168,11 @@ export default function PosEmployeePinPage() {
       } catch {
         const nextFailedAttempts = failedAttempts + 1
         const shouldLock = nextFailedAttempts >= PIN_LOCK_ATTEMPTS
-
         setFailedAttempts(shouldLock ? 0 : nextFailedAttempts)
         setError(
           shouldLock
             ? 'تمت محاولات كثيرة، حاول بعد قليل'
-            : 'رمز الموظف غير صحيح'
+            : INVALID_PIN_MESSAGE
         )
         setShakeCard(true)
         verifyingPinRef.current = ''

@@ -11,7 +11,8 @@ export default function CustomersPage() {
   const access = usePageAccess({
     allowedRoles: ['admin', 'employee', 'cashier'],
   })
-  const { authLoading, allowed, roleLabel, branchId, scopeType } = access
+  const { authLoading, allowed, roleLabel, branchId, tenantId, scopeType } =
+    access
   const {
     isSystemAdmin,
     branches,
@@ -19,7 +20,7 @@ export default function CustomersPage() {
     selectedBranchId,
     effectiveBranchId,
     setSelectedBranchId,
-  } = useAdminBranchFilter(scopeType, branchId, allowed)
+  } = useAdminBranchFilter(scopeType, branchId, allowed, tenantId)
 
   const [search, setSearch] = useState('')
   const [customers, setCustomers] = useState<CustomerListItem[]>([])

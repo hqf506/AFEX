@@ -54,21 +54,21 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    const { data: existingProfile, error: existingProfileError } =
+    const { data: existingPosProfile, error: existingPosProfileError } =
       await supabaseAdmin
-        .from('profiles')
+        .from('pos_profiles')
         .select('id, username, branch_id')
         .eq('id', userId)
         .eq('tenant_id', tenantId)
         .maybeSingle()
 
-    if (existingProfileError) {
+    if (existingPosProfileError) {
       const response = jsonResponse(
         {
-          error: 'تعذر التحقق من المستخدم',
+          error: 'تعذر التحقق من مستخدم POS',
           ...safeErrorDetails(
-            existingProfileError,
-            'تعذر التحقق من المستخدم'
+            existingPosProfileError,
+            'تعذر التحقق من مستخدم POS'
           ),
         },
         500
@@ -76,18 +76,21 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (!existingProfile) {
-      const response = jsonResponse({ error: 'المستخدم غير موجود' }, 404)
+    if (!existingPosProfile) {
+      const response = jsonResponse({ error: 'مستخدم POS غير موجود' }, 404)
       return withAuthCookies(auth.response, response)
     }
+
+    const targetBranchId =
+      typeof existingPosProfile.branch_id === 'string'
+        ? existingPosProfile.branch_id
+        : null
 
     if (
       !canManageBranchScopedTarget(
         auth.profile.scope_type,
         auth.profile.branch_id,
-        typeof existingProfile.branch_id === 'string'
-          ? existingProfile.branch_id
-          : null
+        targetBranchId
       )
     ) {
       const response = jsonResponse(
@@ -97,16 +100,40 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    const { error: setPinError } = await supabaseAdmin.rpc('set_pos_pin', {
-      user_id: userId,
-      raw_pin: pin,
-    })
+    const { data: pinHash, error: hashError } = await supabaseAdmin.rpc(
+      'hash_pos_pin',
+      {
+        raw_pin: pin,
+      }
+    )
 
-    if (setPinError) {
+    if (hashError || typeof pinHash !== 'string') {
       const response = jsonResponse(
         {
           error: 'تعذر حفظ POS PIN بشكل آمن',
-          ...safeErrorDetails(setPinError, 'تعذر حفظ POS PIN بشكل آمن'),
+          ...safeErrorDetails(hashError, 'تعذر حفظ POS PIN بشكل آمن'),
+        },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    const { data: updatedPosProfile, error: updateError } = await supabaseAdmin
+      .from('pos_profiles')
+      .update({
+        pos_pin_hash: pinHash,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .eq('tenant_id', tenantId)
+      .select('id')
+      .maybeSingle()
+
+    if (updateError || !updatedPosProfile) {
+      const response = jsonResponse(
+        {
+          error: 'تعذر حفظ POS PIN بشكل آمن',
+          ...safeErrorDetails(updateError, 'تعذر حفظ POS PIN بشكل آمن'),
         },
         400
       )
@@ -117,12 +144,9 @@ export async function POST(request: NextRequest) {
       auth,
       request,
       action: 'user.pos_pin_reset',
-      entityType: 'profile',
+      entityType: 'pos_profile',
       entityId: userId,
-      branchId:
-        typeof existingProfile.branch_id === 'string'
-          ? existingProfile.branch_id
-          : null,
+      branchId: targetBranchId,
       metadata: {
         reset_by_admin: true,
       },
@@ -130,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     const response = jsonResponse({
       success: true,
-      message: `تمت إعادة تعيين POS PIN للمستخدم ${existingProfile.username} بنجاح`,
+      message: 'تم تحديث PIN بنجاح',
     })
 
     return withAuthCookies(auth.response, response)

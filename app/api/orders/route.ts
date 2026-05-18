@@ -9,6 +9,7 @@ import {
   shouldFilterByBranch,
 } from '@/lib/branch-access'
 import type { OrderStatus } from '@/lib/orders/normalize'
+import { maskId } from '@/lib/security/redaction'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type OrdersApiQuery = {
@@ -91,6 +92,18 @@ type TenantProfileLookupClient = {
     }
   }
 }
+type EmployeeTenantLookupClient = {
+  from(table: 'profiles' | 'pos_profiles'): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        maybeSingle(): Promise<{
+          data: { tenant_id?: unknown } | null
+          error: SupabaseErrorLike | null
+        }>
+      }
+    }
+  }
+}
 
 const DEFAULT_PAGE = 1
 const DEFAULT_PAGE_SIZE = 25
@@ -153,16 +166,14 @@ export async function GET(request: NextRequest) {
   const query = parseOrdersQuery(request)
 
   if (!auth.profile.tenant_id) {
-    return jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
-      success: true,
-      mode: query.mode,
-      items: [],
-      totalCount: 0,
-      page: query.page,
-      pageSize: query.pageSize,
-      hasMore: false,
-      comparisonSignature: '',
-    })
+    return jsonWithAuthCookies(
+      auth.response,
+      {
+        success: false,
+        message: 'Tenant context is required',
+      },
+      403
+    )
   }
 
   if (
@@ -334,14 +345,62 @@ export async function POST(request: NextRequest) {
 
     if (!profileTenantId) {
       console.error('[api/orders] missing profile tenant id for order creation', {
-        profileId: auth.profile.id,
-        authProfileTenantId: auth.profile.tenant_id,
+        profileId: maskId(auth.profile.id),
+        authProfileTenantId: auth.profile.tenant_id
+          ? maskId(auth.profile.tenant_id)
+          : null,
       })
       return jsonWithAuthCookies(
         auth.response,
         {
           success: false,
           message: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©',
+        },
+        400
+      )
+    }
+
+    const profileBranchId = normalizeUuidString(auth.profile.branch_id)
+
+    if (!branchId) {
+      return jsonWithAuthCookies(
+        auth.response,
+        {
+          success: false,
+          message: 'اختر فرعًا محددًا قبل إتمام البيع',
+        },
+        400
+      )
+    }
+
+    if (
+      auth.profile.scope_type !== 'system' &&
+      profileBranchId &&
+      branchId !== profileBranchId
+    ) {
+      return jsonWithAuthCookies(
+        auth.response,
+        {
+          success: false,
+          message: 'فرع نقطة البيع لا يطابق فرع الحساب',
+        },
+        403
+      )
+    }
+
+    const { data: orderBranch, error: orderBranchError } = await serviceSupabase
+      .from('branches')
+      .select('id')
+      .eq('tenant_id', profileTenantId)
+      .eq('id', branchId)
+      .maybeSingle()
+
+    if (orderBranchError || !orderBranch) {
+      return jsonWithAuthCookies(
+        auth.response,
+        {
+          success: false,
+          message: 'تعذر تحديد فرع صالح لإتمام البيع',
         },
         400
       )
@@ -361,6 +420,14 @@ export async function POST(request: NextRequest) {
         })
       }
     }
+
+    const employeeResolution = createdByEmployeeId
+      ? await resolveCreatedByEmployeeIdForRpc(
+          serviceSupabase,
+          createdByEmployeeId,
+          profileTenantId
+        )
+      : { rpcEmployeeId: null, posEmployeeId: null }
 
     let validCatalogItemsQuery = serviceSupabase
       .from('catalog_items')
@@ -498,7 +565,7 @@ export async function POST(request: NextRequest) {
       p_note: typeof body.note === 'string' ? body.note : '',
       p_items: validItems,
       p_client_idempotency_key: clientIdempotencyKey,
-      p_created_by_employee_id: createdByEmployeeId,
+      p_created_by_employee_id: employeeResolution.rpcEmployeeId,
       p_tenant_id: profileTenantId,
       p_branch_id: branchId,
     }
@@ -528,6 +595,24 @@ export async function POST(request: NextRequest) {
         hint: error.hint,
         code: error.code,
       })
+
+      if (isInsufficientStockError(error)) {
+        const itemName = getInsufficientStockItemName(error)
+        const message = itemName
+          ? `المخزون غير كافٍ للمنتج: ${itemName}`
+          : 'المخزون غير كافٍ لإتمام البيع'
+
+        return jsonWithAuthCookies(
+          auth.response,
+          {
+            success: false,
+            error: message,
+            message,
+          },
+          409
+        )
+      }
+
       return jsonWithAuthCookies(
         auth.response,
         {
@@ -548,6 +633,22 @@ export async function POST(request: NextRequest) {
     const invoiceId = stringValue(createdOrderRecord.invoice_id)
     const invoiceNumber = stringValue(createdOrderRecord.invoice_number)
     const totalValue = Number(createdOrderRecord.total)
+
+    if (employeeResolution.posEmployeeId && orderId) {
+      const { error: updateEmployeeError } = await serviceSupabase
+        .from('orders')
+        .update({ created_by_employee_id: employeeResolution.posEmployeeId })
+        .eq('id', orderId)
+        .eq('tenant_id', profileTenantId)
+
+      if (updateEmployeeError) {
+        console.warn('[api/orders] unable to attach POS employee to order', {
+          orderId: maskId(orderId),
+          employeeId: maskId(employeeResolution.posEmployeeId),
+          message: updateEmployeeError.message,
+        })
+      }
+    }
 
     await writeAuditLog({
       auth,
@@ -671,6 +772,49 @@ async function resolveProfileTenantId(supabase: unknown, profileId: string) {
   return normalizeUuidString(data?.tenant_id)
 }
 
+async function resolveCreatedByEmployeeIdForRpc(
+  supabase: unknown,
+  employeeId: string,
+  tenantId: string
+) {
+  const client = supabase as EmployeeTenantLookupClient
+  const { data: profileData, error: profileError } = await client
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', employeeId)
+    .maybeSingle()
+
+  if (profileError) {
+    console.warn('[api/orders] unable to resolve profile employee', {
+      employeeId: maskId(employeeId),
+      message: profileError.message,
+    })
+  }
+
+  if (normalizeUuidString(profileData?.tenant_id) === tenantId) {
+    return { rpcEmployeeId: employeeId, posEmployeeId: null }
+  }
+
+  const { data: posProfileData, error: posProfileError } = await client
+    .from('pos_profiles')
+    .select('tenant_id')
+    .eq('id', employeeId)
+    .maybeSingle()
+
+  if (posProfileError) {
+    console.warn('[api/orders] unable to resolve POS employee', {
+      employeeId: maskId(employeeId),
+      message: posProfileError.message,
+    })
+  }
+
+  if (normalizeUuidString(posProfileData?.tenant_id) === tenantId) {
+    return { rpcEmployeeId: null, posEmployeeId: employeeId }
+  }
+
+  return { rpcEmployeeId: null, posEmployeeId: null }
+}
+
 function normalizeCreatedOrderData(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return value
@@ -718,6 +862,28 @@ function isIdempotencyDuplicateError(error: {
     (searchableText.includes('orders_idempotency_key_unique') ||
       searchableText.includes('client_idempotency_key'))
   )
+}
+
+function isInsufficientStockError(error: {
+  details?: string
+  hint?: string
+  message?: string
+}) {
+  const searchableText = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`
+
+  return searchableText.includes('INSUFFICIENT_STOCK')
+}
+
+function getInsufficientStockItemName(error: {
+  details?: string
+}) {
+  const details = error.details?.trim()
+
+  if (!details || details.includes('INSUFFICIENT_STOCK')) {
+    return ''
+  }
+
+  return details
 }
 
 async function findOrderByIdempotencyKey(

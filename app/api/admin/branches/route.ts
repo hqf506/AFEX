@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
-import { safeErrorDetails } from '@/lib/security/redaction'
+import { maskId, safeErrorDetails } from '@/lib/security/redaction'
 import {
   isSystemScopedAdmin,
   isValidAdminBranchCode,
@@ -25,6 +26,7 @@ type CreateBranchBody = {
 
 type UpdateBranchBody = {
   branchId?: string
+  action?: 'restore'
   code?: string
   name?: string
   display_store_name?: string
@@ -32,8 +34,12 @@ type UpdateBranchBody = {
   map_url?: string
 }
 
+type DeleteBranchBody = {
+  branchId?: string
+}
+
 const BRANCH_SELECT_FIELDS =
-  'id, code, name, display_store_name, display_branch_name, map_url, is_active, created_at, updated_at'
+  'id, code, order_number_prefix, name, display_store_name, display_branch_name, map_url, is_active, deleted_at, deleted_by, created_at, updated_at'
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin'])
@@ -85,8 +91,8 @@ export async function GET(request: NextRequest) {
     if (error) {
       const response = jsonResponse(
         {
-          error: 'تعذر تحميل الفروع',
-          ...safeErrorDetails(error, 'تعذر تحميل الفروع'),
+          error: 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø§Ù„ÙØ±ÙˆØ¹',
+          ...safeErrorDetails(error, 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø§Ù„ÙØ±ÙˆØ¹'),
         },
         500
       )
@@ -103,8 +109,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'حدث خطأ غير متوقع',
-        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
+        error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹',
+        ...safeErrorDetails(error, 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹'),
       },
       500
     )
@@ -123,7 +129,7 @@ export async function POST(request: NextRequest) {
   if (!isSystemScopedAdmin(auth.profile.scope_type)) {
     const response = jsonResponse(
       {
-        error: 'هذه العملية متاحة لمدير النظام فقط',
+        error: 'Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…ØªØ§Ø­Ø© Ù„Ù…Ø¯ÙŠØ± Ø§Ù„Ù†Ø¸Ø§Ù… ÙÙ‚Ø·',
       },
       403
     )
@@ -133,7 +139,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as CreateBranchBody
-    const code = normalizeAdminBranchCode(body.code)
+    const requestedCode = normalizeAdminBranchCode(body.code)
+    const code = requestedCode || `branch-${randomUUID().slice(0, 8)}`
     const name = normalizeAdminBranchName(body.name)
     const displayStoreName = normalizeAdminBranchDisplayName(
       body.display_store_name
@@ -145,15 +152,7 @@ export async function POST(request: NextRequest) {
 
     if (!name) {
       const response = jsonResponse(
-        { error: 'اسم الفرع مطلوب' },
-        400
-      )
-      return withAuthCookies(auth.response, response)
-    }
-
-    if (!code) {
-      const response = jsonResponse(
-        { error: 'كود الفرع مطلوب' },
+        { error: 'Ø§Ø³Ù… Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -162,8 +161,8 @@ export async function POST(request: NextRequest) {
     if (!isValidAdminBranchCode(code)) {
       const response = jsonResponse(
         {
-          error: 'كود الفرع غير صالح',
-          details: 'استخدم أحرف إنجليزية صغيرة أو أرقام أو - فقط، بين 2 و32 حرفًا',
+          error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ ØºÙŠØ± ØµØ§Ù„Ø­',
+          details: 'Ø§Ø³ØªØ®Ø¯Ù… Ø£Ø­Ø±Ù Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠØ© ØµØºÙŠØ±Ø© Ø£Ùˆ Ø£Ø±Ù‚Ø§Ù… Ø£Ùˆ - ÙÙ‚Ø·ØŒ Ø¨ÙŠÙ† 2 Ùˆ32 Ø­Ø±ÙÙ‹Ø§',
         },
         400
       )
@@ -174,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        { error: 'Ã˜ÂªÃ˜Â¹Ã˜Â°Ã˜Â± Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â¯ Ã™â€ Ã˜Â·Ã˜Â§Ã™â€š Ã˜Â§Ã™â€žÃ™â€¦Ã™â€ Ã˜Â´Ã˜Â£Ã˜Â©' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -193,8 +192,8 @@ export async function POST(request: NextRequest) {
     if (existingBranchError) {
       const response = jsonResponse(
         {
-          error: 'تعذر التحقق من كود الفرع',
-          ...safeErrorDetails(existingBranchError, 'تعذر التحقق من كود الفرع'),
+          error: 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹',
+          ...safeErrorDetails(existingBranchError, 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹'),
         },
         500
       )
@@ -204,7 +203,7 @@ export async function POST(request: NextRequest) {
 
     if (existingBranch) {
       const response = jsonResponse(
-        { error: 'كود الفرع مستخدم بالفعل' },
+        { error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ø§Ù„ÙØ¹Ù„' },
         409
       )
       return withAuthCookies(auth.response, response)
@@ -212,7 +211,7 @@ export async function POST(request: NextRequest) {
 
     const timestamp = new Date().toISOString()
 
-    const { data, error } = await supabaseAdmin
+    const insertBranchResult = await supabaseAdmin
       .from('branches')
       .insert({
         code,
@@ -227,16 +226,59 @@ export async function POST(request: NextRequest) {
       })
       .select(BRANCH_SELECT_FIELDS)
       .single()
+    let data = insertBranchResult.data
+    const error = insertBranchResult.error
 
     if (error || !data) {
       const response = jsonResponse(
         {
-          error: 'فشل إنشاء الفرع',
-          ...safeErrorDetails(error, 'فشل إنشاء الفرع'),
+          error: 'ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ±Ø¹',
+          ...safeErrorDetails(error, 'ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ±Ø¹'),
         },
         400
       )
       return withAuthCookies(auth.response, response)
+    }
+
+    if (!data.order_number_prefix) {
+      const { error: prefixError } = await supabaseAdmin.rpc(
+        'ensure_branch_order_number_prefix',
+        {
+          p_branch_id: data.id,
+        }
+      )
+
+      if (prefixError) {
+        const response = jsonResponse(
+          {
+            error: 'فشل توليد رقم الفرع',
+            ...safeErrorDetails(prefixError, 'فشل توليد رقم الفرع'),
+          },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      const { data: refreshedBranch, error: refreshBranchError } =
+        await supabaseAdmin
+          .from('branches')
+          .select(BRANCH_SELECT_FIELDS)
+          .eq('id', data.id)
+          .eq('tenant_id', tenantId)
+          .single()
+
+      if (refreshBranchError || !refreshedBranch) {
+        const response = jsonResponse(
+          {
+            error: 'فشل تحميل رقم الفرع',
+            ...safeErrorDetails(refreshBranchError, 'فشل تحميل رقم الفرع'),
+          },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      data = refreshedBranch
     }
 
     await writeAuditLog({
@@ -255,7 +297,7 @@ export async function POST(request: NextRequest) {
 
     const response = jsonResponse({
       success: true,
-      message: 'تم إنشاء الفرع بنجاح',
+      message: 'ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ±Ø¹ Ø¨Ù†Ø¬Ø§Ø­',
       branch: data,
     })
 
@@ -263,8 +305,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'حدث خطأ غير متوقع',
-        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
+        error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹',
+        ...safeErrorDetails(error, 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹'),
       },
       500
     )
@@ -283,7 +325,7 @@ export async function PATCH(request: NextRequest) {
   if (!isSystemScopedAdmin(auth.profile.scope_type)) {
     const response = jsonResponse(
       {
-        error: 'هذه العملية متاحة لمدير النظام فقط',
+        error: 'Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…ØªØ§Ø­Ø© Ù„Ù…Ø¯ÙŠØ± Ø§Ù„Ù†Ø¸Ø§Ù… ÙÙ‚Ø·',
       },
       403
     )
@@ -298,14 +340,107 @@ export async function PATCH(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'تعذر تحديد نطاق المنشأة' },
+        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
         400
       )
       return withAuthCookies(auth.response, response)
     }
 
     if (!branchId) {
-      const response = jsonResponse({ error: 'معرف الفرع مطلوب' }, 400)
+      const response = jsonResponse({ error: 'Ù…Ø¹Ø±Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' }, 400)
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (body.action === 'restore') {
+      let existingDeletedBranchQuery = supabaseAdmin
+        .from('branches')
+        .select('id', { count: 'exact' })
+        .eq('id', branchId)
+        .filter('deleted_at', 'not.is', 'null')
+
+      existingDeletedBranchQuery = applyTenantFilter(
+        existingDeletedBranchQuery,
+        tenantId
+      )
+
+      const {
+        data: existingDeletedBranches,
+        count: existingDeletedBranchCount,
+        error: existingDeletedBranchError,
+      } = await existingDeletedBranchQuery.limit(1)
+
+      console.info('Restore branch lookup:', {
+        branchId: maskId(branchId),
+        tenantId: maskId(tenantId),
+        resultCount:
+          existingDeletedBranchCount ?? existingDeletedBranches?.length ?? 0,
+      })
+
+      if (existingDeletedBranchError) {
+        const response = jsonResponse(
+          {
+            error: 'فشل التحقق من الفرع',
+            ...safeErrorDetails(existingDeletedBranchError, 'فشل التحقق من الفرع'),
+          },
+          500
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      if (!existingDeletedBranches?.length) {
+        const response = jsonResponse(
+          { error: 'الفرع غير موجود أو تم حذفه نهائيًا' },
+          404
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      let restoreQuery = supabaseAdmin
+        .from('branches')
+        .update({
+          deleted_at: null,
+          deleted_by: null,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', branchId)
+        .filter('deleted_at', 'not.is', 'null')
+
+      restoreQuery = applyTenantFilter(restoreQuery, tenantId)
+
+      const { data, error } = await restoreQuery
+        .select(BRANCH_SELECT_FIELDS)
+        .maybeSingle()
+
+      if (error || !data) {
+        const response = jsonResponse(
+          {
+            error: 'الفرع غير موجود أو تم حذفه نهائيًا',
+            ...safeErrorDetails(error, 'فشل استرجاع الفرع'),
+          },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      await writeAuditLog({
+        auth,
+        request,
+        action: 'branch.restored',
+        entityType: 'branch',
+        entityId: data.id,
+        branchId: data.id,
+        metadata: {
+          restored_from_soft_delete: true,
+        },
+      })
+
+      const response = jsonResponse({
+        success: true,
+        message: 'ØªÙ… Ø§Ø³ØªØ±Ø¬Ø§Ø¹ Ø§Ù„ÙØ±Ø¹ Ø¨Ù†Ø¬Ø§Ø­',
+        branch: data,
+      })
+
       return withAuthCookies(auth.response, response)
     }
 
@@ -325,7 +460,7 @@ export async function PATCH(request: NextRequest) {
 
       if (!name) {
         const response = jsonResponse(
-          { error: 'اسم الفرع مطلوب' },
+          { error: 'Ø§Ø³Ù… Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' },
           400
         )
         return withAuthCookies(auth.response, response)
@@ -339,7 +474,7 @@ export async function PATCH(request: NextRequest) {
 
       if (!code) {
         const response = jsonResponse(
-          { error: 'كود الفرع مطلوب' },
+          { error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' },
           400
         )
         return withAuthCookies(auth.response, response)
@@ -348,8 +483,8 @@ export async function PATCH(request: NextRequest) {
       if (!isValidAdminBranchCode(code)) {
         const response = jsonResponse(
           {
-            error: 'كود الفرع غير صالح',
-            details: 'استخدم أحرف إنجليزية صغيرة أو أرقام أو - فقط، بين 2 و32 حرفًا',
+            error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ ØºÙŠØ± ØµØ§Ù„Ø­',
+            details: 'Ø§Ø³ØªØ®Ø¯Ù… Ø£Ø­Ø±Ù Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠØ© ØµØºÙŠØ±Ø© Ø£Ùˆ Ø£Ø±Ù‚Ø§Ù… Ø£Ùˆ - ÙÙ‚Ø·ØŒ Ø¨ÙŠÙ† 2 Ùˆ32 Ø­Ø±ÙÙ‹Ø§',
           },
           400
         )
@@ -370,8 +505,8 @@ export async function PATCH(request: NextRequest) {
       if (duplicateBranchError) {
         const response = jsonResponse(
           {
-            error: 'تعذر التحقق من كود الفرع',
-            ...safeErrorDetails(duplicateBranchError, 'تعذر التحقق من كود الفرع'),
+            error: 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹',
+            ...safeErrorDetails(duplicateBranchError, 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹'),
           },
           500
         )
@@ -380,7 +515,7 @@ export async function PATCH(request: NextRequest) {
 
       if (duplicateBranch) {
         const response = jsonResponse(
-          { error: 'كود الفرع مستخدم بالفعل' },
+          { error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ø§Ù„ÙØ¹Ù„' },
           409
         )
         return withAuthCookies(auth.response, response)
@@ -422,8 +557,8 @@ export async function PATCH(request: NextRequest) {
     if (error || !data) {
       const response = jsonResponse(
         {
-          error: 'فشل تحديث رابط موقع الفرع',
-          ...safeErrorDetails(error, 'فشل تحديث الفرع'),
+          error: 'ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø±Ø§Ø¨Ø· Ù…ÙˆÙ‚Ø¹ Ø§Ù„ÙØ±Ø¹',
+          ...safeErrorDetails(error, 'ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„ÙØ±Ø¹'),
         },
         400
       )
@@ -449,7 +584,7 @@ export async function PATCH(request: NextRequest) {
 
     const response = jsonResponse({
       success: true,
-      message: 'تم حفظ رابط موقع الفرع بنجاح',
+      message: 'ØªÙ… Ø­ÙØ¸ Ø±Ø§Ø¨Ø· Ù…ÙˆÙ‚Ø¹ Ø§Ù„ÙØ±Ø¹ Ø¨Ù†Ø¬Ø§Ø­',
       branch: data,
     })
 
@@ -457,8 +592,103 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'حدث خطأ غير متوقع',
-        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
+        error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹',
+        ...safeErrorDetails(error, 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹'),
+      },
+      500
+    )
+
+    return withAuthCookies(auth.response, response)
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const auth = await requireApiAuth(request, ['admin'])
+
+  if (!auth.ok) {
+    return auth.response
+  }
+
+  if (!isSystemScopedAdmin(auth.profile.scope_type)) {
+    const response = jsonResponse(
+      {
+        error: 'Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…ØªØ§Ø­Ø© Ù„Ù…Ø¯ÙŠØ± Ø§Ù„Ù†Ø¸Ø§Ù… ÙÙ‚Ø·',
+      },
+      403
+    )
+
+    return withAuthCookies(auth.response, response)
+  }
+
+  try {
+    const body = (await request.json()) as DeleteBranchBody
+    const branchId = normalizeAdminBranchId(body.branchId)
+    const tenantId = auth.profile.tenant_id
+
+    if (!tenantId) {
+      const response = jsonResponse(
+        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (!branchId) {
+      const response = jsonResponse({ error: 'Ù…Ø¹Ø±Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' }, 400)
+      return withAuthCookies(auth.response, response)
+    }
+
+    let query = supabaseAdmin
+      .from('branches')
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: auth.user.id,
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', branchId)
+
+    query = applyTenantFilter(query, tenantId)
+
+    const { data, error } = await query
+      .select(BRANCH_SELECT_FIELDS)
+      .single()
+
+    if (error || !data) {
+      const response = jsonResponse(
+        {
+          error: 'ÙØ´Ù„ Ø­Ø°Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø¤Ù‚ØªÙ‹Ø§',
+          ...safeErrorDetails(error, 'ÙØ´Ù„ Ø­Ø°Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø¤Ù‚ØªÙ‹Ø§'),
+        },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'branch.soft_deleted',
+      entityType: 'branch',
+      entityId: data.id,
+      branchId: data.id,
+      metadata: {
+        retention_days: 30,
+      },
+    })
+
+    const response = jsonResponse({
+      success: true,
+      message: 'ØªÙ… Ø­Ø°Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø¤Ù‚ØªÙ‹Ø§ Ù„Ù…Ø¯Ø© 30 ÙŠÙˆÙ…',
+      branch: data,
+    })
+
+    return withAuthCookies(auth.response, response)
+  } catch (error) {
+    const response = jsonResponse(
+      {
+        error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹',
+        ...safeErrorDetails(error, 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹'),
       },
       500
     )

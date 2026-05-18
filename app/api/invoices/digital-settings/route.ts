@@ -21,10 +21,13 @@ export async function GET(request: NextRequest) {
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({
-          success: true,
-          settings: resolveDigitalInvoiceTemplateSettings(null),
-        })
+        jsonResponse(
+          {
+            success: false,
+            error: 'Tenant context is required',
+          },
+          403
+        )
       )
     }
 

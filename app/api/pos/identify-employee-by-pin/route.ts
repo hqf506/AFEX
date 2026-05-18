@@ -7,11 +7,17 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type IdentifyEmployeeByPinBody = {
   pin?: string
+  branchId?: string | null
+  branch_id?: string | null
 }
 
 const PIN_RESPONSE_DELAY_MS = 300
 const PIN_RATE_LIMIT_MAX_ATTEMPTS = 5
 const PIN_RATE_LIMIT_WINDOW_MS = 60 * 1000
+const PIN_BRANCH_MISMATCH_MESSAGE =
+  'رمز PIN غير صحيح أو المستخدم غير مرتبط بهذا الفرع'
+const MISSING_POS_CONTEXT_MESSAGE = 'تعذر تحديد الفرع أو المنشأة'
+const DUPLICATE_PIN_MESSAGE = 'يوجد أكثر من موظف بنفس PIN، اختر الفرع أولًا'
 
 type PosEmployeeRpcRow = {
   id?: string | null
@@ -30,6 +36,10 @@ const pinRateLimitStore = new Map<string, PinRateLimitEntry>()
 
 function normalizePin(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function normalizeOptionalBranchId(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
 async function withFixedPinDelay(response: Response) {
@@ -91,6 +101,34 @@ function checkPinRateLimit(key: string) {
   return true
 }
 
+async function isTenantBranch(tenantId: string, branchId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('branches')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('id', branchId)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        '[POS PIN] Failed to validate requested branch.',
+        redactSensitive({
+          tenantId,
+          branchId,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        })
+      )
+    }
+    return false
+  }
+
+  return typeof data?.id === 'string'
+}
+
 function clearPinRateLimit(key: string) {
   pinRateLimitStore.delete(key)
 }
@@ -105,16 +143,57 @@ export async function POST(request: NextRequest) {
   try {
     const tenantId = auth.profile.tenant_id
 
+    const body = (await request.json()) as IdentifyEmployeeByPinBody
+    const pin = normalizePin(body.pin)
+    const requestedBranchId =
+      normalizeOptionalBranchId(body.branchId) ||
+      normalizeOptionalBranchId(body.branch_id)
+
     if (!tenantId) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[POS PIN] Missing POS tenant.', {
+          tenantId: null,
+          requestedBranchId,
+          profileBranchId: auth.profile.branch_id ?? null,
+          pinLength: pin.length,
+        })
+      }
+
       const response = jsonResponse(
-        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        { error: MISSING_POS_CONTEXT_MESSAGE },
         400
       )
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
-    const body = (await request.json()) as IdentifyEmployeeByPinBody
-    const pin = normalizePin(body.pin)
+    let branchId: string | null = null
+
+    if (requestedBranchId) {
+      const branchBelongsToTenant = await isTenantBranch(
+        tenantId,
+        requestedBranchId
+      )
+
+      if (!branchBelongsToTenant) {
+        const response = jsonResponse(
+          { error: MISSING_POS_CONTEXT_MESSAGE },
+          400
+        )
+        return withFixedPinDelay(withAuthCookies(auth.response, response))
+      }
+
+      branchId = requestedBranchId
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.info('[POS PIN] Verification request.', {
+        tenantId,
+        branchId,
+        requestedBranchId,
+        profileBranchId: auth.profile.branch_id ?? null,
+        pinLength: pin.length,
+      })
+    }
 
     if (!/^[0-9]{4}$/.test(pin)) {
       const response = jsonResponse(
@@ -127,7 +206,7 @@ export async function POST(request: NextRequest) {
     const rateLimitKey = buildPinRateLimitKey(
       request,
       tenantId,
-      auth.profile.branch_id
+      branchId
     )
 
     if (!checkPinRateLimit(rateLimitKey)) {
@@ -139,9 +218,24 @@ export async function POST(request: NextRequest) {
     }
 
     const { data, error } = await supabaseAdmin.rpc('verify_pos_pin', {
-      raw_pin: pin,
-      tenant_id: tenantId,
+      p_raw_pin: pin,
+      p_tenant_id: tenantId,
+      p_branch_id: branchId,
     })
+    const rpcRowCount = Array.isArray(data) ? data.length : data ? 1 : 0
+
+    if (process.env.NODE_ENV === 'development') {
+      console.info('[POS PIN] verify_pos_pin RPC result.', {
+        tenantId,
+        branchId,
+        pinLength: pin.length,
+        hasData: rpcRowCount > 0,
+        rowCount: rpcRowCount,
+        hasError: Boolean(error),
+        errorCode: error?.code ?? null,
+        errorMessage: error?.message ?? null,
+      })
+    }
 
     if (error) {
       const rpcErrorLog =
@@ -154,17 +248,32 @@ export async function POST(request: NextRequest) {
               code: error.code,
             }
 
-      console.error(
-        '[POS PIN] verify_pos_pin RPC failed.',
-        redactSensitive(rpcErrorLog)
-      )
+      if (process.env.NODE_ENV === 'development') {
+        console.error(
+          '[POS PIN] verify_pos_pin RPC failed.',
+          redactSensitive({
+            tenantId,
+            branchId,
+            pinLength: pin.length,
+            ...rpcErrorLog,
+          })
+        )
+      }
 
       const response = jsonResponse(
         {
-          error: 'تعذر التحقق من رمز الموظف',
-          ...safeErrorDetails(error, 'تعذر التحقق من رمز الموظف'),
+          error: 'تعذر التحقق من رمز PIN',
+          ...safeErrorDetails(error, 'تعذر التحقق من رمز PIN'),
         },
         500
+      )
+      return withFixedPinDelay(withAuthCookies(auth.response, response))
+    }
+
+    if (rpcRowCount > 1) {
+      const response = jsonResponse(
+        { error: DUPLICATE_PIN_MESSAGE },
+        409
       )
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
@@ -174,7 +283,7 @@ export async function POST(request: NextRequest) {
 
     if (!employee) {
       const response = jsonResponse(
-        { error: 'رمز الموظف غير صحيح' },
+        { error: PIN_BRANCH_MISMATCH_MESSAGE },
         401
       )
       return withFixedPinDelay(withAuthCookies(auth.response, response))
@@ -191,8 +300,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'حدث خطأ أثناء التحقق من رمز الموظف',
-        ...safeErrorDetails(error, 'حدث خطأ أثناء التحقق من رمز الموظف'),
+        error: 'حدث خطأ أثناء التحقق من رمز PIN',
+        ...safeErrorDetails(error, 'حدث خطأ أثناء التحقق من رمز PIN'),
       },
       500
     )

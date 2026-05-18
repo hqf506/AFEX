@@ -179,6 +179,7 @@ export default function ReportsPage() {
   const roleLabel = getRoleLabel(access.userRole)
   const branchId = access.branchId
   const scopeType = access.scopeType
+  const tenantId = authState.profile?.tenant_id ?? null
   const {
     isSystemAdmin,
     branches,
@@ -186,7 +187,7 @@ export default function ReportsPage() {
     selectedBranchId,
     effectiveBranchId,
     setSelectedBranchId,
-  } = useAdminBranchFilter(scopeType, branchId, allowed)
+  } = useAdminBranchFilter(scopeType, branchId, allowed, tenantId)
 
   const todayString = getDateInputValue(new Date())
 
@@ -200,7 +201,6 @@ export default function ReportsPage() {
   const [dateTo, setDateTo] = useState(todayString)
   const [showAllOrders, setShowAllOrders] = useState(false)
   const [showAllServices, setShowAllServices] = useState(false)
-  const tenantId = authState.profile?.tenant_id ?? null
 
   const fetchReportsData = useCallback(
     async (silent = false) => {

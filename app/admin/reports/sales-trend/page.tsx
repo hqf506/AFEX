@@ -339,6 +339,7 @@ export default function SalesTrendPage() {
   const allowed = access.allowed
   const branchId = access.branchId
   const scopeType = access.scopeType
+  const tenantId = authState.profile?.tenant_id ?? null
   const {
     isSystemAdmin,
     branches,
@@ -346,7 +347,7 @@ export default function SalesTrendPage() {
     selectedBranchId,
     effectiveBranchId,
     setSelectedBranchId,
-  } = useAdminBranchFilter(scopeType, branchId, allowed)
+  } = useAdminBranchFilter(scopeType, branchId, allowed, tenantId)
 
   const initialPeriod = resolvePeriodPreset('today')
   const [period, setPeriod] = useState<PeriodPresetKey>('today')
@@ -362,7 +363,6 @@ export default function SalesTrendPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [lastUpdated, setLastUpdated] = useState('')
-  const tenantId = authState.profile?.tenant_id ?? null
 
   const isCustomPeriod = period === 'custom'
 

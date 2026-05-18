@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        { error: 'تعذر تحديد نطاق المنشأة' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -76,6 +76,84 @@ export async function POST(request: NextRequest) {
     }
 
     if (!existingProfile) {
+      const { data: existingPosProfile } = await supabaseAdmin
+        .from('pos_profiles')
+        .select('id, username, role, branch_id')
+        .eq('id', userId)
+        .eq('tenant_id', tenantId)
+        .maybeSingle()
+
+      if (existingPosProfile) {
+        if (role === 'admin') {
+          const response = jsonResponse(
+            { error: 'لا يمكن تحويل مستخدم POS إلى admin' },
+            400
+          )
+          return withAuthCookies(auth.response, response)
+        }
+
+        const targetBranchId =
+          typeof existingPosProfile.branch_id === 'string'
+            ? existingPosProfile.branch_id
+            : null
+
+        if (
+          !canManageBranchScopedTarget(
+            auth.profile.scope_type,
+            auth.profile.branch_id,
+            targetBranchId
+          )
+        ) {
+          const response = jsonResponse(
+            { error: 'لا تملك صلاحية تعديل هذا المستخدم' },
+            403
+          )
+          return withAuthCookies(auth.response, response)
+        }
+
+        const { error: updatePosError } = await supabaseAdmin
+          .from('pos_profiles')
+          .update({ role, updated_at: new Date().toISOString() })
+          .eq('id', userId)
+          .eq('tenant_id', tenantId)
+
+        if (updatePosError) {
+          const response = jsonResponse(
+            {
+              error: 'فشل تحديث الصلاحية',
+              ...safeErrorDetails(updatePosError, 'تعذر تحديث الصلاحية'),
+            },
+            400
+          )
+          return withAuthCookies(auth.response, response)
+        }
+
+        await writeAuditLog({
+          auth,
+          request,
+          action: 'user.role_updated',
+          entityType: 'pos_profile',
+          entityId: userId,
+          branchId: targetBranchId,
+          metadata: {
+            old_role: existingPosProfile.role,
+            new_role: role,
+          },
+        })
+
+        const response = jsonResponse({
+          success: true,
+          message: 'تم تحديث الصلاحية بنجاح',
+          user: {
+            id: existingPosProfile.id,
+            username: existingPosProfile.username,
+            role,
+          },
+        })
+
+        return withAuthCookies(auth.response, response)
+      }
+
       const response = jsonResponse(
         { error: 'المستخدم غير موجود في profiles' },
         404

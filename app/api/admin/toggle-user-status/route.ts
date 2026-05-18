@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        { error: 'تعذر تحديد نطاق المنشأة' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -71,6 +71,81 @@ export async function POST(request: NextRequest) {
     }
 
     if (!existingProfile) {
+      const { data: existingPosProfile } = await supabaseAdmin
+        .from('pos_profiles')
+        .select('id, username, is_active, branch_id')
+        .eq('id', userId)
+        .eq('tenant_id', tenantId)
+        .maybeSingle()
+
+      if (existingPosProfile) {
+        const targetBranchId =
+          typeof existingPosProfile.branch_id === 'string'
+            ? existingPosProfile.branch_id
+            : null
+
+        if (
+          !canManageBranchScopedTarget(
+            auth.profile.scope_type,
+            auth.profile.branch_id,
+            targetBranchId
+          )
+        ) {
+          const response = jsonResponse(
+            { error: 'لا تملك صلاحية تعديل هذا المستخدم' },
+            403
+          )
+          return withAuthCookies(auth.response, response)
+        }
+
+        const { error: updatePosError } = await supabaseAdmin
+          .from('pos_profiles')
+          .update({
+            is_active: isActive,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId)
+          .eq('tenant_id', tenantId)
+
+        if (updatePosError) {
+          const response = jsonResponse(
+            {
+              error: 'فشل تحديث حالة المستخدم',
+              ...safeErrorDetails(updatePosError, 'تعذر تحديث حالة المستخدم'),
+            },
+            400
+          )
+          return withAuthCookies(auth.response, response)
+        }
+
+        await writeAuditLog({
+          auth,
+          request,
+          action: 'user.status_toggled',
+          entityType: 'pos_profile',
+          entityId: userId,
+          branchId: targetBranchId,
+          metadata: {
+            old_is_active: existingPosProfile.is_active,
+            new_is_active: isActive,
+          },
+        })
+
+        const response = jsonResponse({
+          success: true,
+          message: isActive
+            ? 'تم تفعيل المستخدم بنجاح'
+            : 'تم تعطيل المستخدم بنجاح',
+          user: {
+            id: existingPosProfile.id,
+            username: existingPosProfile.username,
+            is_active: isActive,
+          },
+        })
+
+        return withAuthCookies(auth.response, response)
+      }
+
       const response = jsonResponse({ error: 'المستخدم غير موجود' }, 404)
       return withAuthCookies(auth.response, response)
     }

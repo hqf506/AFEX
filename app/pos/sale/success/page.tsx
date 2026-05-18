@@ -408,9 +408,28 @@ export default function PosSaleSuccessPage() {
           margin-top: 0 !important;
         }
 
+        .receipt-print-root {
+          max-width: min(100%, 100mm) !important;
+          width: min(100%, 100mm) !important;
+        }
+
+        .receipt-curtain-panel {
+          width: min(100mm, calc(100vw - 24px));
+          filter: drop-shadow(0 24px 42px rgba(15, 23, 42, 0.18));
+          animation: receipt-curtain-drop 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
         @media print {
           body {
             background: #ffffff !important;
+          }
+
+          .receipt-curtain-panel {
+            animation: none !important;
+            filter: none !important;
+            max-width: 100mm !important;
+            transform: none !important;
+            width: 100mm !important;
           }
 
           .receipt-print-hide {
@@ -430,7 +449,7 @@ export default function PosSaleSuccessPage() {
             position: absolute;
             top: 24px;
             left: 50%;
-            width: min(100%, 480px);
+            width: min(100%, 100mm) !important;
             transform: translateX(-50%);
             margin: 0 auto;
             box-shadow: none !important;
@@ -454,7 +473,31 @@ export default function PosSaleSuccessPage() {
             opacity: 1;
           }
         }
+
+        @keyframes receipt-curtain-drop {
+          from {
+            opacity: 0;
+            transform: translate3d(0, -110%, 0) scale(0.985);
+          }
+
+          70% {
+            opacity: 1;
+            transform: translate3d(0, 10px, 0) scale(1);
+          }
+
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+        }
       `}</style>
+
+      <div className="receipt-print-hide pointer-events-none fixed inset-0 z-30 bg-slate-950/[0.035]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-3 pt-3 sm:pt-4">
+        <div className="receipt-curtain-panel pointer-events-auto w-[100mm] max-w-[calc(100vw-24px)]">
+          <ReceiptView snapshot={snapshot} />
+        </div>
+      </div>
 
       <div className="mt-2 flex h-full w-full min-h-0 min-w-0 flex-col space-y-3 rounded-[28px] border border-slate-100 bg-white p-3 shadow-sm md:p-4 lg:overflow-hidden">
         <div className="receipt-print-hide flex flex-col items-center justify-center space-y-2 py-1 text-center">
@@ -585,9 +628,6 @@ export default function PosSaleSuccessPage() {
               </div>
             </div>
 
-            <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-              <ReceiptView snapshot={snapshot} />
-            </div>
           </section>
         </div>
       </div>

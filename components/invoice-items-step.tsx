@@ -23,7 +23,6 @@ import {
 } from '@/hooks/use-invoice-checkout'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
 import { getRoleLabel } from '@/lib/app-roles'
-import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
 import {
   createProtectedResourceAuthError,
   isProtectedResourceAuthError,
@@ -37,6 +36,10 @@ import {
   peekBranchInvoiceCatalog,
   type PosInvoiceCatalogProduct,
 } from '@/lib/invoices/catalog'
+import {
+  readActivePosEmployee,
+  type ActivePosEmployee,
+} from '@/lib/pos-employee-session'
 import {
   INVOICE_CUSTOMER_STORAGE_KEY,
   parseStoredInvoiceCustomerDraft,
@@ -207,6 +210,108 @@ function getNormalizedCatalogItemId(
   )
 }
 
+function getInventoryTrackingState(
+  product:
+    | PosInvoiceCatalogProduct
+    | (InvoiceCatalogItem & Partial<PosInvoiceCatalogProduct>)
+) {
+  const record = product as Record<string, unknown>
+  const normalizedType = record.item_type ?? product.type ?? 'service'
+  const normalizedQuantity = Number(record.quantity_on_hand ?? 0)
+  const isComposite = product.is_composite === true
+  const isInventoryTracked =
+    product.track_inventory === true &&
+    (normalizedType === 'product' || isComposite)
+  const safeNormalizedQuantity =
+    isInventoryTracked && Number.isFinite(normalizedQuantity)
+      ? normalizedQuantity
+      : 0
+  const normalizedLowStockThreshold = Number(record.low_stock_threshold ?? 0)
+  const lowStockThreshold =
+    isInventoryTracked && Number.isFinite(normalizedLowStockThreshold)
+      ? normalizedLowStockThreshold
+      : 0
+  const isOutOfStock = isInventoryTracked && safeNormalizedQuantity <= 0
+
+  return {
+    normalizedType: normalizedType === 'product' ? 'product' : 'service',
+    isComposite,
+    isInventoryTracked,
+    normalizedQuantity: safeNormalizedQuantity,
+    lowStockThreshold,
+    isOutOfStock,
+  }
+}
+
+function isStockTrackedProduct(
+  product:
+    | PosInvoiceCatalogProduct
+    | (InvoiceCatalogItem & Partial<PosInvoiceCatalogProduct>)
+) {
+  return getInventoryTrackingState(product).isInventoryTracked
+}
+
+function isProductOutOfStock(
+  product:
+    | PosInvoiceCatalogProduct
+    | (InvoiceCatalogItem & Partial<PosInvoiceCatalogProduct>)
+) {
+  const inventoryState = getInventoryTrackingState(product)
+
+  return inventoryState.isOutOfStock
+}
+
+function isProductLowStock(
+  product:
+    | PosInvoiceCatalogProduct
+    | (InvoiceCatalogItem & Partial<PosInvoiceCatalogProduct>)
+) {
+  const inventoryState = getInventoryTrackingState(product)
+
+  return (
+    inventoryState.isInventoryTracked &&
+    inventoryState.lowStockThreshold > 0 &&
+    inventoryState.normalizedQuantity <= inventoryState.lowStockThreshold
+  )
+}
+
+function formatStockNumber(value: number) {
+  return new Intl.NumberFormat('ar-SA', {
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+function ProductStockIndicator({
+  product,
+  variant,
+}: {
+  product: PosInvoiceCatalogProduct
+  variant: 'compact' | 'card'
+}) {
+  if (!isStockTrackedProduct(product)) {
+    return null
+  }
+
+  const { isOutOfStock, normalizedQuantity } = getInventoryTrackingState(product)
+  const lowStock = isProductLowStock(product)
+  const baseClass =
+    variant === 'compact'
+      ? 'mt-1 inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-bold'
+      : 'mt-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold'
+  const toneClass = isOutOfStock
+    ? 'bg-red-50 text-red-700'
+    : lowStock
+      ? 'bg-amber-50 text-amber-700'
+      : 'bg-emerald-50 text-emerald-700'
+
+  return (
+    <span className={`${baseClass} ${toneClass}`}>
+      المخزون: {formatStockNumber(normalizedQuantity)}
+      {isOutOfStock ? ' · غير متوفر' : lowStock ? ' · منخفض' : ''}
+    </span>
+  )
+}
+
 type InvoiceItemsStepProps = {
   heroTitle: string
   heroSubtitle: string
@@ -255,6 +360,7 @@ export function InvoiceItemsStep({
   const authError = access.authError
   const allowed = access.allowed
   const branchId = access.branchId
+  const tenantId = access.tenantId
   const scopeType = access.scopeType
   const roleLabel = getRoleLabel(access.userRole)
   const {
@@ -262,11 +368,37 @@ export function InvoiceItemsStep({
     branches,
     loadingBranches,
     selectedBranchId,
+    selectedBranchName,
     effectiveBranchId,
     setSelectedBranchId,
-  } = useAdminBranchFilter(scopeType, branchId, allowed)
-  const hasInvalidBranchContext = scopeType === 'branch' && !branchId
-  const hasAmbiguousAdminBranchContext = isSystemAdmin && !effectiveBranchId
+  } = useAdminBranchFilter(scopeType, branchId, allowed, tenantId)
+  const [activePosEmployee] = useState<ActivePosEmployee | null>(() =>
+    variant === 'pos' ? readActivePosEmployee() : null
+  )
+  const posEmployeeBranchId =
+    variant === 'pos' ? activePosEmployee?.branch_id || null : null
+  const invoiceBranchId = posEmployeeBranchId || effectiveBranchId
+  const invoiceBranchName = useMemo(() => {
+    const branchName =
+      branches.find((branch) => branch.id === invoiceBranchId)?.name || ''
+
+    if (branchName) {
+      return branchName
+    }
+
+    if (posEmployeeBranchId) {
+      return 'فرع نقطة البيع'
+    }
+
+    if (invoiceBranchId) {
+      return selectedBranchName
+    }
+
+    return 'لم يتم اختيار فرع'
+  }, [branches, invoiceBranchId, posEmployeeBranchId, selectedBranchName])
+  const hasInvalidBranchContext =
+    scopeType === 'branch' && !branchId && !posEmployeeBranchId
+  const hasAmbiguousAdminBranchContext = isSystemAdmin && !invoiceBranchId
   const hasUnavailablePosBranchContext =
     hasInvalidBranchContext || hasAmbiguousAdminBranchContext
 
@@ -300,29 +432,8 @@ export function InvoiceItemsStep({
   const [vatSetting, setVatSetting] = useState<CheckoutVatSetting | null>(null)
   const [recentlyAddedItemId, setRecentlyAddedItemId] = useState<string | null>(null)
   const [pressedItemId, setPressedItemId] = useState<string | null>(null)
+  const [stockErrorMessage, setStockErrorMessage] = useState('')
   const deferredSearch = useDeferredValue(search)
-
-  useEffect(() => {
-    if (variant !== 'pos') return
-    if (!allowed || !ready) return
-    if (!isSystemAdmin) return
-    if (loadingBranches) return
-    if (effectiveBranchId) return
-    if (selectedBranchId !== ADMIN_BRANCH_FILTER_ALL) return
-    if (branches.length === 0) return
-
-    setSelectedBranchId(branches[0].id)
-    }, [
-    allowed,
-    branches,
-    effectiveBranchId,
-    isSystemAdmin,
-    loadingBranches,
-    ready,
-    selectedBranchId,
-    setSelectedBranchId,
-    variant,
-  ])
 
   useEffect(() => {
     if (!allowed) return
@@ -444,7 +555,8 @@ export function InvoiceItemsStep({
 
     const loadCatalog = async () => {
       try {
-        const cachedProducts = peekBranchInvoiceCatalog(effectiveBranchId)
+        const cachedProducts =
+          variant === 'pos' ? [] : peekBranchInvoiceCatalog(invoiceBranchId)
 
         if (!cancelled && cachedProducts.length > 0) {
           setCatalogProducts(cachedProducts)
@@ -458,7 +570,9 @@ export function InvoiceItemsStep({
           setCatalogError(false)
         }
 
-        const nextProducts = await loadBranchInvoiceCatalog(effectiveBranchId)
+        const nextProducts = await loadBranchInvoiceCatalog(invoiceBranchId, {
+          force: true,
+        })
 
         if (!cancelled) {
           setCatalogProducts(nextProducts)
@@ -487,7 +601,7 @@ export function InvoiceItemsStep({
     return () => {
       cancelled = true
     }
-  }, [allowed, ready, effectiveBranchId, hasUnavailablePosBranchContext])
+  }, [allowed, ready, invoiceBranchId, hasUnavailablePosBranchContext, variant])
 
   const visibleCatalogProducts = useMemo(() => {
     if (hasUnavailablePosBranchContext) {
@@ -659,7 +773,7 @@ export function InvoiceItemsStep({
 
     async function loadVatSetting() {
       try {
-        const vatCacheKey = getVatCacheKey(effectiveBranchId)
+        const vatCacheKey = getVatCacheKey(invoiceBranchId)
         const cachedSetting =
           peekClientResource<CheckoutVatSetting | null>(vatCacheKey) || null
 
@@ -668,8 +782,8 @@ export function InvoiceItemsStep({
         }
 
         const searchParams = new URLSearchParams()
-        if (effectiveBranchId) {
-          searchParams.set('branchId', effectiveBranchId)
+        if (invoiceBranchId) {
+          searchParams.set('branchId', invoiceBranchId)
         }
 
         const nextSetting = await loadClientResource(
@@ -700,7 +814,7 @@ export function InvoiceItemsStep({
           },
           {
             ttlMs: ADMIN_VAT_CACHE_TTL_MS,
-            logLabel: `fetch vat (${effectiveBranchId || 'all'})`,
+            logLabel: `fetch vat (${invoiceBranchId || 'all'})`,
             protectedResource: true,
           }
         )
@@ -725,7 +839,7 @@ export function InvoiceItemsStep({
     return () => {
       cancelled = true
     }
-  }, [allowed, effectiveBranchId])
+  }, [allowed, invoiceBranchId])
 
   useEffect(() => {
     if (!allowed || !ready || hasUnavailablePosBranchContext) {
@@ -735,11 +849,11 @@ export function InvoiceItemsStep({
     router.prefetch(checkoutHref)
 
     void prefetchClientResource(
-      getDiscountsCacheKey(effectiveBranchId),
+      getDiscountsCacheKey(invoiceBranchId),
       async () => {
         const searchParams = new URLSearchParams()
-        if (effectiveBranchId) {
-          searchParams.set('branchId', effectiveBranchId)
+        if (invoiceBranchId) {
+          searchParams.set('branchId', invoiceBranchId)
         }
 
         const response = await fetch(
@@ -767,17 +881,17 @@ export function InvoiceItemsStep({
       },
       {
         ttlMs: ADMIN_DISCOUNTS_CACHE_TTL_MS,
-        logLabel: `fetch discounts (${effectiveBranchId || 'all'})`,
+        logLabel: `fetch discounts (${invoiceBranchId || 'all'})`,
         protectedResource: true,
       }
     )
 
     void prefetchClientResource(
-      getVatCacheKey(effectiveBranchId),
+      getVatCacheKey(invoiceBranchId),
       async () => {
         const searchParams = new URLSearchParams()
-        if (effectiveBranchId) {
-          searchParams.set('branchId', effectiveBranchId)
+        if (invoiceBranchId) {
+          searchParams.set('branchId', invoiceBranchId)
         }
 
         const response = await fetch(
@@ -807,7 +921,7 @@ export function InvoiceItemsStep({
       },
       {
         ttlMs: ADMIN_VAT_CACHE_TTL_MS,
-        logLabel: `fetch vat (${effectiveBranchId || 'all'})`,
+        logLabel: `fetch vat (${invoiceBranchId || 'all'})`,
         protectedResource: true,
       }
     )
@@ -839,7 +953,7 @@ export function InvoiceItemsStep({
         protectedResource: true,
       }
     )
-  }, [allowed, checkoutHref, effectiveBranchId, hasUnavailablePosBranchContext, ready, router])
+  }, [allowed, checkoutHref, invoiceBranchId, hasUnavailablePosBranchContext, ready, router])
 
   const checkout = useInvoiceCheckout({
     customerName,
@@ -847,6 +961,7 @@ export function InvoiceItemsStep({
     invoiceItems,
     hasInvalidBranchContext,
     hasAmbiguousAdminBranchContext,
+    branchId: invoiceBranchId,
     vatSetting,
   })
 
@@ -860,12 +975,33 @@ export function InvoiceItemsStep({
       return
     }
 
+    if (isProductOutOfStock(product)) {
+      setStockErrorMessage('المخزون غير متوفر لهذا المنتج')
+      triggerPosFeedback('error')
+      return
+    }
+
+    if (isStockTrackedProduct(product)) {
+      const { normalizedQuantity } = getInventoryTrackingState(product)
+      const productCartQuantity =
+        invoiceItemQuantities.byId.get(normalizedCatalogItemId) ??
+        invoiceItemQuantities.byName.get(product.name) ??
+        0
+
+      if (productCartQuantity + 1 > normalizedQuantity) {
+        setStockErrorMessage('الكمية المطلوبة أكبر من المخزون المتاح')
+        triggerPosFeedback('error')
+        return
+      }
+    }
+
     setInvoiceLineItems((prev) =>
       addInvoiceLineItem(prev, {
         ...product,
         id: normalizedCatalogItemId,
       })
     )
+    setStockErrorMessage('')
     setRecentlyAddedItemId(normalizedCatalogItemId)
     triggerPosFeedback('add')
   }
@@ -883,8 +1019,30 @@ export function InvoiceItemsStep({
     addItem(product)
   }
 
-  const increaseQty = (itemName: string) => {
-    setInvoiceLineItems((prev) => increaseInvoiceLineItemQuantity(prev, itemName))
+  const increaseQty = (item: InvoiceLineItem) => {
+    const product = catalogProducts.find((catalogProduct) => {
+      const catalogItemId = getNormalizedCatalogItemId(catalogProduct)
+
+      return (
+        (item.item_id && catalogItemId === item.item_id) ||
+        catalogProduct.name === item.item_name
+      )
+    })
+
+    if (product && isStockTrackedProduct(product)) {
+      const { normalizedQuantity } = getInventoryTrackingState(product)
+
+      if (item.quantity + 1 > normalizedQuantity) {
+        setStockErrorMessage('الكمية المطلوبة أكبر من المخزون المتاح')
+        triggerPosFeedback('error')
+        return
+      }
+    }
+
+    setStockErrorMessage('')
+    setInvoiceLineItems((prev) =>
+      increaseInvoiceLineItemQuantity(prev, item.item_name)
+    )
   }
 
   const decreaseQty = (itemName: string) => {
@@ -961,6 +1119,11 @@ export function InvoiceItemsStep({
             اختر فرعًا محددًا من القائمة قبل إنشاء فاتورة جديدة
           </div>
         ) : null}
+        {stockErrorMessage ? (
+          <div className="error-alert">
+            {stockErrorMessage}
+          </div>
+        ) : null}
 
         <div className="flex h-full w-full min-h-0 min-w-0 flex-col overflow-x-hidden bg-slate-50 p-2 pb-24 md:p-3 md:pb-28 lg:p-4 xl:pb-4">
           <div className="h-full min-h-0 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm lg:grid lg:[direction:ltr] lg:grid-cols-[1fr_340px]">
@@ -971,10 +1134,15 @@ export function InvoiceItemsStep({
                   <p className="mt-1 text-sm leading-6 text-slate-500">
                     أضف الخدمات أو المنتجات إلى الفاتورة.
                   </p>
+                  <div className="mt-2 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">
+                    الفرع: {invoiceBranchName}
+                  </div>
                 </div>
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#020617] text-white shadow-sm">
-                  <BoxIcon />
+                <div className="flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#020617] text-white shadow-sm">
+                    <BoxIcon />
+                  </div>
                 </div>
               </div>
 
@@ -1049,6 +1217,8 @@ export function InvoiceItemsStep({
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
+                      const inventoryState = getInventoryTrackingState(product)
+                      const productOutOfStock = inventoryState.isOutOfStock
 
                       return (
                       <div
@@ -1063,6 +1233,8 @@ export function InvoiceItemsStep({
                           }
                         }}
                         className={`flex min-h-[112px] w-full min-w-0 max-w-none cursor-pointer items-center gap-2.5 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-100 ease-out [direction:rtl] hover:border-slate-300 hover:shadow-sm active:scale-[0.99] ${
+                          productOutOfStock ? 'opacity-70' : ''
+                        } ${
                           pressedItemId === normalizedCatalogItemId
                             ? 'scale-95'
                             : 'scale-100'
@@ -1079,6 +1251,9 @@ export function InvoiceItemsStep({
                             ) ??
                             invoiceItemQuantities.byName.get(product.name) ??
                             0
+                          const reachedStockLimit =
+                            inventoryState.isInventoryTracked &&
+                            productCartQuantity >= inventoryState.normalizedQuantity
 
                           return (
                             <>
@@ -1105,6 +1280,10 @@ export function InvoiceItemsStep({
                           <p className="mt-2 text-lg font-black leading-none text-slate-950">
                             {formatCurrency(product.price)}
                           </p>
+                          <ProductStockIndicator
+                            product={product}
+                            variant="compact"
+                          />
                           {recentlyAddedItemId === normalizedCatalogItemId ? (
                             <span className="mt-1 inline-flex w-fit rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
                               تمت الإضافة
@@ -1139,7 +1318,8 @@ export function InvoiceItemsStep({
                                 pressedItemId === normalizedCatalogItemId
                                   ? 'scale-95'
                                   : 'scale-100'
-                              }`}
+                              } ${reachedStockLimit ? 'opacity-50' : ''}`}
+                              aria-disabled={reachedStockLimit}
                               aria-label={`زيادة ${product.name}`}
                             >
                               +
@@ -1156,7 +1336,8 @@ export function InvoiceItemsStep({
                               pressedItemId === normalizedCatalogItemId
                                 ? 'scale-95'
                                 : 'scale-100'
-                            }`}
+                            } ${productOutOfStock ? 'opacity-50' : ''}`}
+                            aria-disabled={productOutOfStock}
                             aria-label={`إضافة ${product.name}`}
                           >
                             +
@@ -1236,6 +1417,20 @@ export function InvoiceItemsStep({
                 <h1 className="mt-1 text-xl font-black text-slate-950">
                   AFEX POS
                 </h1>
+                <div className="mt-3 space-y-2">
+                  {isSystemAdmin && !posEmployeeBranchId ? (
+                    <AdminBranchFilter
+                      branches={branches}
+                      selectedBranchId={selectedBranchId}
+                      loading={loadingBranches}
+                      onChange={setSelectedBranchId}
+                      allLabel="اختر فرعًا للفاتورة"
+                    />
+                  ) : null}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700">
+                    الفرع: {invoiceBranchName}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1515,6 +1710,11 @@ export function InvoiceItemsStep({
           اختر فرعًا محددًا من القائمة قبل إنشاء فاتورة جديدة
         </div>
       ) : null}
+      {stockErrorMessage ? (
+        <div className="error-alert">
+          {stockErrorMessage}
+        </div>
+      ) : null}
 
       <PageHero>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1665,12 +1865,18 @@ export function InvoiceItemsStep({
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => addItem(product)}
-                  className="inner-card text-right transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
-                >
+              {filteredProducts.map((product) => {
+                const inventoryState = getInventoryTrackingState(product)
+                const productOutOfStock = inventoryState.isOutOfStock
+
+                return (
+                  <button
+                    key={product.id}
+                    onClick={() => addItem(product)}
+                    className={`inner-card text-right transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white ${
+                      productOutOfStock ? 'opacity-70' : ''
+                    }`}
+                  >
                   <div className="mb-4 overflow-hidden rounded-[20px] border border-slate-200 bg-slate-100">
                     <PosCatalogItemImage
                       key={product.image_url || product.id}
@@ -1691,6 +1897,7 @@ export function InvoiceItemsStep({
                       <p className="mt-1 text-sm text-slate-500">
                         {product.type === 'service' ? 'خدمة' : 'منتج'} ⬢ {product.category}
                       </p>
+                      <ProductStockIndicator product={product} variant="card" />
                     </div>
 
                     <span className="badge badge-slate">
@@ -1702,7 +1909,8 @@ export function InvoiceItemsStep({
                     إضافة إلى الفاتورة
                   </div>
                 </button>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>
@@ -1763,7 +1971,7 @@ export function InvoiceItemsStep({
                         </div>
 
                         <AdminButton
-                          onClick={() => increaseQty(item.item_name)}
+                          onClick={() => increaseQty(item)}
                           type="button"
                         >
                           +
@@ -1786,7 +1994,7 @@ export function InvoiceItemsStep({
           </section>
 
           {checkoutMode === 'embedded' ? (
-            <InvoiceCheckoutPanel checkout={checkout} branchId={effectiveBranchId} />
+            <InvoiceCheckoutPanel checkout={checkout} branchId={invoiceBranchId} />
           ) : (
             <section className="page-card">
               <div className="mb-4">

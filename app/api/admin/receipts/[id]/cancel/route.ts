@@ -321,6 +321,42 @@ export async function POST(
       )
     }
 
+    const { error: restoreInventoryError } = await supabaseAdmin.rpc(
+      'restore_inventory_for_cancelled_invoice',
+      {
+        p_tenant_id: tenantId,
+        p_invoice_id: updatedInvoice.id,
+      }
+    )
+
+    if (restoreInventoryError) {
+      logSupabaseError(
+        'restore inventory for cancelled invoice failed',
+        restoreInventoryError,
+        {
+          receiptId,
+          receiptIdType,
+          invoiceId: updatedInvoice.id,
+          tenantId,
+        }
+      )
+
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          {
+            error: 'تعذر إرجاع المخزون بعد إلغاء الفاتورة',
+            ...safeErrorDetails(
+              restoreInventoryError,
+              'تعذر إرجاع المخزون بعد إلغاء الفاتورة'
+            ),
+            ...safeErrorCode(restoreInventoryError),
+          },
+          500,
+        ),
+      )
+    }
+
     await writeAuditLog({
       auth,
       request,

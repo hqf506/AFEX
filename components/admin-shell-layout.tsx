@@ -104,6 +104,16 @@ function BoxIcon({ className }: { className?: string }) {
   )
 }
 
+function InventoryIcon({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <path d="M4 7.5 12 3l8 4.5-8 4.5-8-4.5Z" />
+      <path d="M4 12l8 4.5 8-4.5" />
+      <path d="M4 16.5 12 21l8-4.5" />
+    </IconBase>
+  )
+}
+
 function TagIcon({ className }: { className?: string }) {
   return (
     <IconBase className={className}>
@@ -275,6 +285,26 @@ const adminNavItems: AdminNavItem[] = [
     icon: BranchesIcon,
   },
   {
+    label: 'المخزون',
+    href: '/admin/inventory',
+    roles: ['admin'],
+    icon: InventoryIcon,
+    children: [
+      {
+        label: 'حركات المخزون',
+        href: '/admin/inventory/movements',
+        icon: ActivityIcon,
+      },
+    ],
+  },
+  {
+    label: 'العملاء',
+    href: '/admin/customers',
+    roles: ['admin'],
+    exact: true,
+    icon: UsersIcon,
+  },
+  {
     label: 'المستخدمون',
     href: '/admin/users',
     roles: ['admin'],
@@ -357,10 +387,11 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
     allowed,
     userRole,
     branchId,
+    tenantId,
     scopeType,
   } = access
 
-  useAdminBranchFilter(scopeType, branchId, !authLoading && allowed)
+  useAdminBranchFilter(scopeType, branchId, !authLoading && allowed, tenantId)
 
   const visibleNavItems = useMemo(() => {
     if (!userRole) return []
@@ -542,15 +573,38 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
                 <div className="space-y-1">
                   <NavSectionTitle>الإدارة</NavSectionTitle>
                   <div className="space-y-1">
-                    {managementNavItems.map((item) => (
-                      <SidebarLink
-                        key={item.href}
-                        href={item.href}
-                        label={item.label}
-                        icon={item.icon}
-                        active={isPathActive(pathname, item.href, item.exact)}
-                      />
-                    ))}
+                    {managementNavItems.map((item) => {
+                      const itemActive = isPathActive(
+                        pathname,
+                        item.href,
+                        item.exact
+                      )
+
+                      return (
+                        <div key={item.href} className="space-y-1">
+                          <SidebarLink
+                            href={item.href}
+                            label={item.label}
+                            icon={item.icon}
+                            active={itemActive}
+                          />
+                          {item.children?.length && itemActive ? (
+                            <div className="space-y-1 pr-3">
+                              {item.children.map((child) => (
+                                <SidebarLink
+                                  key={child.href}
+                                  href={child.href}
+                                  label={child.label}
+                                  icon={child.icon}
+                                  active={pathname === child.href}
+                                  compact
+                                />
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </nav>

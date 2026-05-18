@@ -18,6 +18,7 @@ import {
   buildInvoiceSuccessSnapshot,
   type InvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
+import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import {
   createPosClientIdempotencyKey,
   savePosOfflineInvoiceDraft,
@@ -47,6 +48,7 @@ type UseInvoiceCheckoutOptions = {
   invoiceItems: InvoiceLineItem[]
   hasInvalidBranchContext: boolean
   hasAmbiguousAdminBranchContext: boolean
+  branchId: string | null
   vatSetting?: CheckoutVatSetting | null
   onInvoiceCreated?: (
     result: CreatedInvoiceRecord,
@@ -60,6 +62,7 @@ export function useInvoiceCheckout({
   invoiceItems,
   hasInvalidBranchContext,
   hasAmbiguousAdminBranchContext,
+  branchId,
   vatSetting = null,
   onInvoiceCreated,
 }: UseInvoiceCheckoutOptions) {
@@ -265,6 +268,12 @@ export function useInvoiceCheckout({
       return
     }
 
+    if (!branchId) {
+      setLoading(false)
+      setErrorMessage('اختر فرعًا محددًا قبل إتمام البيع')
+      return
+    }
+
     const clientIdempotencyKey = getOrCreateClientIdempotencyKey()
     const activePosEmployee = readActivePosEmployee()
 
@@ -312,7 +321,7 @@ export function useInvoiceCheckout({
       body: JSON.stringify({
         clientIdempotencyKey,
         employee_id: activePosEmployee?.id ?? null,
-        branch_id: activePosEmployee?.branch_id ?? null,
+        branch_id: branchId,
         customerName,
         customerPhone,
         paymentMethod: toApiPaymentMethod(safePaymentMethod),
@@ -378,6 +387,8 @@ export function useInvoiceCheckout({
     setLastInvoiceNumber(result?.invoice_number || '')
     setLastOrderNumber(result?.order_number || '')
     setSuccessMessage(`تم إنشاء الفاتورة ${result?.invoice_number || ''} بنجاح`)
+
+    clearAllInvoiceCatalogCache()
 
     onInvoiceCreated?.(
       result,

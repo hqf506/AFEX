@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput } from '@/components/admin-input'
 import {
@@ -9,9 +9,7 @@ import {
 } from '@/lib/admin/branches'
 import {
   ADMIN_ROLE_OPTIONS,
-  canSubmitAdminUserCreatePayload,
   createEmptyAdminUserPayload,
-  hasValidAdminPasswordLength,
   isValidAdminPosPin,
   isPrimaryAdminUsername,
 } from '@/lib/admin/users'
@@ -20,11 +18,15 @@ import { AppRole, usePageAccess } from '@/hooks/use-page-access'
 
 type ProfileRow = {
   id: string
+  tenant_id?: string | null
   full_name: string | null
   username: string | null
   role: AppRole
   is_active: boolean
   branch_id: string | null
+  account_type?: 'profile' | 'pos_profile'
+  created_by_name?: string | null
+  created_by_username?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -39,6 +41,16 @@ type ResetPosPinModalState = {
   open: boolean
   userId: string
   username: string
+}
+
+type DeleteUserModalState = {
+  open: boolean
+  user: ProfileRow | null
+}
+
+type EditUserDrawerState = {
+  open: boolean
+  user: ProfileRow | null
 }
 
 type DropdownOption = {
@@ -66,6 +78,15 @@ function getRoleDisplayLabel(role: AppRole | string) {
   return ROLE_DISPLAY_LABELS[role as AppRole] || role
 }
 
+const DRAWER_INPUT_CLASS =
+  'h-14 w-full rounded-[18px] !border !border-[#263447] !bg-[#0b1422]/90 py-0 text-right text-sm font-bold !text-slate-100 !shadow-none !outline-none transition placeholder:!text-slate-500 hover:!border-cyan-300/25 hover:!bg-[#0d1828] focus:!border-cyan-300/50 focus:!bg-[#0d1828] focus:!ring-2 focus:!ring-cyan-300/10 !pl-4 !pr-[56px]'
+
+const DRAWER_INPUT_LTR_CLASS =
+  'h-14 w-full rounded-[18px] !border !border-[#263447] !bg-[#0b1422]/90 py-0 text-right text-sm font-bold !text-slate-100 !shadow-none !outline-none transition placeholder:!text-slate-500 hover:!border-cyan-300/25 hover:!bg-[#0d1828] focus:!border-cyan-300/50 focus:!bg-[#0d1828] focus:!ring-2 focus:!ring-cyan-300/10 !pl-4 !pr-[56px]'
+
+const BRANCH_PRIMARY_BUTTON_TYPOGRAPHY =
+  'font-sans text-sm font-black leading-5 tracking-normal antialiased !text-slate-950'
+
 function StyledDropdown({
   value,
   options,
@@ -73,6 +94,7 @@ function StyledDropdown({
   disabled = false,
   title,
   placeholder = 'اختر',
+  variant = 'default',
 }: {
   value: string
   options: DropdownOption[]
@@ -80,7 +102,11 @@ function StyledDropdown({
   disabled?: boolean
   title?: string
   placeholder?: string
+  variant?: 'default' | 'drawer'
 }) {
+  const drawerPlaceholderClass =
+    variant === 'drawer' && !value ? '[&>span:last-child]:!text-slate-500' : ''
+
   return (
     <AdminDarkSelect
       value={value}
@@ -89,7 +115,11 @@ function StyledDropdown({
       disabled={disabled}
       placeholder={placeholder}
       ariaLabel={title || placeholder}
-      triggerClassName="h-11 rounded-xl border-white/10 bg-white/[0.045] px-3 text-sm text-white hover:border-cyan-300/35 hover:bg-cyan-300/10 focus:border-cyan-300/50 focus:ring-cyan-300/15"
+      triggerClassName={
+        variant === 'drawer'
+          ? `h-14 flex-row-reverse rounded-[18px] !border-[#263447] !bg-[#0b1422]/90 text-right text-sm font-bold !text-slate-100 !shadow-none hover:!border-cyan-300/25 hover:!bg-[#0d1828] focus:!border-cyan-300/50 focus:!ring-cyan-300/10 [&>span:first-child]:!text-slate-300 [&>span:last-child]:!text-right ${drawerPlaceholderClass} !pl-4 !pr-[56px]`
+          : 'h-11 rounded-xl border-white/10 bg-white/[0.045] px-3 text-sm text-white hover:border-cyan-300/35 hover:bg-cyan-300/10 focus:border-cyan-300/50 focus:ring-cyan-300/15'
+      }
       menuClassName="border-cyan-300/20 bg-[#07111f]"
     />
   )
@@ -103,25 +133,30 @@ export default function AdminUsersPage() {
 
   const [users, setUsers] = useState<ProfileRow[]>([])
   const [branches, setBranches] = useState<AdminBranchRecord[]>([])
-  const [branchSelections, setBranchSelections] = useState<Record<string, string>>({})
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [loadingBranches, setLoadingBranches] = useState(false)
   const [creating, setCreating] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
 
-  const [username, setUsername] = useState(emptyForm.username)
   const [fullName, setFullName] = useState(emptyForm.fullName)
   const [contactEmail, setContactEmail] = useState(emptyForm.contactEmail)
   const [phone, setPhone] = useState(emptyForm.phone)
   const [posPin, setPosPin] = useState(emptyForm.posPin)
-  const [password, setPassword] = useState(emptyForm.password)
-  const [confirmPassword, setConfirmPassword] = useState(emptyForm.confirmPassword)
-  const [role, setRole] = useState<AppRole>(emptyForm.role)
+  const [role, setRole] = useState<AppRole | ''>('')
   const [createBranchId, setCreateBranchId] = useState(emptyForm.branchId)
+  const [editFullName, setEditFullName] = useState('')
+  const [editUsername, setEditUsername] = useState('')
+  const [editRole, setEditRole] = useState<AppRole | ''>('')
+  const [editBranchId, setEditBranchId] = useState('')
 
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'active' | 'inactive'
+  >('all')
 
   const [resetModal, setResetModal] = useState<ResetPasswordModalState>({
     open: false,
@@ -133,22 +168,116 @@ export default function AdminUsersPage() {
     userId: '',
     username: '',
   })
+  const [deleteModal, setDeleteModal] = useState<DeleteUserModalState>({
+    open: false,
+    user: null,
+  })
+  const [editDrawer, setEditDrawer] = useState<EditUserDrawerState>({
+    open: false,
+    user: null,
+  })
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [newPosPin, setNewPosPin] = useState('')
   const [confirmNewPosPin, setConfirmNewPosPin] = useState('')
+  const pinInputRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const resetForm = useCallback(() => {
-    setUsername('')
     setFullName('')
     setContactEmail('')
     setPhone('')
     setPosPin('')
-    setPassword('')
-    setConfirmPassword('')
-    setRole('employee')
+    setRole('')
     setCreateBranchId(isSystemAdmin ? '' : actorBranchId || '')
   }, [actorBranchId, isSystemAdmin])
+
+  function generateRandomPin() {
+    return String(Math.floor(1000 + Math.random() * 9000))
+  }
+
+  function generateInternalPosUsername() {
+    const randomPart = Math.random().toString(36).slice(2, 8)
+    return `pos_${Date.now().toString(36)}_${randomPart}`
+  }
+
+  function openCreateDrawer() {
+    resetForm()
+    setShowCreateForm(true)
+  }
+
+  function openEditDrawer(user: ProfileRow) {
+    if (user.account_type !== 'pos_profile') {
+      setErrorMessage('التعديل متاح لموظفي POS فقط')
+      return
+    }
+
+    setSuccessMessage('')
+    setErrorMessage('')
+    setEditFullName(user.full_name || '')
+    setEditUsername(user.username || '')
+    setEditRole(user.role)
+    setEditBranchId(user.branch_id || '')
+    setEditDrawer({
+      open: true,
+      user,
+    })
+  }
+
+  function closeEditDrawer() {
+    setEditDrawer({
+      open: false,
+      user: null,
+    })
+    setEditFullName('')
+    setEditUsername('')
+    setEditRole('')
+    setEditBranchId('')
+  }
+
+  function handleCreateRoleChange(nextRole: string) {
+    setRole(nextRole as AppRole)
+
+    if (nextRole && !posPin) {
+      setPosPin(generateRandomPin())
+    }
+  }
+
+  function handleGenerateNewPin() {
+    setPosPin(generateRandomPin())
+  }
+
+  function updatePinDigit(index: number, value: string) {
+    const digit = value.replace(/\D/g, '').slice(-1)
+    const nextDigits = posPin.padEnd(4, '').slice(0, 4).split('')
+    nextDigits[index] = digit
+    setPosPin(nextDigits.join('').slice(0, 4))
+
+    if (digit && index < 3) {
+      pinInputRefs.current[index + 1]?.focus()
+    }
+  }
+
+  function handlePinKeyDown(
+    index: number,
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) {
+    if (event.key === 'Backspace' && !posPin[index] && index > 0) {
+      pinInputRefs.current[index - 1]?.focus()
+    }
+  }
+
+  function handlePinPaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    event.preventDefault()
+    const pastedPin = event.clipboardData
+      .getData('text')
+      .replace(/\D/g, '')
+      .slice(0, 4)
+
+    if (pastedPin) {
+      setPosPin(pastedPin)
+      pinInputRefs.current[Math.min(pastedPin.length, 4) - 1]?.focus()
+    }
+  }
 
   function closeResetModal() {
     setResetModal({
@@ -168,6 +297,13 @@ export default function AdminUsersPage() {
     })
     setNewPosPin('')
     setConfirmNewPosPin('')
+  }
+
+  function closeDeleteModal() {
+    setDeleteModal({
+      open: false,
+      user: null,
+    })
   }
 
   async function loadBranches() {
@@ -210,12 +346,6 @@ export default function AdminUsersPage() {
 
       const nextUsers = (result.users || []) as ProfileRow[]
       setUsers(nextUsers)
-      setBranchSelections(
-        nextUsers.reduce<Record<string, string>>((acc, user) => {
-          acc[user.id] = user.branch_id || ''
-          return acc
-        }, {})
-      )
     } catch (error) {
       console.error('Load users error:', error)
       setErrorMessage(
@@ -228,31 +358,29 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (!accessLoading && allowed) {
-      void Promise.all([loadUsers(), loadBranches()])
-      resetForm()
+      const timer = window.setTimeout(() => {
+        void Promise.all([loadUsers(), loadBranches()])
+        resetForm()
+      }, 0)
+
+      return () => window.clearTimeout(timer)
     }
   }, [accessLoading, allowed, resetForm])
 
   const branchIdForCreate = isSystemAdmin ? createBranchId : actorBranchId || ''
 
   const canSubmitCreate = useMemo(() => {
-    const baseValid = canSubmitAdminUserCreatePayload({
-      username,
-      password,
-      confirmPassword,
-      posPin,
-    })
-
-    if (!baseValid) {
+    if (
+      !fullName.trim() ||
+      !role ||
+      !branchIdForCreate ||
+      !isValidAdminPosPin(posPin)
+    ) {
       return false
     }
 
-    if (requiresAssignedBranch(role)) {
-      return Boolean(branchIdForCreate)
-    }
-
     return true
-  }, [username, password, confirmPassword, posPin, role, branchIdForCreate])
+  }, [fullName, posPin, role, branchIdForCreate])
 
   const activeUsersCount = useMemo(
     () => users.filter((user) => user.is_active).length,
@@ -260,13 +388,26 @@ export default function AdminUsersPage() {
   )
 
   const inactiveUsersCount = users.length - activeUsersCount
-  const adminUsersCount = useMemo(
-    () => users.filter((user) => user.role === 'admin').length,
-    [users]
-  )
-  const cashierUsersCount = useMemo(
-    () => users.filter((user) => user.role === 'cashier').length,
-    [users]
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase()
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) => {
+        if (statusFilter === 'active' && !user.is_active) return false
+        if (statusFilter === 'inactive' && user.is_active) return false
+        if (!normalizedSearchTerm) return true
+
+        const searchableValues = [
+          user.full_name,
+          user.username,
+          getRoleDisplayLabel(user.role),
+          getBranchName(branches, user.branch_id),
+        ]
+
+        return searchableValues.some((value) =>
+          String(value || '').toLowerCase().includes(normalizedSearchTerm)
+        )
+      }),
+    [branches, normalizedSearchTerm, statusFilter, users]
   )
   const roleOptions = useMemo(
     () =>
@@ -276,31 +417,9 @@ export default function AdminUsersPage() {
       })),
     []
   )
-  const fullNameParts = useMemo(() => {
-    const normalizedName = fullName.trim()
-
-    if (!normalizedName) {
-      return {
-        firstName: '',
-        lastName: '',
-      }
-    }
-
-    const [firstName, ...lastNameParts] = normalizedName.split(/\s+/)
-
-    return {
-      firstName,
-      lastName: lastNameParts.join(' '),
-    }
-  }, [fullName])
-
-  const updateFullNameParts = useCallback(
-    (nextFirstName: string, nextLastName: string) => {
-      setFullName(
-        [nextFirstName.trim(), nextLastName.trim()].filter(Boolean).join(' ')
-      )
-    },
-    []
+  const posRoleOptions = useMemo(
+    () => roleOptions.filter((option) => option.value !== 'admin'),
+    [roleOptions]
   )
 
   async function handleCreateUser(e: React.FormEvent) {
@@ -311,16 +430,8 @@ export default function AdminUsersPage() {
       setSuccessMessage('')
       setErrorMessage('')
 
-      if (!username.trim()) {
-        throw new Error('يرجى كتابة اسم المستخدم')
-      }
-
-      if (!hasValidAdminPasswordLength(password.trim())) {
-        throw new Error('كلمة المرور يجب أن تكون 6 أحرف أو أكثر')
-      }
-
-      if (password !== confirmPassword) {
-        throw new Error('تأكيد كلمة المرور غير مطابق')
+      if (!fullName.trim()) {
+        throw new Error('يرجى كتابة الاسم')
       }
 
       const normalizedPosPin = posPin.trim()
@@ -329,9 +440,11 @@ export default function AdminUsersPage() {
         throw new Error('POS PIN يجب أن يتكون من 4 أرقام')
       }
 
-      if (requiresAssignedBranch(role) && !branchIdForCreate) {
-        throw new Error('يجب اختيار فرع لهذا المستخدم')
+      if (!role || !branchIdForCreate) {
+        throw new Error('يرجى اختيار الوظيفة والفرع')
       }
+
+      const generatedUsername = generateInternalPosUsername()
 
       const response = await fetch('/api/admin/create-user', {
         method: 'POST',
@@ -339,12 +452,11 @@ export default function AdminUsersPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username,
+          username: generatedUsername,
           full_name: fullName,
           contact_email: contactEmail.trim() || null,
           phone: phone.trim() || null,
           pos_pin: normalizedPosPin,
-          password,
           role,
           branch_id: branchIdForCreate || null,
         }),
@@ -356,8 +468,9 @@ export default function AdminUsersPage() {
         throw new Error(result?.details || result?.error || 'فشل إنشاء المستخدم')
       }
 
-      setSuccessMessage(`تم إنشاء المستخدم ${result.user?.username || username} بنجاح`)
+      setSuccessMessage('تم إنشاء المستخدم بنجاح')
       resetForm()
+      setShowCreateForm(false)
       await loadUsers()
     } catch (error) {
       console.error('Create user error:', error)
@@ -369,61 +482,35 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function handleRoleChange(userId: string, newRole: AppRole) {
+  async function handleSaveEditUser(e: React.FormEvent) {
+    e.preventDefault()
+
+    const user = editDrawer.user
+
+    if (!user || user.account_type !== 'pos_profile' || !editRole) return
+
+    const nextBranchId = isSystemAdmin ? editBranchId : actorBranchId || ''
+
     try {
-      setUpdatingUserId(userId)
-      setSuccessMessage('')
-      setErrorMessage('')
-
-      const response = await fetch('/api/admin/update-user-role', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          role: newRole,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل تحديث الوظيفة')
-      }
-
-      setSuccessMessage('تم تحديث الوظيفة بنجاح')
-      await loadUsers()
-    } catch (error) {
-      console.error('Update role error:', error)
-      setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر تحديث الوظيفة'
-      )
-    } finally {
-      setUpdatingUserId(null)
-    }
-  }
-
-  async function handleUserBranchUpdate(user: ProfileRow) {
-    try {
+      setSavingEdit(true)
       setUpdatingUserId(user.id)
       setSuccessMessage('')
       setErrorMessage('')
 
-      const selectedBranchId = branchSelections[user.id] || ''
-
-      if (requiresAssignedBranch(user.role) && !selectedBranchId) {
-        throw new Error('يجب تعيين فرع للمستخدمين غير الأدمن')
+      if (requiresAssignedBranch(editRole) && !nextBranchId) {
+        throw new Error('يجب اختيار فرع لهذا المستخدم')
       }
 
-      const response = await fetch('/api/admin/update-user-branch', {
+      const response = await fetch('/api/admin/update-pos-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           userId: user.id,
-          branch_id: selectedBranchId || null,
+          full_name: editFullName,
+          role: editRole,
+          branch_id: nextBranchId,
         }),
       })
 
@@ -431,69 +518,22 @@ export default function AdminUsersPage() {
 
       if (!response.ok) {
         throw new Error(
-          result?.details || result?.error || 'فشل تحديث فرع المستخدم'
+          result?.details || result?.error || 'تعذر تحديث مستخدم POS'
         )
       }
 
-      setSuccessMessage(result.message || 'تم تحديث فرع المستخدم بنجاح')
+      closeEditDrawer()
+      setSuccessMessage('تم تحديث المستخدم بنجاح')
       await loadUsers()
     } catch (error) {
-      console.error('Update user branch error:', error)
+      console.error('Edit user error:', error)
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر تحديث فرع المستخدم'
+        error instanceof Error ? error.message : 'تعذر تحديث المستخدم'
       )
     } finally {
+      setSavingEdit(false)
       setUpdatingUserId(null)
     }
-  }
-
-  async function handleToggleStatus(user: ProfileRow) {
-    try {
-      setUpdatingUserId(user.id)
-      setSuccessMessage('')
-      setErrorMessage('')
-
-      const response = await fetch('/api/admin/toggle-user-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          is_active: !user.is_active,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(
-          result?.details || result?.error || 'فشل تحديث حالة المستخدم'
-        )
-      }
-
-      setSuccessMessage(result.message || 'تم تحديث حالة المستخدم بنجاح')
-      await loadUsers()
-    } catch (error) {
-      console.error('Toggle user status error:', error)
-      setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر تحديث حالة المستخدم'
-      )
-    } finally {
-      setUpdatingUserId(null)
-    }
-  }
-
-  function openResetPasswordModal(user: ProfileRow) {
-    setSuccessMessage('')
-    setErrorMessage('')
-    setResetModal({
-      open: true,
-      userId: user.id,
-      username: user.username || '',
-    })
-    setNewPassword('')
-    setConfirmNewPassword('')
   }
 
   function openResetPosPinModal(user: ProfileRow) {
@@ -588,7 +628,7 @@ export default function AdminUsersPage() {
         )
       }
 
-      setSuccessMessage(result.message || 'تمت إعادة تعيين POS PIN بنجاح')
+      setSuccessMessage(result.message || 'تم تحديث PIN بنجاح')
       closePinResetModal()
     } catch (error) {
       console.error('Reset POS PIN error:', error)
@@ -600,10 +640,17 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function handleDeleteUser(user: ProfileRow) {
-    const confirmed = window.confirm(`هل أنت متأكد من حذف المستخدم ${user.username}؟`)
+  function openDeleteModal(user: ProfileRow) {
+    setDeleteModal({
+      open: true,
+      user,
+    })
+  }
 
-    if (!confirmed) return
+  async function handleConfirmDeleteUser() {
+    const user = deleteModal.user
+
+    if (!user) return
 
     try {
       setUpdatingUserId(user.id)
@@ -620,19 +667,16 @@ export default function AdminUsersPage() {
         }),
       })
 
-      const result = await response.json()
-
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل حذف المستخدم')
+        throw new Error('فشل حذف المستخدم')
       }
 
-      setSuccessMessage(result.message || 'تم حذف المستخدم بنجاح')
+      setSuccessMessage('تم حذف المستخدم بنجاح')
+      closeDeleteModal()
       await loadUsers()
     } catch (error) {
       console.error('Delete user error:', error)
-      setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر حذف المستخدم'
-      )
+      setErrorMessage('فشل حذف المستخدم')
     } finally {
       setUpdatingUserId(null)
     }
@@ -661,32 +705,52 @@ export default function AdminUsersPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#030714] text-white [&_.border-slate-100]:border-white/10 [&_.border-slate-200]:border-white/10 [&_.bg-slate-50]:bg-white/[0.045] [&_.bg-white]:bg-white/[0.045] [&_.divide-slate-100]:divide-white/10 [&_.field-input]:border-cyan-300/15 [&_.field-input]:bg-white/[0.045] [&_.field-input]:text-white [&_.field-input]:placeholder:text-slate-500 [&_.field-input]:focus:border-cyan-300/50 [&_.field-input]:focus:bg-white/[0.07] [&_.text-slate-950]:text-white [&_.text-slate-900]:text-white [&_.text-slate-700]:text-slate-200 [&_.text-slate-600]:text-slate-300 [&_.text-slate-500]:text-slate-400">
-      <div className="pointer-events-none absolute inset-0 -z-0">
-        <div className="absolute right-[-14rem] top-[-12rem] h-[36rem] w-[36rem] rounded-full bg-cyan-400/16 blur-[130px]" />
-        <div className="absolute left-[-16rem] bottom-[-14rem] h-[38rem] w-[38rem] rounded-full bg-emerald-400/10 blur-[140px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.024)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute right-[-12rem] top-[-10rem] h-[34rem] w-[34rem] rounded-full bg-cyan-400/16 blur-[130px]" />
+        <div className="absolute left-[-16rem] top-[16rem] h-[36rem] w-[36rem] rounded-full bg-emerald-400/10 blur-[140px]" />
+        <div className="absolute bottom-[-16rem] right-[20%] h-[34rem] w-[34rem] rounded-full bg-blue-500/10 blur-[150px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.09),transparent_34%),linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.024)_1px,transparent_1px)] bg-[size:auto,72px_72px,72px_72px] opacity-80" />
       </div>
 
-      <div className="relative z-10 flex w-full flex-col gap-4 px-3 py-3 md:px-4 xl:px-5">
-        <header className="overflow-hidden rounded-[28px] border border-cyan-300/15 bg-white/[0.055] px-5 py-4 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl md:px-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-right">
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
-                AFEX ADMIN
-              </p>
-              <h1 className="mt-1 text-3xl font-black text-white">
-                إدارة المستخدمين
-              </h1>
-              <p className="mt-1 max-w-2xl text-sm font-medium leading-6 text-slate-300">
-                إدارة الحسابات والصلاحيات داخل النظام
-              </p>
+      <div className="relative z-10 mx-auto max-w-7xl space-y-5 px-3 py-4 sm:px-4 lg:px-6">
+        <header className="overflow-hidden rounded-[28px] border border-cyan-300/15 bg-white/[0.055] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.32)] backdrop-blur-xl md:p-6">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.14)]">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-7 w-7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+                  <circle cx="9.5" cy="7" r="3.5" />
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a3.5 3.5 0 0 1 0 6.74" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
+                  AFEX USERS
+                </p>
+                <h1 className="mt-2 text-3xl font-black text-white">
+                  إدارة المستخدمين
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-300">
+                  إدارة حسابات مستخدمي نظام نقاط البيع
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <button
                 type="button"
-                onClick={() => setShowCreateForm(true)}
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-4 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] active:scale-[0.98]"
+                onClick={openCreateDrawer}
+                className={`inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 shadow-[0_0_34px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] active:scale-[0.98] ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
               >
                 إنشاء مستخدم جديد
               </button>
@@ -706,307 +770,267 @@ export default function AdminUsersPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            {
-              label: 'عدد المستخدمين',
-              value: users.length,
-              hint: 'حساب داخل النظام',
-              tone: 'from-cyan-300/18 to-blue-400/10',
-            },
-            {
-              label: 'المستخدمون النشطون',
-              value: activeUsersCount,
-              hint: 'جاهزون للعمل',
-              tone: 'from-emerald-300/18 to-cyan-400/10',
-            },
-            {
-              label: 'المعطلون',
-              value: inactiveUsersCount,
-              hint: 'حسابات غير مفعلة',
-              tone: 'from-red-300/16 to-rose-400/10',
-            },
-            {
-              label: 'الإداريون',
-              value: adminUsersCount,
-              hint: `الكاشير: ${cashierUsersCount}`,
-              tone: 'from-violet-300/16 to-cyan-400/10',
-            },
-          ].map((card) => (
-            <div
-              key={card.label}
-              className={`rounded-[22px] border border-cyan-300/12 bg-gradient-to-br ${card.tone} p-3 shadow-[0_18px_55px_rgba(0,0,0,0.2)] backdrop-blur-xl`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-right">
-                  <p className="text-xs font-bold text-slate-400">{card.label}</p>
-                  <p className="mt-1.5 text-2xl font-black text-white">{card.value}</p>
-                  <p className="mt-1 text-xs font-bold text-cyan-200/80">
-                    {card.hint}
-                  </p>
-                </div>
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/15 bg-[#06111f] text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,0.13)]">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
-                    <circle cx="9.5" cy="7" r="3.5" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a3.5 3.5 0 0 1 0 6.74" />
-                  </svg>
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
         <div className="space-y-4">
           {showCreateForm ? (
-          <section
+          <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
+            <div className="absolute inset-y-0 right-0 flex w-full justify-end">
+          <form
             id="create-user-form"
-            className="overflow-hidden rounded-[28px] border border-cyan-300/15 bg-white/[0.055] shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl"
+            onSubmit={handleCreateUser}
+            className="animate-[users-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8"
           >
-            <div className="border-b border-white/10 px-5 py-4 text-right">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300/75">
-                    حساب جديد
-                  </p>
-                  <h2 className="mt-1 text-2xl font-black text-white">
-                    إنشاء مستخدم
+            <div className="mb-8 flex items-start justify-between gap-4">
+                <div className="pt-3">
+                  <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">
+                    NEW USER
+                  </span>
+                  <h2 className="mt-4 text-3xl font-black text-white">
+                    إنشاء مستخدم جديد
                   </h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-400">
-                    نموذج مختصر لإضافة موظف أو مدير وربطه بالفرع.
+                  <p className="mt-2 text-sm font-medium leading-6 text-slate-400">
+                    نموذج مختصر لإضافة موظف POS وربطه بالفرع.
                   </p>
                 </div>
 
-                <div className="flex flex-wrap justify-end gap-2">
-                  {requiresAssignedBranch(role) ? (
-                    <span className="shrink-0 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-100">
-                      يتطلب فرعًا
-                    </span>
-                  ) : (
-                    <span className="shrink-0 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-bold text-emerald-100">
-                      مرن
-                    </span>
-                  )}
                   <button
                     type="button"
                     onClick={() => {
                       resetForm()
                       setShowCreateForm(false)
                     }}
-                    className="h-8 rounded-full border border-white/10 bg-white/[0.045] px-3 text-xs font-bold text-slate-300 transition hover:bg-white/[0.075]"
+                    disabled={creating}
+                    className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-2xl font-light text-slate-200 shadow-[0_16px_45px_rgba(0,0,0,0.28)] transition hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="إغلاق"
                   >
-                    إغلاق
+                    ×
                   </button>
-                </div>
+            </div>
+
+            <div className="mb-9 flex justify-center">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-emerald-300 to-cyan-300 text-slate-950 shadow-[0_0_50px_rgba(45,212,191,0.28)]">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-16 w-16"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20a8 8 0 0 1 16 0" />
+                </svg>
               </div>
             </div>
 
-            <form onSubmit={handleCreateUser} className="grid gap-4 p-5 lg:grid-cols-2 2xl:grid-cols-3">
+            <div className="space-y-6">
               <div>
-                <label className="mb-1.5 block text-sm font-bold text-slate-200">
-                  اسم المستخدم
+                <label className="mb-2 block text-xs font-black text-slate-300">
+                  الاسم
                 </label>
-                <AdminInput
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="مثال: faisal"
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50 text-right focus:border-slate-400 focus:bg-white"
-                  autoComplete="off"
-                />
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2 2xl:col-span-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-bold text-slate-200">
-                    الاسم الأول
-                  </label>
+                <div className="relative">
                   <AdminInput
                     type="text"
-                    value={fullNameParts.firstName}
-                    onChange={(e) =>
-                      updateFullNameParts(e.target.value, fullNameParts.lastName)
-                    }
-                    placeholder="مثال: فيصل"
-                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-right focus:border-slate-400 focus:bg-white"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="إجباري"
+                    className={DRAWER_INPUT_CLASS}
                     autoComplete="off"
+                    dir="rtl"
                   />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm font-bold text-slate-200">
-                    اسم العائلة
-                  </label>
-                  <AdminInput
-                    type="text"
-                    value={fullNameParts.lastName}
-                    onChange={(e) =>
-                      updateFullNameParts(fullNameParts.firstName, e.target.value)
-                    }
-                    placeholder="مثال: أحمد"
-                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-right focus:border-slate-400 focus:bg-white"
-                    autoComplete="off"
-                  />
+                  <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M20 21a8 8 0 0 0-16 0" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </span>
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2 2xl:col-span-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-bold text-slate-200">
-                    البريد الإلكتروني
-                  </label>
+              <div>
+                <label className="mb-2 block text-xs font-black text-slate-300">
+                  البريد الإلكتروني
+                </label>
+                <div className="relative">
                   <AdminInput
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     placeholder="اختياري"
-                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-left focus:border-slate-400 focus:bg-white"
+                    className={DRAWER_INPUT_LTR_CLASS}
                     autoComplete="email"
-                    dir="ltr"
+                    dir="rtl"
                   />
+                  <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M4 6h16v12H4z" />
+                      <path d="m4 7 8 6 8-6" />
+                    </svg>
+                  </span>
                 </div>
+              </div>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-bold text-slate-200">
-                    الهاتف
-                  </label>
+              <div>
+                <label className="mb-2 block text-xs font-black text-slate-300">
+                  رقم الجوال
+                </label>
+                <div className="relative">
                   <AdminInput
                     type="tel"
                     inputMode="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="اختياري"
-                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-left focus:border-slate-400 focus:bg-white"
+                    className={DRAWER_INPUT_LTR_CLASS}
                     autoComplete="tel"
-                    dir="ltr"
+                    dir="rtl"
                   />
-                </div>
-              </div>
-
-              <div className="2xl:col-span-1">
-                <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <label className="block text-sm font-bold text-slate-200">
-                    POS PIN (4 أرقام)
-                  </label>
-                  <span className="text-xs font-bold text-cyan-300/80">إجباري</span>
-                </div>
-                <AdminInput
-                  type="password"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  value={posPin}
-                  onChange={(e) =>
-                    setPosPin(e.target.value.replace(/\D/g, '').slice(0, 4))
-                  }
-                  placeholder="••••"
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50 text-center text-lg font-black tracking-[0.35em] focus:border-slate-400 focus:bg-white"
-                  autoComplete="off"
-                  dir="ltr"
-                />
-                <p className="mt-1.5 text-xs text-slate-500">
-                  يستخدم لاحقًا للتعرف على موظف POS، ويتم حفظه كـ hash.
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2 2xl:col-span-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-bold text-slate-200">
-                    كلمة المرور
-                  </label>
-                  <AdminInput
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="6 أحرف أو أكثر"
-                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-right focus:border-slate-400 focus:bg-white"
-                    autoComplete="new-password"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm font-bold text-slate-200">
-                    التأكيد
-                  </label>
-                  <AdminInput
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="أعد الكتابة"
-                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-right focus:border-slate-400 focus:bg-white"
-                    autoComplete="new-password"
-                  />
+                  <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.63 2.61a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6.27 6.27l1.29-1.29a2 2 0 0 1 2.11-.45c.84.3 1.71.51 2.61.63A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                  </span>
                 </div>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-bold text-slate-200">
+                <label className="mb-2 block text-xs font-black text-slate-300">
                   الوظيفة
                 </label>
-                <StyledDropdown
-                  value={role}
-                  onChange={(nextRole) => setRole(nextRole as AppRole)}
-                  options={roleOptions}
-                />
+                <div className="relative">
+                  <StyledDropdown
+                    value={role}
+                    onChange={handleCreateRoleChange}
+                    placeholder="إجباري"
+                    options={posRoleOptions}
+                    variant="drawer"
+                  />
+                  <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-y border-white/10 py-6">
+                {role ? (
+                  <div>
+                    <div className="mb-5 flex items-center justify-between gap-4">
+                      <span className="text-sm font-black text-slate-300">
+                        POS PIN
+                      </span>
+                      <span className="inline-flex h-8 w-8 items-center justify-center text-slate-300">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+                          <path d="M17 9V7a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1Zm-8 0V7a3 3 0 0 1 6 0v2H9Z" />
+                        </svg>
+                      </span>
+                    </div>
+                    <div dir="ltr" className="mx-auto grid max-w-xs grid-cols-4 gap-7">
+                      {[0, 1, 2, 3].map((index) => (
+                        <input
+                          key={index}
+                          ref={(element) => {
+                            pinInputRefs.current[index] = element
+                          }}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={1}
+                          value={posPin[index] || ''}
+                          onChange={(event) => updatePinDigit(index, event.target.value)}
+                          onKeyDown={(event) => handlePinKeyDown(index, event)}
+                          onPaste={handlePinPaste}
+                          aria-label={`POS PIN digit ${index + 1}`}
+                          className="h-12 border-0 border-b border-slate-400/70 bg-transparent text-center text-2xl font-medium text-white outline-none transition focus:border-cyan-300"
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGenerateNewPin}
+                      disabled={creating}
+                      className="mx-auto mt-7 flex items-center justify-center gap-2 text-sm font-black text-cyan-300 transition hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="text-xl">↻</span>
+                      توليد PIN جديد
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-center text-sm font-bold text-slate-400">
+                    سيتم إظهار POS PIN بعد اختيار الوظيفة
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-bold text-slate-200">
+                <label className="mb-2 block text-xs font-black text-slate-300">
                   الفرع
                 </label>
 
                 {isSystemAdmin ? (
-                  <StyledDropdown
-                    value={createBranchId}
-                    onChange={setCreateBranchId}
-                    disabled={loadingBranches}
-                    options={[
-                      {
-                        label:
-                          role === 'admin'
-                            ? 'بدون فرع (أدمن على مستوى النظام)'
-                            : 'اختر فرعًا',
-                        value: '',
-                      },
-                      ...branches.map((branch) => ({
-                        label: `${branch.name} (${branch.code})${
-                          !branch.is_active ? ' - معطل' : ''
-                        }`,
-                        value: branch.id,
-                      })),
-                    ]}
-                  />
+                  <div className="relative">
+                    <StyledDropdown
+                      value={createBranchId}
+                      onChange={setCreateBranchId}
+                      disabled={loadingBranches}
+                      variant="drawer"
+                      placeholder="إجباري"
+                      options={[
+                        {
+                          label:
+                            role === 'admin'
+                              ? 'بدون فرع (أدمن على مستوى النظام)'
+                              : 'إجباري',
+                          value: '',
+                        },
+                        ...branches.map((branch) => ({
+                          label: `${branch.name} (${branch.code})${
+                            !branch.is_active ? ' - معطل' : ''
+                          }`,
+                          value: branch.id,
+                        })),
+                      ]}
+                    />
+                    <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M3 21h18" />
+                        <path d="M5 21V7l8-4v18" />
+                        <path d="M19 21V11l-6-4" />
+                      </svg>
+                    </span>
+                  </div>
                 ) : (
-                  <div className="flex min-h-11 items-center rounded-xl border border-cyan-300/15 bg-white/[0.045] px-3 text-right text-sm font-bold text-slate-200">
-                    {getBranchName(branches, actorBranchId)}
+                  <div className="relative">
+                    <div className="flex min-h-14 items-center rounded-[18px] border border-[#263447] bg-[#0b1422]/90 py-0 text-right text-sm font-bold text-slate-200 pl-4 pr-[56px]">
+                      {getBranchName(branches, actorBranchId)}
+                    </div>
+                    <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M3 21h18" />
+                        <path d="M5 21V7l8-4v18" />
+                        <path d="M19 21V11l-6-4" />
+                      </svg>
+                    </span>
                   </div>
                 )}
 
-                {requiresAssignedBranch(role) && !branchIdForCreate ? (
+                {role && requiresAssignedBranch(role) && !branchIdForCreate ? (
                   <p className="mt-2 text-xs font-bold text-amber-300">
                     يجب اختيار فرع لهذا المستخدم قبل الإنشاء.
                   </p>
                 ) : null}
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-4 lg:col-span-2 2xl:col-span-3">
+              <div className="mt-7 flex flex-col-reverse gap-2 border-t border-white/10 pt-4 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     resetForm()
                     setShowCreateForm(false)
                   }}
-                  className="h-10 rounded-xl border border-white/10 bg-white/[0.045] px-3 text-xs font-bold text-slate-300 transition hover:bg-white/[0.075]"
+                  disabled={creating}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 text-sm font-black text-slate-200 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   إلغاء
                 </button>
@@ -1014,52 +1038,311 @@ export default function AdminUsersPage() {
                 <button
                   type="submit"
                   disabled={!canSubmitCreate || creating}
-                  className="h-12 flex-1 rounded-xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
                 >
                   {creating ? 'جاري الإنشاء...' : 'إنشاء المستخدم'}
                 </button>
               </div>
-            </form>
-          </section>
+            </div>
+          </form>
+            </div>
+          </div>
           ) : null}
 
-          <section className="overflow-hidden rounded-[28px] border border-cyan-300/15 bg-white/[0.055] shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-            <div className="flex flex-col gap-3 border-b border-white/10 px-5 py-4 md:flex-row md:items-center md:justify-between">
+          {editDrawer.open && editDrawer.user ? (
+            <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
+              <div className="absolute inset-y-0 right-0 flex w-full justify-end">
+                <form
+                  id="edit-user-form"
+                  onSubmit={handleSaveEditUser}
+                  className="animate-[users-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8"
+                >
+                  <div className="mb-8 flex items-start justify-between gap-4">
+                    <div className="pt-3">
+                      <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">
+                        EDIT USER
+                      </span>
+                      <h2 className="mt-4 text-3xl font-black text-white">
+                        تعديل المستخدم
+                      </h2>
+                      <p className="mt-2 text-sm font-medium leading-6 text-slate-400">
+                        تحديث بيانات الحساب والصلاحيات بدون تغيير PIN.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={closeEditDrawer}
+                      disabled={savingEdit}
+                      className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-2xl font-light text-slate-200 shadow-[0_16px_45px_rgba(0,0,0,0.28)] transition hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label="إغلاق"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <label className="mb-2 block text-xs font-black text-slate-300">
+                        الاسم
+                      </label>
+                      <div className="relative">
+                        <AdminInput
+                          type="text"
+                          value={editFullName}
+                          onChange={(e) => setEditFullName(e.target.value)}
+                          className={DRAWER_INPUT_CLASS}
+                          autoComplete="off"
+                          dir="rtl"
+                        />
+                        <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="M20 21a8 8 0 0 0-16 0" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-xs font-black text-slate-300">
+                        اسم المستخدم
+                      </label>
+                      <div className="relative">
+                        <AdminInput
+                          type="text"
+                          value={editUsername}
+                          readOnly
+                          disabled
+                          className={`${DRAWER_INPUT_LTR_CLASS} cursor-not-allowed opacity-60 disabled:!border-[#263447] disabled:!bg-[#0b1422]/90 disabled:!text-slate-300 disabled:!opacity-60 disabled:cursor-not-allowed`}
+                          autoComplete="off"
+                          dir="rtl"
+                        />
+                        <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="M20 21a8 8 0 0 0-16 0" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-xs font-black text-slate-300">
+                        الوظيفة
+                      </label>
+                      <div className="relative">
+                        <StyledDropdown
+                          value={editRole}
+                          onChange={(nextRole) => setEditRole(nextRole as AppRole)}
+                          placeholder="إجباري"
+                          options={roleOptions}
+                          variant="drawer"
+                        />
+                        <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-xs font-black text-slate-300">
+                        الفرع
+                      </label>
+
+                      {isSystemAdmin ? (
+                        <div className="relative">
+                          <StyledDropdown
+                            value={editBranchId}
+                            onChange={setEditBranchId}
+                            disabled={loadingBranches}
+                            variant="drawer"
+                            placeholder="إجباري"
+                            options={[
+                              {
+                                label:
+                                  editRole === 'admin'
+                                    ? 'بدون فرع'
+                                    : 'إجباري',
+                                value: '',
+                              },
+                              ...branches.map((branch) => ({
+                                label: `${branch.name} (${branch.code})${
+                                  !branch.is_active ? ' - معطل' : ''
+                                }`,
+                                value: branch.id,
+                              })),
+                            ]}
+                          />
+                          <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <path d="M3 21h18" />
+                              <path d="M5 21V7l8-4v18" />
+                              <path d="M19 21V11l-6-4" />
+                            </svg>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <div className="flex min-h-14 items-center rounded-[18px] border border-[#263447] bg-[#0b1422]/90 py-0 text-right text-sm font-bold text-slate-200 pl-4 pr-[56px]">
+                            {getBranchName(branches, actorBranchId)}
+                          </div>
+                          <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <path d="M3 21h18" />
+                              <path d="M5 21V7l8-4v18" />
+                              <path d="M19 21V11l-6-4" />
+                            </svg>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-[20px] border border-emerald-300/15 bg-emerald-300/5 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="text-right">
+                          <p className="text-sm font-black text-slate-200">
+                            إعادة تعيين PIN
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-slate-500">
+                            لا يتم عرض PIN داخل نموذج التعديل.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const user = editDrawer.user
+
+                            if (user) {
+                              closeEditDrawer()
+                              openResetPosPinModal(user)
+                            }
+                          }}
+                          className="h-10 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/15"
+                        >
+                          إعادة تعيين PIN
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-7 flex flex-col-reverse gap-2 border-t border-white/10 pt-4 sm:flex-row sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={closeEditDrawer}
+                        disabled={savingEdit}
+                        className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 text-sm font-black text-slate-200 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        إلغاء
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={
+                          savingEdit ||
+                          !editFullName.trim() ||
+                          !editRole
+                        }
+                        className={`inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
+                      >
+                        {savingEdit ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          ) : null}
+
+          <section className="rounded-[28px] border border-cyan-300/15 bg-white/[0.055] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+            <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div className="text-right">
-                <h2 className="text-2xl font-black text-white">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
+                  USERS LIST
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-white">
                   المستخدمون الحاليون
                 </h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  قائمة تشغيلية مختصرة لإدارة الصلاحيات والفروع وإجراءات الحساب.
+                  قائمة مستخدمي نقاط البيع داخل النظام
                 </p>
               </div>
 
-              <div className="flex flex-wrap justify-end gap-2">
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-bold text-emerald-100">
-                  نشط: {activeUsersCount}
-                </span>
-                <span className="rounded-full border border-red-300/20 bg-red-400/10 px-3 py-1 text-xs font-bold text-red-100">
-                  معطل: {inactiveUsersCount}
-                </span>
-                <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-100">
-                  الإجمالي: {users.length}
-                </span>
-                <button
-                  type="button"
-                  onClick={loadUsers}
-                  className="h-8 rounded-lg border border-white/10 bg-white/[0.045] px-3 text-xs font-bold text-slate-200 transition hover:bg-white/[0.075]"
-                >
-                  تحديث
-                </button>
+              <button
+                type="button"
+                onClick={loadUsers}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/15"
+              >
+                تحديث
+              </button>
+            </div>
+
+            <div className="mb-5 rounded-2xl border border-cyan-300/10 bg-[#07111d]/80 p-3 shadow-[0_0_40px_rgba(0,255,255,0.05)]">
+              <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+                <label className="relative block">
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="ابحث عن اسم أو اسم مستخدم..."
+                    className="h-12 w-full rounded-2xl border border-cyan-300/15 bg-white/[0.045] py-0 pl-4 pr-12 text-right text-sm font-bold text-white outline-none transition placeholder:text-slate-500 hover:border-cyan-300/30 focus:border-cyan-300/55 focus:bg-white/[0.07] focus:ring-2 focus:ring-cyan-300/15"
+                  />
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-3.5-3.5" />
+                    </svg>
+                  </span>
+                </label>
+
+                <div className="flex flex-wrap justify-end gap-2">
+                  {[
+                    { label: `الكل ${users.length}`, value: 'all' as const },
+                    {
+                      label: `نشط ${activeUsersCount}`,
+                      value: 'active' as const,
+                    },
+                    {
+                      label: `معطل ${inactiveUsersCount}`,
+                      value: 'inactive' as const,
+                    },
+                  ].map((filter) => (
+                    <button
+                      key={filter.value}
+                      type="button"
+                      onClick={() => setStatusFilter(filter.value)}
+                      className={`h-10 rounded-2xl border px-4 text-xs font-black transition ${
+                        statusFilter === filter.value
+                          ? 'border-cyan-300/30 bg-cyan-300/15 text-cyan-100'
+                          : 'border-white/10 bg-white/[0.045] text-slate-300 hover:bg-white/[0.07]'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="bg-transparent p-3">
+            <div className="bg-transparent">
               {loadingUsers ? (
                 <p className="rounded-2xl border border-cyan-300/12 bg-white/[0.045] p-4 text-sm text-slate-400 shadow-sm">
                   جاري تحميل المستخدمين...
                 </p>
-              ) : users.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-cyan-300/20 bg-cyan-300/5 p-8 text-center">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-[#06111f] text-cyan-200">
                     <svg
@@ -1079,51 +1362,62 @@ export default function AdminUsersPage() {
                     </svg>
                   </div>
                   <h3 className="mt-4 text-lg font-black text-white">
-                    لا يوجد مستخدمون
+                    {users.length === 0
+                      ? 'لا يوجد مستخدمون'
+                      : 'لا توجد نتائج مطابقة'}
                   </h3>
                   <p className="mt-1 text-sm text-slate-400">
-                    ابدأ بإضافة أول مستخدم للفريق من نموذج الإنشاء.
+                    {users.length === 0
+                      ? 'ابدأ بإضافة أول مستخدم للفريق من نموذج الإنشاء.'
+                      : 'جرّب تعديل البحث أو حالة المستخدم لعرض نتائج أخرى.'}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(true)}
-                    className="mt-4 inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-4 text-sm font-black text-slate-950"
-                  >
-                    إضافة مستخدم
-                  </button>
+                  {users.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={openCreateDrawer}
+                      className={`mt-4 inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-4 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
+                    >
+                      إضافة مستخدم
+                    </button>
+                  ) : null}
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-cyan-300/12 bg-[#06111f]/65">
-                  <table className="w-full min-w-[1180px] border-collapse text-right">
-                    <thead className="bg-white/[0.035] text-xs font-black text-slate-400">
-                      <tr className="[&>th]:px-4 [&>th]:py-4">
-                        <th>الاسم</th>
-                        <th>اسم المستخدم</th>
-                        <th>الوظيفة</th>
-                        <th>الفرع</th>
-                        <th>الحالة</th>
-                        <th>الإجراءات</th>
+                <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
+                  <table className="w-full min-w-[980px] table-fixed text-right">
+                    <colgroup>
+                      <col className="w-[24%]" />
+                      <col className="w-[20%]" />
+                      <col className="w-[15%]" />
+                      <col className="w-[17%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[14%]" />
+                    </colgroup>
+                    <thead className="bg-white/[0.035]">
+                      <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                        <th className="px-3 py-4">الاسم</th>
+                        <th className="px-3 py-4">اسم المستخدم</th>
+                        <th className="px-3 py-4">الوظيفة</th>
+                        <th className="px-3 py-4">الفرع</th>
+                        <th className="px-3 py-4">الحالة</th>
+                        <th className="px-3 py-4">الإجراءات</th>
                       </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-white/10">
-                      {users.map((user) => {
+                    <tbody>
+                      {filteredUsers.map((user) => {
                         const isBusy = updatingUserId === user.id
                         const isMainAdmin = isPrimaryAdminUsername(user.username)
                         const scopeLabel =
                           resolveAuthScopeType(user.role, user.branch_id) === 'system'
                             ? 'نظام'
                             : 'فرع'
-                        const selectedBranchId = branchSelections[user.id] || ''
-                        const hasBranchChanges =
-                          selectedBranchId !== (user.branch_id || '')
 
                         return (
                           <tr
                             key={user.id}
-                            className="align-middle transition hover:bg-cyan-300/[0.035]"
+                            className="border-b border-white/[0.08] bg-slate-500/[0.045] align-middle transition hover:bg-slate-500/[0.075] last:border-b-0"
                           >
-                            <td className="w-[240px] px-4 py-4">
+                            <td className="px-3 py-4">
                               <div className="flex min-w-0 items-center gap-3">
                                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-sm font-black text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.13)]">
                                   {(user.full_name || user.username || '?').slice(0, 1)}
@@ -1139,7 +1433,7 @@ export default function AdminUsersPage() {
                               </div>
                             </td>
 
-                            <td className="min-w-[190px] px-4 py-4">
+                            <td className="px-3 py-4">
                               <p className="truncate text-sm font-black text-slate-200">
                                 {user.username || '-'}
                               </p>
@@ -1150,76 +1444,19 @@ export default function AdminUsersPage() {
                               ) : null}
                             </td>
 
-                            <td className="w-[210px] px-4 py-4">
-                              <StyledDropdown
-                                value={user.role}
-                                onChange={(nextRole) =>
-                                  handleRoleChange(user.id, nextRole as AppRole)
-                                }
-                                disabled={isBusy || isMainAdmin}
-                                title={
-                                  isMainAdmin
-                                    ? 'غير مسموح التعديل على الحساب الرئيسي'
-                                    : ''
-                                }
-                                options={roleOptions}
-                              />
+                            <td className="px-3 py-4">
+                              <span className="block truncate text-sm font-bold text-slate-200">
+                                {getRoleDisplayLabel(user.role)}
+                              </span>
                             </td>
 
-                            <td className="w-[310px] px-4 py-4">
-                              {isSystemAdmin ? (
-                                <div
-                                  className={
-                                    hasBranchChanges
-                                      ? 'grid grid-cols-[minmax(0,1fr)_72px] gap-2'
-                                      : ''
-                                  }
-                                >
-                                  <StyledDropdown
-                                    value={selectedBranchId}
-                                    onChange={(nextBranchId) =>
-                                      setBranchSelections((prev) => ({
-                                        ...prev,
-                                        [user.id]: nextBranchId,
-                                      }))
-                                    }
-                                    disabled={isBusy || isMainAdmin}
-                                    options={[
-                                      {
-                                        label:
-                                          user.role === 'admin'
-                                            ? 'بدون فرع'
-                                            : 'اختر فرعًا',
-                                        value: '',
-                                      },
-                                      ...branches.map((branch) => ({
-                                        label: `${branch.name}${
-                                          !branch.is_active ? ' - معطل' : ''
-                                        }`,
-                                        value: branch.id,
-                                      })),
-                                    ]}
-                                  />
-
-                                  {hasBranchChanges ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUserBranchUpdate(user)}
-                                      disabled={isBusy || isMainAdmin}
-                                      className="h-11 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      حفظ
-                                    </button>
-                                  ) : null}
-                                </div>
-                              ) : (
-                                <span className="inline-flex h-11 max-w-full items-center truncate rounded-xl border border-white/10 bg-white/[0.045] px-3 text-sm font-bold text-slate-200">
-                                  {getBranchName(branches, user.branch_id)}
-                                </span>
-                              )}
+                            <td className="px-3 py-4">
+                              <span className="block truncate text-sm font-bold text-slate-200">
+                                {getBranchName(branches, user.branch_id)}
+                              </span>
                             </td>
 
-                            <td className="w-[120px] px-4 py-4">
+                            <td className="px-3 py-4">
                               <span
                                 className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
                                   user.is_active
@@ -1231,44 +1468,26 @@ export default function AdminUsersPage() {
                               </span>
                             </td>
 
-                            <td className="w-[420px] px-4 py-4">
-                              <div className="grid grid-cols-[1.25fr_1fr_0.75fr_0.65fr] gap-2">
+                            <td className="px-3 py-4">
+                              <div className="flex items-center gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => openResetPasswordModal(user)}
-                                  disabled={isBusy}
-                                  className="h-10 w-full rounded-xl border border-cyan-300/15 bg-white/[0.045] px-2 text-xs font-bold text-slate-200 transition hover:border-cyan-300/35 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                  onClick={() => openEditDrawer(user)}
+                                  disabled={
+                                    isBusy ||
+                                    isMainAdmin ||
+                                    user.account_type !== 'pos_profile'
+                                  }
+                                  className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                  إعادة كلمة المرور
+                                  تعديل
                                 </button>
 
                                 <button
                                   type="button"
-                                  onClick={() => openResetPosPinModal(user)}
-                                  disabled={isBusy}
-                                  className="h-10 w-full rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-2 text-xs font-bold text-emerald-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/15 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  إعادة تعيين PIN
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleStatus(user)}
+                                  onClick={() => openDeleteModal(user)}
                                   disabled={isBusy || isMainAdmin}
-                                  className={`h-10 w-full rounded-xl border px-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                    user.is_active
-                                      ? 'border-amber-300/20 bg-amber-300/10 text-amber-100 hover:bg-amber-300/15'
-                                      : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100 hover:bg-emerald-300/15'
-                                  }`}
-                                >
-                                  {user.is_active ? 'تعطيل' : 'تفعيل'}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteUser(user)}
-                                  disabled={isBusy || isMainAdmin}
-                                  className="h-10 w-full rounded-xl border border-red-300/20 bg-red-500/10 px-2 text-xs font-bold text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border border-red-300/20 bg-red-500/10 px-2 text-xs font-black text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   حذف
                                 </button>
@@ -1338,7 +1557,7 @@ export default function AdminUsersPage() {
                 type="button"
                 onClick={handleConfirmResetPassword}
                 disabled={updatingUserId === resetModal.userId}
-                className="h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.2)] disabled:opacity-60"
+                className={`h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 shadow-[0_0_28px_rgba(34,211,238,0.2)] disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
               >
                 حفظ كلمة المرور
               </button>
@@ -1410,7 +1629,7 @@ export default function AdminUsersPage() {
                 type="button"
                 onClick={handleConfirmResetPosPin}
                 disabled={updatingUserId === pinResetModal.userId}
-                className="h-12 rounded-2xl bg-gradient-to-l from-emerald-300 to-cyan-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(16,185,129,0.2)] disabled:opacity-60"
+                className={`h-12 rounded-2xl bg-gradient-to-l from-emerald-300 to-cyan-300 px-5 shadow-[0_0_28px_rgba(16,185,129,0.2)] disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
               >
                 حفظ POS PIN
               </button>
@@ -1418,6 +1637,63 @@ export default function AdminUsersPage() {
           </div>
         </div>
       ) : null}
+
+      {deleteModal.open && deleteModal.user ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div
+            dir="rtl"
+            className="w-full max-w-md rounded-[28px] border border-red-300/20 bg-[#07111f] p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]"
+          >
+            <div className="mb-5">
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-red-300/20 bg-red-500/10 text-red-100">
+                حذف
+              </div>
+              <h3 className="text-2xl font-black text-white">تأكيد حذف المستخدم</h3>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                هل أنت متأكد من حذف المستخدم{' '}
+                <span className="font-black text-white">
+                  {deleteModal.user.username || deleteModal.user.full_name || 'هذا المستخدم'}
+                </span>
+                ؟
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={updatingUserId === deleteModal.user.id}
+                className="h-12 rounded-2xl border border-white/10 bg-white/[0.045] px-5 text-sm font-bold text-slate-200 transition hover:bg-white/[0.075] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                إلغاء
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmDeleteUser}
+                disabled={updatingUserId === deleteModal.user.id}
+                className="h-12 rounded-2xl border border-red-300/25 bg-red-500/15 px-5 text-sm font-black text-red-100 shadow-[0_0_28px_rgba(248,113,113,0.16)] transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <style jsx global>{`
+        @keyframes users-drawer-in {
+          from {
+            opacity: 0;
+            transform: translate3d(100%, 0, 0);
+          }
+
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+      `}</style>
     </div>
   )
 }

@@ -124,6 +124,29 @@ async function getAvailableUsernameSuggestions(username: string) {
   return suggestions
 }
 
+async function findProfileByUsername(username: string) {
+  const normalizedUsername = normalizeUsername(username)
+
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, username')
+    .ilike('username', normalizedUsername)
+    .limit(5)
+
+  if (error) {
+    return { data: null, error }
+  }
+
+  const profile =
+    data?.find(
+      (row) =>
+        typeof row.username === 'string' &&
+        normalizeUsername(row.username) === normalizedUsername
+    ) || null
+
+  return { data: profile, error: null }
+}
+
 export async function POST(request: NextRequest) {
   let createdUserId: string | null = null
 
@@ -158,12 +181,14 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: existingProfile, error: existingProfileError } =
-      await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .ilike('username', username)
-        .limit(1)
-        .maybeSingle()
+      await findProfileByUsername(username)
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[onboarding] username availability', {
+        username,
+        available: !existingProfile,
+      })
+    }
 
     if (existingProfileError) {
       return jsonResponse(
@@ -255,7 +280,10 @@ export async function POST(request: NextRequest) {
         p_owner_full_name: fullName,
         p_owner_contact_email: email,
         p_owner_phone: phone,
+        p_default_branch_code: `branch-${crypto.randomUUID().slice(0, 8)}`,
         p_default_branch_name: branchName || 'Main Branch',
+        p_vat_rate: 15,
+        p_vat_active: true,
       }
     )
 
@@ -285,10 +313,20 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (
-        rpcError.code === '23505' ||
-        rpcError.message.toLowerCase().includes('username')
-      ) {
+      const { data: conflictingProfile, error: conflictLookupError } =
+        await findProfileByUsername(username)
+
+      if (conflictLookupError) {
+        console.error(
+          '[onboarding] username conflict lookup failed',
+          redactSensitive({
+            username,
+            message: conflictLookupError.message,
+          })
+        )
+      }
+
+      if (conflictingProfile) {
         const suggestions = await getAvailableUsernameSuggestions(username)
 
         return jsonResponse(

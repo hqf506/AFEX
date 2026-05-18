@@ -306,7 +306,7 @@ export default function DashboardPage() {
     selectedBranchId,
     effectiveBranchId,
     setSelectedBranchId,
-  } = useAdminBranchFilter(scopeType, branchId, allowed)
+  } = useAdminBranchFilter(scopeType, branchId, allowed, tenantId)
 
   const initialPeriod = resolvePeriodPreset('today')
   const [period, setPeriod] = useState<PeriodPresetKey>('today')

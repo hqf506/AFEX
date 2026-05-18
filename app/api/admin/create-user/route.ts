@@ -33,6 +33,10 @@ function normalizeOptionalText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function isPosRole(role: AppRole) {
+  return role === 'cashier' || role === 'employee'
+}
+
 async function getAvailableUsernameSuggestions(username: string) {
   const year = new Date().getFullYear()
   const baseCandidates = [`${username}1`, `${username}_${year}`, `${username}_afex`]
@@ -56,7 +60,19 @@ async function getAvailableUsernameSuggestions(username: string) {
         throw error
       }
 
-      if (!existingProfile && suggestions.length < 3) {
+      const { data: existingPosProfile, error: existingPosProfileError } =
+        await supabaseAdmin
+          .from('pos_profiles')
+          .select('username')
+          .ilike('username', candidate)
+          .limit(1)
+          .maybeSingle()
+
+      if (existingPosProfileError) {
+        throw existingPosProfileError
+      }
+
+      if (!existingProfile && !existingPosProfile && suggestions.length < 3) {
         suggestions.push(candidate)
       }
     }
@@ -79,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        { error: 'تعذر تحديد نطاق المنشأة' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -94,7 +110,7 @@ export async function POST(request: NextRequest) {
     const contactEmail = normalizeOptionalText(body.contact_email).toLowerCase()
     const phone = normalizeOptionalText(body.phone)
     const posPin = normalizeOptionalText(body.pos_pin)
-    const role: AppRole = body.role || 'employee'
+    const role = body.role
     const requestedBranchId = normalizeAdminBranchId(body.branch_id)
     const resolvedBranchId = resolveManagedUserBranchId(
       auth.profile.scope_type,
@@ -119,7 +135,15 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (!hasValidAdminPasswordLength(password)) {
+    if (!role || !requestedBranchId) {
+      const response = jsonResponse(
+        { error: 'يجب اختيار الوظيفة والفرع' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (!isPosRole(role) && !hasValidAdminPasswordLength(password)) {
       const response = jsonResponse(
         { error: 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر' },
         400
@@ -214,6 +238,128 @@ export async function POST(request: NextRequest) {
         },
         409
       )
+      return withAuthCookies(auth.response, response)
+    }
+
+    const { data: existingPosProfile, error: existingPosProfileError } =
+      await supabaseAdmin
+        .from('pos_profiles')
+        .select('id, username')
+        .eq('tenant_id', tenantId)
+        .ilike('username', username)
+        .limit(1)
+        .maybeSingle()
+
+    if (existingPosProfileError) {
+      const response = jsonResponse(
+        {
+          error: 'فشل التحقق من اسم المستخدم في pos_profiles',
+          ...safeErrorDetails(
+            existingPosProfileError,
+            'تعذر التحقق من اسم المستخدم'
+          ),
+        },
+        500
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (existingPosProfile) {
+      const suggestions = await getAvailableUsernameSuggestions(username)
+      const response = jsonResponse(
+        {
+          error: 'اسم المستخدم مستخدم بالفعل',
+          details: 'اسم المستخدم موجود مسبقًا',
+          suggestions,
+        },
+        409
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (isPosRole(role)) {
+      const { data: posPinHash, error: hashPinError } = await supabaseAdmin.rpc(
+        'hash_pos_pin',
+        {
+          raw_pin: posPin,
+        }
+      )
+
+      if (hashPinError || typeof posPinHash !== 'string' || !posPinHash) {
+        const response = jsonResponse(
+          {
+            error: 'تعذر حفظ POS PIN بشكل آمن',
+            ...safeErrorDetails(
+              hashPinError || 'Unknown POS PIN hash error',
+              'تعذر حفظ POS PIN بشكل آمن'
+            ),
+          },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      const { data: createdPosProfile, error: createPosProfileError } =
+        await supabaseAdmin
+          .from('pos_profiles')
+          .insert({
+            username,
+            full_name: fullName || username,
+            phone: phone || null,
+            role,
+            is_active: true,
+            branch_id: resolvedBranchId,
+            tenant_id: tenantId,
+            pos_pin_hash: posPinHash,
+            created_by: auth.user.id,
+          })
+          .select('id, username, full_name, phone, role, branch_id')
+          .single()
+
+      if (createPosProfileError || !createdPosProfile) {
+        const response = jsonResponse(
+          {
+            error: 'تعذر إنشاء مستخدم POS',
+            ...safeErrorDetails(
+              createPosProfileError || 'Unknown POS profile error',
+              'تعذر إنشاء مستخدم POS'
+            ),
+          },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      await writeAuditLog({
+        auth,
+        request,
+        action: 'user.created',
+        entityType: 'pos_profile',
+        entityId: createdPosProfile.id,
+        branchId: resolvedBranchId || null,
+        metadata: {
+          role,
+          branch_id: resolvedBranchId || null,
+          username,
+          has_pos_pin: Boolean(posPin),
+        },
+      })
+
+      const response = jsonResponse({
+        success: true,
+        message: 'تم إنشاء المستخدم بنجاح',
+        user: {
+          id: createdPosProfile.id,
+          username,
+          full_name: fullName || username,
+          contact_email: null,
+          phone: phone || null,
+          role,
+          email: null,
+          branch_id: resolvedBranchId || null,
+        },
+      })
+
       return withAuthCookies(auth.response, response)
     }
 

@@ -27,18 +27,22 @@ const BRANCHES_CACHE_TTL_MS = 60_000
 export function useAdminBranchFilter(
   scopeType: AuthScopeType | null,
   actorBranchId: string | null,
-  enabled = true
+  enabled = true,
+  tenantId?: string | null
 ) {
   const pathname = usePathname()
   const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
   const shouldFetch = enabled && !isPosLoginPage
+  const branchesCacheKey = tenantId
+    ? `${BRANCHES_CACHE_KEY}:${tenantId}`
+    : BRANCHES_CACHE_KEY
   const [branches, setBranches] = useState<AdminBranchRecord[]>(() =>
-    peekClientResource<AdminBranchRecord[]>(BRANCHES_CACHE_KEY) || []
+    peekClientResource<AdminBranchRecord[]>(branchesCacheKey) || []
   )
   const [loadingBranches, setLoadingBranches] = useState(
     shouldFetch &&
       scopeType === 'system' &&
-      !(peekClientResource<AdminBranchRecord[]>(BRANCHES_CACHE_KEY) || []).length
+      !(peekClientResource<AdminBranchRecord[]>(branchesCacheKey) || []).length
   )
   const [selectedBranchId, setSelectedBranchIdState] = useState(() =>
     getStoredAdminBranchFilter()
@@ -48,8 +52,10 @@ export function useAdminBranchFilter(
 
   useEffect(() => {
     if (!shouldFetch || !isSystemAdmin) {
-      setBranches([])
-      setLoadingBranches(false)
+      queueMicrotask(() => {
+        setBranches([])
+        setLoadingBranches(false)
+      })
       return
     }
 
@@ -57,7 +63,7 @@ export function useAdminBranchFilter(
 
     async function loadBranches(force = false) {
       const cachedBranches =
-        peekClientResource<AdminBranchRecord[]>(BRANCHES_CACHE_KEY) || []
+        peekClientResource<AdminBranchRecord[]>(branchesCacheKey) || []
 
       if (cachedBranches.length > 0) {
         setBranches(cachedBranches)
@@ -68,7 +74,7 @@ export function useAdminBranchFilter(
 
       try {
         const nextBranches = await loadClientResource(
-          BRANCHES_CACHE_KEY,
+          branchesCacheKey,
           async () => {
             const response = await fetch('/api/admin/branches', {
               method: 'GET',
@@ -122,15 +128,17 @@ export function useAdminBranchFilter(
     }
 
     const handleWindowFocus = () => {
-      if (!isClientResourceFresh(BRANCHES_CACHE_KEY, BRANCHES_CACHE_TTL_MS)) {
+      if (!isClientResourceFresh(branchesCacheKey, BRANCHES_CACHE_TTL_MS)) {
         void loadBranches(true)
       }
     }
 
-    if (!isClientResourceFresh(BRANCHES_CACHE_KEY, BRANCHES_CACHE_TTL_MS)) {
+    if (!isClientResourceFresh(branchesCacheKey, BRANCHES_CACHE_TTL_MS)) {
       void loadBranches()
     } else {
-      setLoadingBranches(false)
+      queueMicrotask(() => {
+        setLoadingBranches(false)
+      })
     }
 
     window.addEventListener(
@@ -147,11 +155,13 @@ export function useAdminBranchFilter(
       )
       window.removeEventListener('focus', handleWindowFocus)
     }
-  }, [isSystemAdmin, shouldFetch])
+  }, [branchesCacheKey, isSystemAdmin, shouldFetch])
 
   useEffect(() => {
     if (!isSystemAdmin) {
-      setSelectedBranchIdState(ADMIN_BRANCH_FILTER_ALL)
+      queueMicrotask(() => {
+        setSelectedBranchIdState(ADMIN_BRANCH_FILTER_ALL)
+      })
       return
     }
 
@@ -162,8 +172,10 @@ export function useAdminBranchFilter(
       branches.length > 0 &&
       !branches.some((branch) => branch.id === normalizedSelected)
     ) {
-      setSelectedBranchIdState(ADMIN_BRANCH_FILTER_ALL)
-      setStoredAdminBranchFilter(ADMIN_BRANCH_FILTER_ALL)
+      queueMicrotask(() => {
+        setSelectedBranchIdState(ADMIN_BRANCH_FILTER_ALL)
+        setStoredAdminBranchFilter(ADMIN_BRANCH_FILTER_ALL)
+      })
     }
   }, [branches, isSystemAdmin, selectedBranchId])
 

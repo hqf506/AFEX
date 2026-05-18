@@ -385,7 +385,12 @@ export default function AdminReceiptsPage() {
     selectedBranchId,
     effectiveBranchId,
     setSelectedBranchId,
-  } = useAdminBranchFilter(access.scopeType, access.branchId, access.allowed)
+  } = useAdminBranchFilter(
+    access.scopeType,
+    access.branchId,
+    access.allowed,
+    tenantId
+  )
 
   const [period, setPeriod] = useState<PeriodOption>('today')
   const [dateRange, setDateRange] = useState(() => buildDateRange('today'))
@@ -512,6 +517,27 @@ export default function AdminReceiptsPage() {
           console.error('[admin-receipts] failed to fetch employees', employeesError)
         } else {
           employees = (employeesData ?? []) as EmployeeProfile[]
+        }
+
+        let posEmployeesQuery = supabase
+          .from('pos_profiles')
+          .select('id, full_name, username')
+          .in('id', employeeIds)
+
+        posEmployeesQuery = applyTenantFilter(posEmployeesQuery, tenantId)
+        const { data: posEmployeesData, error: posEmployeesError } =
+          await posEmployeesQuery
+
+        if (posEmployeesError) {
+          console.error(
+            '[admin-receipts] failed to fetch POS employees',
+            posEmployeesError
+          )
+        } else {
+          employees = [
+            ...employees,
+            ...((posEmployeesData ?? []) as EmployeeProfile[]),
+          ]
         }
       }
 

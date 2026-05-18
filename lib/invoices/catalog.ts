@@ -3,6 +3,8 @@ import {
   type InvoiceCatalogItem,
 } from '@/lib/invoices/items'
 import {
+  clearClientResource,
+  clearClientResourcesByPrefix,
   createProtectedResourceAuthError,
   loadClientResource,
   markProtectedResourcesUnauthorized,
@@ -14,6 +16,12 @@ export type PosInvoiceCatalogProduct = InvoiceCatalogItem & {
   item_id: string
   catalog_item_id: string
   branch_catalog_item_id: string | null
+  branch_id: string | null
+  quantity_on_hand: number
+  low_stock_threshold: number
+  is_low_stock: boolean
+  is_composite: boolean
+  track_inventory: boolean
   pos_display_mode: 'style' | 'image'
   pos_color: string | null
   pos_shape: string | null
@@ -29,6 +37,8 @@ export type CatalogItemRow = {
   pos_display_mode?: 'style' | 'image' | null
   pos_color?: string | null
   pos_shape?: string | null
+  is_composite?: boolean | null
+  track_inventory?: boolean | null
   is_active: boolean
 }
 
@@ -40,6 +50,12 @@ export type BranchCatalogItemRow = {
   display_order: number | null
 }
 
+export type InventoryStockRow = {
+  catalog_item_id: string
+  quantity_on_hand: number | string | null
+  low_stock_threshold: number | string | null
+}
+
 type LoadBranchInvoiceCatalogResponse = {
   success?: boolean
   products?: Array<
@@ -48,6 +64,7 @@ type LoadBranchInvoiceCatalogResponse = {
       item_id?: string
       catalog_item_id?: string
       branch_catalog_item_id?: string | null
+      branch_id?: string | null
       category?: string
       type?: 'product' | 'service'
       price?: number
@@ -55,6 +72,11 @@ type LoadBranchInvoiceCatalogResponse = {
       pos_display_mode?: 'style' | 'image' | null
       pos_color?: string | null
       pos_shape?: string | null
+      quantity_on_hand?: number | string | null
+      low_stock_threshold?: number | string | null
+      is_low_stock?: boolean | null
+      is_composite?: boolean | null
+      track_inventory?: boolean | null
       name?: string
     }
   >
@@ -66,6 +88,19 @@ const INVOICE_CATALOG_CACHE_TTL_MS = 60_000
 
 function getInvoiceCatalogCacheKey(branchId: string | null) {
   return `invoice-catalog:${branchId || 'none'}`
+}
+
+export function clearBranchInvoiceCatalogCache(branchId: string | null) {
+  if (!branchId) {
+    clearClientResourcesByPrefix('invoice-catalog:')
+    return
+  }
+
+  clearClientResource(getInvoiceCatalogCacheKey(branchId))
+}
+
+export function clearAllInvoiceCatalogCache() {
+  clearClientResourcesByPrefix('invoice-catalog:')
 }
 
 function normalizeCatalogProductId(value: unknown) {
@@ -90,12 +125,40 @@ function sortInvoiceCatalogItems(
   return left.name.localeCompare(right.name, 'ar')
 }
 
+function normalizeStockNumber(value: unknown) {
+  const numericValue =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number(value)
+        : 0
+
+  return Number.isFinite(numericValue) ? numericValue : 0
+}
+
+function getInventorySnapshot(stock?: InventoryStockRow) {
+  const quantityOnHand = normalizeStockNumber(stock?.quantity_on_hand)
+  const lowStockThreshold = normalizeStockNumber(stock?.low_stock_threshold)
+
+  return {
+    quantity_on_hand: quantityOnHand,
+    low_stock_threshold: lowStockThreshold,
+    is_low_stock:
+      lowStockThreshold > 0 && quantityOnHand <= lowStockThreshold,
+  }
+}
+
 export function mapBranchCatalogToInvoiceProducts(
   catalogItems: CatalogItemRow[],
-  branchOverrides: BranchCatalogItemRow[]
+  branchOverrides: BranchCatalogItemRow[],
+  inventoryStock: InventoryStockRow[] = [],
+  branchId: string | null = null
 ) {
   const branchOverrideMap = new Map(
     branchOverrides.map((override) => [override.catalog_item_id, override])
+  )
+  const inventoryStockMap = new Map(
+    inventoryStock.map((stock) => [stock.catalog_item_id, stock])
   )
 
   return catalogItems
@@ -110,6 +173,8 @@ export function mapBranchCatalogToInvoiceProducts(
         return null
       }
 
+      const stockSnapshot = getInventorySnapshot(inventoryStockMap.get(item.id))
+
       return {
         id: item.id,
         item_id: item.id,
@@ -118,11 +183,17 @@ export function mapBranchCatalogToInvoiceProducts(
           typeof override?.id === 'string' && override.id.trim()
             ? override.id.trim()
             : null,
+        branch_id: branchId,
         name: item.name,
         type: item.item_type,
         category: item.category,
         price: override?.price ?? item.default_price,
         image_url: resolveInvoiceCatalogImageUrl(item.image_url),
+        quantity_on_hand: stockSnapshot.quantity_on_hand,
+        low_stock_threshold: stockSnapshot.low_stock_threshold,
+        is_low_stock: stockSnapshot.is_low_stock,
+        is_composite: item.is_composite === true,
+        track_inventory: item.track_inventory === true,
         pos_display_mode: item.pos_display_mode === 'image' ? 'image' : 'style',
         pos_color: typeof item.pos_color === 'string' ? item.pos_color : null,
         pos_shape: typeof item.pos_shape === 'string' ? item.pos_shape : null,
@@ -142,13 +213,19 @@ export function mapBranchCatalogToInvoiceProducts(
       item_id: item.item_id,
       catalog_item_id: item.catalog_item_id,
       branch_catalog_item_id: item.branch_catalog_item_id,
+      branch_id: item.branch_id,
       name: item.name,
       type: item.type,
       category: item.category,
-      price: item.price,
-      image_url: item.image_url,
-      pos_display_mode: item.pos_display_mode,
-      pos_color: item.pos_color,
+        price: item.price,
+        image_url: item.image_url,
+        quantity_on_hand: item.quantity_on_hand,
+        low_stock_threshold: item.low_stock_threshold,
+        is_low_stock: item.is_low_stock,
+        is_composite: item.is_composite,
+        track_inventory: item.track_inventory,
+        pos_display_mode: item.pos_display_mode,
+        pos_color: item.pos_color,
       pos_shape: item.pos_shape,
     })) as PosInvoiceCatalogProduct[]
 }
@@ -176,6 +253,7 @@ function normalizeLoadedInvoiceCatalogProducts(
         branch_catalog_item_id: normalizeCatalogProductId(
           product?.branch_catalog_item_id
         ) || null,
+        branch_id: normalizeCatalogProductId(product?.branch_id) || null,
         name: typeof product?.name === 'string' ? product.name : '',
         type: product?.type === 'service' ? 'service' : 'product',
         category: typeof product?.category === 'string' ? product.category : '',
@@ -184,6 +262,15 @@ function normalizeLoadedInvoiceCatalogProducts(
             ? product.price
             : 0,
         image_url: resolveInvoiceCatalogImageUrl(product?.image_url),
+        quantity_on_hand: normalizeStockNumber(product?.quantity_on_hand),
+        low_stock_threshold: normalizeStockNumber(product?.low_stock_threshold),
+        is_low_stock:
+          Boolean(product?.is_low_stock) ||
+          (normalizeStockNumber(product?.low_stock_threshold) > 0 &&
+            normalizeStockNumber(product?.quantity_on_hand) <=
+              normalizeStockNumber(product?.low_stock_threshold)),
+        is_composite: product?.is_composite === true,
+        track_inventory: product?.track_inventory === true,
         pos_display_mode: product?.pos_display_mode === 'image' ? 'image' : 'style',
         pos_color:
           typeof product?.pos_color === 'string' ? product.pos_color : null,
@@ -194,9 +281,16 @@ function normalizeLoadedInvoiceCatalogProducts(
     .filter((product): product is PosInvoiceCatalogProduct => product !== null)
 }
 
-export async function loadBranchInvoiceCatalog(branchId: string | null) {
+export async function loadBranchInvoiceCatalog(
+  branchId: string | null,
+  options: { force?: boolean } = {}
+) {
   if (!branchId) {
     return []
+  }
+
+  if (options.force === true) {
+    clearClientResource(getInvoiceCatalogCacheKey(branchId))
   }
 
   return loadClientResource(
@@ -233,6 +327,7 @@ export async function loadBranchInvoiceCatalog(branchId: string | null) {
     },
     {
       ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
+      force: options.force === true,
       logLabel: `fetch catalog (${branchId})`,
       protectedResource: true,
     }

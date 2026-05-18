@@ -111,6 +111,10 @@ function getDisplayCategoryLabel(item: Pick<AdminCatalogItemRecord, 'item_type' 
   return normalizeBrokenCategoryLabel(item.category)
 }
 
+function canTrackInventory(itemType: string, isComposite: boolean) {
+  return itemType === 'product' || isComposite
+}
+
 function calculateProfitMargin(costPrice: number, salePrice: number) {
   if (!Number.isFinite(salePrice) || salePrice <= 0) return '-'
   if (!Number.isFinite(costPrice) || costPrice <= 0) return '-'
@@ -512,16 +516,23 @@ function ToggleRow({
   label,
   checked,
   onChange,
+  disabled = false,
 }: {
   label: string
   checked: boolean
   onChange: (checked: boolean) => void
+  disabled?: boolean
 }) {
   return (
-    <label className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
+    <label
+      className={`flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 ${
+        disabled ? 'cursor-not-allowed opacity-60' : ''
+      }`}
+    >
       <button
         type="button"
         aria-pressed={checked}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={`relative h-6 w-11 rounded-full transition ${
           checked ? 'bg-emerald-500' : 'bg-slate-200'
@@ -1399,6 +1410,10 @@ export default function AdminCatalogPage() {
       costPrice: Number.isFinite(safeCostPrice) ? safeCostPrice.toString() : '0',
       defaultPrice: Number.isFinite(safeDefaultPrice) ? safeDefaultPrice.toString() : '0',
     }
+    const itemIsComposite = item.is_composite === true
+    const itemTracksInventory =
+      canTrackInventory(item.item_type, itemIsComposite) &&
+      item.track_inventory === true
 
     setEditingItemId(item.id)
     setEditingItem(item)
@@ -1407,8 +1422,8 @@ export default function AdminCatalogPage() {
     setForm(initialForm)
     setDescription('')
     setSellBy('unit')
-    setCompositeItem(false)
-    setTrackInventory(false)
+    setCompositeItem(itemIsComposite)
+    setTrackInventory(itemTracksInventory)
     setAvailableInAllBranches(item.is_active)
     setSelectedBranches(branchOptions.map((branch) => branch.id))
     setBranchPrices({})
@@ -1433,8 +1448,8 @@ export default function AdminCatalogPage() {
       form: initialForm,
       description: '',
       sellBy: 'unit',
-      compositeItem: false,
-      trackInventory: false,
+      compositeItem: itemIsComposite,
+      trackInventory: itemTracksInventory,
       availableInAllBranches: item.is_active,
       selectedBranches: [...branchOptions.map((branch) => branch.id)].sort(),
       branchPrices: {},
@@ -1482,6 +1497,9 @@ export default function AdminCatalogPage() {
             pos_display_mode: posDisplayMode,
             pos_color: posDisplayMode === 'style' ? posColor : null,
             pos_shape: posDisplayMode === 'style' ? posShape : null,
+            is_composite: compositeItem,
+            track_inventory:
+              canTrackInventory(resolvedForm.itemType, compositeItem) && trackInventory,
             is_active:
               items.find((item) => item.id === editingItemId)?.is_active ?? true,
           },
@@ -1515,6 +1533,9 @@ export default function AdminCatalogPage() {
         pos_display_mode: posDisplayMode,
         pos_color: posDisplayMode === 'style' ? posColor : null,
         pos_shape: posDisplayMode === 'style' ? posShape : null,
+        is_composite: compositeItem,
+        track_inventory:
+          canTrackInventory(resolvedForm.itemType, compositeItem) && trackInventory,
         ...(editingItemId
           ? {
               is_active:
@@ -1587,6 +1608,10 @@ export default function AdminCatalogPage() {
           pos_display_mode: item.pos_display_mode,
           pos_color: item.pos_color,
           pos_shape: item.pos_shape,
+          is_composite: item.is_composite === true,
+          track_inventory:
+            canTrackInventory(item.item_type, item.is_composite === true) &&
+            item.track_inventory === true,
           is_active: !item.is_active,
         }),
       })
@@ -1910,6 +1935,10 @@ export default function AdminCatalogPage() {
         pos_display_mode: item.pos_display_mode,
         pos_color: item.pos_color,
         pos_shape: item.pos_shape,
+        is_composite: item.is_composite === true,
+        track_inventory:
+          canTrackInventory(item.item_type, item.is_composite === true) &&
+          item.track_inventory === true,
         is_active: item.is_active,
       }
 
@@ -1961,6 +1990,10 @@ export default function AdminCatalogPage() {
         pos_display_mode: item.pos_display_mode,
         pos_color: item.pos_color,
         pos_shape: item.pos_shape,
+        is_composite: item.is_composite === true,
+        track_inventory:
+          canTrackInventory(item.item_type, item.is_composite === true) &&
+          item.track_inventory === true,
         is_active: item.is_active,
       }
 
@@ -2387,9 +2420,10 @@ export default function AdminCatalogPage() {
             onChange={setCompositeItem}
           />
           <ToggleRow
-            label="تعقب المخزون"
-            checked={trackInventory}
+            label="تتبع المخزون"
+            checked={canTrackInventory(resolvedForm.itemType, compositeItem) && trackInventory}
             onChange={setTrackInventory}
+            disabled={!canTrackInventory(resolvedForm.itemType, compositeItem)}
           />
         </div>
       </section>

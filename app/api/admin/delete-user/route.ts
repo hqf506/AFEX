@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        { error: 'تعذر تحديد نطاق المنشأة' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -63,6 +63,73 @@ export async function POST(request: NextRequest) {
     }
 
     if (!existingProfile) {
+      const { data: existingPosProfile } = await supabaseAdmin
+        .from('pos_profiles')
+        .select('id, username, role, branch_id, is_active')
+        .eq('id', userId)
+        .eq('tenant_id', tenantId)
+        .maybeSingle()
+
+      if (existingPosProfile) {
+        const targetBranchId =
+          typeof existingPosProfile.branch_id === 'string'
+            ? existingPosProfile.branch_id
+            : null
+
+        if (
+          !canManageBranchScopedTarget(
+            auth.profile.scope_type,
+            auth.profile.branch_id,
+            targetBranchId
+          )
+        ) {
+          const response = jsonResponse(
+            { error: 'لا تملك صلاحية حذف هذا المستخدم' },
+            403
+          )
+          return withAuthCookies(auth.response, response)
+        }
+
+        const { error: deletePosError } = await supabaseAdmin
+          .from('pos_profiles')
+          .delete()
+          .eq('id', userId)
+          .eq('tenant_id', tenantId)
+
+        if (deletePosError) {
+          const response = jsonResponse(
+            {
+              error: 'فشل حذف مستخدم POS',
+              ...safeErrorDetails(deletePosError, 'تعذر حذف مستخدم POS'),
+            },
+            400
+          )
+          return withAuthCookies(auth.response, response)
+        }
+
+        await writeAuditLog({
+          auth,
+          request,
+          action: 'user.deleted',
+          entityType: 'pos_profile',
+          entityId: userId,
+          branchId: targetBranchId,
+          metadata: {
+            role: existingPosProfile.role,
+            username: existingPosProfile.username,
+            branch_id: existingPosProfile.branch_id,
+            was_active: existingPosProfile.is_active,
+          },
+        })
+
+        const response = jsonResponse({
+          success: true,
+          message: 'تم حذف المستخدم بنجاح',
+        })
+
+        return withAuthCookies(auth.response, response)
+      }
+
       const response = jsonResponse(
         { error: 'المستخدم غير موجود في profiles' },
         404

@@ -27,10 +27,14 @@ export async function GET(request: NextRequest) {
   )
 
   if (!auth.profile.tenant_id) {
-    return jsonWithAuthCookies(auth.response, {
-      success: true,
-      customers: [],
-    })
+    return jsonWithAuthCookies(
+      auth.response,
+      {
+        success: false,
+        error: 'Tenant context is required',
+      },
+      403
+    )
   }
 
   let query = auth.supabase

@@ -35,6 +35,10 @@ import {
   PAYMENT_METHODS,
 } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
+import {
+  readActivePosEmployee,
+  type ActivePosEmployee,
+} from '@/lib/pos-employee-session'
 
 type ThermalReceiptSettings = {
   showQRCode: boolean
@@ -127,15 +131,23 @@ export default function PosSaleCheckoutPage() {
   const authStatus = access.authStatus
   const allowed = access.allowed
   const branchId = access.branchId
+  const tenantId = access.tenantId
   const scopeType = access.scopeType
   const { effectiveBranchId, selectedBranchName } = useAdminBranchFilter(
     scopeType,
     branchId,
-    allowed
+    allowed,
+    tenantId
   )
-  const hasInvalidBranchContext = scopeType === 'branch' && !branchId
+  const [activePosEmployee] = useState<ActivePosEmployee | null>(() =>
+    readActivePosEmployee()
+  )
+  const posEmployeeBranchId = activePosEmployee?.branch_id || null
+  const checkoutBranchId = posEmployeeBranchId || effectiveBranchId
+  const hasInvalidBranchContext =
+    scopeType === 'branch' && !branchId && !posEmployeeBranchId
   const hasAmbiguousAdminBranchContext =
-    scopeType === 'system' && access.userRole === 'admin' && !effectiveBranchId
+    scopeType === 'system' && access.userRole === 'admin' && !checkoutBranchId
 
   const [ready, setReady] = useState(false)
   const [missingCheckoutData, setMissingCheckoutData] = useState(false)
@@ -144,10 +156,10 @@ export default function PosSaleCheckoutPage() {
   const [invoiceItems, setInvoiceItems] = useState<InvoiceLineItem[]>([])
   const [availableDiscounts, setAvailableDiscounts] = useState<
     CheckoutDiscountOption[]
-  >(() => peekClientResource<CheckoutDiscountOption[]>(getDiscountsCacheKey(effectiveBranchId)) || [])
+  >(() => peekClientResource<CheckoutDiscountOption[]>(getDiscountsCacheKey(checkoutBranchId)) || [])
   const [loadingDiscounts, setLoadingDiscounts] = useState(false)
   const [availableVatSetting, setAvailableVatSetting] = useState<CheckoutVatSetting | null>(
-    () => peekClientResource<CheckoutVatSetting | null>(getVatCacheKey(effectiveBranchId)) || null
+    () => peekClientResource<CheckoutVatSetting | null>(getVatCacheKey(checkoutBranchId)) || null
   )
   const [loadingVat, setLoadingVat] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
@@ -221,7 +233,7 @@ export default function PosSaleCheckoutPage() {
 
     async function loadDiscounts() {
       try {
-        const discountsCacheKey = getDiscountsCacheKey(effectiveBranchId)
+        const discountsCacheKey = getDiscountsCacheKey(checkoutBranchId)
         const cachedDiscounts =
           peekClientResource<CheckoutDiscountOption[]>(discountsCacheKey) || []
 
@@ -233,8 +245,8 @@ export default function PosSaleCheckoutPage() {
         }
 
         const searchParams = new URLSearchParams()
-        if (effectiveBranchId) {
-          searchParams.set('branchId', effectiveBranchId)
+        if (checkoutBranchId) {
+          searchParams.set('branchId', checkoutBranchId)
         }
 
         const nextDiscounts = await loadClientResource(
@@ -262,7 +274,7 @@ export default function PosSaleCheckoutPage() {
           },
           {
             ttlMs: ADMIN_DISCOUNTS_CACHE_TTL_MS,
-            logLabel: `fetch discounts (${effectiveBranchId || 'all'})`,
+            logLabel: `fetch discounts (${checkoutBranchId || 'all'})`,
           }
         )
 
@@ -285,7 +297,7 @@ export default function PosSaleCheckoutPage() {
     return () => {
       cancelled = true
     }
-  }, [allowed, effectiveBranchId])
+  }, [allowed, checkoutBranchId])
 
   useEffect(() => {
     if (!allowed) return
@@ -294,7 +306,7 @@ export default function PosSaleCheckoutPage() {
 
     async function loadVatSetting() {
       try {
-        const vatCacheKey = getVatCacheKey(effectiveBranchId)
+        const vatCacheKey = getVatCacheKey(checkoutBranchId)
         const cachedSetting =
           peekClientResource<CheckoutVatSetting | null>(vatCacheKey) || null
 
@@ -306,8 +318,8 @@ export default function PosSaleCheckoutPage() {
         }
 
         const searchParams = new URLSearchParams()
-        if (effectiveBranchId) {
-          searchParams.set('branchId', effectiveBranchId)
+        if (checkoutBranchId) {
+          searchParams.set('branchId', checkoutBranchId)
         }
 
         const nextSetting = await loadClientResource(
@@ -335,7 +347,7 @@ export default function PosSaleCheckoutPage() {
           },
           {
             ttlMs: ADMIN_VAT_CACHE_TTL_MS,
-            logLabel: `fetch vat (${effectiveBranchId || 'all'})`,
+            logLabel: `fetch vat (${checkoutBranchId || 'all'})`,
           }
         )
 
@@ -358,7 +370,7 @@ export default function PosSaleCheckoutPage() {
     return () => {
       cancelled = true
     }
-  }, [allowed, effectiveBranchId])
+  }, [allowed, checkoutBranchId])
 
   const checkout = useInvoiceCheckout({
     customerName,
@@ -366,6 +378,7 @@ export default function PosSaleCheckoutPage() {
     invoiceItems,
     hasInvalidBranchContext,
     hasAmbiguousAdminBranchContext,
+    branchId: checkoutBranchId,
     vatSetting: availableVatSetting,
     onInvoiceCreated: (_, successSnapshot) => {
       const nextSnapshot = {

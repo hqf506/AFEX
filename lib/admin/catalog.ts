@@ -21,6 +21,9 @@ export type AdminCatalogItemRecord = {
   pos_display_mode: 'style' | 'image'
   pos_color: string | null
   pos_shape: string | null
+  is_composite: boolean
+  track_inventory: boolean
+  inventory_enabled_at: string | null
   is_active: boolean
   created_at: string
   updated_at: string

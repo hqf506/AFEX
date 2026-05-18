@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 type AccountData = {
   id: string
@@ -9,24 +10,8 @@ type AccountData = {
   full_name: string | null
   phone: string | null
   contact_email: string | null
-  role: string
-  is_active: boolean
-}
-
-function getRoleLabel(role: string) {
-  if (role === 'admin' || role === 'manager') {
-    return 'مدير'
-  }
-
-  if (role === 'employee') {
-    return 'موظف'
-  }
-
-  if (role === 'cashier') {
-    return 'كاشير'
-  }
-
-  return role || '-'
+  tenant_name: string | null
+  branch_name: string | null
 }
 
 function splitFullName(fullName: string | null) {
@@ -37,34 +22,26 @@ function splitFullName(fullName: string | null) {
   return { firstName, lastName }
 }
 
-function UserIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 21a8 8 0 0 0-16 0" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  )
-}
-
 export default function AccountPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [account, setAccount] = useState<AccountData | null>(null)
+  const [accessToken, setAccessToken] = useState('')
+  const [tenantName, setTenantName] = useState('')
+  const [username, setUsername] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [contactEmail, setContactEmail] = useState('')
+  const [branchName, setBranchName] = useState('')
+
+  const labelClass = 'mb-2 block text-sm font-black text-slate-200'
+  const fieldClass =
+    'h-[52px] w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10'
+  const readonlyFieldClass =
+    'h-[52px] w-full rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-4 text-right font-black text-cyan-100 outline-none'
 
   useEffect(() => {
     let mounted = true
@@ -74,31 +51,66 @@ export default function AccountPage() {
         setLoading(true)
         setErrorMessage('')
 
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        console.info('[account] auth state before load', {
+          hasSession: Boolean(session),
+          hasUserId: Boolean(user?.id || session?.user?.id),
+        })
+
+        if (!session?.access_token) {
+          throw new Error('يجب تسجيل الدخول أولاً')
+        }
+
+        setAccessToken(session.access_token)
+
         const response = await fetch('/api/account', {
           method: 'GET',
+          credentials: 'include',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         })
-        const result = await response.json()
+        const result = await response.json().catch(() => null)
 
-        if (!response.ok) {
-          throw new Error(result?.details || result?.error || 'تعذر تحميل بيانات الحساب')
+        if (!response.ok || !result?.success) {
+          throw new Error(
+            result?.details || result?.error || 'تعذر تحميل بيانات الحساب'
+          )
         }
 
         const nextAccount = result.account as AccountData
+
+        console.info('[account] account profile load result', {
+          hasSession: true,
+          hasUserId: Boolean(user?.id || session.user.id),
+          hasProfile: Boolean(nextAccount?.id),
+          hasTenantId: Boolean(result?.debug?.hasTenantId),
+        })
 
         if (!mounted) {
           return
         }
 
-        setAccount(nextAccount)
         const safeFullName =
           nextAccount.full_name?.trim() === nextAccount.username?.trim()
             ? ''
             : nextAccount.full_name
         const nextName = splitFullName(safeFullName)
+
+        setAccount(nextAccount)
+        setTenantName(nextAccount.tenant_name || '')
+        setUsername(nextAccount.username || '')
+        setContactEmail(nextAccount.contact_email || '')
+        setPhone(nextAccount.phone || '')
         setFirstName(nextName.firstName)
         setLastName(nextName.lastName)
-        setPhone(nextAccount.phone || '')
-        setContactEmail(nextAccount.contact_email || '')
+        setBranchName(nextAccount.branch_name || '')
       } catch (error) {
         if (!mounted) {
           return
@@ -128,50 +140,70 @@ export default function AccountPage() {
 
     try {
       setSaving(true)
+
+      const trimmedTenantName = tenantName.trim()
+      const trimmedContactEmail = contactEmail.trim()
+      const trimmedPhone = phone.trim()
+      const trimmedFirstName = firstName.trim()
+      const trimmedBranchName = branchName.trim()
+
+      if (
+        !trimmedTenantName ||
+        !trimmedContactEmail ||
+        !trimmedPhone ||
+        !trimmedFirstName
+      ) {
+        setErrorMessage('يرجى تعبئة جميع الحقول المطلوبة')
+        return
+      }
+
       const fullName = [firstName, lastName]
         .map((name) => name.trim())
         .filter(Boolean)
         .join(' ')
-      const payload: {
-        full_name?: string
-        phone: string
-        contact_email: string
-      } = {
-        phone,
-        contact_email: contactEmail,
-      }
-
-      if (fullName) {
-        payload.full_name = fullName
-      }
+      const token =
+        accessToken ||
+        (await supabase.auth.getSession()).data.session?.access_token ||
+        ''
 
       const response = await fetch('/api/account', {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          tenant_name: trimmedTenantName,
+          full_name: fullName,
+          phone: trimmedPhone,
+          contact_email: trimmedContactEmail,
+          branch_name: trimmedBranchName,
+        }),
       })
-      const result = await response.json()
+      const result = await response.json().catch(() => null)
 
-      if (!response.ok) {
+      if (!response.ok || !result?.success) {
         if (response.status === 409) {
           throw new Error('البريد الإلكتروني مسجل بالفعل')
         }
 
-        throw new Error(result?.details || result?.error || 'تعذر تحديث بيانات الحساب')
+        throw new Error(
+          result?.details || result?.error || 'تعذر تحديث بيانات الحساب'
+        )
       }
 
       const updatedAccount = result.account as AccountData
-      const safeUpdatedFullName =
-        updatedAccount.full_name?.trim() === updatedAccount.username?.trim()
-          ? ''
-          : updatedAccount.full_name
-      const updatedName = splitFullName(safeUpdatedFullName)
+      const updatedName = splitFullName(updatedAccount.full_name)
 
       setAccount(updatedAccount)
+      setTenantName(updatedAccount.tenant_name || tenantName)
+      setUsername(updatedAccount.username || username)
+      setContactEmail(updatedAccount.contact_email || '')
+      setPhone(updatedAccount.phone || '')
       setFirstName(updatedName.firstName)
       setLastName(updatedName.lastName)
+      setBranchName(updatedAccount.branch_name || branchName)
       setSuccessMessage('تم تحديث بيانات الحساب بنجاح')
     } catch (error) {
       setErrorMessage(
@@ -193,150 +225,143 @@ export default function AccountPage() {
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:76px_76px] opacity-25" />
       </div>
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl items-center justify-center">
-        <section className="w-full rounded-[30px] border border-white/12 bg-white/[0.055] p-5 text-right shadow-[0_28px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:p-8">
-          <div className="mb-8 flex flex-col gap-4 text-center md:flex-row md:items-center md:justify-between md:text-right">
-            <div>
-              <div className="mb-4 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">
-                AFEX ACCOUNT
-              </div>
-              <h1 className="text-3xl font-black tracking-tight text-white">
+      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl items-center justify-center">
+        <section className="relative w-full overflow-hidden rounded-[30px] border border-white/12 bg-white/[0.045] p-6 text-right shadow-[0_28px_100px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-8">
+          <div className="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-cyan-300/14 blur-3xl" />
+          <div className="absolute -bottom-16 right-10 h-52 w-52 rounded-full bg-emerald-300/12 blur-3xl" />
+
+          <div className="relative mx-auto max-w-2xl">
+            <div className="mb-7 text-center">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-200/60">
+                AFEX
+              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-white md:text-4xl">
                 تعديل الحساب
               </h1>
-              <p className="mt-2 text-sm leading-7 text-slate-400">
-                حدّث بياناتك الأساسية وبيانات التواصل.
-              </p>
             </div>
 
-            <Link
-              href="/"
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 text-sm font-bold text-slate-200 transition hover:bg-white/[0.075]"
-            >
-              العودة للرئيسية
-            </Link>
+            {successMessage ? (
+              <div className="mb-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-100 shadow-[0_0_35px_rgba(52,211,153,0.08)]">
+                {successMessage}
+              </div>
+            ) : null}
+
+            {errorMessage ? (
+              <div className="mb-5 rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-100 shadow-[0_0_35px_rgba(251,113,133,0.08)]">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            {loading ? (
+              <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-4 text-sm font-bold text-cyan-100">
+                جاري تحميل بيانات الحساب...
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="block">
+                    <span className={labelClass}>اسم المؤسسة / الشركة *</span>
+                    <input
+                      type="text"
+                      value={tenantName}
+                      onChange={(event) => setTenantName(event.target.value)}
+                      className={fieldClass}
+                      placeholder="مثال: Leather Fix"
+                      autoComplete="organization"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className={labelClass}>اسم المستخدم</span>
+                    <input
+                      type="text"
+                      value={username || account?.username || ''}
+                      className={`${readonlyFieldClass} text-left`}
+                      readOnly
+                      dir="ltr"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className={labelClass}>البريد الإلكتروني *</span>
+                    <input
+                      type="email"
+                      value={contactEmail}
+                      onChange={(event) => setContactEmail(event.target.value)}
+                      className={`${fieldClass} text-left`}
+                      placeholder="owner@example.com"
+                      autoComplete="email"
+                      dir="ltr"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className={labelClass}>رقم الجوال *</span>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      className={`${fieldClass} text-left`}
+                      placeholder="05xxxxxxxx"
+                      autoComplete="tel"
+                      dir="ltr"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className={labelClass}>الاسم الأول *</span>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(event) => setFirstName(event.target.value)}
+                      className={fieldClass}
+                      placeholder="مثال: فيصل"
+                      autoComplete="given-name"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className={labelClass}>الاسم الأخير</span>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(event) => setLastName(event.target.value)}
+                      className={fieldClass}
+                      placeholder="مثال: أحمد"
+                      autoComplete="family-name"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <span className={labelClass}>اسم الفرع</span>
+                    <input
+                      type="text"
+                      value={branchName}
+                      onChange={(event) => setBranchName(event.target.value)}
+                      className={fieldClass}
+                      placeholder="مثال: الفرع الرئيسي"
+                      autoComplete="organization-title"
+                    />
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="h-[52px] w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-base font-black text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(45,212,191,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+                </button>
+
+                <Link
+                  href="/"
+                  className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-sm font-black text-cyan-100 transition hover:border-cyan-300/35 hover:bg-cyan-300/15"
+                >
+                  العودة للرئيسية
+                </Link>
+              </form>
+            )}
           </div>
-
-          {successMessage ? (
-            <div className="mb-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-100 shadow-[0_0_35px_rgba(52,211,153,0.08)]">
-              {successMessage}
-            </div>
-          ) : null}
-
-          {errorMessage ? (
-            <div className="mb-5 rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-100 shadow-[0_0_35px_rgba(251,113,133,0.08)]">
-              {errorMessage}
-            </div>
-          ) : null}
-
-          {loading ? (
-            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-4 text-sm font-bold text-cyan-100">
-              جاري تحميل بيانات الحساب...
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/18 bg-cyan-300/10 px-4 py-3 text-cyan-100 shadow-[0_0_35px_rgba(34,211,238,0.08)]">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-[#06111f]/80">
-                  <UserIcon />
-                </span>
-                <div>
-                  <p className="text-xs font-bold text-cyan-100/65">
-                    اسم المستخدم
-                  </p>
-                  <p className="mt-1 text-sm font-black text-white" dir="ltr">
-                    {account?.username || '-'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-slate-200">
-                    الاسم الأول
-                  </span>
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(event) => setFirstName(event.target.value)}
-                    placeholder="اكتب الاسم الأول"
-                    className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
-                    autoComplete="given-name"
-                  />
-                  <span className="mt-1.5 block text-xs font-bold text-slate-500">
-                    اختياري
-                  </span>
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-slate-200">
-                    الاسم الأخير
-                  </span>
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(event) => setLastName(event.target.value)}
-                    placeholder="اكتب الاسم الأخير"
-                    className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
-                    autoComplete="family-name"
-                  />
-                  <span className="mt-1.5 block text-xs font-bold text-slate-500">
-                    اختياري
-                  </span>
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-slate-200">
-                    رقم الجوال
-                  </span>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    placeholder="05xxxxxxxx"
-                    className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
-                    autoComplete="tel"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-slate-200">
-                    بريد التواصل
-                  </span>
-                  <input
-                    type="email"
-                    value={contactEmail}
-                    onChange={(event) => setContactEmail(event.target.value)}
-                    placeholder="name@example.com"
-                    className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
-                    autoComplete="email"
-                  />
-                </label>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
-                  <p className="text-xs font-bold text-slate-500">الدور</p>
-                  <p className="mt-2 text-sm font-black text-cyan-100">
-                    {getRoleLabel(account?.role || '')}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
-                  <p className="text-xs font-bold text-slate-500">حالة الحساب</p>
-                  <p className="mt-2 text-sm font-black text-emerald-100">
-                    {account?.is_active ? 'نشط' : 'غير نشط'}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="h-14 w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-base font-black text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(45,212,191,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
-              </button>
-            </form>
-          )}
         </section>
       </div>
     </main>
