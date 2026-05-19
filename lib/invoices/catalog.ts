@@ -17,6 +17,7 @@ export type PosInvoiceCatalogProduct = InvoiceCatalogItem & {
   catalog_item_id: string
   branch_catalog_item_id: string | null
   branch_id: string | null
+  api_quantity_on_hand?: number
   quantity_on_hand: number
   low_stock_threshold: number
   is_low_stock: boolean
@@ -246,7 +247,10 @@ function normalizeLoadedInvoiceCatalogProducts(
         return null
       }
 
-      return {
+      const quantityOnHand = normalizeStockNumber(product?.quantity_on_hand)
+      const lowStockThreshold = normalizeStockNumber(product?.low_stock_threshold)
+
+      const normalizedProduct: PosInvoiceCatalogProduct = {
         id: catalogItemId,
         item_id: catalogItemId,
         catalog_item_id: catalogItemId,
@@ -262,13 +266,12 @@ function normalizeLoadedInvoiceCatalogProducts(
             ? product.price
             : 0,
         image_url: resolveInvoiceCatalogImageUrl(product?.image_url),
-        quantity_on_hand: normalizeStockNumber(product?.quantity_on_hand),
-        low_stock_threshold: normalizeStockNumber(product?.low_stock_threshold),
+        api_quantity_on_hand: quantityOnHand,
+        quantity_on_hand: quantityOnHand,
+        low_stock_threshold: lowStockThreshold,
         is_low_stock:
           Boolean(product?.is_low_stock) ||
-          (normalizeStockNumber(product?.low_stock_threshold) > 0 &&
-            normalizeStockNumber(product?.quantity_on_hand) <=
-              normalizeStockNumber(product?.low_stock_threshold)),
+          (lowStockThreshold > 0 && quantityOnHand <= lowStockThreshold),
         is_composite: product?.is_composite === true,
         track_inventory: product?.track_inventory === true,
         pos_display_mode: product?.pos_display_mode === 'image' ? 'image' : 'style',
@@ -277,8 +280,43 @@ function normalizeLoadedInvoiceCatalogProducts(
         pos_shape:
           typeof product?.pos_shape === 'string' ? product.pos_shape : null,
       }
+
+      return normalizedProduct
     })
     .filter((product): product is PosInvoiceCatalogProduct => product !== null)
+}
+
+async function fetchBranchInvoiceCatalog(
+  branchId: string,
+  options: { cacheBust?: boolean } = {}
+) {
+  const searchParams = new URLSearchParams({ branchId })
+
+  if (options.cacheBust) {
+    searchParams.set('t', String(Date.now()))
+  }
+
+  const response = await fetch(`/api/invoice/catalog?${searchParams.toString()}`, {
+    method: 'GET',
+    cache: 'no-store',
+  })
+
+  if (response.status === 401) {
+    markProtectedResourcesUnauthorized()
+    throw createProtectedResourceAuthError()
+  }
+
+  const result = (await response.json().catch(() => null)) as
+    | LoadBranchInvoiceCatalogResponse
+    | null
+
+  if (!response.ok || !result?.success || !Array.isArray(result.products)) {
+    throw new Error(
+      result?.details || result?.error || 'Failed to load branch catalog'
+    )
+  }
+
+  return normalizeLoadedInvoiceCatalogProducts(result.products)
 }
 
 export async function loadBranchInvoiceCatalog(
@@ -291,43 +329,14 @@ export async function loadBranchInvoiceCatalog(
 
   if (options.force === true) {
     clearClientResource(getInvoiceCatalogCacheKey(branchId))
+    return fetchBranchInvoiceCatalog(branchId, { cacheBust: true })
   }
 
   return loadClientResource(
     getInvoiceCatalogCacheKey(branchId),
-    async () => {
-      const response = await fetch(
-        `/api/invoice/catalog?branchId=${encodeURIComponent(branchId)}`,
-        {
-          method: 'GET',
-          cache: 'no-store',
-        }
-      )
-
-      if (response.status === 401) {
-        markProtectedResourcesUnauthorized()
-        throw createProtectedResourceAuthError()
-      }
-
-      const result = (await response.json().catch(() => null)) as
-        | LoadBranchInvoiceCatalogResponse
-        | null
-
-      if (
-        !response.ok ||
-        !result?.success ||
-        !Array.isArray(result.products)
-      ) {
-        throw new Error(
-          result?.details || result?.error || 'Failed to load branch catalog'
-        )
-      }
-
-      return normalizeLoadedInvoiceCatalogProducts(result.products)
-    },
+    () => fetchBranchInvoiceCatalog(branchId),
     {
       ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
-      force: options.force === true,
       logLabel: `fetch catalog (${branchId})`,
       protectedResource: true,
     }
@@ -353,36 +362,7 @@ export function prefetchBranchInvoiceCatalog(branchId: string | null) {
 
   return prefetchClientResource(
     getInvoiceCatalogCacheKey(branchId),
-    async () => {
-      const response = await fetch(
-        `/api/invoice/catalog?branchId=${encodeURIComponent(branchId)}`,
-        {
-          method: 'GET',
-          cache: 'no-store',
-        }
-      )
-
-      if (response.status === 401) {
-        markProtectedResourcesUnauthorized()
-        throw createProtectedResourceAuthError()
-      }
-
-      const result = (await response.json().catch(() => null)) as
-        | LoadBranchInvoiceCatalogResponse
-        | null
-
-      if (
-        !response.ok ||
-        !result?.success ||
-        !Array.isArray(result.products)
-      ) {
-        throw new Error(
-          result?.details || result?.error || 'Failed to load branch catalog'
-        )
-      }
-
-      return normalizeLoadedInvoiceCatalogProducts(result.products)
-    },
+    () => fetchBranchInvoiceCatalog(branchId),
     {
       ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
       logLabel: `fetch catalog (${branchId})`,

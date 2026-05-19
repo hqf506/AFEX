@@ -15,6 +15,7 @@ import {
   isInvoiceCustomerDraftValid,
   serializeInvoiceCustomerDraft,
 } from '@/lib/invoices/customer'
+import { readActivePosEmployee } from '@/lib/pos-employee-session'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
 
 type ExistingCustomer = {
@@ -41,15 +42,20 @@ type InvoiceCustomerStepProps = {
   variant?: 'default' | 'pos'
 }
 
-function normalizeCustomerLookup(phone: string, name: string) {
+function normalizeCustomerLookup(
+  phone: string,
+  name: string,
+  branchKey: string | null
+) {
   const normalizedPhone = phone.trim()
   const phoneDigits = normalizedPhone.replace(/\D/g, '')
   const normalizedName = name.trim()
+  const cacheBranchKey = branchKey || 'all'
 
   if (phoneDigits.length >= 3) {
     return {
       query: normalizedPhone,
-      cacheKey: `customer-search:phone:${phoneDigits}`,
+      cacheKey: `customer-search:${cacheBranchKey}:phone:${phoneDigits}`,
       active: true,
     } as const
   }
@@ -57,7 +63,7 @@ function normalizeCustomerLookup(phone: string, name: string) {
   if (normalizedName.length >= 2) {
     return {
       query: normalizedName,
-      cacheKey: `customer-search:name:${normalizedName.toLocaleLowerCase('ar')}`,
+      cacheKey: `customer-search:${cacheBranchKey}:name:${normalizedName.toLocaleLowerCase('ar')}`,
       active: true,
     } as const
   }
@@ -86,7 +92,7 @@ export function InvoiceCustomerStep({
   const pageAccessOptions: UsePageAccessOptions =
     variant === 'pos'
       ? {
-          allowedRoles: ['admin', 'employee'],
+          allowedRoles: ['admin', 'employee', 'cashier'],
           redirectIfNoUser: '/pos/login',
           redirectIfForbidden: '/pos/login',
         }
@@ -115,9 +121,12 @@ export function InvoiceCustomerStep({
   const isValid = isInvoiceCustomerDraftValid(customerName, customerPhone)
   const isReady = isValid
   const isCustomer = pathname.includes('/pos/sale/customer')
+  const activePosEmployee = variant === 'pos' ? readActivePosEmployee() : null
+  const customerSearchBranchId =
+    variant === 'pos' ? activePosEmployee?.branch_id || branchId || null : null
   const customerSearch = useMemo(
-    () => normalizeCustomerLookup(customerPhone, customerName),
-    [customerName, customerPhone]
+    () => normalizeCustomerLookup(customerPhone, customerName, customerSearchBranchId),
+    [customerName, customerPhone, customerSearchBranchId]
   )
   const customerSearchTerm = customerSearch.query
 
@@ -138,11 +147,14 @@ export function InvoiceCustomerStep({
     customerSearchRequestIdRef.current = requestId
     const cachedMatches =
       peekClientResource<ExistingCustomer[]>(customerSearch.cacheKey) || []
+    let cachedTimeoutId: number | null = null
 
     if (cachedMatches.length > 0) {
-      setCustomerMatches(cachedMatches)
-      setCustomerSearchError('')
-      setCustomerSearchLoading(false)
+      cachedTimeoutId = window.setTimeout(() => {
+        setCustomerMatches(cachedMatches)
+        setCustomerSearchError('')
+        setCustomerSearchLoading(false)
+      }, 0)
     }
 
     const controller = new AbortController()
@@ -160,8 +172,21 @@ export function InvoiceCustomerStep({
         const nextMatches = await loadClientResource(
           customerSearch.cacheKey,
           async () => {
+            const searchParams = new URLSearchParams({
+              q: customerSearch.query,
+            })
+
+            if (customerSearchBranchId) {
+              searchParams.set('branchId', customerSearchBranchId)
+            } else if (variant === 'pos') {
+              console.warn('[POS CUSTOMER] missing branch context for customer search', {
+                authBranchId: branchId,
+                activePosEmployeeBranchId: activePosEmployee?.branch_id || null,
+              })
+            }
+
             const response = await fetch(
-              `/api/customers?q=${encodeURIComponent(customerSearch.query)}`,
+              `/api/customers?${searchParams.toString()}`,
               {
                 method: 'GET',
                 credentials: 'include',
@@ -214,9 +239,12 @@ export function InvoiceCustomerStep({
     return () => {
       customerSearchRequestIdRef.current += 1
       controller.abort()
+      if (cachedTimeoutId !== null) {
+        window.clearTimeout(cachedTimeoutId)
+      }
       window.clearTimeout(timeoutId)
     }
-  }, [allowed, customerSearch])
+  }, [activePosEmployee?.branch_id, allowed, branchId, customerSearch, customerSearchBranchId, variant])
 
   useEffect(() => {
     if (!allowed || variant !== 'pos') {

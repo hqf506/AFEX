@@ -11,7 +11,10 @@ import {
   markProtectedResourcesUnauthorized,
   prefetchClientResource,
 } from '@/lib/client-resource-cache'
+import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
 import { prefetchBranchInvoiceCatalog } from '@/lib/invoices/catalog'
+import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
+import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
 import {
   mapOrderSummaryToOrderRecord,
   type OrderRecord,
@@ -24,6 +27,7 @@ import {
 import { formatCurrency } from '@/lib/orders/format'
 import {
   clearActivePosEmployee,
+  markPosLoggedOut,
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
@@ -373,7 +377,7 @@ export default function PosPage() {
       isSyncing: false,
     })
   const access = usePageAccess({
-    allowedRoles: ['admin', 'employee'],
+    allowedRoles: ['admin', 'employee', 'cashier'],
     redirectIfNoUser: '/pos/login',
     redirectIfForbidden: '/pos/login',
   })
@@ -623,10 +627,15 @@ export default function PosPage() {
     try {
       setLoggingOut(true)
       clearActivePosEmployee()
-      await supabase.auth.signOut()
-      router.push('/')
+      localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
+      localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
+      markPosLoggedOut()
+      setActivePosEmployee(null)
+      router.push('/pos/login')
     } finally {
       clearActivePosEmployee()
+      setLoggingOut(false)
     }
   }
 

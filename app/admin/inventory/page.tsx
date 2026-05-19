@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { useAuthState } from '@/components/auth-state-provider'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
 import {
@@ -15,6 +16,7 @@ import {
   getStoredAdminBranchFilter,
   setStoredAdminBranchFilter,
 } from '@/lib/admin/branch-filter'
+import { clearBranchInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import { supabase } from '@/lib/supabase/client'
 
 type InventoryRow = {
@@ -239,6 +241,7 @@ function getItemTypeLabel(value: string) {
 }
 
 export default function AdminInventoryPage() {
+  const authState = useAuthState()
   const access = usePageAccess(['admin'])
   const { loading: accessLoading, allowed, tenantId } = access
 
@@ -442,11 +445,30 @@ export default function AdminInventoryPage() {
     setMovementMenuOpen(false)
   }
 
+  function changeQuantityDelta(delta: number) {
+    setAdjustForm((prev) => {
+      const currentValue = Number(prev.quantityDelta || 0)
+      const nextValue = Number.isFinite(currentValue) ? currentValue + delta : delta
+
+      return {
+        ...prev,
+        quantityDelta: String(nextValue),
+      }
+    })
+  }
+
   async function handleAdjustSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!tenantId || !selectedItem || !selectedItem.branch_id) {
       setErrorMessage('اختر فرعًا وعنصرًا صالحين قبل التعديل')
+      return
+    }
+
+    const createdBy = authState.profile?.id || null
+
+    if (!createdBy) {
+      setErrorMessage('تعذر تحديد المستخدم الحالي')
       return
     }
 
@@ -469,17 +491,25 @@ export default function AdminInventoryPage() {
         p_quantity_delta: quantityDelta,
         p_movement_type: adjustForm.movementType,
         p_notes: adjustForm.notes.trim() || null,
+        p_created_by: createdBy,
       })
 
       if (error) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('[Inventory] adjust_inventory_stock failed', error)
+          console.error('[Inventory] adjust_inventory_stock failed', {
+            message: error?.message,
+            code: error?.code,
+            details: error?.details,
+            hint: error?.hint,
+            error,
+          })
         }
 
         throw new Error('تعذر تعديل كمية المخزون')
       }
 
       setSuccessMessage('تم تحديث كمية المخزون بنجاح')
+      clearBranchInvoiceCatalogCache(selectedItem.branch_id)
       closeDrawer()
       await loadInventory(selectedBranchId)
     } catch (error) {
@@ -535,6 +565,7 @@ export default function AdminInventoryPage() {
       }
 
       setSuccessMessage('تم تحديث حد التنبيه بنجاح')
+      clearBranchInvoiceCatalogCache(selectedItem.branch_id)
       closeDrawer()
       await loadInventory(selectedBranchId)
     } catch (error) {
@@ -932,22 +963,58 @@ export default function AdminInventoryPage() {
 
               {drawerMode === 'adjust' ? (
                 <form onSubmit={handleAdjustSubmit} className="space-y-4">
-                  <InventoryFieldLabel label="كمية التعديل">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={adjustForm.quantityDelta}
-                      onChange={(event) =>
-                        setAdjustForm((prev) => ({
-                          ...prev,
-                          quantityDelta: event.target.value,
-                        }))
-                      }
-                      className="h-12 w-full rounded-2xl border border-cyan-300/15 bg-white/[0.045] px-4 text-right text-sm font-bold text-white outline-none transition placeholder:text-slate-500 hover:border-cyan-300/30 focus:border-cyan-300/55 focus:bg-white/[0.07] focus:ring-2 focus:ring-cyan-300/15"
-                      placeholder="مثال: 5 أو -2"
-                      required
-                    />
-                  </InventoryFieldLabel>
+                  <div>
+                    <span className="mb-2 block text-xs font-black text-slate-300">
+                      كمية التعديل
+                    </span>
+                    <div className="rounded-2xl border border-cyan-300/15 bg-white/[0.045] px-4 py-3 shadow-[0_14px_44px_rgba(0,0,0,0.2),0_0_24px_rgba(34,211,238,0.05)] transition hover:border-cyan-300/25">
+                      <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => changeQuantityDelta(-1)}
+                          disabled={saving}
+                          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-xl font-black text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-cyan-300/25 hover:bg-cyan-300/10 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label="إنقاص كمية التعديل"
+                        >
+                          -
+                        </button>
+
+                        <div className="text-center">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={adjustForm.quantityDelta}
+                            onChange={(event) =>
+                              setAdjustForm((prev) => ({
+                                ...prev,
+                                quantityDelta: event.target.value,
+                              }))
+                            }
+                            className="mx-auto h-11 w-full max-w-32 rounded-xl border border-transparent bg-transparent text-center text-2xl font-black text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/35 focus:bg-white/[0.035] focus:ring-2 focus:ring-cyan-300/10"
+                            placeholder="0"
+                            required
+                          />
+                          <div className="text-xs font-black text-slate-400">
+                            الكمية الحالية:{' '}
+                            <StockNumber
+                              value={selectedItem.quantity_on_hand}
+                              className="text-slate-300"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => changeQuantityDelta(1)}
+                          disabled={saving}
+                          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-xl font-black text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-cyan-300/25 hover:bg-cyan-300/10 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label="زيادة كمية التعديل"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
                   <InventoryFieldLabel label="نوع الحركة">
                     <div className="relative">

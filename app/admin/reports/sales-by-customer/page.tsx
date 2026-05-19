@@ -23,6 +23,7 @@ import {
   type ReportRange,
 } from '@/lib/reports/core'
 import { buildSalesByCustomerRows } from '@/lib/reports/sales-by-customer'
+import { canViewReportRange } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -288,7 +289,7 @@ async function fetchCatalogFinancials(tenantId: string | null | undefined) {
 
 export default function SalesByCustomerPage() {
   const authState = useAuthState()
-  const access = usePageAccess(['admin'])
+  const access = usePageAccess(['admin', 'employee'])
   const authLoading = access.loading
   const allowed = access.allowed
   const branchId = access.branchId
@@ -349,6 +350,14 @@ export default function SalesByCustomerPage() {
       }
 
       const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
+
+      if (!canViewReportRange(access.userRole, fromIso, toIso)) {
+        setErrorMessage('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        setOrders([])
+        setLoading(false)
+        setRefreshing(false)
+        return
+      }
 
       let query = supabase
         .from('orders')
@@ -430,7 +439,16 @@ export default function SalesByCustomerPage() {
       setLoading(false)
       setRefreshing(false)
     },
-    [range, dateFrom, dateTo, scopeType, branchId, effectiveBranchId, tenantId]
+    [
+      range,
+      dateFrom,
+      dateTo,
+      access.userRole,
+      scopeType,
+      branchId,
+      effectiveBranchId,
+      tenantId,
+    ]
   )
 
   useEffect(() => {

@@ -399,6 +399,8 @@ export default function OrdersPage() {
   const [filter, setFilter] = useState<OrdersFilterKey>('all')
   const [statusModalOrder, setStatusModalOrder] =
     useState<PageOrderRecord | null>(null)
+  const [cancelModalOrder, setCancelModalOrder] =
+    useState<PageOrderRecord | null>(null)
   const [statusModalValue, setStatusModalValue] =
     useState<AdminOrderStatus>('in_progress')
   const [statusModalOptionKey, setStatusModalOptionKey] =
@@ -422,7 +424,9 @@ export default function OrdersPage() {
   const previousOrderIdsRef = useRef<Set<string>>(new Set())
 
   const roleValue = role ? String(role) : ''
-  const canManageOrders = role === 'admin' || roleValue === 'manager'
+  const canManageOrders =
+    role === 'admin' || role === 'employee' || roleValue === 'manager'
+  const canCancelOrders = canManageOrders
   const canUseOrderSound = role === 'admin' || role === 'employee'
 
   const showSuccess = (message: string) => {
@@ -968,6 +972,75 @@ export default function OrdersPage() {
     setUpdatingId(null)
   }
 
+  const cancelOrder = async (order: PageOrderRecord) => {
+    if (!canCancelOrders) {
+      showError('لا تملك صلاحية إلغاء الطلب')
+      return
+    }
+
+    if (isCancelledOrder(order)) {
+      showError('الطلب ملغي مسبقًا')
+      return
+    }
+
+    if (!access.tenantId) {
+      showError('تعذر تحديد نطاق المنشأة لإلغاء الطلب')
+      return
+    }
+
+    if (updatingId) return
+
+    setUpdatingId(order.id)
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    try {
+      const response = await fetch(
+        `/api/admin/receipts/${encodeURIComponent(order.id)}/cancel`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success) {
+        const message = result?.error || 'تعذر إلغاء الطلب'
+        showError(`فشل إلغاء الطلب: ${message}`)
+        return
+      }
+
+      setOrders((prev) => {
+        const nextOrders = prev.map((item) =>
+          item.id === order.id
+            ? {
+                ...item,
+                payment_status: 'cancelled',
+                status_raw: 'cancelled',
+              }
+            : item
+        )
+        ordersSignatureRef.current = buildOrderComparisonSignature(nextOrders)
+        return nextOrders
+      })
+
+      setWhatsappStatusByOrderId((current) => ({
+        ...current,
+        [order.id]: 'not_sent',
+      }))
+      setCancelModalOrder(null)
+      showSuccess('تم إلغاء الطلب بنجاح')
+      void fetchOrders(true)
+    } catch (error) {
+      console.error('[admin/orders] cancel order failed', error)
+      showError('فشل إلغاء الطلب')
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   const printThermalReceipt = (order: OrderRecord) => {
     const printWindow = window.open('', '_blank', 'width=420,height=800')
 
@@ -1429,14 +1502,16 @@ export default function OrdersPage() {
                               >
                                 تم التسليم
                               </button>
+                              {canCancelOrders && (
                               <button
                                 type="button"
-                                disabled
-                                title="إلغاء الطلب غير متاح حاليًا"
-                                className="h-9 cursor-not-allowed rounded-xl border border-rose-300/25 bg-rose-500/10 px-3 text-[11px] font-black text-rose-300/60 opacity-70"
+                                disabled={orderIsCancelled || isUpdating}
+                                onClick={() => setCancelModalOrder(order)}
+                                className="h-9 rounded-xl border border-rose-300/35 bg-rose-500/15 px-3 text-[11px] font-black text-rose-100 transition hover:bg-rose-500/25 hover:shadow-[0_0_14px_rgba(244,63,94,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
                               >
                                 إلغاء الطلب
                               </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1591,6 +1666,61 @@ export default function OrdersPage() {
                     {updatingId === statusModalOrder.id
                       ? 'جارٍ الحفظ...'
                       : 'حفظ الحالة'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {cancelModalOrder ? (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-rose-200/70">
+                      AFEX Orders
+                    </p>
+                    <h3 className="mt-2 text-xl font-black text-white">
+                      تأكيد إلغاء الطلب
+                    </h3>
+                    <p className="mt-1 text-xs font-bold text-slate-400">
+                      {cancelModalOrder.order_number}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCancelModalOrder(null)}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-cyan-300/30 hover:text-cyan-100"
+                  >
+                    إغلاق
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-rose-300/15 bg-rose-500/[0.06] p-4">
+                  <p className="text-sm font-black text-rose-100">
+                    هل تريد إلغاء هذا الطلب؟
+                  </p>
+                  <p className="mt-2 text-xs font-bold leading-6 text-slate-400">
+                    سيتم تحديث حالة الطلب والإيصال المرتبط به، واسترجاع المخزون حسب منطق الإلغاء الحالي.
+                  </p>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCancelModalOrder(null)}
+                    className="h-11 rounded-2xl border border-white/10 bg-white/[0.035] px-4 text-sm font-black text-slate-300 transition hover:border-white/25 hover:text-white"
+                  >
+                    تراجع
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updatingId === cancelModalOrder.id}
+                    onClick={() => cancelOrder(cancelModalOrder)}
+                    className="h-11 rounded-2xl border border-rose-300/35 bg-rose-500/15 px-5 text-sm font-black text-rose-100 transition hover:bg-rose-500/25 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {updatingId === cancelModalOrder.id
+                      ? 'جارٍ الإلغاء...'
+                      : 'تأكيد الإلغاء'}
                   </button>
                 </div>
               </div>

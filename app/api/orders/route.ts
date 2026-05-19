@@ -157,7 +157,7 @@ const ORDERS_META_SELECT = `
 `
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee'])
+  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
   if (!auth.ok) {
     return auth.response
@@ -646,6 +646,58 @@ export async function POST(request: NextRequest) {
           orderId: maskId(orderId),
           employeeId: maskId(employeeResolution.posEmployeeId),
           message: updateEmployeeError.message,
+        })
+      }
+    }
+
+    if (employeeResolution.posEmployeeId && invoiceId) {
+      const { data: invoiceItemRows, error: invoiceItemsError } =
+        await serviceSupabase
+          .from('invoice_items')
+          .select('id')
+          .eq('tenant_id', profileTenantId)
+          .eq('invoice_id', invoiceId)
+
+      if (invoiceItemsError) {
+        console.warn('[api/orders] unable to load invoice items for inventory actor', {
+          invoiceId: maskId(invoiceId),
+          employeeId: maskId(employeeResolution.posEmployeeId),
+          message: invoiceItemsError.message,
+        })
+      }
+
+      const invoiceItemIds = Array.isArray(invoiceItemRows)
+        ? invoiceItemRows
+            .map((item) => stringValue(item.id))
+            .filter((itemId): itemId is string => Boolean(itemId))
+        : []
+      const sourceIdFilter = [
+        `and(source_type.eq.invoice,source_id.eq.${invoiceId})`,
+        ...invoiceItemIds.map(
+          (invoiceItemId) =>
+            `and(source_type.eq.invoice_item,source_id.eq.${invoiceItemId})`
+        ),
+      ].join(',')
+
+      const updateInventoryActorQuery = serviceSupabase
+        .from('inventory_movements')
+        .update({ created_by: employeeResolution.posEmployeeId })
+        .eq('tenant_id', profileTenantId)
+        .eq('movement_type', 'sale')
+
+      const { error: updateInventoryActorError } = await (
+        sourceIdFilter
+          ? updateInventoryActorQuery.or(sourceIdFilter)
+          : updateInventoryActorQuery
+              .eq('source_type', 'invoice')
+              .eq('source_id', invoiceId)
+      )
+
+      if (updateInventoryActorError) {
+        console.warn('[api/orders] unable to attach POS employee to inventory movements', {
+          invoiceId: maskId(invoiceId),
+          employeeId: maskId(employeeResolution.posEmployeeId),
+          message: updateInventoryActorError.message,
         })
       }
     }

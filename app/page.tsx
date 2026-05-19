@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
+import { isFullAdmin } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername } from '@/lib/usernames'
 
@@ -164,6 +165,18 @@ function getFirstName(value: string) {
   return value.trim().split(/\s+/)[0] || value.trim()
 }
 
+function getAdminEntryPath(role: string | null | undefined) {
+  if (isFullAdmin(role)) {
+    return '/admin/dashboard'
+  }
+
+  if (role === 'employee') {
+    return '/admin/orders'
+  }
+
+  return null
+}
+
 export default function LandingPage() {
   const router = useRouter()
   const authState = useAuthState()
@@ -178,13 +191,16 @@ export default function LandingPage() {
   const [protectedNavMessage, setProtectedNavMessage] = useState('')
 
   const profileName = authState.profile?.full_name?.trim() || ''
+  const profileRole = authState.profile?.role || ''
+  const adminEntryPath = getAdminEntryPath(profileRole)
   const displayFirstName = localFirstName || (profileName ? getFirstName(profileName) : '')
   const isSignedInForUi = Boolean(authState.profile || localFirstName)
   const isAuthReadyForProtectedNav =
     authState.status === 'authenticated' && Boolean(authState.profile)
   const visibleQuickLinks = isSignedInForUi
     ? quickLinks.filter((link) =>
-        ['/pos', '/admin/dashboard'].includes(link.href)
+        link.href === '/pos' ||
+        (link.href === '/admin/dashboard' && Boolean(adminEntryPath))
       )
     : quickLinks
 
@@ -217,7 +233,12 @@ export default function LandingPage() {
     }
 
     if (isAuthReadyForProtectedNav) {
-      router.push('/admin/dashboard')
+      const nextAdminPath = getAdminEntryPath(authState.profile?.role)
+
+      if (nextAdminPath) {
+        router.push(nextAdminPath)
+      }
+
       return
     }
 
@@ -235,7 +256,16 @@ export default function LandingPage() {
       }
 
       await authState.refreshAuthState()
-      router.push('/admin/dashboard')
+      const { data: refreshedProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle()
+      const nextAdminPath = getAdminEntryPath(refreshedProfile?.role)
+
+      if (nextAdminPath) {
+        router.push(nextAdminPath)
+      }
     } finally {
       setProtectedNavLoading(false)
     }

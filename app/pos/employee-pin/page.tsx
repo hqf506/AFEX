@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
+import { canAccessPos } from '@/lib/permissions'
 import {
+  hasPosLoggedOut,
   clearActivePosEmployee,
   readActivePosEmployee,
   writeActivePosEmployee,
+  clearPosLoggedOut,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
 
@@ -14,7 +17,6 @@ const PIN_LENGTH = 4
 const PIN_LOCK_ATTEMPTS = 3
 const PIN_LOCK_MS = 5000
 const PIN_CLEAR_AFTER_ERROR_MS = 500
-const ALLOWED_POS_ROLES = new Set(['admin', 'employee'])
 const INVALID_PIN_MESSAGE = 'رمز PIN غير صحيح'
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
@@ -34,7 +36,7 @@ export default function PosEmployeePinPage() {
   const [shakeCard, setShakeCard] = useState(false)
 
   const allowed = Boolean(
-    authState.profile && ALLOWED_POS_ROLES.has(authState.profile.role)
+    authState.profile && canAccessPos(authState.profile.role)
   )
   const currentBranchId = authState.profile?.branch_id ?? null
 
@@ -62,6 +64,11 @@ export default function PosEmployeePinPage() {
 
   useEffect(() => {
     if (authState.loading) {
+      return
+    }
+
+    if (hasPosLoggedOut()) {
+      router.replace('/pos/login')
       return
     }
 
@@ -163,6 +170,7 @@ export default function PosEmployeePinPage() {
         }
 
         writeActivePosEmployee(result.employee as ActivePosEmployee)
+        clearPosLoggedOut()
         setFailedAttempts(0)
         router.replace('/pos')
       } catch {

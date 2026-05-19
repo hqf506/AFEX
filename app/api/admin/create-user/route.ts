@@ -21,6 +21,8 @@ import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
 type CreateUserBody = {
   username?: string
   password?: string
+  password_confirmation?: string
+  confirm_password?: string
   full_name?: string
   contact_email?: string | null
   phone?: string | null
@@ -34,7 +36,15 @@ function normalizeOptionalText(value: unknown) {
 }
 
 function isPosRole(role: AppRole) {
-  return role === 'cashier' || role === 'employee'
+  return role === 'cashier'
+}
+
+function isEmailLoginRole(role: AppRole) {
+  return role === 'admin' || role === 'manager' || role === 'employee'
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 async function getAvailableUsernameSuggestions(username: string) {
@@ -106,6 +116,12 @@ export async function POST(request: NextRequest) {
     const username = normalizeUsername(body.username || '')
     const password =
       typeof body.password === 'string' ? body.password.trim() : ''
+    const passwordConfirmation =
+      typeof body.password_confirmation === 'string'
+        ? body.password_confirmation.trim()
+        : typeof body.confirm_password === 'string'
+          ? body.confirm_password.trim()
+          : ''
     const fullName = normalizeAdminFullName(body.full_name)
     const contactEmail = normalizeOptionalText(body.contact_email).toLowerCase()
     const phone = normalizeOptionalText(body.phone)
@@ -135,7 +151,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (!role || !requestedBranchId) {
+    if (!role) {
       const response = jsonResponse(
         { error: 'يجب اختيار الوظيفة والفرع' },
         400
@@ -143,9 +159,41 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (!isPosRole(role) && !hasValidAdminPasswordLength(password)) {
+    if (isEmailLoginRole(role) && !contactEmail) {
+      const response = jsonResponse(
+        { error: 'البريد الإلكتروني مطلوب لحسابات المدير والإداري' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (isEmailLoginRole(role) && !isValidEmail(contactEmail)) {
+      const response = jsonResponse(
+        { error: 'صيغة البريد الإلكتروني غير صحيحة' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (isEmailLoginRole(role) && !hasValidAdminPasswordLength(password)) {
       const response = jsonResponse(
         { error: 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (isEmailLoginRole(role) && !passwordConfirmation) {
+      const response = jsonResponse(
+        { error: 'تأكيد كلمة مرور لوحة التحكم مطلوب' },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (isEmailLoginRole(role) && password !== passwordConfirmation) {
+      const response = jsonResponse(
+        { error: 'تأكيد كلمة مرور لوحة التحكم غير مطابق' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -204,7 +252,42 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const internalEmail = usernameToInternalEmail(username)
+    const loginEmail = isEmailLoginRole(role)
+      ? contactEmail
+      : usernameToInternalEmail(username)
+
+    if (isEmailLoginRole(role)) {
+      const { data: existingEmailProfile, error: existingEmailProfileError } =
+        await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .ilike('contact_email', contactEmail)
+          .limit(1)
+          .maybeSingle()
+
+      if (existingEmailProfileError) {
+        const response = jsonResponse(
+          {
+            error: 'تعذر التحقق من البريد الإلكتروني',
+            ...safeErrorDetails(
+              existingEmailProfileError,
+              'تعذر التحقق من البريد الإلكتروني'
+            ),
+          },
+          500
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      if (existingEmailProfile) {
+        const response = jsonResponse(
+          { error: 'البريد الإلكتروني مستخدم بالفعل' },
+          409
+        )
+        return withAuthCookies(auth.response, response)
+      }
+    }
 
     const { data: existingProfile, error: existingProfileError } =
       await supabaseAdmin
@@ -311,6 +394,7 @@ export async function POST(request: NextRequest) {
             branch_id: resolvedBranchId,
             tenant_id: tenantId,
             pos_pin_hash: posPinHash,
+            pos_pin_plain: posPin,
             created_by: auth.user.id,
           })
           .select('id, username, full_name, phone, role, branch_id')
@@ -378,7 +462,7 @@ export async function POST(request: NextRequest) {
     }
 
     const existingAuthUser = usersData.users.find(
-      (user) => user.email?.toLowerCase() === internalEmail.toLowerCase()
+      (user) => user.email?.toLowerCase() === loginEmail.toLowerCase()
     )
 
     if (existingAuthUser) {
@@ -394,7 +478,7 @@ export async function POST(request: NextRequest) {
 
     const { data: createdUser, error: createAuthError } =
       await supabaseAdmin.auth.admin.createUser({
-        email: internalEmail,
+        email: loginEmail,
         password,
         email_confirm: true,
         user_metadata: {
@@ -430,6 +514,8 @@ export async function POST(request: NextRequest) {
         is_active: true,
         branch_id: resolvedBranchId || null,
         tenant_id: tenantId,
+        contact_email: contactEmail,
+        phone: phone || null,
       })
 
     if (profileInsertError) {
@@ -470,7 +556,7 @@ export async function POST(request: NextRequest) {
     const { error: profileContactUpdateError } = await supabaseAdmin
       .from('profiles')
       .update({
-        contact_email: contactEmail || null,
+        contact_email: contactEmail,
         phone: phone || null,
         pos_pin_hash: null,
       })
@@ -521,6 +607,77 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
+    if (resolvedBranchId) {
+      const { data: posPinHash, error: hashPinError } = await supabaseAdmin.rpc(
+        'hash_pos_pin',
+        {
+          raw_pin: posPin,
+        }
+      )
+
+      if (hashPinError || typeof posPinHash !== 'string' || !posPinHash) {
+        await supabaseAdmin
+          .from('profiles')
+          .delete()
+          .eq('id', userId)
+          .eq('tenant_id', tenantId)
+        await supabaseAdmin.auth.admin.deleteUser(userId)
+
+        const response = jsonResponse(
+          {
+            error: 'تعذر حفظ POS PIN بشكل آمن',
+            ...safeErrorDetails(
+              hashPinError || 'Unknown POS PIN hash error',
+              'تعذر حفظ POS PIN بشكل آمن'
+            ),
+          },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      const { error: upsertPosProfileError } = await supabaseAdmin
+        .from('pos_profiles')
+        .upsert(
+          {
+            id: userId,
+            username,
+            full_name: fullName || username,
+            phone: phone || null,
+            role,
+            is_active: true,
+            branch_id: resolvedBranchId,
+            tenant_id: tenantId,
+            pos_pin_hash: posPinHash,
+            pos_pin_plain: posPin,
+            created_by: auth.user.id,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' }
+        )
+
+      if (upsertPosProfileError) {
+        await supabaseAdmin
+          .from('profiles')
+          .delete()
+          .eq('id', userId)
+          .eq('tenant_id', tenantId)
+        await supabaseAdmin.auth.admin.deleteUser(userId)
+
+        const response = jsonResponse(
+          {
+            error: 'تعذر حفظ ملف POS للمستخدم',
+            ...safeErrorDetails(
+              upsertPosProfileError,
+              'تعذر حفظ ملف POS للمستخدم'
+            ),
+          },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+    }
+
     await writeAuditLog({
       auth,
       request,
@@ -546,7 +703,7 @@ export async function POST(request: NextRequest) {
         contact_email: contactEmail || null,
         phone: phone || null,
         role,
-        email: internalEmail,
+        email: loginEmail,
         branch_id: resolvedBranchId || null,
       },
     })
@@ -564,3 +721,4 @@ export async function POST(request: NextRequest) {
     return withAuthCookies(auth.response, response)
   }
 }
+

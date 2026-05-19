@@ -26,6 +26,7 @@ import {
   type SalesTrendRange,
   type SalesTrendRow,
 } from '@/lib/reports/sales-trend'
+import { canViewReportRange } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -334,7 +335,7 @@ function getChangePercentage(changeValue: number, currentValue: number) {
 
 export default function SalesTrendPage() {
   const authState = useAuthState()
-  const access = usePageAccess(['admin'])
+  const access = usePageAccess(['admin', 'employee'])
   const authLoading = access.loading
   const allowed = access.allowed
   const branchId = access.branchId
@@ -384,6 +385,14 @@ export default function SalesTrendPage() {
       else setLoading(true)
 
       setErrorMessage('')
+
+      if (!canViewReportRange(access.userRole, trendRange.start, trendRange.end)) {
+        setErrorMessage('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        setOrders([])
+        setLoading(false)
+        setRefreshing(false)
+        return
+      }
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
         setOrders([])
@@ -468,7 +477,15 @@ export default function SalesTrendPage() {
       setLoading(false)
       setRefreshing(false)
     },
-    [dateFrom, scopeType, branchId, effectiveBranchId, trendRange, tenantId]
+    [
+      dateFrom,
+      access.userRole,
+      scopeType,
+      branchId,
+      effectiveBranchId,
+      trendRange,
+      tenantId,
+    ]
   )
 
   useEffect(() => {

@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { shouldFilterByBranch } from '@/lib/branch-access'
+import { isFullAdmin } from '@/lib/permissions'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+
+type ListUserRow = {
+  id: string
+  tenant_id: string | null
+  branch_id: string | null
+  username: string | null
+  full_name: string | null
+  role: string | null
+  is_active: boolean | null
+  contact_email?: string | null
+  has_pos_pin: boolean
+  pos_pin: string | null
+  created_at: string | null
+  updated_at: string | null
+  account_type: 'profile' | 'pos_profile'
+  created_by_name?: string | null
+  created_by_username?: string | null
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin'])
@@ -23,7 +42,13 @@ export async function GET(request: NextRequest) {
       return withAuthCookies(auth.response, response)
     }
 
-    if (auth.profile.scope_type === 'branch' && !auth.profile.branch_id) {
+    const currentUserIsFullAdmin = isFullAdmin(auth.profile.role)
+
+    if (
+      !currentUserIsFullAdmin &&
+      auth.profile.scope_type === 'branch' &&
+      !auth.profile.branch_id
+    ) {
       const response = NextResponse.json({
         success: true,
         users: [],
@@ -35,16 +60,19 @@ export async function GET(request: NextRequest) {
     let profilesQuery = supabaseAdmin
       .from('profiles')
       .select(
-        'id, tenant_id, full_name, username, role, is_active, branch_id, created_at, updated_at'
+        'id, tenant_id, full_name, username, role, is_active, branch_id, contact_email, pos_pin_hash, created_at, updated_at'
       )
       .order('username', { ascending: true })
 
     profilesQuery = applyTenantFilter(profilesQuery, tenantId)
 
     if (
+      !currentUserIsFullAdmin &&
       shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)
     ) {
-      profilesQuery = profilesQuery.eq('branch_id', auth.profile.branch_id as string)
+      profilesQuery = profilesQuery.or(
+        `branch_id.eq.${auth.profile.branch_id},branch_id.is.null`
+      )
     }
 
     const { data: profiles, error } = await profilesQuery
@@ -64,17 +92,17 @@ export async function GET(request: NextRequest) {
     let posProfilesQuery = supabaseAdmin
       .from('pos_profiles')
       .select(
-        'id, tenant_id, branch_id, username, full_name, role, is_active, created_by, created_at, updated_at'
+        'id, tenant_id, branch_id, username, full_name, role, is_active, pos_pin_hash, pos_pin_plain, created_by, created_at, updated_at'
       )
       .eq('tenant_id', tenantId)
       .order('username', { ascending: true })
 
     if (
+      !currentUserIsFullAdmin &&
       shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)
     ) {
-      posProfilesQuery = posProfilesQuery.eq(
-        'branch_id',
-        auth.profile.branch_id as string
+      posProfilesQuery = posProfilesQuery.or(
+        `branch_id.eq.${auth.profile.branch_id},branch_id.is.null`
       )
     }
 
@@ -135,14 +163,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const response = NextResponse.json({
-      success: true,
-      users: [
-        ...(profiles || []).map((profile) => ({
+    const profileRows: ListUserRow[] = (profiles || []).map((profile) => ({
           ...profile,
+          pos_pin_hash: undefined,
+          has_pos_pin: Boolean(profile.pos_pin_hash),
+          pos_pin: null,
           account_type: 'profile' as const,
-        })),
-        ...(posProfiles || []).map((profile) => ({
+        }))
+
+    const posProfileRows: ListUserRow[] = (posProfiles || []).map((profile) => ({
           id: profile.id,
           tenant_id: profile.tenant_id,
           branch_id: profile.branch_id,
@@ -150,14 +179,56 @@ export async function GET(request: NextRequest) {
           full_name: profile.full_name,
           role: profile.role,
           is_active: profile.is_active,
+          has_pos_pin: Boolean(profile.pos_pin_hash || profile.pos_pin_plain),
+          pos_pin:
+            typeof profile.pos_pin_plain === 'string'
+              ? profile.pos_pin_plain
+              : null,
           created_at: profile.created_at,
           updated_at: profile.updated_at,
           account_type: 'pos_profile' as const,
           created_by_name: createdByMap.get(profile.created_by || '')?.full_name || null,
           created_by_username:
             createdByMap.get(profile.created_by || '')?.username || null,
-        })),
-      ],
+        }))
+
+    const consumedPosProfileIds = new Set<string>()
+
+    const users = profileRows.map((profile) => {
+      const matchingPosProfile = posProfileRows.find(
+        (posProfile) => posProfile.id === profile.id
+      )
+
+      if (!matchingPosProfile) {
+        return profile
+      }
+
+      consumedPosProfileIds.add(matchingPosProfile.id)
+
+      return {
+        ...profile,
+        username: profile.username || matchingPosProfile.username,
+        tenant_id: profile.tenant_id || matchingPosProfile.tenant_id,
+        branch_id: profile.branch_id || matchingPosProfile.branch_id,
+        full_name: profile.full_name || matchingPosProfile.full_name,
+        is_active: profile.is_active ?? matchingPosProfile.is_active,
+        created_by_name: matchingPosProfile.created_by_name || null,
+        created_by_username: matchingPosProfile.created_by_username || null,
+        created_at: profile.created_at || matchingPosProfile.created_at,
+        updated_at: profile.updated_at || matchingPosProfile.updated_at,
+        has_pos_pin: Boolean(profile.has_pos_pin || matchingPosProfile.has_pos_pin),
+        pos_pin: profile.pos_pin || matchingPosProfile.pos_pin || null,
+      }
+    })
+
+    for (const posProfile of posProfileRows) {
+      if (!consumedPosProfileIds.has(posProfile.id)) {
+        users.push(posProfile)
+      }
+    }
+
+    const response = NextResponse.json({
+      users,
     })
 
     return withAuthCookies(auth.response, response)

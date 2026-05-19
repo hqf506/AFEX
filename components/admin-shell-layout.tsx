@@ -13,7 +13,8 @@ import {
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
-import { usePageAccess, type AppRole } from '@/hooks/use-page-access'
+import { usePageAccess } from '@/hooks/use-page-access'
+import { canAccessAdminPath } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 
 type AdminShellLayoutProps = {
@@ -31,7 +32,7 @@ type NavChild = {
 type AdminNavItem = {
   label: string
   href: string
-  roles: AppRole[]
+  roles: string[]
   exact?: boolean
   icon: ComponentType<{ className?: string }>
   children?: NavChild[]
@@ -199,21 +200,21 @@ const adminNavItems: AdminNavItem[] = [
   {
     label: 'لوحة التحكم',
     href: '/admin/dashboard',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: DashboardIcon,
   },
   {
     label: 'حالة الطلبات',
     href: '/admin/orders',
-    roles: ['admin', 'employee'],
+    roles: ['admin', 'manager', 'employee'],
     exact: true,
     icon: ReceiptIcon,
   },
   {
     label: 'التقارير',
     href: '/admin/reports',
-    roles: ['admin'],
+    roles: ['admin', 'manager', 'employee'],
     icon: ReportsIcon,
     children: [
       { label: 'نظرة عامة', href: '/admin/reports', icon: OverviewIcon },
@@ -252,42 +253,42 @@ const adminNavItems: AdminNavItem[] = [
   {
     label: 'العناصر',
     href: '/admin/catalog',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: BoxIcon,
   },
   {
     label: 'الفئات',
     href: '/admin/categories',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: TagIcon,
   },
   {
     label: 'الخصومات',
     href: '/admin/discounts',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: TagIcon,
   },
   {
     label: 'الضريبة - VAT',
     href: '/admin/vat',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: TagIcon,
   },
   {
     label: 'الفروع',
     href: '/admin/branches',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: BranchesIcon,
   },
   {
     label: 'المخزون',
     href: '/admin/inventory',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     icon: InventoryIcon,
     children: [
       {
@@ -300,28 +301,28 @@ const adminNavItems: AdminNavItem[] = [
   {
     label: 'العملاء',
     href: '/admin/customers',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: UsersIcon,
   },
   {
     label: 'المستخدمون',
     href: '/admin/users',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: UsersIcon,
   },
   {
     label: 'سجل النشاط',
     href: '/admin/audit-logs',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: ActivityIcon,
   },
   {
     label: 'الإعدادات',
     href: '/admin/settings',
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
     exact: true,
     icon: SettingsIcon,
   },
@@ -395,8 +396,25 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
 
   const visibleNavItems = useMemo(() => {
     if (!userRole) return []
-    return adminNavItems.filter((item) => item.roles.includes(userRole))
+    return adminNavItems
+      .filter((item) => item.roles.includes(userRole))
+      .map((item) => ({
+        ...item,
+        children: item.children?.filter((child) =>
+          canAccessAdminPath(userRole, child.href)
+        ),
+      }))
   }, [userRole])
+
+  useEffect(() => {
+    if (authLoading || !allowed || !userRole || !pathname) {
+      return
+    }
+
+    if (!canAccessAdminPath(userRole, pathname)) {
+      router.replace('/')
+    }
+  }, [allowed, authLoading, pathname, router, userRole])
 
   const reportsItem = useMemo(
     () => visibleNavItems.find((item) => item.href === '/admin/reports'),

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { getRoleLabel, type AppRole } from '@/lib/app-roles'
 import { type AuthScopeType } from '@/lib/auth-profile'
+import { isFullAdmin } from '@/lib/permissions'
 
 export type { AppRole }
 
@@ -82,7 +83,7 @@ export function usePageAccess(
   const roleAllowed =
     stableAllowedRoles.length === 0 ||
     (userRole ? stableAllowedRoles.includes(userRole) : false) ||
-    (stableAllowedRoles.includes('admin') && userRoleValue === 'manager')
+    (stableAllowedRoles.includes('admin') && isFullAdmin(userRoleValue))
   const allowed =
     Boolean(profile) &&
     roleAllowed
@@ -96,7 +97,7 @@ export function usePageAccess(
       stableAllowedRolesForEffect.length === 0 ||
       (userRole ? stableAllowedRolesForEffect.includes(userRole) : false) ||
       (stableAllowedRolesForEffect.includes('admin') &&
-        userRoleValueForEffect === 'manager')
+        isFullAdmin(userRoleValueForEffect))
 
     if (loading) {
       return

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
+import { isFullAdmin } from '@/lib/permissions'
 import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
@@ -33,7 +34,7 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireApiAuth(request, ['admin'])
+  const auth = await requireApiAuth(request, ['admin', 'employee'])
 
   if (!auth.ok) {
     return auth.response
@@ -94,8 +95,7 @@ export async function PATCH(
         : null
 
     const hasSystemScope =
-      auth.profile.scope_type === 'system' ||
-      String(auth.profile.role) === 'manager'
+      auth.profile.scope_type === 'system' || isFullAdmin(auth.profile.role)
 
     if (!hasSystemScope && !auth.profile.branch_id) {
       const response = jsonResponse(

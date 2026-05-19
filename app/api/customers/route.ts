@@ -1,11 +1,6 @@
 import { NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
-import { normalizeAdminBranchId } from '@/lib/admin/branches'
-import {
-  isBranchScopedWithoutBranchId,
-  shouldFilterByBranch,
-} from '@/lib/branch-access'
 import {
   buildCustomerSearchFilter,
   normalizeCustomerSearchTerm,
@@ -22,9 +17,10 @@ export async function GET(request: NextRequest) {
   const search = normalizeCustomerSearchTerm(
     request.nextUrl.searchParams.get('q')
   )
-  const requestedBranchId = normalizeAdminBranchId(
-    request.nextUrl.searchParams.get('branch_id')
-  )
+  const requestedBranchId =
+    request.nextUrl.searchParams.get('branchId') ||
+    request.nextUrl.searchParams.get('branch_id') ||
+    null
 
   if (!auth.profile.tenant_id) {
     return jsonWithAuthCookies(
@@ -37,6 +33,38 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  const searchFilter = buildCustomerSearchFilter(search)
+  const profileBranchId =
+    typeof auth.profile.branch_id === 'string' ? auth.profile.branch_id : null
+
+  let tenantSearchCountQuery = auth.supabase
+    .from('customers')
+    .select('id', { count: 'exact', head: true })
+  tenantSearchCountQuery = applyTenantFilter(
+    tenantSearchCountQuery,
+    auth.profile.tenant_id
+  )
+
+  if (searchFilter) {
+    tenantSearchCountQuery = tenantSearchCountQuery.or(searchFilter)
+  }
+
+  const { count: tenantSearchCount, error: tenantSearchCountError } =
+    await tenantSearchCountQuery
+
+  let branchDebugQuery = auth.supabase
+    .from('customers')
+    .select('id, branch_id, phone')
+    .limit(50)
+  branchDebugQuery = applyTenantFilter(branchDebugQuery, auth.profile.tenant_id)
+
+  if (searchFilter) {
+    branchDebugQuery = branchDebugQuery.or(searchFilter)
+  }
+
+  const { data: branchDebugRows, error: branchDebugError } =
+    await branchDebugQuery
+
   let query = auth.supabase
     .from('customers')
     .select('id, name, phone')
@@ -44,21 +72,6 @@ export async function GET(request: NextRequest) {
     .limit(50)
 
   query = applyTenantFilter(query, auth.profile.tenant_id)
-
-  if (isBranchScopedWithoutBranchId(auth.profile.scope_type, auth.profile.branch_id)) {
-    return jsonWithAuthCookies(auth.response, {
-      success: true,
-      customers: [],
-    })
-  }
-
-  if (shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)) {
-    query = query.eq('branch_id', auth.profile.branch_id as string)
-  } else if (auth.profile.scope_type === 'system' && requestedBranchId) {
-    query = query.eq('branch_id', requestedBranchId)
-  }
-
-  const searchFilter = buildCustomerSearchFilter(search)
 
   if (searchFilter) {
     query = query.or(searchFilter)
@@ -76,6 +89,37 @@ export async function GET(request: NextRequest) {
       500
     )
   }
+
+  const branchDebugItems = Array.isArray(branchDebugRows) ? branchDebugRows : []
+  const nullBranchCount = branchDebugItems.filter(
+    (customer) => !customer.branch_id
+  ).length
+  const differentBranchCount = requestedBranchId
+    ? branchDebugItems.filter(
+        (customer) =>
+          customer.branch_id && customer.branch_id !== requestedBranchId
+      ).length
+    : 0
+
+  console.info('[api/customers] customer search debug', {
+    tenant_id: auth.profile.tenant_id,
+    requested_branch_id: requestedBranchId,
+    profile_branch_id: profileBranchId,
+    role: auth.profile.role,
+    account_type: 'profile',
+    search_query: search,
+    search_filter: searchFilter,
+    customer_scope: 'tenant',
+    tenant_search_count: tenantSearchCount ?? null,
+    result_count: Array.isArray(data) ? data.length : 0,
+    branch_debug: {
+      branch_id_null_count_in_sample: nullBranchCount,
+      branch_id_different_count_in_sample: differentBranchCount,
+      sample_size: branchDebugItems.length,
+      tenant_count_error: tenantSearchCountError?.message ?? null,
+      branch_debug_error: branchDebugError?.message ?? null,
+    },
+  })
 
   return jsonWithAuthCookies(auth.response, {
     success: true,

@@ -134,7 +134,7 @@ function clearPinRateLimit(key: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee'])
+  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
   if (!auth.ok) {
     return withFixedPinDelay(auth.response)
@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
     const requestedBranchId =
       normalizeOptionalBranchId(body.branchId) ||
       normalizeOptionalBranchId(body.branch_id)
+    const profileBranchId = normalizeOptionalBranchId(auth.profile.branch_id)
 
     if (!tenantId) {
       if (process.env.NODE_ENV === 'development') {
@@ -183,6 +184,8 @@ export async function POST(request: NextRequest) {
       }
 
       branchId = requestedBranchId
+    } else if (profileBranchId) {
+      branchId = profileBranchId
     }
 
     if (process.env.NODE_ENV === 'development') {
@@ -190,7 +193,7 @@ export async function POST(request: NextRequest) {
         tenantId,
         branchId,
         requestedBranchId,
-        profileBranchId: auth.profile.branch_id ?? null,
+        profileBranchId,
         pinLength: pin.length,
       })
     }
@@ -293,7 +296,10 @@ export async function POST(request: NextRequest) {
 
     const response = jsonResponse({
       success: true,
-      employee,
+      employee: {
+        ...employee,
+        branch_id: employee.branch_id || branchId,
+      },
     })
 
     return withFixedPinDelay(withAuthCookies(auth.response, response))

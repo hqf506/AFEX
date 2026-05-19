@@ -8,7 +8,6 @@ import {
   requiresAssignedBranch,
 } from '@/lib/admin/branches'
 import {
-  ADMIN_ROLE_OPTIONS,
   createEmptyAdminUserPayload,
   isValidAdminPosPin,
   isPrimaryAdminUsername,
@@ -21,10 +20,13 @@ type ProfileRow = {
   tenant_id?: string | null
   full_name: string | null
   username: string | null
+  contact_email?: string | null
   role: AppRole
   is_active: boolean
   branch_id: string | null
   account_type?: 'profile' | 'pos_profile'
+  has_pos_pin?: boolean
+  pos_pin?: string | null
   created_by_name?: string | null
   created_by_username?: string | null
   created_at?: string
@@ -32,12 +34,6 @@ type ProfileRow = {
 }
 
 type ResetPasswordModalState = {
-  open: boolean
-  userId: string
-  username: string
-}
-
-type ResetPosPinModalState = {
   open: boolean
   userId: string
   username: string
@@ -70,12 +66,62 @@ function getBranchName(
 
 const ROLE_DISPLAY_LABELS: Partial<Record<AppRole, string>> = {
   admin: 'المدير',
+  manager: 'المدير',
   employee: 'الإداري',
   cashier: 'أمين الصندوق',
 }
 
+const EMAIL_LOGIN_ROLES = new Set<AppRole>(['admin', 'manager', 'employee'])
+const USER_FORM_ROLE_VALUES: AppRole[] = ['admin', 'employee', 'cashier']
+
 function getRoleDisplayLabel(role: AppRole | string) {
   return ROLE_DISPLAY_LABELS[role as AppRole] || role
+}
+
+function isEmailLoginRole(role: AppRole | '') {
+  return Boolean(role && EMAIL_LOGIN_ROLES.has(role))
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
+function mergeDuplicateUserRows(users: ProfileRow[]) {
+  const usersById = new Map<string, ProfileRow>()
+
+  for (const user of users) {
+    const existingUser = usersById.get(user.id)
+
+    if (!existingUser) {
+      usersById.set(user.id, user)
+      continue
+    }
+
+    const primaryUser =
+      user.account_type === 'profile' && existingUser.account_type !== 'profile'
+        ? user
+        : existingUser
+    const secondaryUser = primaryUser === user ? existingUser : user
+
+    usersById.set(user.id, {
+      ...primaryUser,
+      username: primaryUser.username || secondaryUser.username,
+      tenant_id: primaryUser.tenant_id || secondaryUser.tenant_id,
+      branch_id: primaryUser.branch_id || secondaryUser.branch_id,
+      full_name: primaryUser.full_name || secondaryUser.full_name,
+      is_active: primaryUser.is_active,
+      created_by_name:
+        primaryUser.created_by_name || secondaryUser.created_by_name,
+      created_by_username:
+        primaryUser.created_by_username || secondaryUser.created_by_username,
+      created_at: primaryUser.created_at || secondaryUser.created_at,
+      updated_at: primaryUser.updated_at || secondaryUser.updated_at,
+      has_pos_pin: Boolean(primaryUser.has_pos_pin || secondaryUser.has_pos_pin),
+      pos_pin: primaryUser.pos_pin || secondaryUser.pos_pin || null,
+    })
+  }
+
+  return Array.from(usersById.values())
 }
 
 const DRAWER_INPUT_CLASS =
@@ -144,12 +190,21 @@ export default function AdminUsersPage() {
   const [contactEmail, setContactEmail] = useState(emptyForm.contactEmail)
   const [phone, setPhone] = useState(emptyForm.phone)
   const [posPin, setPosPin] = useState(emptyForm.posPin)
+  const [password, setPassword] = useState(emptyForm.password)
+  const [confirmPassword, setConfirmPassword] = useState(
+    emptyForm.confirmPassword
+  )
   const [role, setRole] = useState<AppRole | ''>('')
   const [createBranchId, setCreateBranchId] = useState(emptyForm.branchId)
   const [editFullName, setEditFullName] = useState('')
   const [editUsername, setEditUsername] = useState('')
+  const [editContactEmail, setEditContactEmail] = useState('')
+  const [editAdminPassword, setEditAdminPassword] = useState('')
+  const [editConfirmAdminPassword, setEditConfirmAdminPassword] = useState('')
   const [editRole, setEditRole] = useState<AppRole | ''>('')
   const [editBranchId, setEditBranchId] = useState('')
+  const [editPosPin, setEditPosPin] = useState('')
+  const [showEditPosPin, setShowEditPosPin] = useState(false)
 
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -159,11 +214,6 @@ export default function AdminUsersPage() {
   >('all')
 
   const [resetModal, setResetModal] = useState<ResetPasswordModalState>({
-    open: false,
-    userId: '',
-    username: '',
-  })
-  const [pinResetModal, setPinResetModal] = useState<ResetPosPinModalState>({
     open: false,
     userId: '',
     username: '',
@@ -178,8 +228,6 @@ export default function AdminUsersPage() {
   })
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
-  const [newPosPin, setNewPosPin] = useState('')
-  const [confirmNewPosPin, setConfirmNewPosPin] = useState('')
   const pinInputRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const resetForm = useCallback(() => {
@@ -187,6 +235,8 @@ export default function AdminUsersPage() {
     setContactEmail('')
     setPhone('')
     setPosPin('')
+    setPassword('')
+    setConfirmPassword('')
     setRole('')
     setCreateBranchId(isSystemAdmin ? '' : actorBranchId || '')
   }, [actorBranchId, isSystemAdmin])
@@ -206,17 +256,17 @@ export default function AdminUsersPage() {
   }
 
   function openEditDrawer(user: ProfileRow) {
-    if (user.account_type !== 'pos_profile') {
-      setErrorMessage('التعديل متاح لموظفي POS فقط')
-      return
-    }
-
     setSuccessMessage('')
     setErrorMessage('')
     setEditFullName(user.full_name || '')
     setEditUsername(user.username || '')
+    setEditContactEmail(user.contact_email || '')
+    setEditAdminPassword('')
+    setEditConfirmAdminPassword('')
     setEditRole(user.role)
     setEditBranchId(user.branch_id || '')
+    setEditPosPin(user.pos_pin || '')
+    setShowEditPosPin(false)
     setEditDrawer({
       open: true,
       user,
@@ -230,15 +280,38 @@ export default function AdminUsersPage() {
     })
     setEditFullName('')
     setEditUsername('')
+    setEditContactEmail('')
+    setEditAdminPassword('')
+    setEditConfirmAdminPassword('')
     setEditRole('')
     setEditBranchId('')
+    setEditPosPin('')
+    setShowEditPosPin(false)
   }
 
   function handleCreateRoleChange(nextRole: string) {
     setRole(nextRole as AppRole)
 
+    if (!isEmailLoginRole(nextRole as AppRole)) {
+      setContactEmail('')
+      setPassword('')
+      setConfirmPassword('')
+    }
+
     if (nextRole && !posPin) {
       setPosPin(generateRandomPin())
+    }
+  }
+
+  function handleEditRoleChange(nextRole: string) {
+    const nextAppRole = nextRole as AppRole
+
+    setEditRole(nextAppRole)
+
+    if (!isEmailLoginRole(nextAppRole)) {
+      setEditContactEmail('')
+      setEditAdminPassword('')
+      setEditConfirmAdminPassword('')
     }
   }
 
@@ -289,16 +362,6 @@ export default function AdminUsersPage() {
     setConfirmNewPassword('')
   }
 
-  function closePinResetModal() {
-    setPinResetModal({
-      open: false,
-      userId: '',
-      username: '',
-    })
-    setNewPosPin('')
-    setConfirmNewPosPin('')
-  }
-
   function closeDeleteModal() {
     setDeleteModal({
       open: false,
@@ -344,7 +407,7 @@ export default function AdminUsersPage() {
         throw new Error(result?.details || result?.error || 'تعذر تحميل المستخدمين')
       }
 
-      const nextUsers = (result.users || []) as ProfileRow[]
+      const nextUsers = mergeDuplicateUserRows((result.users || []) as ProfileRow[])
       setUsers(nextUsers)
     } catch (error) {
       console.error('Load users error:', error)
@@ -368,19 +431,41 @@ export default function AdminUsersPage() {
   }, [accessLoading, allowed, resetForm])
 
   const branchIdForCreate = isSystemAdmin ? createBranchId : actorBranchId || ''
+  const createRequiresBranch = role ? requiresAssignedBranch(role) : false
 
   const canSubmitCreate = useMemo(() => {
     if (
       !fullName.trim() ||
       !role ||
-      !branchIdForCreate ||
+      (createRequiresBranch && !branchIdForCreate) ||
       !isValidAdminPosPin(posPin)
     ) {
       return false
     }
 
+    if (isEmailLoginRole(role)) {
+      const normalizedEmail = contactEmail.trim()
+      const normalizedPassword = password.trim()
+      const normalizedConfirmPassword = confirmPassword.trim()
+
+      return (
+        isValidEmail(normalizedEmail) &&
+        normalizedPassword.length >= 6 &&
+        normalizedPassword === normalizedConfirmPassword
+      )
+    }
+
     return true
-  }, [fullName, posPin, role, branchIdForCreate])
+  }, [
+    branchIdForCreate,
+    confirmPassword,
+    contactEmail,
+    createRequiresBranch,
+    fullName,
+    password,
+    posPin,
+    role,
+  ])
 
   const activeUsersCount = useMemo(
     () => users.filter((user) => user.is_active).length,
@@ -409,18 +494,18 @@ export default function AdminUsersPage() {
       }),
     [branches, normalizedSearchTerm, statusFilter, users]
   )
+
   const roleOptions = useMemo(
     () =>
-      ADMIN_ROLE_OPTIONS.map((option) => ({
-        label: getRoleDisplayLabel(option.value),
-        value: option.value,
+      USER_FORM_ROLE_VALUES.map((roleValue) => ({
+        label: getRoleDisplayLabel(roleValue),
+        value: roleValue,
       })),
     []
   )
-  const posRoleOptions = useMemo(
-    () => roleOptions.filter((option) => option.value !== 'admin'),
-    [roleOptions]
-  )
+  const editRoleOptions = roleOptions
+
+  const shouldShowEditEmail = isEmailLoginRole(editRole)
 
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault()
@@ -440,8 +525,34 @@ export default function AdminUsersPage() {
         throw new Error('POS PIN يجب أن يتكون من 4 أرقام')
       }
 
-      if (!role || !branchIdForCreate) {
-        throw new Error('يرجى اختيار الوظيفة والفرع')
+      if (!role) {
+        throw new Error('يرجى اختيار الوظيفة')
+      }
+
+      if (requiresAssignedBranch(role) && !branchIdForCreate) {
+        throw new Error('يرجى اختيار فرع لهذا المستخدم')
+      }
+
+      const normalizedEmail = contactEmail.trim().toLowerCase()
+      const normalizedPassword = password.trim()
+      const normalizedConfirmPassword = confirmPassword.trim()
+
+      if (isEmailLoginRole(role)) {
+        if (!normalizedEmail) {
+          throw new Error('البريد الإلكتروني مطلوب لحسابات المدير والإداري')
+        }
+
+        if (!isValidEmail(normalizedEmail)) {
+          throw new Error('صيغة البريد الإلكتروني غير صحيحة')
+        }
+
+        if (normalizedPassword.length < 6) {
+          throw new Error('كلمة المرور يجب أن تكون 6 أحرف أو أكثر')
+        }
+
+        if (normalizedPassword !== normalizedConfirmPassword) {
+          throw new Error('تأكيد كلمة المرور غير مطابق')
+        }
       }
 
       const generatedUsername = generateInternalPosUsername()
@@ -454,8 +565,12 @@ export default function AdminUsersPage() {
         body: JSON.stringify({
           username: generatedUsername,
           full_name: fullName,
-          contact_email: contactEmail.trim() || null,
+          contact_email: isEmailLoginRole(role) ? normalizedEmail : null,
           phone: phone.trim() || null,
+          password: isEmailLoginRole(role) ? normalizedPassword : '',
+          password_confirmation: isEmailLoginRole(role)
+            ? normalizedConfirmPassword
+            : '',
           pos_pin: normalizedPosPin,
           role,
           branch_id: branchIdForCreate || null,
@@ -487,9 +602,12 @@ export default function AdminUsersPage() {
 
     const user = editDrawer.user
 
-    if (!user || user.account_type !== 'pos_profile' || !editRole) return
+    if (!user || !editRole) return
 
     const nextBranchId = isSystemAdmin ? editBranchId : actorBranchId || ''
+    const isEditingEmailLoginUser = isEmailLoginRole(editRole)
+    const isConvertingPosToEmailLogin =
+      user.account_type === 'pos_profile' && isEditingEmailLoginUser
 
     try {
       setSavingEdit(true)
@@ -501,6 +619,68 @@ export default function AdminUsersPage() {
         throw new Error('يجب اختيار فرع لهذا المستخدم')
       }
 
+      const nextUsername =
+        editUsername.trim() ||
+        user.username ||
+        (editRole === 'cashier' ? generateInternalPosUsername() : '')
+
+      if (!nextUsername) {
+        throw new Error('اسم المستخدم مطلوب')
+      }
+
+      const normalizedEditEmail = editContactEmail.trim().toLowerCase()
+      const normalizedEditAdminPassword = editAdminPassword.trim()
+      const normalizedEditConfirmAdminPassword =
+        editConfirmAdminPassword.trim()
+      const normalizedEditPosPin = editPosPin.trim()
+
+      if (normalizedEditPosPin && !isValidAdminPosPin(normalizedEditPosPin)) {
+        throw new Error('POS PIN يجب أن يتكون من 4 أرقام')
+      }
+
+      if (!user.has_pos_pin && !normalizedEditPosPin) {
+        throw new Error('POS PIN مطلوب لهذا المستخدم')
+      }
+
+      if (isEditingEmailLoginUser) {
+        if (!isEmailLoginRole(editRole)) {
+          throw new Error('حسابات لوحة التحكم يجب أن تكون مدير أو إداري')
+        }
+
+        if (!normalizedEditEmail) {
+          throw new Error('البريد الإلكتروني مطلوب لحسابات المدير والإداري')
+        }
+
+        if (!isValidEmail(normalizedEditEmail)) {
+          throw new Error('صيغة البريد الإلكتروني غير صحيحة')
+        }
+
+        if (isConvertingPosToEmailLogin && !normalizedEditAdminPassword) {
+          throw new Error('كلمة مرور لوحة التحكم مطلوبة عند تحويل أمين الصندوق')
+        }
+
+        if (
+          normalizedEditAdminPassword &&
+          normalizedEditAdminPassword.length < 6
+        ) {
+          throw new Error('كلمة مرور لوحة التحكم يجب أن تكون 6 أحرف أو أكثر')
+        }
+
+        if (
+          normalizedEditAdminPassword &&
+          !normalizedEditConfirmAdminPassword
+        ) {
+          throw new Error('تأكيد كلمة مرور لوحة التحكم مطلوب')
+        }
+
+        if (
+          normalizedEditAdminPassword &&
+          normalizedEditAdminPassword !== normalizedEditConfirmAdminPassword
+        ) {
+          throw new Error('تأكيد كلمة مرور لوحة التحكم غير مطابق')
+        }
+      }
+
       const response = await fetch('/api/admin/update-pos-user', {
         method: 'POST',
         headers: {
@@ -508,9 +688,18 @@ export default function AdminUsersPage() {
         },
         body: JSON.stringify({
           userId: user.id,
+          username: nextUsername,
           full_name: editFullName,
+          contact_email: isEditingEmailLoginUser ? normalizedEditEmail : null,
+          admin_password: isEditingEmailLoginUser
+            ? normalizedEditAdminPassword
+            : '',
+          admin_password_confirmation: isEditingEmailLoginUser
+            ? normalizedEditConfirmAdminPassword
+            : '',
           role: editRole,
           branch_id: nextBranchId,
+          pos_pin: normalizedEditPosPin || null,
         }),
       })
 
@@ -534,18 +723,6 @@ export default function AdminUsersPage() {
       setSavingEdit(false)
       setUpdatingUserId(null)
     }
-  }
-
-  function openResetPosPinModal(user: ProfileRow) {
-    setSuccessMessage('')
-    setErrorMessage('')
-    setPinResetModal({
-      open: true,
-      userId: user.id,
-      username: user.username || '',
-    })
-    setNewPosPin('')
-    setConfirmNewPosPin('')
   }
 
   async function handleConfirmResetPassword() {
@@ -587,53 +764,6 @@ export default function AdminUsersPage() {
       console.error('Reset password error:', error)
       setErrorMessage(
         error instanceof Error ? error.message : 'تعذر إعادة تعيين كلمة المرور'
-      )
-    } finally {
-      setUpdatingUserId(null)
-    }
-  }
-
-  async function handleConfirmResetPosPin() {
-    try {
-      const normalizedPin = newPosPin.trim()
-
-      if (!isValidAdminPosPin(normalizedPin)) {
-        throw new Error('POS PIN يجب أن يتكون من 4 أرقام')
-      }
-
-      if (normalizedPin !== confirmNewPosPin.trim()) {
-        throw new Error('تأكيد POS PIN غير مطابق')
-      }
-
-      setUpdatingUserId(pinResetModal.userId)
-      setSuccessMessage('')
-      setErrorMessage('')
-
-      const response = await fetch('/api/admin/reset-user-pos-pin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: pinResetModal.userId,
-          pin: normalizedPin,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(
-          result?.details || result?.error || 'فشل إعادة تعيين POS PIN'
-        )
-      }
-
-      setSuccessMessage(result.message || 'تم تحديث PIN بنجاح')
-      closePinResetModal()
-    } catch (error) {
-      console.error('Reset POS PIN error:', error)
-      setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر إعادة تعيين POS PIN'
       )
     } finally {
       setUpdatingUserId(null)
@@ -844,28 +974,80 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="mb-2 block text-xs font-black text-slate-300">
-                  البريد الإلكتروني
-                </label>
-                <div className="relative">
-                  <AdminInput
-                    type="email"
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="اختياري"
-                    className={DRAWER_INPUT_LTR_CLASS}
-                    autoComplete="email"
-                    dir="rtl"
-                  />
-                  <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M4 6h16v12H4z" />
-                      <path d="m4 7 8 6 8-6" />
-                    </svg>
-                  </span>
-                </div>
-              </div>
+              {isEmailLoginRole(role) ? (
+                <>
+                  <div>
+                    <label className="mb-2 block text-xs font-black text-slate-300">
+                      البريد الإلكتروني
+                    </label>
+                    <div className="relative">
+                      <AdminInput
+                        type="email"
+                        value={contactEmail}
+                        onChange={(e) => setContactEmail(e.target.value)}
+                        placeholder="إجباري"
+                        className={DRAWER_INPUT_LTR_CLASS}
+                        autoComplete="email"
+                        dir="rtl"
+                      />
+                      <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="M4 6h16v12H4z" />
+                          <path d="m4 7 8 6 8-6" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                      <label className="mb-2 block text-xs font-black text-slate-300">
+                      كلمة مرور لوحة التحكم
+                    </label>
+                    <div className="relative">
+                      <AdminInput
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="6 أحرف أو أكثر"
+                        className={DRAWER_INPUT_LTR_CLASS}
+                        autoComplete="new-password"
+                        dir="rtl"
+                      />
+                      <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="M12 17v-4" />
+                          <path d="M8 9V7a4 4 0 0 1 8 0v2" />
+                          <path d="M6 9h12v12H6z" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-black text-slate-300">
+                      تأكيد كلمة مرور لوحة التحكم
+                    </label>
+                    <div className="relative">
+                      <AdminInput
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="إجباري"
+                        className={DRAWER_INPUT_LTR_CLASS}
+                        autoComplete="new-password"
+                        dir="rtl"
+                      />
+                      <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="m9 12 2 2 4-4" />
+                          <path d="M6 9h12v12H6z" />
+                          <path d="M8 9V7a4 4 0 0 1 8 0v2" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : null}
 
               <div>
                 <label className="mb-2 block text-xs font-black text-slate-300">
@@ -899,7 +1081,7 @@ export default function AdminUsersPage() {
                     value={role}
                     onChange={handleCreateRoleChange}
                     placeholder="إجباري"
-                    options={posRoleOptions}
+                    options={roleOptions}
                     variant="drawer"
                   />
                   <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
@@ -975,12 +1157,16 @@ export default function AdminUsersPage() {
                       onChange={setCreateBranchId}
                       disabled={loadingBranches}
                       variant="drawer"
-                      placeholder="إجباري"
+                      placeholder={
+                        role && !requiresAssignedBranch(role)
+                          ? 'اختياري'
+                          : 'إجباري'
+                      }
                       options={[
                         {
                           label:
-                            role === 'admin'
-                              ? 'بدون فرع (أدمن على مستوى النظام)'
+                            !requiresAssignedBranch(role || '')
+                              ? 'بدون فرع (نطاق النظام / POS اختياري)'
                               : 'إجباري',
                           value: '',
                         },
@@ -1127,6 +1313,83 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
 
+                    {shouldShowEditEmail ? (
+                      <>
+                        <div>
+                          <label className="mb-2 block text-xs font-black text-slate-300">
+                            البريد الإلكتروني
+                          </label>
+                          <div className="relative">
+                            <AdminInput
+                              type="email"
+                              value={editContactEmail}
+                              onChange={(e) => setEditContactEmail(e.target.value)}
+                              placeholder="إجباري"
+                              className={DRAWER_INPUT_LTR_CLASS}
+                              autoComplete="email"
+                              dir="rtl"
+                            />
+                            <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <path d="M4 6h16v12H4z" />
+                                <path d="m4 7 8 6 8-6" />
+                              </svg>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-xs font-black text-slate-300">
+                            كلمة مرور لوحة التحكم
+                          </label>
+                          <div className="relative">
+                            <AdminInput
+                              type="password"
+                              value={editAdminPassword}
+                              onChange={(e) => setEditAdminPassword(e.target.value)}
+                              placeholder="اتركها فارغة إذا لا تريد تغييرها"
+                              className={DRAWER_INPUT_LTR_CLASS}
+                              autoComplete="new-password"
+                              dir="rtl"
+                            />
+                            <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <path d="M12 17v-4" />
+                                <path d="M8 9V7a4 4 0 0 1 8 0v2" />
+                                <path d="M6 9h12v12H6z" />
+                              </svg>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-xs font-black text-slate-300">
+                            تأكيد كلمة مرور لوحة التحكم
+                          </label>
+                          <div className="relative">
+                            <AdminInput
+                              type="password"
+                              value={editConfirmAdminPassword}
+                              onChange={(e) =>
+                                setEditConfirmAdminPassword(e.target.value)
+                              }
+                              placeholder="مطلوب عند تغيير كلمة المرور"
+                              className={DRAWER_INPUT_LTR_CLASS}
+                              autoComplete="new-password"
+                              dir="rtl"
+                            />
+                            <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
+                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <path d="m9 12 2 2 4-4" />
+                                <path d="M6 9h12v12H6z" />
+                                <path d="M8 9V7a4 4 0 0 1 8 0v2" />
+                              </svg>
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
+
                     <div>
                       <label className="mb-2 block text-xs font-black text-slate-300">
                         الوظيفة
@@ -1134,9 +1397,9 @@ export default function AdminUsersPage() {
                       <div className="relative">
                         <StyledDropdown
                           value={editRole}
-                          onChange={(nextRole) => setEditRole(nextRole as AppRole)}
+                          onChange={handleEditRoleChange}
                           placeholder="إجباري"
-                          options={roleOptions}
+                          options={editRoleOptions}
                           variant="drawer"
                         />
                         <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-slate-300">
@@ -1162,11 +1425,15 @@ export default function AdminUsersPage() {
                             onChange={setEditBranchId}
                             disabled={loadingBranches}
                             variant="drawer"
-                            placeholder="إجباري"
+                            placeholder={
+                              editRole && !requiresAssignedBranch(editRole)
+                                ? 'اختياري'
+                                : 'إجباري'
+                            }
                             options={[
                               {
                                 label:
-                                  editRole === 'admin'
+                                  !requiresAssignedBranch(editRole || '')
                                     ? 'بدون فرع'
                                     : 'إجباري',
                                 value: '',
@@ -1203,30 +1470,70 @@ export default function AdminUsersPage() {
                       )}
                     </div>
 
-                    <div className="rounded-[20px] border border-emerald-300/15 bg-emerald-300/5 p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="text-right">
-                          <p className="text-sm font-black text-slate-200">
-                            إعادة تعيين PIN
-                          </p>
-                          <p className="mt-1 text-xs font-bold text-slate-500">
-                            لا يتم عرض PIN داخل نموذج التعديل.
-                          </p>
+                    <div className="rounded-[20px] border border-emerald-300/15 bg-[linear-gradient(135deg,rgba(6,17,31,0.96),rgba(11,20,34,0.92))] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <div className="flex min-w-0 flex-1 items-center gap-3 text-right">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-300/10 text-emerald-100">
+                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <path d="M12 17v-4" />
+                              <path d="M8 9V7a4 4 0 0 1 8 0v2" />
+                              <path d="M6 9h12v12H6z" />
+                            </svg>
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-slate-100">
+                              POS PIN
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-500">
+                              {editDrawer.user.has_pos_pin
+                                ? editDrawer.user.pos_pin
+                                  ? 'يمكنك تعديل PIN الحالي مباشرة'
+                                  : 'أدخل PIN جديد لعرضه لاحقًا'
+                                : 'لا يوجد PIN'}
+                            </p>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const user = editDrawer.user
 
-                            if (user) {
-                              closeEditDrawer()
-                              openResetPosPinModal(user)
+                        <div className="relative sm:w-[220px]">
+                          <input
+                            dir="ltr"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={4}
+                            type={showEditPosPin ? 'text' : 'password'}
+                            value={editPosPin}
+                            onChange={(event) =>
+                              setEditPosPin(
+                                event.target.value.replace(/\D/g, '').slice(0, 4)
+                              )
                             }
-                          }}
-                          className="h-10 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/15"
-                        >
-                          إعادة تعيين PIN
-                        </button>
+                            placeholder="أدخل PIN جديد"
+                            className="h-12 w-full rounded-2xl border border-emerald-300/15 bg-black/20 py-0 pl-12 pr-4 text-center font-mono text-lg font-black tracking-[0.3em] text-emerald-100 outline-none transition placeholder:font-sans placeholder:text-sm placeholder:font-bold placeholder:tracking-normal placeholder:text-slate-500 hover:border-emerald-300/30 focus:border-emerald-300/55 focus:ring-2 focus:ring-emerald-300/15"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowEditPosPin((current) => !current)}
+                            className="absolute left-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-slate-200 transition hover:bg-white/[0.085]"
+                            aria-label={showEditPosPin ? 'إخفاء POS PIN' : 'إظهار POS PIN'}
+                            title={showEditPosPin ? 'إخفاء POS PIN' : 'إظهار POS PIN'}
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              {showEditPosPin ? (
+                                <>
+                                  <path d="M3 3l18 18" />
+                                  <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                                  <path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c5 0 8.5 4.5 9.6 6.2a3 3 0 0 1 0 3.6 19 19 0 0 1-2.2 2.7" />
+                                  <path d="M6.4 6.4a18.6 18.6 0 0 0-4 3.8 3 3 0 0 0 0 3.6C3.5 15.5 7 20 12 20a10.8 10.8 0 0 0 4.1-.8" />
+                                </>
+                              ) : (
+                                <>
+                                  <path d="M2.4 10.2a3 3 0 0 0 0 3.6C3.5 15.5 7 20 12 20s8.5-4.5 9.6-6.2a3 3 0 0 0 0-3.6C20.5 8.5 17 4 12 4s-8.5 4.5-9.6 6.2Z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </>
+                              )}
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -1245,7 +1552,20 @@ export default function AdminUsersPage() {
                         disabled={
                           savingEdit ||
                           !editFullName.trim() ||
-                          !editRole
+                          !editRole ||
+                          (shouldShowEditEmail &&
+                            (!editContactEmail.trim() ||
+                              !isValidEmail(editContactEmail) ||
+                              (editDrawer.user.account_type === 'pos_profile' &&
+                                !editAdminPassword.trim()) ||
+                              (editAdminPassword.trim().length > 0 &&
+                                (editAdminPassword.trim().length < 6 ||
+                                  !editConfirmAdminPassword.trim() ||
+                                  editAdminPassword.trim() !==
+                                    editConfirmAdminPassword.trim())))) ||
+                          (!!editPosPin.trim() &&
+                            !isValidAdminPosPin(editPosPin.trim())) ||
+                          (!editDrawer.user.has_pos_pin && !editPosPin.trim())
                         }
                         className={`inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
                       >
@@ -1414,7 +1734,7 @@ export default function AdminUsersPage() {
 
                         return (
                           <tr
-                            key={user.id}
+                            key={`${user.account_type || 'user'}-${user.id}`}
                             className="border-b border-white/[0.08] bg-slate-500/[0.045] align-middle transition hover:bg-slate-500/[0.075] last:border-b-0"
                           >
                             <td className="px-3 py-4">
@@ -1476,7 +1796,7 @@ export default function AdminUsersPage() {
                                   disabled={
                                     isBusy ||
                                     isMainAdmin ||
-                                    user.account_type !== 'pos_profile'
+                                    !user.account_type
                                   }
                                   className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
@@ -1560,78 +1880,6 @@ export default function AdminUsersPage() {
                 className={`h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 shadow-[0_0_28px_rgba(34,211,238,0.2)] disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
               >
                 حفظ كلمة المرور
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {pinResetModal.open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[28px] border border-emerald-300/15 bg-[#07111f] p-6 shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
-            <div className="mb-5 text-right">
-              <h3 className="text-2xl font-black text-white">إعادة تعيين POS PIN</h3>
-              <p className="mt-1 text-sm text-slate-400">
-                PIN الدخول إلى نقطة البيع للمستخدم: {pinResetModal.username}
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-bold text-slate-200">
-                  PIN الدخول إلى نقطة البيع
-                </label>
-                <AdminInput
-                  type="password"
-                  value={newPosPin}
-                  onChange={(e) =>
-                    setNewPosPin(e.target.value.replace(/\D/g, '').slice(0, 4))
-                  }
-                  placeholder="4 أرقام"
-                  className="h-14 border-slate-300 text-right tracking-[0.45em] focus:border-slate-500"
-                  inputMode="numeric"
-                  maxLength={4}
-                  autoComplete="new-password"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold text-slate-200">
-                  تأكيد POS PIN
-                </label>
-                <AdminInput
-                  type="password"
-                  value={confirmNewPosPin}
-                  onChange={(e) =>
-                    setConfirmNewPosPin(
-                      e.target.value.replace(/\D/g, '').slice(0, 4)
-                    )
-                  }
-                  placeholder="أعد كتابة PIN"
-                  className="h-14 border-slate-300 text-right tracking-[0.45em] focus:border-slate-500"
-                  inputMode="numeric"
-                  maxLength={4}
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={closePinResetModal}
-                className="h-12 rounded-2xl border border-white/10 bg-white/[0.045] px-5 text-sm font-bold text-slate-200 transition hover:bg-white/[0.075]"
-              >
-                إلغاء
-              </button>
-
-              <button
-                type="button"
-                onClick={handleConfirmResetPosPin}
-                disabled={updatingUserId === pinResetModal.userId}
-                className={`h-12 rounded-2xl bg-gradient-to-l from-emerald-300 to-cyan-300 px-5 shadow-[0_0_28px_rgba(16,185,129,0.2)] disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
-              >
-                حفظ POS PIN
               </button>
             </div>
           </div>

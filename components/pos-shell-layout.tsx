@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { PosTabletFrame } from '@/components/pos-tablet-frame'
+import { canAccessPos } from '@/lib/permissions'
 import {
   readActivePosEmployee,
   type ActivePosEmployee,
@@ -13,8 +14,6 @@ import { syncPosOfflineDrafts } from '@/lib/pos-offline-draft'
 type PosShellLayoutProps = {
   children: React.ReactNode
 }
-
-const ALLOWED_POS_ROLES = new Set(['admin', 'employee'])
 
 function PosShellViewport({
   children,
@@ -63,21 +62,25 @@ function ProtectedPosShellLayout({
   const [activeEmployee, setActiveEmployee] =
     useState<ActivePosEmployee | null>(null)
   const allowed = Boolean(
-    authState.profile && ALLOWED_POS_ROLES.has(authState.profile.role)
+    authState.profile && canAccessPos(authState.profile.role)
   )
   const hasAuthError = Boolean(authState.error)
   const isTimeoutError = authState.error === 'timeout'
   const isLockError = authState.error === 'auth-lock'
 
   useEffect(() => {
-    if (!requireEmployee) {
-      setActiveEmployee(null)
-      setEmployeeCheckReady(true)
-      return
-    }
+    const timer = window.setTimeout(() => {
+      if (!requireEmployee) {
+        setActiveEmployee(null)
+        setEmployeeCheckReady(true)
+        return
+      }
 
-    setActiveEmployee(readActivePosEmployee())
-    setEmployeeCheckReady(true)
+      setActiveEmployee(readActivePosEmployee())
+      setEmployeeCheckReady(true)
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [requireEmployee])
 
   useEffect(() => {
@@ -116,7 +119,10 @@ function ProtectedPosShellLayout({
 
   useEffect(() => {
     if (!authState.loading) {
-      setRetrying(false)
+      const timer = window.setTimeout(() => {
+        setRetrying(false)
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
   }, [authState.loading])
 

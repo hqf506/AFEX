@@ -1,5 +1,3 @@
-import type { AppRole } from '@/lib/app-roles'
-
 export type AuthScopeType = 'system' | 'branch'
 
 export type BranchAwareProfileFields = {
@@ -8,10 +6,10 @@ export type BranchAwareProfileFields = {
 }
 
 export function resolveAuthScopeType(
-  role: AppRole | null | undefined,
+  role: string | null | undefined,
   branchId: string | null | undefined
 ): AuthScopeType {
-  if (role === 'admin' && !branchId) {
+  if (role === 'admin' || role === 'manager' || role === 'owner') {
     return 'system'
   }
 

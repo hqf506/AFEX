@@ -7,6 +7,7 @@ import {
   redactSensitive,
   safeErrorDetails,
 } from '@/lib/security/redaction'
+import { isFullAdmin } from '@/lib/permissions'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -200,7 +201,7 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiAuth(request, ['admin'])
+  const auth = await requireApiAuth(request, ['admin', 'employee'])
 
   if (!auth.ok) {
     return auth.response
@@ -254,8 +255,137 @@ export async function POST(
     }
 
     const { invoice, receiptIdType } = resolvedReceipt
+    const targetBranchId =
+      typeof invoice.branch_id === 'string' ? invoice.branch_id : null
+    const hasSystemScope =
+      auth.profile.scope_type === 'system' || isFullAdmin(auth.profile.role)
+
+    if (!hasSystemScope && !auth.profile.branch_id) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          { error: 'لا تملك صلاحية إلغاء هذا الطلب' },
+          403,
+        ),
+      )
+    }
+
+    if (
+      !hasSystemScope &&
+      auth.profile.branch_id &&
+      targetBranchId !== auth.profile.branch_id
+    ) {
+      return withAuthCookies(
+        auth.response,
+        utf8JsonResponse(
+          { error: 'لا تملك صلاحية إلغاء هذا الطلب' },
+          403,
+        ),
+      )
+    }
+
+    const { count: invoiceItemsCount, error: invoiceItemsCountError } =
+      await supabaseAdmin
+        .from('invoice_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('invoice_id', invoice.id)
+        .eq('tenant_id', tenantId)
+
+    if (invoiceItemsCountError) {
+      console.warn('[cancel-receipt] invoice items count failed', {
+        receiptId,
+        receiptIdType,
+        invoiceId: invoice.id,
+        tenantId,
+        message: invoiceItemsCountError.message,
+        code: invoiceItemsCountError.code,
+        details: invoiceItemsCountError.details,
+        hint: invoiceItemsCountError.hint,
+      })
+    }
+
+    console.info('[cancel-receipt] resolved invoice for restore', {
+      receiptId,
+      receiptIdType,
+      invoiceId: invoice.id,
+      tenantId,
+      invoiceItemsCount,
+    })
 
     if (isCancelledPaymentStatus(invoice.payment_status)) {
+      console.log('[cancel-receipt] restore inventory input', {
+        receiptId,
+        invoiceId: invoice.id,
+        tenantId,
+      })
+
+      const {
+        data: restoreInventoryResult,
+        error: restoreInventoryError,
+      } = await supabaseAdmin.rpc(
+        'restore_inventory_for_cancelled_invoice',
+        {
+          p_tenant_id: tenantId,
+          p_invoice_id: invoice.id,
+        }
+      )
+
+      console.info('[cancel-receipt] restore inventory result', {
+        receiptId,
+        receiptIdType,
+        invoiceId: invoice.id,
+        tenantId,
+        invoiceItemsCount,
+        alreadyCancelled: true,
+        restoredItemsCount:
+          typeof restoreInventoryResult === 'object' &&
+          restoreInventoryResult !== null &&
+          !Array.isArray(restoreInventoryResult)
+            ? (restoreInventoryResult as Record<string, unknown>).restoredItemsCount
+            : undefined,
+        restoreInventoryResult,
+      })
+
+      if (restoreInventoryError) {
+        const error = restoreInventoryError
+
+        console.error('[cancel-receipt] restore inventory failed', JSON.stringify({
+          receiptId,
+          invoiceId: invoice.id,
+          tenantId,
+          message: error?.message,
+          code: error?.code,
+          details: error?.details,
+          hint: error?.hint,
+        }, null, 2), error)
+
+        logSupabaseError(
+          'restore inventory for already-cancelled invoice failed',
+          restoreInventoryError,
+          {
+            receiptId,
+            receiptIdType,
+            invoiceId: invoice.id,
+            tenantId,
+          }
+        )
+
+        return withAuthCookies(
+          auth.response,
+          utf8JsonResponse(
+            {
+              error: 'ØªØ¹Ø°Ø± Ø¥Ø±Ø¬Ø§Ø¹ Ø§Ù„Ù…Ø®Ø²ÙˆÙ† Ø¨Ø¹Ø¯ Ø¥Ù„ØºØ§Ø¡ Ø§Ù„ÙØ§ØªÙˆØ±Ø©',
+              ...safeErrorDetails(
+                restoreInventoryError,
+                'ØªØ¹Ø°Ø± Ø¥Ø±Ø¬Ø§Ø¹ Ø§Ù„Ù…Ø®Ø²ÙˆÙ† Ø¨Ø¹Ø¯ Ø¥Ù„ØºØ§Ø¡ Ø§Ù„ÙØ§ØªÙˆØ±Ø©'
+              ),
+              ...safeErrorCode(restoreInventoryError),
+            },
+            500,
+          ),
+        )
+      }
+
       return withAuthCookies(
         auth.response,
         utf8JsonResponse({
@@ -321,7 +451,16 @@ export async function POST(
       )
     }
 
-    const { error: restoreInventoryError } = await supabaseAdmin.rpc(
+    console.log('[cancel-receipt] restore inventory input', {
+      receiptId,
+      invoiceId: updatedInvoice.id,
+      tenantId,
+    })
+
+    const {
+      data: restoreInventoryResult,
+      error: restoreInventoryError,
+    } = await supabaseAdmin.rpc(
       'restore_inventory_for_cancelled_invoice',
       {
         p_tenant_id: tenantId,
@@ -329,7 +468,34 @@ export async function POST(
       }
     )
 
+    console.info('[cancel-receipt] restore inventory result', {
+      receiptId,
+      receiptIdType,
+      invoiceId: updatedInvoice.id,
+      tenantId,
+      invoiceItemsCount,
+      restoredItemsCount:
+        typeof restoreInventoryResult === 'object' &&
+        restoreInventoryResult !== null &&
+        !Array.isArray(restoreInventoryResult)
+          ? (restoreInventoryResult as Record<string, unknown>).restoredItemsCount
+          : undefined,
+      restoreInventoryResult,
+    })
+
     if (restoreInventoryError) {
+      const error = restoreInventoryError
+
+      console.error('[cancel-receipt] restore inventory failed', JSON.stringify({
+        receiptId,
+        invoiceId: updatedInvoice.id,
+        tenantId,
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+      }, null, 2), error)
+
       logSupabaseError(
         'restore inventory for cancelled invoice failed',
         restoreInventoryError,

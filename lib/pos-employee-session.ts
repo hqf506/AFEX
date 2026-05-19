@@ -1,6 +1,7 @@
 import type { AppRole } from '@/lib/app-roles'
 
 export const POS_EMPLOYEE_SESSION_KEY = 'leather_fix_pos_employee'
+const POS_LOGGED_OUT_SESSION_KEY = 'leather_fix_pos_logged_out'
 
 export type ActivePosEmployee = {
   id: string
@@ -69,4 +70,28 @@ export function clearActivePosEmployee() {
   }
 
   window.sessionStorage.removeItem(POS_EMPLOYEE_SESSION_KEY)
+}
+
+export function markPosLoggedOut() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.sessionStorage.setItem(POS_LOGGED_OUT_SESSION_KEY, '1')
+}
+
+export function clearPosLoggedOut() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.sessionStorage.removeItem(POS_LOGGED_OUT_SESSION_KEY)
+}
+
+export function hasPosLoggedOut() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  return window.sessionStorage.getItem(POS_LOGGED_OUT_SESSION_KEY) === '1'
 }

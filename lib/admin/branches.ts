@@ -41,8 +41,8 @@ export function isValidAdminBranchCode(value: string) {
   return BRANCH_CODE_PATTERN.test(value)
 }
 
-export function requiresAssignedBranch(role: AppRole) {
-  return role !== 'admin'
+export function requiresAssignedBranch(role: AppRole | string) {
+  return role === 'employee' || role === 'cashier'
 }
 
 export function isSystemScopedAdmin(scopeType: AuthScopeType) {

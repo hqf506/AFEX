@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -32,6 +33,7 @@ import {
   prefetchClientResource,
 } from '@/lib/client-resource-cache'
 import {
+  clearBranchInvoiceCatalogCache,
   loadBranchInvoiceCatalog,
   peekBranchInvoiceCatalog,
   type PosInvoiceCatalogProduct,
@@ -232,6 +234,11 @@ function getInventoryTrackingState(
       ? normalizedLowStockThreshold
       : 0
   const isOutOfStock = isInventoryTracked && safeNormalizedQuantity <= 0
+  const isLowStock =
+    isInventoryTracked &&
+    safeNormalizedQuantity > 0 &&
+    lowStockThreshold > 0 &&
+    safeNormalizedQuantity <= lowStockThreshold
 
   return {
     normalizedType: normalizedType === 'product' ? 'product' : 'service',
@@ -240,6 +247,7 @@ function getInventoryTrackingState(
     normalizedQuantity: safeNormalizedQuantity,
     lowStockThreshold,
     isOutOfStock,
+    isLowStock,
   }
 }
 
@@ -261,20 +269,6 @@ function isProductOutOfStock(
   return inventoryState.isOutOfStock
 }
 
-function isProductLowStock(
-  product:
-    | PosInvoiceCatalogProduct
-    | (InvoiceCatalogItem & Partial<PosInvoiceCatalogProduct>)
-) {
-  const inventoryState = getInventoryTrackingState(product)
-
-  return (
-    inventoryState.isInventoryTracked &&
-    inventoryState.lowStockThreshold > 0 &&
-    inventoryState.normalizedQuantity <= inventoryState.lowStockThreshold
-  )
-}
-
 function formatStockNumber(value: number) {
   return new Intl.NumberFormat('ar-SA', {
     maximumFractionDigits: 2,
@@ -292,23 +286,47 @@ function ProductStockIndicator({
     return null
   }
 
-  const { isOutOfStock, normalizedQuantity } = getInventoryTrackingState(product)
-  const lowStock = isProductLowStock(product)
+  const { isLowStock, isOutOfStock, normalizedQuantity } =
+    getInventoryTrackingState(product)
   const baseClass =
     variant === 'compact'
       ? 'mt-1 inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-bold'
       : 'mt-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold'
   const toneClass = isOutOfStock
     ? 'bg-red-50 text-red-700'
-    : lowStock
+    : isLowStock
       ? 'bg-amber-50 text-amber-700'
       : 'bg-emerald-50 text-emerald-700'
+  const label = isOutOfStock
+    ? 'انتهى المخزون'
+    : isLowStock
+      ? 'المخزون منخفض'
+      : `المخزون: ${formatStockNumber(normalizedQuantity)}`
 
   return (
     <span className={`${baseClass} ${toneClass}`}>
-      المخزون: {formatStockNumber(normalizedQuantity)}
-      {isOutOfStock ? ' · غير متوفر' : lowStock ? ' · منخفض' : ''}
+      {label}
     </span>
+  )
+}
+
+function InventoryRefreshIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M20 7.4A8 8 0 0 0 6.6 5.6L4.5 7.7" />
+      <path d="M4.5 3.8v3.9h3.9" />
+      <path d="M4 16.6a8 8 0 0 0 13.4 1.8l2.1-2.1" />
+      <path d="M19.5 20.2v-3.9h-3.9" />
+    </svg>
   )
 }
 
@@ -347,7 +365,7 @@ export function InvoiceItemsStep({
   const pageAccessOptions: UsePageAccessOptions =
     variant === 'pos'
       ? {
-          allowedRoles: ['admin', 'employee'],
+          allowedRoles: ['admin', 'employee', 'cashier'],
           redirectIfNoUser: '/pos/login',
           redirectIfForbidden: '/pos/login',
         }
@@ -425,6 +443,38 @@ export function InvoiceItemsStep({
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [catalogRefreshing, setCatalogRefreshing] = useState(false)
   const [catalogError, setCatalogError] = useState(false)
+  const forceReloadCatalog = useCallback(
+    async (options: { showRefreshing?: boolean } = {}) => {
+      if (!invoiceBranchId) return
+
+      clearBranchInvoiceCatalogCache(invoiceBranchId)
+
+      if (options.showRefreshing) {
+        setCatalogRefreshing(true)
+      }
+
+      try {
+        const nextProducts = await loadBranchInvoiceCatalog(invoiceBranchId, {
+          force: true,
+        })
+
+        setCatalogProducts(nextProducts)
+        setCatalogError(false)
+      } catch (error) {
+        if (isProtectedResourceAuthError(error)) {
+          handlePosProtectedResourceUnauthorized()
+          return
+        }
+
+        setCatalogError(true)
+        triggerPosFeedback('error')
+      } finally {
+        setCatalogLoading(false)
+        setCatalogRefreshing(false)
+      }
+    },
+    [invoiceBranchId]
+  )
   const [showItemsModal, setShowItemsModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [hydratedSaleDraft, setHydratedSaleDraft] = useState(false)
@@ -601,7 +651,85 @@ export function InvoiceItemsStep({
     return () => {
       cancelled = true
     }
-  }, [allowed, ready, invoiceBranchId, hasUnavailablePosBranchContext, variant])
+  }, [
+    allowed,
+    ready,
+    invoiceBranchId,
+    hasUnavailablePosBranchContext,
+    variant,
+  ])
+
+  useEffect(() => {
+    if (
+      variant !== 'pos' ||
+      !allowed ||
+      !ready ||
+      !tenantId ||
+      !invoiceBranchId ||
+      hasUnavailablePosBranchContext
+    ) {
+      return
+    }
+
+    let reloadTimeoutId: number | null = null
+    let followUpReloadTimeoutId: number | null = null
+
+    const scheduleCatalogReload = () => {
+      clearBranchInvoiceCatalogCache(invoiceBranchId)
+
+      if (reloadTimeoutId) {
+        window.clearTimeout(reloadTimeoutId)
+      }
+
+      reloadTimeoutId = window.setTimeout(() => {
+        void forceReloadCatalog({ showRefreshing: true })
+      }, 400)
+    }
+
+    const scheduleShortVisibleRefresh = () => {
+      scheduleCatalogReload()
+
+      if (followUpReloadTimeoutId) {
+        window.clearTimeout(followUpReloadTimeoutId)
+      }
+
+      followUpReloadTimeoutId = window.setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          scheduleCatalogReload()
+        }
+      }, 3000)
+    }
+
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'visible') {
+        scheduleShortVisibleRefresh()
+      }
+    }
+
+    document.addEventListener('visibilitychange', refreshOnReturn)
+    window.addEventListener('focus', scheduleShortVisibleRefresh)
+
+    return () => {
+      if (reloadTimeoutId) {
+        window.clearTimeout(reloadTimeoutId)
+      }
+
+      if (followUpReloadTimeoutId) {
+        window.clearTimeout(followUpReloadTimeoutId)
+      }
+
+      document.removeEventListener('visibilitychange', refreshOnReturn)
+      window.removeEventListener('focus', scheduleShortVisibleRefresh)
+    }
+  }, [
+    allowed,
+    ready,
+    tenantId,
+    invoiceBranchId,
+    hasUnavailablePosBranchContext,
+    variant,
+    forceReloadCatalog,
+  ])
 
   const visibleCatalogProducts = useMemo(() => {
     if (hasUnavailablePosBranchContext) {
@@ -1149,19 +1277,41 @@ export function InvoiceItemsStep({
               <div className="rounded-xl border border-slate-100 bg-white p-3">
                 <div className="space-y-3">
                   <div className="space-y-2">
-                    <div className="relative">
-                      <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        value={search}
-                        onChange={(event) => {
-                          setSearch(event.target.value)
-                          setCurrentCatalogPage(1)
-                        }}
-                        placeholder="ابحث عن منتج أو خدمة"
-                        className="h-12 min-h-[48px] w-full rounded-xl border border-slate-200 pr-3 pl-12 text-right text-base text-slate-700 outline-none transition focus:ring-2 focus:ring-slate-200 touch-manipulation"
-                        inputMode="search"
-                      />
+                    <div className="flex items-center gap-3">
+                      <div className="relative min-w-0 flex-1">
+                        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={search}
+                          onChange={(event) => {
+                            setSearch(event.target.value)
+                            setCurrentCatalogPage(1)
+                          }}
+                          placeholder="ابحث عن منتج أو خدمة"
+                          className="h-12 min-h-[48px] w-full rounded-xl border border-slate-200 pr-3 pl-12 text-right text-base text-slate-700 outline-none transition focus:ring-2 focus:ring-slate-200 touch-manipulation"
+                          inputMode="search"
+                        />
+                      </div>
+                      <div className="group relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void forceReloadCatalog({ showRefreshing: true })
+                          }
+                          disabled={catalogLoading || catalogRefreshing}
+                          aria-label="تحديث المخزون"
+                          className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200/80 bg-slate-100/80 text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:border-slate-300 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation"
+                        >
+                          <InventoryRefreshIcon
+                            className={`h-6 w-6 ${
+                              catalogRefreshing ? 'animate-spin' : ''
+                            }`}
+                          />
+                        </button>
+                        <span className="pointer-events-none absolute left-1/2 top-[calc(100%+0.5rem)] z-20 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-within:opacity-100">
+                          تحديث المخزون
+                        </span>
+                      </div>
                     </div>
 
                     {catalogRefreshing || (catalogLoading && canRenderCatalogImmediately) ? (

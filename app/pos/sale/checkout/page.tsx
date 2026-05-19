@@ -121,7 +121,7 @@ export default function PosSaleCheckoutPage() {
     typeof window === 'undefined' ? 'server' : window.location.pathname
   const authState = useAuthState()
   const access = usePageAccess({
-    allowedRoles: ['admin', 'employee'],
+    allowedRoles: ['admin', 'employee', 'cashier'],
     redirectIfNoUser: '/pos/login',
     redirectIfForbidden: '/pos/login',
   })

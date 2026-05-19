@@ -4,11 +4,14 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { getCurrentUserProfile } from '@/lib/auth'
-import { clearActivePosEmployee } from '@/lib/pos-employee-session'
+import { canAccessPos } from '@/lib/permissions'
+import {
+  clearActivePosEmployee,
+  clearPosLoggedOut,
+  hasPosLoggedOut,
+} from '@/lib/pos-employee-session'
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
-
-const ALLOWED_POS_ROLES = new Set(['admin', 'employee'])
 
 async function waitForSessionPersistence(expectedUserId: string) {
   for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -49,12 +52,19 @@ export default function PosLoginPage() {
       return
     }
 
-    if (ALLOWED_POS_ROLES.has(authState.profile.role)) {
+    if (canAccessPos(authState.profile.role)) {
+      if (hasPosLoggedOut()) {
+        return
+      }
+
       router.replace('/pos/employee-pin')
       return
     }
 
-    setError('غير مصرح لك بالدخول إلى POS')
+    const timer = window.setTimeout(() => {
+      setError('غير مصرح لك بالدخول إلى POS')
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [authState.loading, authState.profile, router])
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
@@ -100,13 +110,30 @@ export default function PosLoginPage() {
         throw new Error('هذا الحساب معطل، راجع الإدارة')
       }
 
-      const internalEmail = usernameToInternalEmail(normalizedUsername)
+      const isEmailLogin = normalizedUsername.includes('@')
+      const loginEmail = isEmailLogin
+        ? normalizedUsername
+        : usernameToInternalEmail(normalizedUsername)
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: internalEmail,
+        email: loginEmail,
         password,
       })
 
       if (signInError || !data.user) {
+        console.error('[POS LOGIN] auth sign-in failed', {
+          authError: signInError
+            ? {
+                name: signInError.name,
+                message: signInError.message,
+                status: signInError.status,
+              }
+            : null,
+          identifierType: isEmailLogin ? 'email' : 'username',
+          profileLoaded: false,
+          role: null,
+          tenant_id: null,
+          branch_id: null,
+        })
         throw new Error('بيانات الدخول غير صحيحة')
       }
 
@@ -119,23 +146,42 @@ export default function PosLoginPage() {
         throw new Error('تعذر تثبيت جلسة تسجيل الدخول')
       }
 
-      const profile = await getCurrentUserProfile()
+      const profile = await getCurrentUserProfile({ user: data.user })
+
+      console.info('[POS LOGIN] profile resolved', {
+        profileLoaded: Boolean(profile),
+        role: profile?.role ?? null,
+        tenant_id: profile?.tenant_id ?? null,
+        branch_id: profile?.branch_id ?? null,
+      })
 
       if (!profile || !profile.is_active) {
         clearActivePosEmployee()
-        await supabase.auth.signOut()
+        console.error('[POS LOGIN] profile validation failed', {
+          profileLoaded: Boolean(profile),
+          role: profile?.role ?? null,
+          tenant_id: profile?.tenant_id ?? null,
+          branch_id: profile?.branch_id ?? null,
+          isActive: profile?.is_active ?? null,
+        })
         throw new Error('بيانات الدخول غير صحيحة')
       }
 
-      if (!ALLOWED_POS_ROLES.has(profile.role)) {
+      if (!canAccessPos(profile.role)) {
         clearActivePosEmployee()
-        await supabase.auth.signOut()
+        console.error('[POS LOGIN] role cannot access POS', {
+          profileLoaded: true,
+          role: profile.role,
+          tenant_id: profile.tenant_id,
+          branch_id: profile.branch_id,
+        })
         throw new Error('غير مصرح لك بالدخول إلى POS')
       }
 
       await authState.refreshAuthState()
       await new Promise((resolve) => window.setTimeout(resolve, 50))
       clearActivePosEmployee()
+      clearPosLoggedOut()
       window.location.href = '/pos/employee-pin'
     } catch (loginError) {
       setError(

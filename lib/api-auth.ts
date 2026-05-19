@@ -6,6 +6,7 @@ import {
   type AuthScopeType,
   type BranchAwareProfileFields,
 } from '@/lib/auth-profile'
+import { isFullAdmin } from '@/lib/permissions'
 import { safeErrorDetails } from '@/lib/security/redaction'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
@@ -94,7 +95,7 @@ export async function requireApiAuth(
     const roleAllowed =
       allowedRoles.length === 0 ||
       allowedRoles.includes(typedProfile.role) ||
-      (allowedRoles.includes('admin') && profileRole === 'manager')
+      (allowedRoles.includes('admin') && isFullAdmin(profileRole))
 
     if (!typedProfile.is_active) {
       return {

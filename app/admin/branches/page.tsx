@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { notifyAdminBranchOptionsChanged } from '@/lib/admin/branch-filter'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
+import { isFullAdmin } from '@/lib/permissions'
 
 type BranchRecordWithOrderPrefix = AdminBranchRecord & {
   order_number_prefix?: string | null
@@ -79,8 +80,8 @@ function BranchIcon({ className = '' }: { className?: string }) {
 
 export default function AdminBranchesPage() {
   const access = usePageAccess(['admin'])
-  const { loading: accessLoading, allowed, scopeType } = access
-  const isSystemAdmin = scopeType === 'system'
+  const { loading: accessLoading, allowed, userRole } = access
+  const isSystemAdmin = isFullAdmin(userRole)
 
   const [branches, setBranches] = useState<AdminBranchRecord[]>([])
   const [loadingBranches, setLoadingBranches] = useState(false)

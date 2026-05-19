@@ -13,6 +13,7 @@ import { getDateInputValue } from '@/lib/orders/format'
 import { type OrderSourceRow } from '@/lib/orders/normalize'
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import { canViewReportRange } from '@/lib/permissions'
 import {
   escapeCsvValue,
   mapOrderSourceRowToReportOrderRecord,
@@ -261,7 +262,7 @@ function getPerformanceLabel(row: SalesByEmployeeRow): string {
 
 export default function SalesByEmployeeReportPage() {
   const { profile } = useAuthState()
-  const access = usePageAccess(['admin'])
+  const access = usePageAccess(['admin', 'employee'])
   const tenantId = profile?.tenant_id ?? null
   const {
     branches,
@@ -299,6 +300,14 @@ export default function SalesByEmployeeReportPage() {
 
       setLoading(true)
       setError(null)
+
+      if (!canViewReportRange(access.userRole, dateRange.from, dateRange.to)) {
+        setOrders([])
+        setEmployeeProfiles([])
+        setLoading(false)
+        setError('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        return
+      }
 
       let query = supabase
         .from('orders')
@@ -415,7 +424,15 @@ export default function SalesByEmployeeReportPage() {
     return () => {
       mounted = false
     }
-  }, [access.allowed, access.loading, dateRange.from, dateRange.to, effectiveBranchId, tenantId])
+  }, [
+    access.allowed,
+    access.loading,
+    access.userRole,
+    dateRange.from,
+    dateRange.to,
+    effectiveBranchId,
+    tenantId,
+  ])
 
   const employeeRows = useMemo(
     () => buildSalesByEmployeeRows(orders, employeeProfiles),

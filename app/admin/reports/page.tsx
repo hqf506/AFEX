@@ -27,6 +27,7 @@ import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { type OrderSourceRow } from '@/lib/orders/normalize'
+import { canViewReportRange } from '@/lib/permissions'
 import {
   formatCurrency,
   formatDateTime,
@@ -173,7 +174,7 @@ function DarkSummaryRow({ label, value }: { label: string; value: string }) {
 
 export default function ReportsPage() {
   const authState = useAuthState()
-  const access = usePageAccess(['admin'])
+  const access = usePageAccess(['admin', 'employee'])
   const authLoading = access.loading
   const allowed = access.allowed
   const roleLabel = getRoleLabel(access.userRole)
@@ -225,6 +226,14 @@ export default function ReportsPage() {
       setErrorMessage('')
 
       const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
+
+      if (!canViewReportRange(access.userRole, fromIso, toIso)) {
+        setErrorMessage('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        setOrders([])
+        setLoading(false)
+        setRefreshing(false)
+        return
+      }
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
         setOrders([])
@@ -319,7 +328,16 @@ export default function ReportsPage() {
       setLoading(false)
       setRefreshing(false)
     },
-    [range, dateFrom, dateTo, scopeType, branchId, effectiveBranchId, tenantId]
+    [
+      range,
+      dateFrom,
+      dateTo,
+      access.userRole,
+      scopeType,
+      branchId,
+      effectiveBranchId,
+      tenantId,
+    ]
   )
 
   useEffect(() => {

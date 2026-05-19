@@ -19,7 +19,6 @@ type CalendarPosition = {
   top: number
   left: number
   width: number
-  maxHeight: number
 }
 
 const ARABIC_MONTHS = [
@@ -37,7 +36,15 @@ const ARABIC_MONTHS = [
   'ديسمبر',
 ]
 
-const WEEK_DAYS = ['أحد', 'اثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت']
+const WEEK_DAYS = [
+  'الأحد',
+  'الاثنين',
+  'الثلاثاء',
+  'الأربعاء',
+  'الخميس',
+  'الجمعة',
+  'السبت',
+]
 
 function parseDateValue(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
@@ -150,30 +157,23 @@ export function AdminDarkDateInput({
       const viewportHeight = window.innerHeight
       const viewportWidth = window.innerWidth
       const menuGap = 8
-      const preferredHeight = 410
-      const minimumHeight = 320
+      const calendarHeight = 328
       const spaceBelow = viewportHeight - rect.bottom - menuGap
       const spaceAbove = rect.top - menuGap
-      const shouldOpenUp = spaceBelow < minimumHeight && spaceAbove > spaceBelow
-      const availableHeight = shouldOpenUp ? spaceAbove : spaceBelow
-      const maxHeight = Math.max(
-        minimumHeight,
-        Math.min(preferredHeight, availableHeight)
-      )
-      const calendarWidth = Math.max(rect.width, 320)
+      const shouldOpenUp = spaceBelow < calendarHeight && spaceAbove > spaceBelow
+      const calendarWidth = Math.max(rect.width, 284)
       const left = Math.min(
         Math.max(8, rect.right - calendarWidth),
         Math.max(8, viewportWidth - calendarWidth - 8)
       )
       const top = shouldOpenUp
-        ? Math.max(8, rect.top - maxHeight - menuGap)
+        ? Math.max(8, rect.top - calendarHeight - menuGap)
         : Math.min(rect.bottom + menuGap, viewportHeight - 56)
 
       setCalendarPosition({
         top,
         left,
         width: calendarWidth,
-        maxHeight,
       })
     }
 
@@ -279,15 +279,14 @@ export function AdminDarkDateInput({
                 top: calendarPosition.top,
                 left: calendarPosition.left,
                 width: calendarPosition.width,
-                maxHeight: calendarPosition.maxHeight,
               }}
-              className={`z-[9999] overflow-y-auto rounded-[24px] border border-cyan-300/15 bg-[#06111f] p-4 text-right text-white shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl ${calendarClassName}`}
+              className={`z-[9999] overflow-hidden rounded-[20px] border border-cyan-300/15 bg-[#06111f] p-3 text-right text-white shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl ${calendarClassName}`}
             >
-              <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
                 <button
                   type="button"
                   onClick={() => moveMonth(1)}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
                   aria-label="الشهر التالي"
                 >
                   ‹
@@ -296,23 +295,23 @@ export function AdminDarkDateInput({
                   <p className="text-sm font-black text-white">
                     {ARABIC_MONTHS[monthDate.getMonth()]} {monthDate.getFullYear()}
                   </p>
-                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                  <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
                     اختر يومًا من التقويم
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => moveMonth(-1)}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
                   aria-label="الشهر السابق"
                 >
                   ›
                 </button>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-black text-slate-500">
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-slate-500">
                 {WEEK_DAYS.map((day) => (
-                  <div key={day} className="py-2">
+                  <div key={day} className="py-1.5">
                     {day}
                   </div>
                 ))}
@@ -321,7 +320,7 @@ export function AdminDarkDateInput({
               <div className="mt-1 grid grid-cols-7 gap-1">
                 {calendarDays.map((date, index) => {
                   if (!date) {
-                    return <div key={`empty-${index}`} className="h-10" />
+                    return <div key={`empty-${index}`} className="h-8" />
                   }
 
                   const selected = selectedDate ? isSameDate(date, selectedDate) : false
@@ -332,7 +331,7 @@ export function AdminDarkDateInput({
                       key={formatDateValue(date)}
                       type="button"
                       onClick={() => selectDate(date)}
-                      className={`h-10 rounded-xl text-sm font-black transition ${
+                      className={`h-8 rounded-lg text-xs font-black transition ${
                         selected
                           ? 'bg-gradient-to-l from-cyan-300 to-teal-300 text-slate-950 shadow-[0_0_26px_rgba(34,211,238,0.22)]'
                           : currentDay
@@ -346,7 +345,7 @@ export function AdminDarkDateInput({
                 })}
               </div>
 
-              <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/10 pt-3">
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/10 pt-2.5">
                 {allowClear ? (
                   <button
                     type="button"
@@ -354,7 +353,7 @@ export function AdminDarkDateInput({
                       onChange('')
                       setOpen(false)
                     }}
-                    className="h-10 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-xs font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+                    className="h-9 rounded-xl border border-white/10 bg-white/[0.045] px-3 text-xs font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
                   >
                     مسح
                   </button>
@@ -365,7 +364,7 @@ export function AdminDarkDateInput({
                 <button
                   type="button"
                   onClick={() => selectDate(new Date())}
-                  className="h-10 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15"
+                  className="h-9 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15"
                 >
                   اليوم
                 </button>

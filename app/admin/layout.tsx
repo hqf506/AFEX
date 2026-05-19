@@ -1,9 +1,15 @@
 import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import { AdminShellLayout } from '@/components/admin-shell-layout'
+import { isFullAdmin, LIMITED_ADMIN_ROLES } from '@/lib/permissions'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
-const ADMIN_ROLES = new Set(['admin', 'manager'])
+function canEnterAdminShell(role: string) {
+  return (
+    isFullAdmin(role) ||
+    LIMITED_ADMIN_ROLES.some((allowedRole) => allowedRole === role)
+  )
+}
 
 function AdminAccessDenied() {
   return (
@@ -46,7 +52,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const role = typeof profile?.role === 'string' ? profile.role : ''
   const isActive = profile?.is_active !== false
 
-  if (!isActive || !ADMIN_ROLES.has(role)) {
+  if (!isActive || !canEnterAdminShell(role)) {
     return <AdminAccessDenied />
   }
 
