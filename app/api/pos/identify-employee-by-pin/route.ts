@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import type { AppRole } from '@/lib/app-roles'
+import { isFullAdmin } from '@/lib/permissions'
 import { redactSensitive, safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
@@ -137,6 +138,15 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
   if (!auth.ok) {
+    console.info('[POS PIN] Unauthorized verification request.', {
+      hasAuthSession: false,
+      authRole: null,
+      tenantId: null,
+      requestedBranchId: null,
+      effectiveBranchId: null,
+      pinLength: null,
+      rpc: null,
+    })
     return withFixedPinDelay(auth.response)
   }
 
@@ -149,16 +159,20 @@ export async function POST(request: NextRequest) {
       normalizeOptionalBranchId(body.branchId) ||
       normalizeOptionalBranchId(body.branch_id)
     const profileBranchId = normalizeOptionalBranchId(auth.profile.branch_id)
+    const authRole = auth.profile.role
+    const authIsFullAdmin = isFullAdmin(authRole)
 
     if (!tenantId) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[POS PIN] Missing POS tenant.', {
-          tenantId: null,
-          requestedBranchId,
-          profileBranchId: auth.profile.branch_id ?? null,
-          pinLength: pin.length,
-        })
-      }
+      console.warn('[POS PIN] Missing POS tenant.', {
+        hasAuthSession: true,
+        authRole,
+        tenantId: null,
+        requestedBranchId,
+        effectiveBranchId: null,
+        profileBranchId: auth.profile.branch_id ?? null,
+        pinLength: pin.length,
+        rpc: null,
+      })
 
       const response = jsonResponse(
         { error: MISSING_POS_CONTEXT_MESSAGE },
@@ -184,19 +198,19 @@ export async function POST(request: NextRequest) {
       }
 
       branchId = requestedBranchId
-    } else if (profileBranchId) {
+    } else if (!authIsFullAdmin && profileBranchId) {
       branchId = profileBranchId
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.info('[POS PIN] Verification request.', {
-        tenantId,
-        branchId,
-        requestedBranchId,
-        profileBranchId,
-        pinLength: pin.length,
-      })
-    }
+    console.info('[POS PIN] Verification request.', {
+      hasAuthSession: true,
+      authRole,
+      tenantId,
+      requestedBranchId,
+      effectiveBranchId: branchId,
+      profileBranchId,
+      pinLength: pin.length,
+    })
 
     if (!/^[0-9]{4}$/.test(pin)) {
       const response = jsonResponse(
@@ -227,18 +241,21 @@ export async function POST(request: NextRequest) {
     })
     const rpcRowCount = Array.isArray(data) ? data.length : data ? 1 : 0
 
-    if (process.env.NODE_ENV === 'development') {
-      console.info('[POS PIN] verify_pos_pin RPC result.', {
-        tenantId,
-        branchId,
-        pinLength: pin.length,
+    console.info('[POS PIN] verify_pos_pin RPC result.', {
+      hasAuthSession: true,
+      authRole,
+      tenantId,
+      requestedBranchId,
+      effectiveBranchId: branchId,
+      pinLength: pin.length,
+      rpc: {
         hasData: rpcRowCount > 0,
         rowCount: rpcRowCount,
         hasError: Boolean(error),
         errorCode: error?.code ?? null,
         errorMessage: error?.message ?? null,
-      })
-    }
+      },
+    })
 
     if (error) {
       const rpcErrorLog =
@@ -251,17 +268,18 @@ export async function POST(request: NextRequest) {
               code: error.code,
             }
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error(
-          '[POS PIN] verify_pos_pin RPC failed.',
-          redactSensitive({
-            tenantId,
-            branchId,
-            pinLength: pin.length,
-            ...rpcErrorLog,
-          })
-        )
-      }
+      console.error(
+        '[POS PIN] verify_pos_pin RPC failed.',
+        redactSensitive({
+          hasAuthSession: true,
+          authRole,
+          tenantId,
+          requestedBranchId,
+          effectiveBranchId: branchId,
+          pinLength: pin.length,
+          ...rpcErrorLog,
+        })
+      )
 
       const response = jsonResponse(
         {
