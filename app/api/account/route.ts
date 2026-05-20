@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { User } from '@supabase/supabase-js'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import type { ApiAuthProfile } from '@/lib/api-auth'
 import { maskId } from '@/lib/security/redaction'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 type AccountPatchBody = {
   full_name?: unknown
@@ -19,7 +21,7 @@ type AccountAuth = {
   response: NextResponse
   user: User
   profile: Pick<ApiAuthProfile, 'id' | 'tenant_id' | 'branch_id'>
-  supabase: typeof supabaseAdmin
+  supabase: SupabaseClient
 }
 
 type AccountAuthFailure = {
@@ -52,6 +54,12 @@ function getBearerToken(request: NextRequest) {
   return token.trim()
 }
 
+async function getSupabaseAdminClient() {
+  const { supabaseAdmin } = await import('@/lib/supabase/admin')
+
+  return supabaseAdmin
+}
+
 async function requireAccountAuth(
   request: NextRequest
 ): Promise<AccountAuth | AccountAuthFailure> {
@@ -79,6 +87,7 @@ async function requireAccountAuth(
     return auth
   }
 
+  const supabaseAdmin = await getSupabaseAdminClient()
   const {
     data: { user },
     error: userError,
