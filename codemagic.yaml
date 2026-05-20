@@ -4,6 +4,7 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
+      java: 21
       groups:
         - afex-pos-env
         - afex-pos-android-signing
@@ -26,6 +27,7 @@ workflows:
           echo "$AFEX_POS_RELEASE_KEYSTORE_BASE64" | base64 --decode > android/afex-pos-release-key.jks
       - name: Build Android release AAB
         script: |
+          java -version
           chmod +x android/gradlew
           cd android
           ./gradlew bundleRelease
