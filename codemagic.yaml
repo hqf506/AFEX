@@ -19,6 +19,7 @@ workflows:
         script: npx cap sync android
       - name: Build Android release AAB
         script: |
+          chmod +x android/gradlew
           cd android
           ./gradlew bundleRelease
     artifacts:
