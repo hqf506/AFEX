@@ -7,6 +7,7 @@
 # 2. Environment variables in the shell used for release builds.
 
 AFEX_POS_RELEASE_STORE_FILE=../afex-pos-release-key.jks
+AFEX_POS_RELEASE_KEYSTORE_BASE64=replace_with_base64_encoded_keystore_for_ci
 AFEX_POS_RELEASE_KEY_ALIAS=afex-pos
 AFEX_POS_RELEASE_STORE_PASSWORD=replace_with_keystore_password
 AFEX_POS_RELEASE_KEY_PASSWORD=replace_with_key_password

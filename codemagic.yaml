@@ -17,6 +17,13 @@ workflows:
         script: npm run build
       - name: Sync Capacitor Android
         script: npx cap sync android
+      - name: Restore Android release keystore
+        script: |
+          if [ -z "$AFEX_POS_RELEASE_KEYSTORE_BASE64" ]; then
+            echo "AFEX_POS_RELEASE_KEYSTORE_BASE64 is missing"
+            exit 1
+          fi
+          echo "$AFEX_POS_RELEASE_KEYSTORE_BASE64" | base64 --decode > android/afex-pos-release-key.jks
       - name: Build Android release AAB
         script: |
           chmod +x android/gradlew
