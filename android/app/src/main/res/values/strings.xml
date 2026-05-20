@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AFEX POS</string>
+    <string name="title_activity_main">AFEX POS</string>
+    <string name="package_name">com.afex.pos</string>
+    <string name="custom_url_scheme">com.afex.pos</string>
+</resources>

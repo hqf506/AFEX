@@ -24,6 +24,31 @@ const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
 let successAudioContext: AudioContext | null = null
 
+type CapacitorBridge = {
+  isNativePlatform?: () => boolean
+  getPlatform?: () => string
+}
+
+function isCapacitorWebView() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  const capacitor = (window as typeof window & { Capacitor?: CapacitorBridge })
+    .Capacitor
+
+  if (capacitor?.isNativePlatform?.()) {
+    return true
+  }
+
+  const platform = capacitor?.getPlatform?.()
+  if (platform && platform !== 'web') {
+    return true
+  }
+
+  return /Capacitor/i.test(window.navigator.userAgent)
+}
+
 function getSuccessAudioContext() {
   if (typeof window === 'undefined') {
     return null
@@ -178,6 +203,7 @@ function buildCombinedThermalPrintHtml(
 export default function PosSaleSuccessPage() {
   const router = useRouter()
   const successFeedbackPlayedRef = useRef(false)
+  const runningInCapacitor = useMemo(() => isCapacitorWebView(), [])
   const [snapshot] = useState<InvoiceSuccessSnapshot | null>(() => {
     if (typeof window === 'undefined') return null
 
@@ -228,6 +254,8 @@ export default function PosSaleSuccessPage() {
   const handlePrint = () => {
     void (async () => {
       if (!snapshot) return
+      // TODO(iOS native): replace browser-window printing with AirPrint support.
+      if (runningInCapacitor) return
 
       const digitalInvoiceSettings = await loadDigitalInvoiceSettings()
       const printWindow = window.open('', '_blank', 'width=900,height=700')
@@ -264,6 +292,8 @@ export default function PosSaleSuccessPage() {
 
   const runThermalPrint = useCallback(async () => {
     if (!snapshot) return
+    // TODO(iOS native): add Bluetooth printer integration for thermal receipts.
+    if (runningInCapacitor) return
 
     const thermalInvoiceSettings = loadThermalInvoiceSettings()
     const printWindow = window.open('', '_blank', 'width=420,height=800')
@@ -313,10 +343,16 @@ export default function PosSaleSuccessPage() {
         printWindow.close()
       }, 300)
     }, 300)
-  }, [snapshot])
+  }, [runningInCapacitor, snapshot])
 
   const handleThermalPrint = () => {
     void runThermalPrint()
+  }
+
+  const handlePagePrint = () => {
+    if (runningInCapacitor) return
+
+    window.print()
   }
 
   useEffect(() => {
@@ -550,7 +586,7 @@ export default function PosSaleSuccessPage() {
             </AdminButton>
 
             <AdminButton
-              onClick={() => window.print()}
+              onClick={handlePagePrint}
               onMouseEnter={(event) => {
                 event.currentTarget.style.backgroundColor = '#000000'
                 event.currentTarget.style.color = '#ffffff'

@@ -15,6 +15,31 @@ type PosShellLayoutProps = {
   children: React.ReactNode
 }
 
+type CapacitorBridge = {
+  isNativePlatform?: () => boolean
+  getPlatform?: () => string
+}
+
+function isCapacitorWebView() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  const capacitor = (window as typeof window & { Capacitor?: CapacitorBridge })
+    .Capacitor
+
+  if (capacitor?.isNativePlatform?.()) {
+    return true
+  }
+
+  const platform = capacitor?.getPlatform?.()
+  if (platform && platform !== 'web') {
+    return true
+  }
+
+  return /Capacitor/i.test(window.navigator.userAgent)
+}
+
 function PosShellViewport({
   children,
   isLoginPage = false,
@@ -22,9 +47,23 @@ function PosShellViewport({
   children: React.ReactNode
   isLoginPage?: boolean
 }) {
+  useEffect(() => {
+    if (!isCapacitorWebView()) {
+      return
+    }
+
+    document.documentElement.classList.add('is-capacitor')
+    document.body.classList.add('is-capacitor')
+
+    return () => {
+      document.documentElement.classList.remove('is-capacitor')
+      document.body.classList.remove('is-capacitor')
+    }
+  }, [])
+
   return (
-    <div className="min-h-screen w-screen bg-slate-100 text-slate-900 xl:bg-black">
-      <div className="h-full w-full min-h-screen px-0 py-0 xl:min-h-screen xl:px-0 xl:py-0">
+    <div className="pos-shell-viewport min-h-screen w-screen bg-slate-100 text-slate-900 xl:bg-black">
+      <div className="pos-shell-inner h-full w-full min-h-screen px-0 py-0 xl:min-h-screen xl:px-0 xl:py-0">
         <PosTabletFrame isLoginPage={isLoginPage}>{children}</PosTabletFrame>
       </div>
     </div>
@@ -56,6 +95,7 @@ function ProtectedPosShellLayout({
   requireEmployee = true,
 }: PosShellLayoutProps & { requireEmployee?: boolean }) {
   const router = useRouter()
+  const pathname = usePathname()
   const authState = useAuthState()
   const [retrying, setRetrying] = useState(false)
   const [employeeCheckReady, setEmployeeCheckReady] = useState(false)
@@ -67,6 +107,31 @@ function ProtectedPosShellLayout({
   const hasAuthError = Boolean(authState.error)
   const isTimeoutError = authState.error === 'timeout'
   const isLockError = authState.error === 'auth-lock'
+
+  useEffect(() => {
+    console.info('[POS SHELL DEBUG] render state', {
+      pathname,
+      requireEmployee,
+      authLoading: authState.loading,
+      authStatus: authState.status,
+      authError: authState.error,
+      hasProfile: Boolean(authState.profile),
+      role: authState.profile?.role ?? null,
+      allowed,
+      employeeCheckReady,
+      hasActiveEmployee: Boolean(activeEmployee),
+    })
+  }, [
+    activeEmployee,
+    allowed,
+    authState.error,
+    authState.loading,
+    authState.profile,
+    authState.status,
+    employeeCheckReady,
+    pathname,
+    requireEmployee,
+  ])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -89,9 +154,15 @@ function ProtectedPosShellLayout({
     }
 
     if (!authState.profile || !allowed) {
+      console.info('[POS SHELL DEBUG] redirect to login', {
+        pathname,
+        hasProfile: Boolean(authState.profile),
+        role: authState.profile?.role ?? null,
+        allowed,
+      })
       router.replace('/pos/login')
     }
-  }, [allowed, authState.error, authState.loading, authState.profile, router])
+  }, [allowed, authState.error, authState.loading, authState.profile, pathname, router])
 
   useEffect(() => {
     if (
@@ -105,6 +176,11 @@ function ProtectedPosShellLayout({
     }
 
     if (!activeEmployee) {
+      console.info('[POS SHELL DEBUG] redirect to employee pin', {
+        pathname,
+        requireEmployee,
+        employeeCheckReady,
+      })
       router.replace('/pos/employee-pin')
     }
   }, [
@@ -113,6 +189,7 @@ function ProtectedPosShellLayout({
     authState.error,
     authState.loading,
     employeeCheckReady,
+    pathname,
     requireEmployee,
     router,
   ])

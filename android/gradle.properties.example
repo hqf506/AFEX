@@ -1,0 +1,12 @@
+# Copy these values into your local Gradle properties or set them as environment variables.
+# Do not commit real passwords.
+#
+# Recommended local options:
+# 1. User-level Gradle properties:
+#    C:\Users\<YOU>\.gradle\gradle.properties
+# 2. Environment variables in the shell used for release builds.
+
+AFEX_POS_RELEASE_STORE_FILE=../afex-pos-release-key.jks
+AFEX_POS_RELEASE_KEY_ALIAS=afex-pos
+AFEX_POS_RELEASE_STORE_PASSWORD=replace_with_keystore_password
+AFEX_POS_RELEASE_KEY_PASSWORD=replace_with_key_password

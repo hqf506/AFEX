@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   applicationName: 'AFEX POS',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'LF POS',
+    statusBarStyle: 'black-translucent',
+    title: 'AFEX POS',
   },
   formatDetection: {
     telephone: false,
@@ -20,6 +20,9 @@ export const viewport: Viewport = {
   themeColor: '#0f172a',
   width: 'device-width',
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
   interactiveWidget: 'resizes-content',
 }
 

@@ -12,7 +12,7 @@ workflows:
         NEXT_PUBLIC_POS_APP_URL: https://YOUR_DOMAIN.com/pos
     scripts:
       - name: Install dependencies
-        script: npm ci
+        script: npm ci --include=dev
       - name: Build Next.js app
         script: npm run build
       - name: Sync Capacitor Android
@@ -43,7 +43,7 @@ workflows:
         bundle_identifier: com.afex.pos
     scripts:
       - name: Install dependencies
-        script: npm ci
+        script: npm ci --include=dev
       - name: Build Next.js app
         script: npm run build
       - name: Sync Capacitor iOS

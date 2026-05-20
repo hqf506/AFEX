@@ -676,8 +676,8 @@ export default function PosPage() {
   }
 
   return (
-    <div className="flex h-full w-full min-h-0 min-w-0 flex-col bg-slate-50">
-      <div className="grid h-full min-h-0 gap-2 rounded-[28px] border border-slate-200 bg-white p-2 shadow-sm md:gap-3 md:p-3 lg:[direction:ltr] lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-4">
+    <div className="pos-home-screen flex h-full w-full min-h-0 min-w-0 flex-col bg-slate-50">
+      <div className="pos-home-surface grid h-full min-h-0 gap-2 rounded-[28px] border border-slate-200 bg-white p-2 shadow-sm md:gap-3 md:p-3 lg:[direction:ltr] lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-4">
         <main className="order-2 min-w-0 lg:order-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:[direction:rtl]">
           <div className="flex h-full min-h-0 flex-col gap-5">
             <div className="space-y-5">

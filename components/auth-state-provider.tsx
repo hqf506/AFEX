@@ -42,6 +42,23 @@ type CachedAuthProfile = {
   userId: string
 }
 
+function logPosAuthDebug(message: string, details: Record<string, unknown> = {}) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  if (!window.location.pathname.startsWith('/pos')) {
+    return
+  }
+
+  console.info('[POS AUTH DEBUG]', message, {
+    pathname: window.location.pathname,
+    origin: window.location.origin,
+    userAgent: window.navigator.userAgent,
+    ...details,
+  })
+}
+
 function redirectToPosLoginIfNeeded() {
   if (typeof window === 'undefined') {
     return
@@ -330,6 +347,11 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
         }
 
         latestSessionUserRef.current = toSessionUserSnapshot(session)
+        logPosAuthDebug('auth state changed', {
+          event: _event,
+          hasSession: Boolean(session),
+          userId: session?.user?.id ?? null,
+        })
 
         if (!session) {
           requestIdRef.current += 1
@@ -360,6 +382,10 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           data: { session },
         } = sessionResponse
         latestSessionUserRef.current = toSessionUserSnapshot(session)
+        logPosAuthDebug('bootstrap session resolved', {
+          hasSession: Boolean(session),
+          userId: session?.user?.id ?? null,
+        })
 
         if (cancelled || !mountedRef.current) {
           return

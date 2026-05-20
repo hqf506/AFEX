@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="AFEX-pos app icon">
+  <rect width="1024" height="1024" rx="184" fill="#000000"/>
+  <path
+    d="M236 522c-31-170 101-326 273-326 95 0 182 48 234 130"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="36"
+    stroke-linecap="round"
+  />
+  <path
+    d="M791 402c11 40 11 82 2 123-10 49-34 95-68 131"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="36"
+    stroke-linecap="round"
+  />
+  <path
+    d="M356 292h250c48 0 87 39 87 87v25h-76v-25c0-30-24-54-54-54h-40v330l-36-31-36 31-36-31-36 31-23-21V292Z"
+    fill="#ffffff"
+  />
+  <path
+    d="M617 292h1c42 0 76 34 76 76v36h-77V292Z"
+    fill="#ffffff"
+  />
+  <text
+    x="429"
+    y="426"
+    text-anchor="middle"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="82"
+    font-weight="900"
+    fill="#000000"
+  >$</text>
+  <path
+    d="M486 419h86M404 490h168M404 552h132M404 614h98M620 440h66M620 502h60M620 564h62M620 626h54"
+    fill="none"
+    stroke="#000000"
+    stroke-width="26"
+    stroke-linecap="round"
+  />
+  <text
+    x="512"
+    y="844"
+    text-anchor="middle"
+    font-family="Arial Black, Arial, Helvetica, sans-serif"
+    font-size="146"
+    font-weight="900"
+    letter-spacing="-4"
+    fill="#ffffff"
+  >AFEX-pos</text>
+</svg>
