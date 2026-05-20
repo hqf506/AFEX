@@ -1,0 +1,65 @@
+workflows:
+  afex-pos-android-release:
+    name: AFEX POS Android Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - afex-pos-env
+        - afex-pos-android-signing
+      vars:
+        NODE_ENV: production
+        NEXT_PUBLIC_POS_APP_URL: https://YOUR_DOMAIN.com/pos
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+      - name: Build Next.js app
+        script: npm run build
+      - name: Sync Capacitor Android
+        script: npx cap sync android
+      - name: Build Android release AAB
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/bundle/release/app-release.aab
+      - android/app/build/outputs/apk/**/*.apk
+
+  afex-pos-ios-release:
+    name: AFEX POS iOS Release
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - afex-pos-env
+      vars:
+        NODE_ENV: production
+        NEXT_PUBLIC_POS_APP_URL: https://YOUR_DOMAIN.com/pos
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+        BUNDLE_ID: com.afex.pos
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.afex.pos
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+      - name: Build Next.js app
+        script: npm run build
+      - name: Sync Capacitor iOS
+        script: npx cap sync ios
+      - name: Install CocoaPods if present
+        script: |
+          cd ios/App
+          if [ -f Podfile ]; then
+            pod install
+          else
+            echo "No Podfile found; Capacitor iOS project is using Swift Package Manager."
+          fi
+      - name: Apply iOS signing profiles
+        script: xcode-project use-profiles
+      - name: Build iOS IPA
+        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
