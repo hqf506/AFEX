@@ -5,6 +5,7 @@ import type {
   WhatsAppProviderKey,
   WhatsAppServiceResult,
   WhatsAppSendFileInput,
+  WhatsAppSendImageInput,
   WhatsAppSendTextInput,
 } from '@/lib/whatsapp/types'
 
@@ -21,6 +22,16 @@ function buildFileMessage(input: WhatsAppSendFileInput): WhatsAppSendFileInput {
   }
 }
 
+function buildImageMessage(
+  input: WhatsAppSendImageInput
+): WhatsAppSendImageInput {
+  return {
+    ...input,
+    imageUrl: input.imageUrl.trim(),
+    caption: input.caption?.trim() || undefined,
+  }
+}
+
 type SendWhatsAppTextOptions = {
   mode?: 'text' | 'test'
   messageType?: 'text'
@@ -29,6 +40,11 @@ type SendWhatsAppTextOptions = {
 type SendWhatsAppFileOptions = {
   mode?: 'file'
   messageType?: 'file'
+}
+
+type SendWhatsAppImageOptions = {
+  mode?: 'image'
+  messageType?: 'image'
 }
 
 export async function sendWhatsAppText(
@@ -138,6 +154,72 @@ export async function sendWhatsAppFile(
     }
 
     const result = await provider.sendFile(buildFileMessage(input), config)
+
+    logWhatsAppSend({
+      provider: providerKey,
+      phone: input.to,
+      messageType,
+      mode,
+      success: result.success,
+      errorMessage: result.success ? undefined : result.errorMessage,
+    })
+
+    return {
+      providerKey,
+      ...result,
+    }
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown WhatsApp send error'
+
+    logWhatsAppSend({
+      provider: providerKey,
+      phone: input.to,
+      messageType,
+      mode,
+      success: false,
+      errorMessage,
+    })
+
+    throw error
+  }
+}
+
+export async function sendWhatsAppImage(
+  input: WhatsAppSendImageInput,
+  options: SendWhatsAppImageOptions = {}
+): Promise<WhatsAppServiceResult> {
+  const mode = options.mode || 'image'
+  const messageType = options.messageType || 'image'
+  let providerKey: WhatsAppProviderKey = 'ultramsg'
+
+  try {
+    const config = await getBranchWhatsAppProviderConfig(
+      input.branchId,
+      input.tenantId
+    )
+
+    if (!config) {
+      return {
+        providerKey,
+        success: false,
+        errorMessage: 'WhatsApp branch config is missing or inactive',
+      }
+    }
+
+    providerKey = config.providerKey
+    const provider = getWhatsAppProvider(providerKey)
+    const validation = provider.validateConfig(config)
+
+    if (!validation.valid) {
+      return {
+        providerKey,
+        success: false,
+        errorMessage: validation.errors.join(', '),
+      }
+    }
+
+    const result = await provider.sendImage(buildImageMessage(input), config)
 
     logWhatsAppSend({
       provider: providerKey,

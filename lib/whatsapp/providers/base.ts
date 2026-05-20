@@ -4,6 +4,7 @@ import type {
   WhatsAppProviderSendResult,
   WhatsAppProviderValidationResult,
   WhatsAppSendFileInput,
+  WhatsAppSendImageInput,
   WhatsAppSendTextInput,
 } from '@/lib/whatsapp/types'
 
@@ -18,6 +19,10 @@ export interface WhatsAppProviderAdapter<
   ): Promise<WhatsAppProviderSendResult>
   sendFile(
     input: WhatsAppSendFileInput,
+    config: TConfig
+  ): Promise<WhatsAppProviderSendResult>
+  sendImage(
+    input: WhatsAppSendImageInput,
     config: TConfig
   ): Promise<WhatsAppProviderSendResult>
 }

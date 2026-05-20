@@ -124,6 +124,16 @@ function TagIcon({ className }: { className?: string }) {
   )
 }
 
+function AnnouncementIcon({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <path d="M4 13.5V9.8c0-.9.6-1.7 1.5-1.9L19 4v15L5.5 15.1A2 2 0 0 1 4 13.5Z" />
+      <path d="M8 15.5 9.5 21h3L11 16.3" />
+      <path d="M19 8.5a3.5 3.5 0 0 1 0 6.5" />
+    </IconBase>
+  )
+}
+
 function UsersIcon({ className }: { className?: string }) {
   return (
     <IconBase className={className}>
@@ -270,6 +280,13 @@ const adminNavItems: AdminNavItem[] = [
     roles: ['admin', 'manager'],
     exact: true,
     icon: TagIcon,
+  },
+  {
+    label: 'الإعلانات',
+    href: '/admin/announcements',
+    roles: ['admin', 'manager', 'owner'],
+    exact: true,
+    icon: AnnouncementIcon,
   },
   {
     label: 'الضريبة - VAT',

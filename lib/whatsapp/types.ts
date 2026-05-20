@@ -18,6 +18,15 @@ export type WhatsAppSendFileInput = {
   metadata?: Record<string, unknown>
 }
 
+export type WhatsAppSendImageInput = {
+  to: string
+  imageUrl: string
+  caption?: string
+  branchId?: string | null
+  tenantId?: string | null
+  metadata?: Record<string, unknown>
+}
+
 export type WhatsAppProviderSendResult = {
   success: boolean
   providerMessageId?: string
