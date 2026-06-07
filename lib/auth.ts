@@ -14,6 +14,7 @@ export type CurrentUserProfile = {
   full_name: string
   is_active: boolean
   tenant_id: string | null
+  tenant_name: string | null
 } & BranchAwareProfileFields
 
 export type AuthenticatedUserProfile = CurrentUserProfile
@@ -71,7 +72,7 @@ async function fetchCurrentUserProfileForUser(
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('full_name, role, is_active, branch_id, tenant_id')
+    .select('full_name, role, is_active, branch_id, tenant_id, tenant_name')
     .eq('id', normalizedUser.id)
     .single()
 
@@ -85,6 +86,56 @@ async function fetchCurrentUserProfileForUser(
     typeof profile.branch_id === 'string' ? profile.branch_id : null
   const tenantId =
     typeof profile.tenant_id === 'string' ? profile.tenant_id : null
+  let tenantName =
+    typeof profile.tenant_name === 'string' && profile.tenant_name.trim()
+      ? profile.tenant_name.trim()
+      : null
+
+  if (!tenantName && tenantId) {
+    const { data: tenantProfile } = await supabase
+      .from('profiles')
+      .select('tenant_name')
+      .eq('tenant_id', tenantId)
+      .not('tenant_name', 'is', null)
+      .limit(1)
+      .maybeSingle()
+
+    tenantName =
+      typeof tenantProfile?.tenant_name === 'string' &&
+      tenantProfile.tenant_name.trim()
+        ? tenantProfile.tenant_name.trim()
+        : null
+  }
+
+  if (!tenantName && tenantId) {
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('id', tenantId)
+      .maybeSingle()
+
+    const tenantRecord =
+      tenant && typeof tenant === 'object'
+        ? (tenant as Record<string, unknown>)
+        : null
+    const rawTenantName =
+      typeof tenantRecord?.tenant_name === 'string'
+        ? tenantRecord.tenant_name
+        : typeof tenantRecord?.name === 'string'
+          ? tenantRecord.name
+          : null
+
+    tenantName = rawTenantName?.trim() || null
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    console.info('[POS AUTH] Tenant profile lookup.', {
+      tenant_id: tenantId,
+      tenant_name: tenantName,
+      branch_id: branchId,
+      source: profile.tenant_name ? 'profiles.tenant_name' : 'fallback',
+    })
+  }
 
   const nextProfile = {
     id: normalizedUser.id,
@@ -93,6 +144,7 @@ async function fetchCurrentUserProfileForUser(
     full_name: profile.full_name || '',
     is_active: Boolean(profile.is_active),
     tenant_id: tenantId,
+    tenant_name: tenantName,
     branch_id: branchId,
     scope_type: resolveAuthScopeType(profile.role as AppRole, branchId),
   }

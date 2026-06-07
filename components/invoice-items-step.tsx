@@ -1235,6 +1235,423 @@ export function InvoiceItemsStep({
   }
 
   if (variant === 'pos') {
+    const squarePosCategoryLabels = [
+      INVOICE_ALL_FILTER,
+      'الخدمات',
+      'المنتجات',
+      'تنظيف',
+      'إصلاح',
+      'عناية',
+      'ألوان',
+      'غسيل',
+    ]
+
+    return (
+      <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_34%),radial-gradient(circle_at_78%_84%,rgba(14,165,233,0.12),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_48%,#020817_100%)]" />
+        <div className="relative flex h-full w-full gap-3.5 overflow-hidden p-4 [direction:ltr] xl:gap-4">
+          <main className="flex min-w-0 flex-1 flex-col gap-2.5 overflow-hidden [direction:rtl]">
+            {(hasInvalidBranchContext || hasAmbiguousAdminBranchContext || stockErrorMessage) ? (
+              <div className="grid gap-2">
+                {hasInvalidBranchContext ? (
+                  <div className="rounded-3xl border border-red-400/25 bg-red-950/40 px-5 py-3 text-sm font-bold text-red-100 shadow-[0_18px_48px_rgba(127,29,29,0.18)]">
+                    لا يمكن استخدام شاشة الفاتورة لأن حسابك غير مرتبط بفرع صالح
+                  </div>
+                ) : null}
+                {hasAmbiguousAdminBranchContext ? (
+                  <div className="rounded-3xl border border-amber-400/25 bg-amber-950/40 px-5 py-3 text-sm font-bold text-amber-100 shadow-[0_18px_48px_rgba(120,53,15,0.18)]">
+                    اختر فرعًا محددًا من القائمة قبل إنشاء فاتورة جديدة
+                  </div>
+                ) : null}
+                {stockErrorMessage ? (
+                  <div className="rounded-3xl border border-red-400/25 bg-red-950/40 px-5 py-3 text-sm font-bold text-red-100 shadow-[0_18px_48px_rgba(127,29,29,0.18)]">
+                    {stockErrorMessage}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <section className="flex shrink-0 items-center gap-3">
+              <div className="relative min-w-0 flex-1">
+                <SearchIcon className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-cyan-200/70" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value)
+                    setCurrentCatalogPage(1)
+                  }}
+                  placeholder="ابحث عن منتج أو خدمة"
+                  className="h-[54px] w-full rounded-[22px] border border-cyan-300/14 bg-[#020817]/70 pr-5 pl-14 text-right text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_34px_rgba(8,47,73,0.16)] outline-none backdrop-blur-xl transition placeholder:text-slate-400 focus:border-cyan-300/36 focus:ring-4 focus:ring-cyan-300/10 touch-manipulation"
+                  inputMode="search"
+                />
+              </div>
+
+              <a
+                href={customerStepHref}
+                className="flex h-[54px] shrink-0 items-center justify-center rounded-[22px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-sm font-black text-cyan-100 shadow-[0_14px_30px_rgba(34,211,238,0.10)] transition hover:bg-cyan-400/15 touch-manipulation"
+              >
+                إضافة عميل
+              </a>
+
+              <button
+                type="button"
+                onClick={() => void forceReloadCatalog({ showRefreshing: true })}
+                disabled={catalogLoading || catalogRefreshing}
+                aria-label="تحديث المخزون"
+                className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[20px] border border-cyan-300/14 bg-[#020817]/65 text-cyan-200 shadow-[0_14px_30px_rgba(34,211,238,0.10)] transition hover:border-cyan-300/30 hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation"
+              >
+                <InventoryRefreshIcon
+                  className={`h-6 w-6 ${catalogRefreshing ? 'animate-spin' : ''}`}
+                />
+              </button>
+            </section>
+
+            <section className="flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1">
+              {squarePosCategoryLabels.map((filter) => {
+                const active = activeFilter === filter
+
+                return (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => {
+                      setActiveFilter(filter)
+                      setCurrentCatalogPage(1)
+                    }}
+                    className={`min-h-[38px] shrink-0 rounded-full px-3.5 text-xs font-black transition touch-manipulation ${
+                      active
+                        ? 'bg-cyan-300 text-[#02101c] shadow-[0_0_34px_rgba(34,211,238,0.30)]'
+                        : 'border border-cyan-300/12 bg-[#020817]/54 text-slate-300 hover:border-cyan-300/24 hover:bg-cyan-400/8'
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                )
+              })}
+            </section>
+
+            {isSystemAdmin && !posEmployeeBranchId ? (
+              <div className="shrink-0 rounded-[24px] border border-cyan-300/12 bg-[#020817]/60 p-3 backdrop-blur-xl">
+                <AdminBranchFilter
+                  branches={branches}
+                  selectedBranchId={selectedBranchId}
+                  loading={loadingBranches}
+                  onChange={setSelectedBranchId}
+                  allLabel="اختر فرعًا للفاتورة"
+                />
+              </div>
+            ) : null}
+
+            <section className="min-h-0 flex-1 overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#020817]/58 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_22px_58px_rgba(2,8,23,0.32)] backdrop-blur-2xl">
+              {hasAmbiguousAdminBranchContext ? (
+                <div className="flex h-full items-center justify-center rounded-[28px] border border-amber-400/20 bg-amber-950/20 px-6 text-center text-sm font-bold text-amber-100">
+                  اختر فرعًا محددًا أولًا حتى يتم تحميل كتالوج الفرع الصحيح للفاتورة.
+                </div>
+              ) : catalogLoading && !canRenderCatalogImmediately ? (
+                <div className="flex h-full items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300">
+                  جاري تحميل العناصر...
+                </div>
+              ) : catalogError && filteredProducts.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-[28px] border border-red-400/20 bg-red-950/20 px-6 text-center text-sm font-bold text-red-100">
+                  تعذر تحميل العناصر، حاول تحديث الصفحة
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300">
+                  لا توجد منتجات أو خدمات متاحة لهذا الفرع.
+                </div>
+              ) : (
+                <div className="flex h-full min-h-0 flex-col gap-3">
+                  <div className="grid min-h-0 flex-1 auto-rows-[232px] grid-cols-4 gap-3 overflow-y-auto pr-1">
+                    {paginatedProducts.map((product) => {
+                      const normalizedCatalogItemId =
+                        getNormalizedCatalogItemId(product)
+                      const inventoryState = getInventoryTrackingState(product)
+                      const productOutOfStock = inventoryState.isOutOfStock
+                      const productCartQuantity =
+                        invoiceItemQuantities.byId.get(normalizedCatalogItemId) ??
+                        invoiceItemQuantities.byName.get(product.name) ??
+                        0
+                      const reachedStockLimit =
+                        inventoryState.isInventoryTracked &&
+                        productCartQuantity >= inventoryState.normalizedQuantity
+
+                      return (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => addItemWithFeedback(product)}
+                          disabled={productOutOfStock}
+                          className={`group flex h-[220px] min-w-0 flex-col rounded-[24px] border border-cyan-300/12 bg-[#061426]/72 p-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition hover:border-cyan-300/28 hover:bg-[#08203a]/74 active:scale-[0.985] touch-manipulation ${
+                            productOutOfStock ? 'cursor-not-allowed opacity-55' : ''
+                          } ${
+                            pressedItemId === normalizedCatalogItemId
+                              ? 'scale-[0.98]'
+                              : 'scale-100'
+                          } ${
+                            recentlyAddedItemId === normalizedCatalogItemId
+                              ? 'border-cyan-300/50 shadow-[0_0_42px_rgba(34,211,238,0.22)]'
+                              : ''
+                          }`}
+                        >
+                          <div className="relative h-[104px] shrink-0 overflow-hidden rounded-[20px] border border-cyan-300/10 bg-[#020817]/72">
+                            <PosCatalogItemImage
+                              key={product.image_url || product.id}
+                              imageUrl={product.image_url}
+                              posDisplayMode={getProductPosDisplayMode(product)}
+                              posColor={getProductOptionalText(product, 'pos_color')}
+                              posShape={getProductOptionalText(product, 'pos_shape')}
+                              name={product.name}
+                              type={product.type}
+                              frameClassName="h-full w-full rounded-[20px] bg-[#020817]"
+                            />
+                            {productCartQuantity > 0 ? (
+                              <span className="absolute right-2 top-2 rounded-full bg-cyan-300 px-2 py-0.5 text-[11px] font-black text-[#02101c] shadow-[0_0_22px_rgba(34,211,238,0.38)]">
+                                {productCartQuantity}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="flex min-h-0 flex-1 flex-col px-1 pt-2">
+                            <h3 className="line-clamp-2 h-[38px] shrink-0 break-words text-[13px] font-black leading-[19px] text-white">
+                              {product.name}
+                            </h3>
+                            <p className="mt-0.5 h-[15px] shrink-0 truncate text-[11px] font-bold leading-[15px] text-slate-400">
+                              {product.category}
+                            </p>
+                            <div className="mt-auto flex h-11 shrink-0 items-end justify-between gap-2 pt-1">
+                              <div className="min-w-0 pb-1">
+                                <p className="truncate whitespace-nowrap text-base font-black text-cyan-100">
+                                  {formatCurrency(product.price)}
+                                </p>
+                              </div>
+                              <span
+                                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] text-xl font-black transition ${
+                                  reachedStockLimit || productOutOfStock
+                                    ? 'bg-slate-800 text-slate-500'
+                                    : 'bg-cyan-300 text-[#02101c] shadow-[0_0_28px_rgba(34,211,238,0.32)] group-hover:scale-105'
+                                }`}
+                              >
+                                +
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {totalCatalogPages > 1 ? (
+                    <div className="flex shrink-0 items-center justify-center gap-2 border-t border-cyan-300/10 pt-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentCatalogPage((current) => Math.max(1, current - 1))
+                        }
+                        disabled={effectiveCatalogPage === 1}
+                        className="min-h-[44px] rounded-2xl border border-cyan-300/12 bg-[#020817]/70 px-4 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 touch-manipulation"
+                      >
+                        السابق
+                      </button>
+                      <span className="rounded-full bg-cyan-300/10 px-4 py-2 text-xs font-black text-cyan-100">
+                        {effectiveCatalogPage} / {totalCatalogPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentCatalogPage((current) =>
+                            Math.min(totalCatalogPages, current + 1)
+                          )
+                        }
+                        disabled={effectiveCatalogPage === totalCatalogPages}
+                        className="min-h-[44px] rounded-2xl border border-cyan-300/12 bg-[#020817]/70 px-4 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 touch-manipulation"
+                      >
+                        التالي
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </section>
+          </main>
+
+          <aside className="flex h-full w-[320px] shrink-0 flex-col overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl]">
+            <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
+              <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
+                AFEX POS
+              </p>
+              <h2 className="mt-1 text-xl font-black text-white">ملخص الفاتورة</h2>
+              <p className="mt-1 text-xs font-bold text-slate-400">
+                الفرع: {invoiceBranchName}
+              </p>
+            </div>
+
+            <div className="mt-2.5 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3.5">
+              <p className="text-xs font-black text-slate-400">العميل</p>
+              <p className="mt-2 truncate text-lg font-black text-white">
+                {customerName || 'عميل غير محدد'}
+              </p>
+              <p className="mt-1 truncate text-sm font-bold text-slate-400">
+                {customerPhone || 'بدون رقم جوال'}
+              </p>
+            </div>
+
+            <div className="mt-2 flex min-h-0 flex-1 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-base font-black text-white">العناصر المختارة</h3>
+                <span className="rounded-full bg-cyan-300/12 px-3 py-1 text-xs font-black text-cyan-100">
+                  {invoiceItemCount}
+                </span>
+              </div>
+
+              {invoiceItems.length === 0 ? (
+                <div className="flex min-h-0 flex-1 items-center justify-center rounded-[24px] border border-dashed border-cyan-300/16 bg-[#020817]/44 px-4 text-center text-sm font-bold leading-7 text-slate-400">
+                  اختر العناصر من الشبكة لإضافتها إلى الفاتورة.
+                </div>
+              ) : (
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                  {invoiceItems.map((item) => (
+                    <div
+                      key={item.item_name}
+                      className="rounded-[20px] border border-cyan-300/10 bg-[#020817]/58 p-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-white">
+                            {item.item_name}
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-slate-400">
+                            {formatCurrency(item.unit_price)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.item_name)}
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-red-300 transition hover:bg-red-500/10 hover:text-red-200 touch-manipulation"
+                          aria-label={`حذف ${item.item_name}`}
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-1 rounded-2xl border border-cyan-300/10 bg-[#061426]/70 p-1">
+                          <button
+                            type="button"
+                            onClick={() => decreaseOrRemoveItem(item.item_name, item.quantity)}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#020817]/80 text-lg font-black text-white transition hover:bg-cyan-300/10 touch-manipulation"
+                            aria-label={`تقليل ${item.item_name}`}
+                          >
+                            -
+                          </button>
+                          <span className="w-8 text-center text-sm font-black text-cyan-100">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => increaseQty(item)}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-300 text-lg font-black text-[#02101c] transition hover:bg-cyan-200 touch-manipulation"
+                            aria-label={`زيادة ${item.item_name}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                        <p className="text-sm font-black text-white">
+                          {formatCurrency(item.quantity * item.unit_price)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-2 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3">
+              <div className="space-y-2 text-sm font-bold">
+                <div className="flex items-center justify-between text-slate-300">
+                  <span>المجموع الفرعي</span>
+                  <span>{formatCurrency(subtotal)}</span>
+                </div>
+                {checkout.discountAmount > 0 ? (
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span>الخصم</span>
+                    <span>{formatCurrency(checkout.discountAmount)}</span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between text-slate-300">
+                  <span>الضريبة</span>
+                  <span>{formatCurrency(checkout.taxAmount)}</span>
+                </div>
+                <div className="mt-3 flex items-end justify-between border-t border-cyan-300/10 pt-3">
+                  <span className="text-sm font-black text-cyan-100">الإجمالي</span>
+                  <span className="text-3xl font-black text-white">
+                    {formatCurrency(checkout.finalTotal)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-2 shrink-0 space-y-1.5">
+              <button
+                type="button"
+                onClick={() => router.push(checkoutHref)}
+                disabled={invoiceItems.length === 0}
+                className="h-14 w-full rounded-[22px] bg-emerald-400 text-base font-black text-[#02130c] shadow-[0_0_30px_rgba(52,211,153,0.28)] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none touch-manipulation"
+              >
+                إتمام البيع
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(true)}
+                className="h-11 w-full rounded-[18px] border border-red-400/16 bg-red-500/8 text-sm font-black text-red-200 transition hover:bg-red-500/14 touch-manipulation"
+              >
+                إلغاء الفاتورة
+              </button>
+            </div>
+          </aside>
+        </div>
+
+        {showCancelModal ? (
+          <>
+            <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm" />
+            <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+              <div className="w-full max-w-md rounded-[28px] border border-red-400/18 bg-[#020817]/95 p-6 text-right shadow-[0_28px_80px_rgba(0,0,0,0.55)]">
+                <h2 className="text-lg font-black text-white">إلغاء الفاتورة</h2>
+                <p className="mt-2 text-sm font-bold leading-7 text-slate-300">
+                  هل أنت متأكد من إلغاء الفاتورة؟
+                </p>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="h-11 rounded-2xl border border-cyan-300/12 bg-[#061426] px-5 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10"
+                    onClick={() => setShowCancelModal(false)}
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="button"
+                    className="h-11 rounded-2xl bg-red-500 px-5 text-sm font-black text-white transition hover:bg-red-400"
+                    onClick={() => {
+                      setShowCancelModal(false)
+                      clearInvoice()
+                      localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+                      router.push('/pos')
+                    }}
+                  >
+                    تأكيد
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : null}
+      </div>
+    )
+  }
+
+  const renderLegacyPosItemsLayout = false
+
+  if (renderLegacyPosItemsLayout) {
     return (
       <>
         {hasInvalidBranchContext ? (
@@ -1253,9 +1670,9 @@ export function InvoiceItemsStep({
           </div>
         ) : null}
 
-        <div className="flex h-full w-full min-h-0 min-w-0 flex-col overflow-x-hidden bg-slate-50 p-2 pb-24 md:p-3 md:pb-28 lg:p-4 xl:pb-4">
+        <div className="flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden bg-slate-950 p-0 pb-24 md:p-2 md:pb-28 lg:p-3 xl:pb-3">
           <div className="h-full min-h-0 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm lg:grid lg:[direction:ltr] lg:grid-cols-[1fr_340px]">
-            <main className="order-2 min-w-0 flex-1 space-y-3 p-3 md:p-4 lg:order-1 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:space-y-0 lg:overflow-hidden lg:[direction:rtl]">
+            <main className="order-2 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 md:p-4 lg:order-1 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:space-y-0 lg:overflow-hidden lg:[direction:rtl]">
               <div className="flex flex-col-reverse items-start justify-between gap-3 rounded-xl bg-slate-50 p-3 sm:flex-row sm:items-center">
                 <div className="min-w-0 text-right">
                   <h2 className="text-xl font-black text-slate-950 md:text-2xl">العناصر</h2>
@@ -2220,13 +2637,18 @@ function PosCatalogItemImage({
   frameClassName?: string
 }) {
   const normalizedImageUrl = resolveInvoiceCatalogImageUrl(imageUrl)
-  const [hasImageError, setHasImageError] = useState(false)
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
+  const [unsuitableImageUrl, setUnsuitableImageUrl] = useState<string | null>(null)
   const imageHeightClass = compact ? 'h-24 sm:h-24 md:h-28' : 'h-36 md:h-40 xl:h-44'
   const imageFrameClass =
     frameClassName?.trim()
-      ? `relative overflow-hidden rounded-xl bg-slate-50 ${frameClassName}`
+      ? `relative overflow-hidden rounded-xl ${frameClassName}`
       : `relative w-full overflow-hidden rounded-xl bg-slate-50 ${imageHeightClass}`
-  const shouldRenderImage = Boolean(normalizedImageUrl && !hasImageError)
+  const shouldRenderImage = Boolean(
+    normalizedImageUrl &&
+      failedImageUrl !== normalizedImageUrl &&
+      unsuitableImageUrl !== normalizedImageUrl
+  )
   const shapeClasses =
     posShape === 'circle'
       ? 'rounded-full'
@@ -2248,7 +2670,6 @@ function PosCatalogItemImage({
     return (
       <PosCatalogItemPlaceholder
         imageFrameClass={imageFrameClass}
-        type={type}
         posDisplayMode={posDisplayMode}
         posColor={posColor}
         shapeClasses={shapeClasses}
@@ -2291,10 +2712,25 @@ function PosCatalogItemImage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={normalizedImageUrl ?? undefined}
-        alt={name}
-        className="h-full w-full bg-slate-50 object-cover object-center"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full scale-110 bg-[#020817] object-cover object-center opacity-25 blur-xl"
         loading="lazy"
-        onError={() => setHasImageError(true)}
+      />
+      <div className="absolute inset-0 bg-[#020817]/38" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={normalizedImageUrl ?? undefined}
+        alt={name}
+        className="relative z-10 mx-auto h-full max-h-[90%] w-full max-w-[90%] bg-transparent object-contain object-center"
+        loading="lazy"
+        onLoad={(event) => {
+          const image = event.currentTarget
+          if (image.naturalWidth < 300 || image.naturalHeight < 180) {
+            setUnsuitableImageUrl(normalizedImageUrl)
+          }
+        }}
+        onError={() => setFailedImageUrl(normalizedImageUrl)}
       />
     </div>
   )
@@ -2302,30 +2738,28 @@ function PosCatalogItemImage({
 
 function PosCatalogItemPlaceholder({
   imageFrameClass,
-  type,
   posDisplayMode,
   posColor,
   shapeClasses,
   shapeStyle,
 }: {
   imageFrameClass: string
-  type: 'product' | 'service'
   posDisplayMode?: 'style' | 'image' | null
   posColor?: string | null
   shapeClasses: string
   shapeStyle?: CSSProperties
 }) {
   const accentColor =
-    posDisplayMode === 'style' && posColor?.trim() ? posColor : '#CBD5E1'
+    posDisplayMode === 'style' && posColor?.trim() ? posColor : '#22D3EE'
 
   return (
     <div className={imageFrameClass}>
-      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 text-center">
+      <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_50%_38%,rgba(34,211,238,0.18),transparent_46%),linear-gradient(135deg,rgba(2,8,23,0.96),rgba(6,20,38,0.92))] text-center">
         <div className="px-2">
         <div
-          className={`mx-auto flex h-10 w-10 items-center justify-center border border-white/80 bg-white/90 text-slate-500 shadow-sm ${shapeClasses}`}
+          className={`mx-auto flex h-10 w-10 items-center justify-center border border-cyan-300/20 bg-cyan-300/10 text-cyan-200 shadow-[0_0_26px_rgba(34,211,238,0.14)] ${shapeClasses}`}
           style={{
-            boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+            boxShadow: '0 8px 24px rgba(34, 211, 238, 0.12)',
             ...(posDisplayMode === 'style'
               ? {
                   backgroundColor: `${accentColor}22`,
@@ -2335,49 +2769,24 @@ function PosCatalogItemPlaceholder({
             ...shapeStyle,
           }}
         >
-          {type === 'service' ? (
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="h-[18px] w-[18px]"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14.7 6.3a4.5 4.5 0 0 0-6.36 6.36L3 18v3h3l5.34-5.34a4.5 4.5 0 0 0 6.36-6.36l-3.3 3.3-2.12-2.12 3.3-3.3Z" />
-            </svg>
-          ) : type === 'product' ? (
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="h-[18px] w-[18px]"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 3 4 7l8 4 8-4-8-4Z" />
-              <path d="M4 7v10l8 4 8-4V7" />
-              <path d="M12 11v10" />
-            </svg>
-          ) : (
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="h-[18px] w-[18px]"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m12 3 1.6 4.84L18 9.5l-4.4 1.66L12 16l-1.6-4.84L6 9.5l4.4-1.66L12 3Z" />
-            </svg>
-          )}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-[18px] w-[18px]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 3 4 7l8 4 8-4-8-4Z" />
+            <path d="M4 7v10l8 4 8-4V7" />
+            <path d="M12 11v10" />
+          </svg>
         </div>
+        <p className="mt-2 text-[10px] font-bold text-cyan-100/70">
+          لا توجد صورة مناسبة
+        </p>
         </div>
       </div>
     </div>

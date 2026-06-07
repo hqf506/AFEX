@@ -1,10 +1,11 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { PosStepIndicator } from '@/components/pos-step-indicator'
 import {
+  clearClientResourcesByPrefix,
   loadClientResource,
   peekClientResource,
   prefetchClientResource,
@@ -15,19 +16,40 @@ import {
   isInvoiceCustomerDraftValid,
   serializeInvoiceCustomerDraft,
 } from '@/lib/invoices/customer'
-import { readActivePosEmployee } from '@/lib/pos-employee-session'
+import {
+  clearActivePosEmployee,
+  markPosLoggedOut,
+  readActivePosEmployee,
+} from '@/lib/pos-employee-session'
+import { getRoleLabel } from '@/lib/app-roles'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
 
 type ExistingCustomer = {
   id: string
   name: string
   phone: string
+  lastPurchaseAmount?: number | null
+  firstVisitAt?: string | null
+  lastActivityAt?: string | null
+  visitsCount?: number | null
+  totalSpent?: number | null
 }
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
 const CUSTOMER_SEARCH_CACHE_TTL_MS = 30_000
 const CUSTOMER_SEARCH_DEBOUNCE_MS = 300
+const RECENT_CUSTOMERS_CACHE_TTL_MS = 30_000
+
+const posSidebarItems = [
+  { id: 'home', label: 'الرئيسية', href: '/pos', icon: 'home' as const },
+  { id: 'new-sale', label: 'بيع جديد', href: '/pos/sale/customer', icon: 'cart' as const },
+  { id: 'customers', label: 'العملاء', href: '/pos/sale/customer', icon: 'user' as const },
+  { id: 'products', label: 'المنتجات', href: '/pos/sale/items', icon: 'box' as const },
+  { id: 'orders', label: 'الطلبات', href: '/pos', icon: 'note' as const },
+  { id: 'payments', label: 'المدفوعات', href: '/pos/sale/checkout', icon: 'card' as const },
+  { id: 'settings', label: 'الإعدادات', href: '/pos/offline-drafts', icon: 'settings' as const },
+]
 
 type InvoiceCustomerStepProps = {
   heroTitle: string
@@ -114,21 +136,49 @@ export function InvoiceCustomerStep({
   const [customerMatches, setCustomerMatches] = useState<ExistingCustomer[]>([])
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false)
   const [customerSearchError, setCustomerSearchError] = useState('')
+  const [recentCustomers, setRecentCustomers] = useState<ExistingCustomer[]>([])
+  const [recentCustomersLoading, setRecentCustomersLoading] = useState(false)
+  const [recentCustomersError, setRecentCustomersError] = useState('')
+  const [customerListLimit, setCustomerListLimit] = useState(6)
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false)
+  const [newCustomerFirstName, setNewCustomerFirstName] = useState('')
+  const [newCustomerLastName, setNewCustomerLastName] = useState('')
+  const [newCustomerPhone, setNewCustomerPhone] = useState('')
+  const [newCustomerEmail, setNewCustomerEmail] = useState('')
+  const [newCustomerNotes, setNewCustomerNotes] = useState('')
+  const [newCustomerSaving, setNewCustomerSaving] = useState(false)
+  const [newCustomerError, setNewCustomerError] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const customerSearchRequestIdRef = useRef(0)
   const customerPhoneInputRef = useRef<HTMLInputElement | null>(null)
 
   const isValid = isInvoiceCustomerDraftValid(customerName, customerPhone)
-  const isReady = isValid
-  const isCustomer = pathname.includes('/pos/sale/customer')
   const activePosEmployee = variant === 'pos' ? readActivePosEmployee() : null
+  const employeeDisplayName =
+    activePosEmployee?.full_name?.trim() ||
+    activePosEmployee?.username?.trim() ||
+    'فيصل'
+  const employeeRoleLabel =
+    activePosEmployee?.role === 'cashier'
+      ? 'أمين صندوق'
+      : getRoleLabel(activePosEmployee?.role) || roleLabel || 'أمين صندوق'
   const customerSearchBranchId =
     variant === 'pos' ? activePosEmployee?.branch_id || branchId || null : null
-  const customerSearch = useMemo(
-    () => normalizeCustomerLookup(customerPhone, customerName, customerSearchBranchId),
-    [customerName, customerPhone, customerSearchBranchId]
+  const customerSearch = normalizeCustomerLookup(
+    customerPhone,
+    customerName,
+    customerSearchBranchId
   )
-  const customerSearchTerm = customerSearch.query
+  const visibleCustomerCards = customerSearch.active
+    ? customerMatches
+    : recentCustomers
+  const customerCardsLoading = customerSearch.active
+    ? customerSearchLoading
+    : recentCustomersLoading
+  const customerCardsError = customerSearch.active
+    ? customerSearchError
+    : recentCustomersError
+  const canLoadMoreCustomers = visibleCustomerCards.length > customerListLimit
 
   useEffect(() => {
     if (!allowed) return
@@ -244,7 +294,89 @@ export function InvoiceCustomerStep({
       }
       window.clearTimeout(timeoutId)
     }
-  }, [activePosEmployee?.branch_id, allowed, branchId, customerSearch, customerSearchBranchId, variant])
+  }, [
+    activePosEmployee?.branch_id,
+    allowed,
+    branchId,
+    customerSearch.active,
+    customerSearch.cacheKey,
+    customerSearch.query,
+    customerSearchBranchId,
+    variant,
+  ])
+
+  useEffect(() => {
+    if (!allowed || variant !== 'pos') {
+      return
+    }
+
+    const controller = new AbortController()
+    const cacheBranchKey = customerSearchBranchId || 'all'
+    const cacheKey = `recent-customers:${cacheBranchKey}`
+    const loadingTimeoutId = window.setTimeout(() => {
+      setRecentCustomersLoading(true)
+      setRecentCustomersError('')
+    }, 0)
+
+    void loadClientResource(
+      cacheKey,
+      async () => {
+        const searchParams = new URLSearchParams({
+          recent: '1',
+        })
+
+        if (customerSearchBranchId) {
+          searchParams.set('branchId', customerSearchBranchId)
+        }
+
+        const response = await fetch(
+          `/api/customers?${searchParams.toString()}`,
+          {
+            method: 'GET',
+            credentials: 'include',
+            signal: controller.signal,
+          }
+        )
+
+        const result = await response.json().catch(() => null)
+
+        if (!response.ok || !result?.success) {
+          throw new Error(result?.error || 'فشل تحميل العملاء')
+        }
+
+        return Array.isArray(result.customers)
+          ? (result.customers as ExistingCustomer[])
+          : []
+      },
+      {
+        ttlMs: RECENT_CUSTOMERS_CACHE_TTL_MS,
+        logLabel: 'fetch recent customers',
+      }
+    )
+      .then((customers) => {
+        if (!controller.signal.aborted) {
+          setRecentCustomers(customers)
+          setRecentCustomersError('')
+          setRecentCustomersLoading(false)
+        }
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setRecentCustomers([])
+        setRecentCustomersError(
+          error instanceof Error ? error.message : 'فشل تحميل العملاء'
+        )
+        setRecentCustomersLoading(false)
+      })
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(loadingTimeoutId)
+    }
+  }, [allowed, customerSearchBranchId, variant])
 
   useEffect(() => {
     if (!allowed || variant !== 'pos') {
@@ -325,6 +457,108 @@ export function InvoiceCustomerStep({
     setCustomerSearchError('')
   }
 
+  const openAddCustomerModal = () => {
+    const [firstName = '', ...lastNameParts] = customerName.trim().split(/\s+/)
+    setNewCustomerFirstName(firstName)
+    setNewCustomerLastName(lastNameParts.join(' '))
+    setNewCustomerPhone(customerPhone.trim())
+    setNewCustomerEmail('')
+    setNewCustomerNotes('')
+    setNewCustomerError('')
+    setAddCustomerOpen(true)
+  }
+
+  const closeAddCustomerModal = () => {
+    if (newCustomerSaving) {
+      return
+    }
+
+    setAddCustomerOpen(false)
+    setNewCustomerError('')
+  }
+
+  const handleCreateCustomer = async () => {
+    if (newCustomerSaving) {
+      return
+    }
+
+    const firstName = newCustomerFirstName.trim()
+    const lastName = newCustomerLastName.trim()
+    const name = `${firstName} ${lastName}`.trim()
+    const phone = newCustomerPhone.trim()
+
+    if (!firstName) {
+      setNewCustomerError('الاسم الأول مطلوب')
+      return
+    }
+
+    if (!lastName) {
+      setNewCustomerError('الاسم الأخير مطلوب')
+      return
+    }
+
+    if (!phone) {
+      setNewCustomerError('رقم الجوال مطلوب')
+      return
+    }
+
+    setNewCustomerSaving(true)
+    setNewCustomerError('')
+
+    try {
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          phone,
+          email: newCustomerEmail.trim() || null,
+          notes: newCustomerNotes.trim() || null,
+          branchId: customerSearchBranchId,
+        }),
+      })
+
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success || !result.customer) {
+        throw new Error(result?.error || 'تعذر حفظ العميل')
+      }
+
+      const createdCustomer = result.customer as ExistingCustomer
+
+      setCustomerName(createdCustomer.name)
+      setCustomerPhone(createdCustomer.phone)
+      setSelectedCustomerId(createdCustomer.id)
+      setCustomerSearchError('')
+      setCustomerMatches((currentMatches) => [
+        createdCustomer,
+        ...currentMatches.filter((customer) => customer.id !== createdCustomer.id),
+      ])
+      setRecentCustomers((currentCustomers) => [
+        createdCustomer,
+        ...currentCustomers.filter((customer) => customer.id !== createdCustomer.id),
+      ])
+      clearClientResourcesByPrefix('recent-customers:')
+      clearClientResourcesByPrefix('customer-search:')
+      setAddCustomerOpen(false)
+    } catch (error) {
+      setNewCustomerError(
+        error instanceof Error ? error.message : 'تعذر حفظ العميل'
+      )
+    } finally {
+      setNewCustomerSaving(false)
+    }
+  }
+
+  const handlePosLogout = () => {
+    clearActivePosEmployee()
+    markPosLoggedOut()
+    router.replace('/pos/login')
+  }
+
   if (authError === 'timeout' && variant === 'pos') {
     console.warn('[POS CUSTOMER] auth timeout', pathname, authStatus)
     return (
@@ -356,232 +590,495 @@ export function InvoiceCustomerStep({
 
   if (variant === 'pos') {
     return (
-      <div className="flex h-full w-full min-h-0 min-w-0 flex-col bg-slate-50 p-2 md:p-3 lg:p-4">
-        <div className="grid h-full min-h-0 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm lg:[direction:ltr] lg:grid-cols-[minmax(0,1fr)_280px]">
-          <main className="order-2 min-w-0 p-3 md:p-4 lg:order-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:[direction:rtl]">
-            <div className="flex h-full min-h-0 flex-col gap-4">
-            <div className="flex flex-col-reverse items-start justify-between gap-3 rounded-xl bg-slate-50 p-3 sm:flex-row sm:items-center">
-              <div className="min-w-0 text-right">
-                <h2 className="text-xl font-black text-slate-950 md:text-2xl">بيانات العميل</h2>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  أدخل بيانات العميل أو ابحث عن عميل موجود.
-                </p>
-              </div>
+      <div className="fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] p-5 text-white [direction:ltr] xl:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.09),transparent_26%),linear-gradient(135deg,#020817_0%,#04101F_48%,#061426_100%)]" />
+        <div className="pointer-events-none absolute inset-x-32 top-0 h-px bg-[#22D3EE]/25 blur-sm" />
 
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#020617] text-white shadow-sm">
-                <UserIcon />
-              </div>
+        <div className="relative z-10 flex h-full min-h-0 w-full flex-row gap-4 xl:gap-6">
+          <aside className="order-3 flex w-[206px] shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] xl:w-[220px]">
+            <div className="mb-5 rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)]">
+              <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
+                AFEX
+              </p>
+              <p className="mt-0.5 text-xs font-black tracking-[0.26em] text-[#22D3EE]">
+                POS
+              </p>
             </div>
 
-            <div className="rounded-xl border border-slate-100 bg-white p-3">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-slate-700">
-                    اسم العميل
-                  </label>
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => {
-                      setCustomerName(e.target.value)
-                      setSelectedCustomerId(null)
-                    }}
-                    placeholder="اكتب اسم العميل"
-                    className="h-14 min-h-[56px] w-full min-w-0 rounded-xl border border-slate-200 px-3 text-base text-slate-900 outline-none transition focus:ring-2 focus:ring-slate-200 touch-manipulation"
-                  />
-                </div>
+            <nav className="min-h-0 flex-1 space-y-1.5 overflow-hidden">
+              {posSidebarItems.map((item) => {
+                const isActive = item.id === 'customers'
 
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-slate-700">
-                    رقم الجوال
-                  </label>
-                  <input
-                    ref={customerPhoneInputRef}
-                    type="tel"
-                    value={customerPhone}
-                    onChange={(e) => {
-                      setCustomerPhone(e.target.value)
-                      setSelectedCustomerId(null)
-                    }}
-                    placeholder="05xxxxxxxx"
-                    className="h-14 min-h-[56px] w-full min-w-0 rounded-xl border border-slate-200 px-3 text-base text-slate-900 outline-none transition focus:ring-2 focus:ring-slate-200 touch-manipulation"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    autoComplete="tel"
-                    enterKeyHint="search"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-white p-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
-              <div className="mb-3 text-right">
-                <h3 className="text-base font-extrabold text-slate-950 md:text-lg">
-                  بحث عن عميل موجود
-                </h3>
-              </div>
-
-              <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={customerSearchTerm}
-                  readOnly
-                  aria-label="بحث عن عميل موجود"
-                  className="h-14 min-h-[56px] w-full min-w-0 rounded-xl border border-slate-200 pr-3 pl-12 text-right text-base text-slate-500 outline-none transition focus:ring-2 focus:ring-slate-200 touch-manipulation"
-                  placeholder="ابحث بالاسم أو رقم الجوال"
-                  inputMode="search"
-                />
-              </div>
-
-              {customerSearchLoading ? (
-                <p className="mt-2 text-xs text-slate-500">
-                  {customerMatches.length > 0 ? 'تحديث النتائج...' : 'جاري البحث عن العملاء...'}
-                </p>
-              ) : null}
-
-              <div className="mt-3 space-y-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-                {customerSearchError ? (
-                  <div className="error-alert">{customerSearchError}</div>
-                ) : null}
-
-                {customerMatches.length > 0 ? (
-                  customerMatches.slice(0, 6).map((customer) => (
-                    <button
-                      key={customer.id}
-                      type="button"
-                      onClick={() => selectExistingCustomer(customer)}
-                      className={`w-full rounded-2xl border p-4 text-right shadow-sm transition ${
-                        selectedCustomerId === customer.id
-                          ? 'border-emerald-200 bg-emerald-50/40 ring-1 ring-emerald-100'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className={`group relative flex min-h-[45px] items-center gap-2.5 overflow-hidden rounded-[18px] border px-3 text-sm font-black transition-all duration-150 active:scale-[0.98] ${
+                      isActive
+                        ? 'border-transparent bg-[rgba(34,211,238,0.10)] text-cyan-50 shadow-[0_0_18px_rgba(34,211,238,0.11),inset_0_0_24px_rgba(34,211,238,0.07)]'
+                        : 'border-transparent text-slate-300/86 hover:border-[rgba(34,211,238,0.14)] hover:bg-[rgba(34,211,238,0.055)] hover:text-white'
+                    }`}
+                  >
+                    {isActive ? (
+                      <span
+                        aria-hidden="true"
+                        className="absolute bottom-3 left-2.5 top-3 w-1 rounded-full bg-[#22D3EE] shadow-[0_0_14px_rgba(34,211,238,0.70)]"
+                      />
+                    ) : null}
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-2xl transition ${
+                        isActive ? 'text-cyan-100' : 'text-slate-400 group-hover:text-cyan-100'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex min-w-0 flex-1 items-center gap-3 text-right">
-                          <span
-                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-                              selectedCustomerId === customer.id
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            <UserIcon />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-slate-950">
-                              {customer.name}
-                            </p>
-                            <p dir="ltr" className="mt-1 text-sm text-slate-500">
-                              {customer.phone}
-                            </p>
-                          </div>
-                          <span
-                            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
-                              selectedCustomerId === customer.id
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-slate-100 text-slate-500'
-                            }`}
-                          >
-                            جاهز
-                          </span>
-                        </div>
-                        <span className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-bold text-white transition hover:bg-slate-800">
-                          اختيار العميل
-                        </span>
-                      </div>
-                    </button>
-                  ))
-                ) : customerSearch.active && !customerSearchLoading ? (
-                  <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                    لا يوجد عميل مطابق، يمكنك المتابعة كعميل جديد.
+                      <PosCustomerIcon name={item.icon} className="h-4.5 w-4.5" />
+                    </span>
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+
+            <div className="mt-4 space-y-2.5">
+              <div className="rounded-[22px] bg-[rgba(6,20,38,0.58)] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_20px_rgba(34,211,238,0.03)]">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#22D3EE] text-sm font-black text-slate-950 shadow-[0_0_16px_rgba(34,211,238,0.14)]">
+                    {employeeDisplayName.charAt(0)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black text-white">{employeeDisplayName}</p>
+                    <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                      {employeeRoleLabel}
+                    </p>
                   </div>
-                ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearActivePosEmployee()
+                    router.replace('/pos/employee-pin')
+                  }}
+                  className="mt-3 flex min-h-[34px] w-full items-center justify-center rounded-[14px] bg-[rgba(34,211,238,0.08)] text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] transition hover:bg-[rgba(34,211,238,0.12)] active:scale-[0.98]"
+                >
+                  تبديل الموظف
+                </button>
               </div>
-            </div>
-
-            <div className="mt-auto rounded-xl border border-slate-100 bg-white p-3">
-              <h3 className="text-base font-extrabold text-slate-950 md:text-lg">ملخص سريع</h3>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                <CompactStat
-                  label="نوع العميل"
-                  value={selectedCustomerId ? 'عميل موجود' : 'عميل جديد'}
-                  variant="pos"
-                />
-                <CompactStat
-                  label="رقم الجوال"
-                  value={customerPhone.trim() || '—'}
-                  variant="pos"
-                />
-                <CompactStat
-                  label="جاهزية الانتقال"
-                  value={isValid ? 'جاهز' : 'غير مكتمل'}
-                  valueClassName={isValid ? 'text-emerald-700' : 'text-amber-700'}
-                  variant="pos"
-                />
-              </div>
-            </div>
-            </div>
-          </main>
-
-          <aside className="order-1 flex min-w-0 flex-col gap-3 border-b border-slate-100 bg-white p-3 md:p-4 lg:order-2 lg:h-full lg:border-b-0 lg:border-l lg:border-slate-100 lg:[direction:rtl]">
-            <div>
-              <p className="text-xs font-bold tracking-[0.18em] text-slate-400">
-                AFEX POS
-              </p>
-              <h1 className="mt-1 text-xl font-black text-slate-950">AFEX POS</h1>
-            </div>
-
-            <div className="space-y-2">
-              <SidebarStepItem icon={<HomeIcon />} label="الرئيسية" href="/pos" />
-              <SidebarStepItem
-                icon={<UserIcon />}
-                label="بيانات العميل"
-                href="/pos/sale/customer"
-                active
-              />
-              <SidebarStepItem
-                icon={<BoxIcon />}
-                label="العناصر"
-                href="/pos/sale/items"
-                disabled={isCustomer}
-              />
-              <SidebarStepItem
-                icon={<WalletIcon />}
-                label="الدفع"
-                href="/pos/sale/checkout"
-                disabled={isCustomer}
-              />
-              <SidebarStepItem
-                icon={<NoteIcon />}
-                label="الملاحظات"
-                disabled={isCustomer}
-              />
-            </div>
-
-            <div className="mt-auto space-y-2">
               <button
-                onClick={handleNext}
-                disabled={!isReady}
-                className={`h-11 w-full rounded-xl text-sm font-bold text-white transition ${
-                  isReady
-                    ? 'cursor-pointer bg-[#020617] hover:bg-[#020617]/90'
-                    : 'cursor-not-allowed bg-slate-400'
-                }`}
+                type="button"
+                onClick={handlePosLogout}
+                className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[18px] bg-red-500/12 px-4 text-sm font-black text-red-100 shadow-[0_0_20px_rgba(248,113,113,0.14),inset_0_0_0_1px_rgba(248,113,113,0.24)] transition hover:bg-red-500/18 active:scale-[0.98]"
               >
-                الانتقال إلى العناصر
-              </button>
-
-              <button
-                onClick={handleReset}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-              >
-                مسح البيانات
+                <PosCustomerIcon name="logout" className="h-5 w-5" />
+                تسجيل الخروج
               </button>
             </div>
           </aside>
+
+          <aside className="order-2 flex w-[250px] shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3.5 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.12)] backdrop-blur-2xl [direction:rtl] xl:w-[268px] xl:p-4">
+            <h2 className="px-1 text-right text-xl font-black text-white">العميل الحالي</h2>
+
+            <div className="mt-4 rounded-[24px] bg-[rgba(6,20,38,0.52)] p-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)]">
+              <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(34,211,238,0.08)] text-[#22D3EE] shadow-[0_0_28px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+                <PosCustomerIcon name="user" className="h-7 w-7" />
+              </span>
+              <p className="mt-5 truncate text-2xl font-black text-white">
+                {customerName.trim() || 'لم يتم اختيار عميل'}
+              </p>
+              <p className="mt-2 text-sm font-bold text-slate-400">
+                {customerPhone.trim() ? 'رقم العميل' : 'اختر عميل من النتائج'}
+              </p>
+              <p dir="ltr" className="mt-2 text-center text-lg font-black text-cyan-100">
+                {customerPhone.trim() || '—'}
+              </p>
+              <p className="mt-2 text-sm font-black text-cyan-50/90">
+                {selectedCustomerId ? 'عميل موجود' : customerName.trim() ? 'عميل جديد' : 'غير محدد'}
+              </p>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <button
+                type="button"
+                onClick={openAddCustomerModal}
+                className="flex min-h-[68px] items-center justify-between rounded-[22px] bg-[rgba(2,8,23,0.72)] px-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] transition hover:bg-[rgba(34,211,238,0.07)] active:scale-[0.98]"
+              >
+                <span>
+                  <span className="block text-base font-black text-white">إضافة عميل جديد</span>
+                  <span className="mt-1 block text-xs font-bold text-slate-400">إنشاء عميل جديد</span>
+                </span>
+                <PosCustomerIcon name="plus" className="h-6 w-6 text-[#22D3EE]" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={!selectedCustomerId}
+                className={`flex min-h-[68px] items-center justify-between rounded-[22px] px-4 text-right transition active:scale-[0.98] ${
+                  selectedCustomerId
+                    ? 'bg-emerald-400 text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.20)]'
+                    : 'cursor-not-allowed bg-[rgba(6,20,38,0.42)] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.08)]'
+                }`}
+              >
+                <span>
+                  <span className="block text-base font-black">الانتقال إلى العناصر →</span>
+                  <span className="mt-1 block text-xs font-bold opacity-70">تابع إلى المنتجات</span>
+                </span>
+                <PosCustomerIcon name="arrowLeft" className="h-6 w-6" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleReset}
+                className="flex min-h-[62px] items-center justify-between rounded-[22px] bg-[rgba(6,20,38,0.46)] px-4 text-right text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-red-400/10 hover:text-red-100 active:scale-[0.98]"
+              >
+                <span>
+                  <span className="block text-base font-black">مسح البيانات</span>
+                  <span className="mt-1 block text-xs font-bold text-slate-500">إعادة تعيين البحث والاختيار</span>
+                </span>
+                <PosCustomerIcon name="trash" className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="mt-auto pt-4">
+              <Link
+                href={backHref}
+                className="flex min-h-[56px] items-center justify-center gap-3 rounded-[20px] bg-[rgba(6,20,38,0.46)] px-4 text-sm font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] transition hover:bg-[rgba(34,211,238,0.07)] hover:text-cyan-100 active:scale-[0.98]"
+              >
+                <PosCustomerIcon name="arrowRight" className="h-5 w-5" />
+                {backLabel}
+              </Link>
+            </div>
+          </aside>
+
+          <main className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[30px] bg-transparent p-1 [direction:rtl]">
+            <header className="flex shrink-0 items-start justify-between gap-5 px-1">
+              <div className="text-right">
+                <p className="text-sm font-black tracking-[0.28em] text-[#22D3EE]">CUSTOMER</p>
+                <h2 className="mt-4 text-4xl font-black leading-tight text-white xl:text-[44px]">
+                  بيانات العميل
+                </h2>
+                <p className="mt-3 text-sm font-bold leading-6 text-slate-400">
+                  ابحث بالجوال أو الاسم ثم اختر العميل أو تابع كعميل جديد.
+                </p>
+              </div>
+
+              <div className="hidden rounded-[22px] bg-[rgba(2,8,23,0.58)] px-5 py-4 text-left shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] sm:block">
+                <p className="text-xs font-bold text-slate-500">الخطوة</p>
+                <p className="mt-1 text-sm font-black text-cyan-100">1 من 3</p>
+              </div>
+            </header>
+
+            <section className="mt-7 shrink-0 rounded-[28px] bg-[rgba(2,8,23,0.62)] p-5 shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] xl:p-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-black text-slate-300">
+                    بحث بالجوال
+                  </span>
+                  <div className="relative">
+                    <input
+                      ref={customerPhoneInputRef}
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(e) => {
+                        setCustomerPhone(e.target.value)
+                        setSelectedCustomerId(null)
+                      }}
+                      placeholder="05xxxxxxxx"
+                      className="h-[66px] w-full rounded-[22px] border-0 bg-[rgba(6,20,38,0.76)] px-5 text-right text-lg font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="tel"
+                      enterKeyHint="search"
+                    />
+                  </div>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-black text-slate-300">
+                    بحث بالاسم
+                  </span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => {
+                        setCustomerName(e.target.value)
+                        setSelectedCustomerId(null)
+                      }}
+                      placeholder="اكتب اسم العميل"
+                      className="h-[66px] w-full rounded-[22px] border-0 bg-[rgba(6,20,38,0.76)] px-5 text-right text-lg font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation"
+                    />
+                  </div>
+                </label>
+              </div>
+
+              {customerSearchLoading ? (
+                <p className="mt-3 text-xs font-black text-cyan-100">بحث...</p>
+              ) : null}
+            </section>
+
+            <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.56)] p-5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] xl:p-6">
+              <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
+                <div className="text-right">
+                  <h3 className="text-2xl font-black text-white">العملاء الأخيرون</h3>
+                  <p className="mt-1 text-xs font-bold text-slate-500">
+                    نتائج البحث وآخر العملاء بنفس نمط بطاقات POS.
+                  </p>
+                </div>
+                <span className="rounded-full bg-[rgba(34,211,238,0.08)] px-3 py-1 text-xs font-black text-cyan-100">
+                  عرض الكل
+                </span>
+              </div>
+
+              {customerCardsError ? (
+                <div className="mb-3 rounded-[18px] border border-red-300/18 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">
+                  {customerCardsError}
+                </div>
+              ) : null}
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                {customerCardsLoading ? (
+                  <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
+                    <p className="text-sm font-bold leading-7 text-slate-400">
+                      جار تحميل العملاء...
+                    </p>
+                  </div>
+                ) : visibleCustomerCards.length > 0 ? (
+                  <div className="overflow-hidden rounded-[24px] bg-[rgba(6,20,38,0.42)] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)]">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[860px] border-separate border-spacing-0 text-right">
+                        <thead>
+                          <tr className="text-xs font-black text-cyan-100/80">
+                            <th className="px-4 py-4">العميل</th>
+                            <th className="px-4 py-4">الجوال</th>
+                            <th className="px-4 py-4">أول زيارة</th>
+                            <th className="px-4 py-4">آخر زيارة</th>
+                            <th className="px-4 py-4">عدد الزيارات</th>
+                            <th className="px-4 py-4">إجمالي الصرف</th>
+                            <th className="px-4 py-4">اختيار</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-sm">
+                          {visibleCustomerCards.slice(0, customerListLimit).map((customer) => (
+                            <tr
+                              key={customer.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => selectExistingCustomer(customer)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault()
+                                  selectExistingCustomer(customer)
+                                }
+                              }}
+                              className="group cursor-pointer text-slate-300 transition hover:bg-[rgba(34,211,238,0.045)] hover:text-white"
+                            >
+                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4">
+                                <span className="block max-w-[180px] truncate text-base font-black text-white">
+                                  {customer.name || '—'}
+                                </span>
+                              </td>
+                              <td
+                                dir="ltr"
+                                className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 text-right font-bold text-slate-300"
+                              >
+                                {customer.phone || '—'}
+                              </td>
+                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 font-bold">
+                                {formatPosCustomerDate(customer.firstVisitAt)}
+                              </td>
+                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 font-bold">
+                                {formatPosCustomerDate(customer.lastActivityAt)}
+                              </td>
+                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 font-black text-cyan-50">
+                                {customer.visitsCount ?? 0}
+                              </td>
+                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 font-black text-white">
+                                {formatPosCustomerAmount(customer.totalSpent)}
+                              </td>
+                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-3">
+                                {selectedCustomerId === customer.id ? (
+                                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400/18 text-emerald-100 shadow-[0_0_16px_rgba(52,211,153,0.14),inset_0_0_0_1px_rgba(52,211,153,0.26)]">
+                                    ✔
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      selectExistingCustomer(customer)
+                                    }}
+                                    className="min-h-[40px] rounded-[16px] bg-[rgba(34,211,238,0.10)] px-5 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] transition group-hover:bg-[rgba(34,211,238,0.15)] active:scale-[0.98]"
+                                  >
+                                    اختيار
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : customerSearch.active && !customerSearchLoading ? (
+                  <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
+                    <p className="text-sm font-bold leading-7 text-slate-400">
+                      لا يوجد عميل مطابق. يمكنك استخدام البيانات الحالية كعميل جديد.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
+                    <p className="text-sm font-bold leading-7 text-slate-400">
+                      لا يوجد عملاء حتى الآن
+                    </p>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomerListLimit((currentLimit) => currentLimit + 6)
+                }}
+                disabled={!canLoadMoreCustomers}
+                className={`mt-4 min-h-[48px] shrink-0 rounded-[18px] text-sm font-black shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition active:scale-[0.98] ${
+                  canLoadMoreCustomers
+                    ? 'bg-[rgba(6,20,38,0.46)] text-cyan-100 hover:bg-[rgba(34,211,238,0.07)]'
+                    : 'cursor-not-allowed bg-[rgba(6,20,38,0.28)] text-slate-500'
+                }`}
+              >
+                تحميل المزيد
+              </button>
+            </section>
+          </main>
         </div>
+
+        {addCustomerOpen ? (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#020817]/72 px-5 backdrop-blur-xl [direction:rtl]">
+            <div className="w-full max-w-[450px] rounded-[30px] bg-[rgba(2,8,23,0.86)] p-4 text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)] xl:p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black tracking-[0.24em] text-[#22D3EE]">
+                    AFEX CUSTOMER
+                  </p>
+                  <h3 className="mt-3 text-[26px] font-black text-white">
+                    إضافة عميل جديد
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeAddCustomerModal}
+                  disabled={newCustomerSaving}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[rgba(6,20,38,0.70)] text-xl font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] transition hover:bg-red-400/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="إغلاق"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-2 block text-[13px] font-black text-slate-300">
+                      الاسم الأول
+                    </span>
+                    <input
+                      type="text"
+                      value={newCustomerFirstName}
+                      onChange={(event) => setNewCustomerFirstName(event.target.value)}
+                      disabled={newCustomerSaving}
+                      placeholder="اكتب الاسم الأول"
+                      className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60 touch-manipulation"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-[13px] font-black text-slate-300">
+                      الاسم الأخير
+                    </span>
+                    <input
+                      type="text"
+                      value={newCustomerLastName}
+                      onChange={(event) => setNewCustomerLastName(event.target.value)}
+                      disabled={newCustomerSaving}
+                      placeholder="اكتب الاسم الأخير"
+                      className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60 touch-manipulation"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="mb-2 block text-[13px] font-black text-slate-300">
+                    رقم الجوال
+                  </span>
+                  <input
+                    type="tel"
+                    value={newCustomerPhone}
+                    onChange={(event) => setNewCustomerPhone(event.target.value)}
+                    disabled={newCustomerSaving}
+                    placeholder="05xxxxxxxx"
+                    className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60 touch-manipulation"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="tel"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-[13px] font-black text-slate-300">
+                    البريد الإلكتروني
+                    <span className="mr-2 text-xs text-slate-500">اختياري</span>
+                  </span>
+                  <input
+                    type="email"
+                    value={newCustomerEmail}
+                    onChange={(event) => setNewCustomerEmail(event.target.value)}
+                    disabled={newCustomerSaving}
+                    placeholder="customer@example.com"
+                    className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60 touch-manipulation"
+                    autoComplete="email"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-[13px] font-black text-slate-300">
+                    ملاحظات
+                    <span className="mr-2 text-xs text-slate-500">اختياري</span>
+                  </span>
+                  <textarea
+                    value={newCustomerNotes}
+                    onChange={(event) => setNewCustomerNotes(event.target.value)}
+                    disabled={newCustomerSaving}
+                    placeholder="أضف ملاحظة قصيرة"
+                    className="min-h-[80px] w-full resize-none rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 py-3 text-right text-[15px] font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60 touch-manipulation"
+                  />
+                </label>
+              </div>
+
+              {newCustomerError ? (
+                <div className="mt-3 rounded-[18px] border border-red-300/18 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">
+                  {newCustomerError}
+                </div>
+              ) : null}
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={handleCreateCustomer}
+                  disabled={newCustomerSaving}
+                  className="min-h-[52px] rounded-[18px] bg-[#22D3EE] px-5 text-[15px] font-black text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.18)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none active:scale-[0.98]"
+                >
+                  {newCustomerSaving ? 'جار الحفظ...' : 'حفظ العميل'}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeAddCustomerModal}
+                  disabled={newCustomerSaving}
+                  className="min-h-[52px] rounded-[18px] bg-[rgba(6,20,38,0.56)] px-5 text-[15px] font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] transition hover:bg-red-400/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     )
   }
@@ -784,142 +1281,153 @@ function SummaryRow({
   )
 }
 
-function CompactStat({
-  label,
-  value,
-  valueClassName = 'text-slate-950',
-  variant = 'default',
-}: {
-  label: string
-  value: string
-  valueClassName?: string
-  variant?: 'default' | 'pos'
-}) {
-  return (
-    <div
-      className={
-        variant === 'pos'
-          ? 'min-w-0 rounded-xl bg-slate-50 px-3 py-3 text-sm'
-          : 'rounded-2xl bg-white px-4 py-4 shadow-sm ring-1 ring-slate-100'
-      }
-    >
-      <p className="text-xs font-bold text-slate-400">{label}</p>
-      <p className={`mt-2 break-words text-sm font-black ${valueClassName}`}>{value}</p>
-    </div>
-  )
-}
-
-function SidebarStepItem({
-  icon,
-  label,
-  href,
-  active = false,
-  disabled = false,
-}: {
-  icon: React.ReactNode
-  label: string
-  href?: string
-  active?: boolean
-  disabled?: boolean
-}) {
-  const className = `flex min-h-[52px] items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-bold ${
-    active
-      ? 'bg-slate-950 text-white shadow-sm'
-      : 'bg-slate-100 text-slate-700'
-  } ${disabled ? 'cursor-not-allowed pointer-events-none opacity-50' : ''}`
-
-  const content = (
-    <>
-      <span className="min-w-0 break-words">{label}</span>
-      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10">
-        {icon}
-      </span>
-    </>
-  )
-
-  if (href && !disabled) {
-    return (
-      <Link
-        href={href}
-        className={className}
-      >
-        {content}
-      </Link>
-    )
+function formatPosCustomerAmount(value: number | null | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '—'
   }
 
-  return (
-    <div
-      className={className}
-      aria-disabled={disabled}
-    >
-      {content}
-    </div>
-  )
+  return new Intl.NumberFormat('ar-SA', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  }).format(value) + ' ر.س'
 }
 
-function SearchIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.43 4.44 1.41-1.42-4.43-4.43A6.5 6.5 0 0 0 10.5 4zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z"
-      />
-    </svg>
-  )
+function formatPosCustomerDate(value: string | null | undefined) {
+  if (!value) return '—'
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return '—'
+  }
+
+  return new Intl.DateTimeFormat('ar-SA', {
+    month: 'short',
+    day: 'numeric',
+  }).format(date)
 }
 
-function UserIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.33 0-8 2.17-8 4.5V21h16v-2.5C20 16.17 16.33 14 12 14z"
-      />
-    </svg>
-  )
-}
+function PosCustomerIcon({
+  name,
+  className = 'h-5 w-5',
+}: {
+  name:
+    | 'arrowLeft'
+    | 'arrowRight'
+    | 'box'
+    | 'card'
+    | 'cart'
+    | 'home'
+    | 'logout'
+    | 'note'
+    | 'plus'
+    | 'settings'
+    | 'trash'
+    | 'user'
+    | 'users'
+  className?: string
+}) {
+  const props = {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.9,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    className,
+    'aria-hidden': true,
+  }
 
-function HomeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M12 3 3 10.2V21h6.5v-5.8h5V21H21V10.2Zm7 16h-2.5v-5.8h-9V19H5v-7.84L12 5.6l7 5.56Z"
-      />
-    </svg>
-  )
-}
-
-function BoxIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M12 2 3 6.5v11L12 22l9-4.5v-11Zm0 2.2 6.68 3.34L12 10.88 5.32 7.54Zm-7 4.95 6 3v7.36l-6-3Zm8 10.36v-7.36l6-3v7.36Z"
-      />
-    </svg>
-  )
-}
-
-function WalletIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 .71.29l2 2A1 1 0 0 1 21 8v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm2 0v2h14V8H5Zm10 5a2 2 0 1 0 2 2 2 2 0 0 0-2-2Z"
-      />
-    </svg>
-  )
-}
-
-function NoteIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M6 3h9l5 5v13H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm8 1.5V9h4.5ZM8 12v2h8v-2Zm0 4v2h6v-2Z"
-      />
-    </svg>
-  )
+  switch (name) {
+    case 'home':
+      return (
+        <svg {...props}>
+          <path d="m3 10 9-7 9 7" />
+          <path d="M5 9.5V21h5v-6h4v6h5V9.5" />
+        </svg>
+      )
+    case 'cart':
+      return (
+        <svg {...props}>
+          <path d="M5 6h2l1.4 8.2a2 2 0 0 0 2 1.8H17a2 2 0 0 0 2-1.6L20 9H8" />
+          <path d="M10 20h.01M17 20h.01" />
+        </svg>
+      )
+    case 'box':
+      return (
+        <svg {...props}>
+          <path d="m12 2 8 4.5v9L12 20l-8-4.5v-9L12 2Z" />
+          <path d="M4.5 7 12 11.2 19.5 7M12 20v-8.8" />
+        </svg>
+      )
+    case 'user':
+      return (
+        <svg {...props}>
+          <path d="M20 21a8 8 0 0 0-16 0" />
+          <path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" />
+        </svg>
+      )
+    case 'users':
+      return (
+        <svg {...props}>
+          <path d="M16 21a6 6 0 0 0-12 0" />
+          <path d="M10 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+          <path d="M22 21a5 5 0 0 0-4-4.8M17 5.2a4 4 0 0 1 0 7.6" />
+        </svg>
+      )
+    case 'note':
+      return (
+        <svg {...props}>
+          <path d="M8 3h7l5 5v13H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+          <path d="M14 3v6h6M10 13h6M10 17h5" />
+        </svg>
+      )
+    case 'card':
+      return (
+        <svg {...props}>
+          <path d="M4 7h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" />
+          <path d="M2 11h20M6 15h4" />
+        </svg>
+      )
+    case 'settings':
+      return (
+        <svg {...props}>
+          <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+          <path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.06.06a2.1 2.1 0 0 1-2.97 2.97l-.06-.06a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.66V21a2.1 2.1 0 0 1-4.2 0v-.1a1.8 1.8 0 0 0-1.08-1.65 1.8 1.8 0 0 0-2 .36l-.06.06a2.1 2.1 0 0 1-2.97-2.97l.06-.06a1.8 1.8 0 0 0 .36-2 1.8 1.8 0 0 0-1.66-1.1H2a2.1 2.1 0 0 1 0-4.2h.1a1.8 1.8 0 0 0 1.65-1.08 1.8 1.8 0 0 0-.36-2l-.06-.06a2.1 2.1 0 0 1 2.97-2.97l.06.06a1.8 1.8 0 0 0 2 .36 1.8 1.8 0 0 0 1.08-1.65V2a2.1 2.1 0 0 1 4.2 0v.1a1.8 1.8 0 0 0 1.08 1.65 1.8 1.8 0 0 0 2-.36l.06-.06a2.1 2.1 0 0 1 2.97 2.97l-.06.06a1.8 1.8 0 0 0-.36 2 1.8 1.8 0 0 0 1.65 1.08H21a2.1 2.1 0 0 1 0 4.2h-.1a1.8 1.8 0 0 0-1.5 1.36Z" />
+        </svg>
+      )
+    case 'logout':
+      return (
+        <svg {...props}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <path d="M16 17l5-5-5-5M21 12H9" />
+        </svg>
+      )
+    case 'plus':
+      return (
+        <svg {...props}>
+          <path d="M12 5v14M5 12h14" />
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+      )
+    case 'trash':
+      return (
+        <svg {...props}>
+          <path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15" />
+          <path d="M10 11v6M14 11v6" />
+        </svg>
+      )
+    case 'arrowLeft':
+      return (
+        <svg {...props}>
+          <path d="M19 12H5M12 5l-7 7 7 7" />
+        </svg>
+      )
+    case 'arrowRight':
+      return (
+        <svg {...props}>
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      )
+  }
 }

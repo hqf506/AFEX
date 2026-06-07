@@ -419,16 +419,8 @@ export default function PosSaleCheckoutPage() {
     [isCashOnDelivery]
   )
 
-  const remainingCardTone = useMemo<'green' | 'red'>(() => {
-    return checkout.remainingFromCustomer === 0 ? 'green' : 'red'
-  }, [checkout.remainingFromCustomer])
-
-  const remainingLabel = useMemo(() => {
-    if (checkout.remainingFromCustomer > 0) {
-      return 'المتبقي'
-    }
-
-    return 'تم السداد'
+  const remainingCardTone = useMemo<'teal' | 'red'>(() => {
+    return checkout.remainingFromCustomer === 0 ? 'teal' : 'red'
   }, [checkout.remainingFromCustomer])
 
   const canSubmitInvoice = useMemo(() => {
@@ -549,26 +541,36 @@ export default function PosSaleCheckoutPage() {
   if (authError === 'timeout') {
     console.warn('[POS CHECKOUT] auth timeout', currentPathname, authStatus)
     return (
-      <div className="page-card space-y-4 text-right">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">تعذر تجهيز نقطة البيع</h2>
-          <p className="mt-1 text-sm text-slate-600">تحقق من تسجيل الدخول أو أعد المحاولة</p>
+      <div className="fixed inset-0 flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#020817] p-5 text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
+        <div className="relative w-full max-w-md space-y-4 rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 p-5 text-right shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+          <div>
+            <h2 className="text-lg font-black text-white">تعذر تجهيز نقطة البيع</h2>
+            <p className="mt-1 text-sm font-bold text-slate-400">تحقق من تسجيل الدخول أو أعد المحاولة</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = '/pos/login'
+            }}
+            className="rounded-2xl bg-cyan-300 px-4 py-2 text-sm font-black text-[#02101c]"
+          >
+            تسجيل الدخول
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            window.location.href = '/pos/login'
-          }}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-        >
-          تسجيل الدخول
-        </button>
       </div>
     )
   }
 
   if (authLoading || !allowed || !ready) {
-    return <div className="page-card">جاري تحميل بيانات الفاتورة...</div>
+    return (
+      <div className="fixed inset-0 flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#020817] p-5 text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
+        <div className="relative rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 px-6 py-4 text-sm font-black text-cyan-100 shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+          جاري تحميل بيانات الفاتورة...
+        </div>
+      </div>
+    )
   }
 
   if (missingCheckoutData) {
@@ -585,15 +587,16 @@ export default function PosSaleCheckoutPage() {
           }
         `}</style>
 
-        <div className="flex h-full w-full min-h-0 min-w-0 flex-col bg-slate-50 p-3 md:p-4 lg:p-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 text-right shadow-sm">
-            <p className="text-sm font-medium text-slate-600">
+        <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] p-5 text-white">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
+          <div className="relative rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 p-5 text-right shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+            <p className="text-sm font-bold text-slate-300">
               لا يمكن إتمام الفاتورة حالياً لأن بيانات العميل أو العناصر غير متوفرة بشكل صحيح.
             </p>
             <button
               type="button"
               onClick={() => router.push('/pos/sale/items')}
-              className="mt-4 flex h-[48px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="mt-4 flex h-[48px] items-center justify-center rounded-2xl border border-cyan-300/18 bg-cyan-400/10 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15"
             >
               العودة إلى العناصر
             </button>
@@ -635,273 +638,199 @@ export default function PosSaleCheckoutPage() {
       `}</style>
 
       {hasInvalidBranchContext ? (
-        <div className="error-alert">
+        <div className="fixed right-5 top-5 z-[60] rounded-[22px] border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100 backdrop-blur-xl">
           لا يمكن إنشاء فاتورة لأن حسابك غير مرتبط بفرع صالح.
         </div>
       ) : null}
 
       {hasAmbiguousAdminBranchContext ? (
-        <div className="error-alert">
+        <div className="fixed right-5 top-20 z-[60] rounded-[22px] border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100 backdrop-blur-xl">
           اختر فرعًا محددًا قبل استخدام شاشة الدفع.
         </div>
       ) : null}
 
-      <div className="flex h-full w-full min-h-0 min-w-0 flex-col bg-slate-50 p-2 md:p-3 lg:p-4">
-        <div className="h-full min-h-0 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm lg:flex lg:[direction:ltr]">
-          <aside className="order-1 min-w-0 space-y-3 border-b border-slate-100 bg-white p-3 md:p-4 lg:flex lg:h-full lg:w-[280px] lg:flex-none lg:flex-col lg:border-b-0 lg:border-r lg:border-slate-100 lg:[direction:rtl] lg:overflow-hidden">
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
-              <h2 className="text-lg font-black text-slate-950 md:text-xl">ملخص الفاتورة</h2>
-
-              <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-3">
-                <p className="text-xs font-bold text-slate-500">اسم العميل</p>
-                <p className="mt-2 text-sm font-black text-slate-950">
-                  {customerName || 'بدون اسم'}
-                </p>
-
-                <p className="mt-4 text-xs font-bold text-slate-400">رقم الجوال</p>
-                <p className="mt-2 text-sm font-black text-slate-950">
-                  {customerPhone || 'بدون رقم جوال'}
-                </p>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-extrabold text-slate-950">العناصر</h3>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                    {invoiceItems.length}
-                  </span>
-                </div>
-
-                <div className="max-h-[160px] space-y-2 overflow-y-auto pr-1 lg:min-h-0 lg:flex-1 lg:max-h-none">
-                  {invoiceItems.map((item) => (
-                    <div
-                      key={item.item_name}
-                      className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-950">
-                            {item.item_name}
-                          </p>
-                          <div className="mt-1.5 flex items-center justify-between gap-3 text-[11px] text-slate-500">
-                            <span>{formatCurrency(item.unit_price)}</span>
-                            <span>{item.quantity}</span>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(item.item_name)}
-                          className="flex h-7 w-7 flex-none items-center justify-center rounded-md text-red-500 transition hover:bg-red-50"
-                          aria-label={`حذف ${item.item_name}`}
-                        >
-                          <Trash2 />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                <div className="space-y-3">
-                  <SummaryMetric
-                    label="إجمالي العناصر"
-                    value={formatCurrency(checkout.subtotal)}
-                  />
-                  <SummaryMetric
-                    label="الخصم"
-                    value={formatCurrency(checkout.discountAmount)}
-                  />
-                  <SummaryMetric
-                    label="الضريبة"
-                    value={formatCurrency(checkout.taxAmount)}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-xl bg-slate-900 p-3 text-center text-white">
-                <p className="text-xs font-bold text-slate-300">الإجمالي المستحق</p>
-                <p className="mt-1.5 text-xl font-black md:text-2xl">
-                  {formatCurrency(checkout.finalTotal)}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => router.push('/pos/sale/items')}
-              className="flex h-[48px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-            >
-              العودة إلى العناصر
-            </button>
-          </aside>
-
-          <main className="order-2 min-w-0 flex-1 p-3 md:p-4 lg:flex lg:min-h-0 lg:flex-col lg:[direction:rtl]">
+      <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_82%_82%,rgba(14,165,233,0.10),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
+        <div className="relative flex h-full w-full gap-4 overflow-hidden p-4 [direction:ltr] xl:p-5">
+          <main className="order-1 flex min-w-0 flex-1 flex-col gap-3 overflow-hidden [direction:rtl]">
             {checkout.successMessage ? (
-              <div className="success-alert">{checkout.successMessage}</div>
+              <div className="rounded-[22px] border border-[#14B8A6]/25 bg-[#14B8A6]/10 px-4 py-3 text-sm font-bold text-teal-50 shadow-[0_0_28px_rgba(20,184,166,0.16)]">
+                {checkout.successMessage}
+              </div>
             ) : null}
             {checkout.errorMessage ? (
-              <div className="error-alert">{checkout.errorMessage}</div>
+              <div className="rounded-[22px] border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">
+                {checkout.errorMessage}
+              </div>
             ) : null}
             {checkout.offlineDraftMessage ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+              <div className="rounded-[22px] border border-[#14B8A6]/25 bg-[#14B8A6]/10 px-4 py-3 text-sm font-bold text-teal-50 shadow-[0_0_28px_rgba(20,184,166,0.16)]">
                 {checkout.offlineDraftMessage}
               </div>
             ) : null}
             {isOffline ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+              <div className="rounded-[22px] border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
                 أنت غير متصل، سيتم حفظ الفاتورة كمسودة فقط
               </div>
             ) : null}
 
-            <section className="rounded-2xl border border-slate-100 bg-white p-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
-              <div className="mb-3">
-                <h1 className="text-xl font-black text-slate-950 md:text-2xl">
+            <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-cyan-300/10 bg-[#020817]/62 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl">
+              <div className="mb-3 flex shrink-0 items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
+                    CHECKOUT
+                  </p>
+                  <h1 className="mt-1 text-3xl font-black text-white">
                   الدفع وإنهاء الفاتورة
-                </h1>
-                <p className="mt-1 text-sm text-slate-500">
-                  اختر طريقة الدفع وأدخل المبلغ
-                </p>
+                  </h1>
+                  <p className="mt-1 text-sm font-bold text-slate-400">
+                    اختر طريقة الدفع وأكمل عملية البيع
+                  </p>
+                </div>
+                <div className="rounded-full border border-cyan-300/12 bg-cyan-300/10 px-4 py-2 text-xs font-black text-cyan-100">
+                  {selectedPaymentLabel}
+                </div>
               </div>
 
-              <div className="space-y-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                {PAYMENT_METHODS.map((option) => {
-                  const selected = checkout.paymentMethod === option.id
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                <div className="grid grid-cols-4 gap-3">
+                  {PAYMENT_METHODS.map((option) => {
+                    const selected = checkout.paymentMethod === option.id
 
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => handleSelectPayment(option)}
-                      className={`flex min-h-[44px] h-10 w-full items-center justify-center rounded-xl px-3 text-center text-sm font-medium transition-all duration-150 active:scale-[0.98] md:h-11 md:text-base ${
-                        selected
-                          ? 'bg-[#020617] text-white'
-                          : 'border border-slate-200 bg-white text-slate-700'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  )
-                })}
-              </div>
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => handleSelectPayment(option)}
+                        className={`flex min-h-[104px] flex-col items-center justify-center gap-3 rounded-[26px] border px-3 text-center transition-all duration-150 active:scale-[0.98] touch-manipulation ${
+                          selected
+                            ? 'border-cyan-300/55 bg-cyan-300/14 text-cyan-50 shadow-[0_0_42px_rgba(34,211,238,0.22)]'
+                            : 'border-cyan-300/12 bg-[#061426]/62 text-slate-300 hover:border-cyan-300/28 hover:bg-cyan-300/8'
+                        }`}
+                      >
+                        <span className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-cyan-300/12 bg-[#020817]/70 text-cyan-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                          <PaymentMethodIcon method={option.id} />
+                        </span>
+                        <span className="text-base font-black">{option.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
 
-              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_220px]">
-                <DiscountSelectorCard
-                  discounts={availableDiscounts}
-                  loading={loadingDiscounts}
-                  selectedDiscount={checkout.selectedDiscount}
-                  onClear={checkout.clearAppliedDiscount}
-                  onSelect={checkout.setSelectedDiscount}
-                />
-                <VatInfoCard
-                  rate={checkout.vatRate}
-                  enabled={checkout.vatEnabled}
-                  loading={loadingVat}
-                />
-              </div>
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+                  <DiscountSelectorCard
+                    discounts={availableDiscounts}
+                    loading={loadingDiscounts}
+                    selectedDiscount={checkout.selectedDiscount}
+                    onClear={checkout.clearAppliedDiscount}
+                    onSelect={checkout.setSelectedDiscount}
+                  />
+                  <VatInfoCard
+                    rate={checkout.vatRate}
+                    enabled={checkout.vatEnabled}
+                    loading={loadingVat}
+                  />
+                </div>
 
-              <div className="space-y-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-              <div className="space-y-2">
-                <label className="mb-2 block text-xs font-bold text-slate-400">
-                  المبلغ المستلم
-                </label>
-                <input
-                  ref={cashReceivedInputRef}
-                  type="number"
-                  value={checkout.cashReceived}
-                  onChange={(event) => checkout.setCashReceived(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault()
-                      handleCreateInvoice()
-                    }
-                  }}
-                  placeholder="المبلغ المستلم"
-                  readOnly={!checkout.isReceivedAmountEditable}
-                  disabled={!checkout.isReceivedAmountEditable}
-                  className={`h-11 w-full rounded-xl border px-4 text-right text-base font-medium outline-none transition placeholder:text-slate-400 ${
-                    checkout.isReceivedAmountEditable
-                      ? 'border-slate-200 bg-white text-slate-900 focus:border-slate-300 focus:ring-2 focus:ring-slate-100'
-                      : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-600'
-                  }`}
-                />
-              </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                {([
-                  { label: '50', value: 50 },
-                  { label: '100', value: 100 },
-                  { label: '200', value: 200 },
-                  { label: 'كامل', value: 'full' as const },
-                ]).map((amountOption) => (
-                  <button
-                    key={amountOption.label}
-                    type="button"
-                    onClick={() => handleApplyQuickAmount(amountOption.value)}
+                <div className="rounded-[28px] border border-cyan-300/10 bg-[#061426]/58 p-4">
+                  <label className="mb-2 block text-xs font-black text-slate-400">
+                    المبلغ المستلم
+                  </label>
+                  <input
+                    ref={cashReceivedInputRef}
+                    type="number"
+                    value={checkout.cashReceived}
+                    onChange={(event) => checkout.setCashReceived(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        handleCreateInvoice()
+                      }
+                    }}
+                    placeholder="المبلغ المستلم"
+                    readOnly={!checkout.isReceivedAmountEditable}
                     disabled={!checkout.isReceivedAmountEditable}
-                    className="flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                  >
-                    {amountOption.label}
-                  </button>
-                ))}
-              </div>
+                    className={`h-16 w-full rounded-[22px] border px-5 text-right text-2xl font-black outline-none transition placeholder:text-slate-500 ${
+                      checkout.isReceivedAmountEditable
+                        ? 'border-cyan-300/18 bg-[#020817]/75 text-white focus:border-cyan-300/42 focus:ring-4 focus:ring-cyan-300/10'
+                        : 'cursor-not-allowed border-cyan-300/8 bg-[#020817]/45 text-slate-500'
+                    }`}
+                  />
 
-              {cashWarningMessage ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-bold text-amber-700">
-                  {cashWarningMessage}
+                  <div className="mt-3 grid grid-cols-5 gap-2">
+                    {([
+                      { label: '+50', value: 50 },
+                      { label: '+100', value: 100 },
+                      { label: '+200', value: 200 },
+                      { label: '+500', value: 500 },
+                      { label: 'كامل', value: 'full' as const },
+                    ]).map((amountOption) => (
+                      <button
+                        key={amountOption.label}
+                        type="button"
+                        onClick={() => handleApplyQuickAmount(amountOption.value)}
+                        disabled={!checkout.isReceivedAmountEditable}
+                        className="flex min-h-[48px] items-center justify-center rounded-[18px] border border-cyan-300/12 bg-[#020817]/70 px-3 text-sm font-black text-cyan-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900/50 disabled:text-slate-600"
+                      >
+                        {amountOption.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ) : null}
 
-              {checkout.cashChange > 0 ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-bold text-emerald-700">
-                  الباقي للعميل: {formatCurrency(checkout.cashChange)}
+                {cashWarningMessage ? (
+                  <div className="rounded-[20px] border border-amber-300/20 bg-amber-400/10 px-3 py-2.5 text-sm font-bold text-amber-100">
+                    {cashWarningMessage}
+                  </div>
+                ) : null}
+
+                {checkout.cashChange > 0 ? (
+                  <div className="rounded-[20px] border border-[#14B8A6]/25 bg-[#14B8A6]/10 px-3 py-2.5 text-sm font-bold text-teal-50 shadow-[0_0_24px_rgba(20,184,166,0.14)]">
+                    الباقي للعميل: {formatCurrency(checkout.cashChange)}
+                  </div>
+                ) : null}
+
+                <div className="grid gap-3 md:grid-cols-3">
+                  <CalculationCard
+                    label="الإجمالي"
+                    value={formatCurrency(checkout.finalTotal)}
+                    tone="slate"
+                  />
+                  <CalculationCard
+                    label="المبلغ المستلم"
+                    value={formatCurrency(checkout.numericCashReceived)}
+                    tone="teal"
+                  />
+                  <CalculationCard
+                    label="الباقي"
+                    value={
+                      checkout.cashChange > 0
+                        ? formatCurrency(checkout.cashChange)
+                        : formatCurrency(checkout.remainingFromCustomer)
+                    }
+                    tone={remainingCardTone}
+                  />
                 </div>
-              ) : null}
 
-              <div className="grid gap-2 md:grid-cols-3">
-                <CalculationCard
-                  label="الإجمالي المستحق"
-                  value={formatCurrency(checkout.finalTotal)}
-                  tone="slate"
-                />
-                <CalculationCard
-                  label="المدفوع"
-                  value={formatCurrency(checkout.numericCashReceived)}
-                  tone="green"
-                />
-                <CalculationCard
-                  label={remainingLabel}
-                  value={
-                    checkout.cashChange > 0
-                      ? formatCurrency(checkout.cashChange)
-                      : formatCurrency(checkout.remainingFromCustomer)
-                  }
-                  tone={remainingCardTone}
-                />
+                <div className="space-y-2">
+                  <label className="mb-2 block text-xs font-black text-slate-400">
+                    ملاحظة
+                  </label>
+                  <textarea
+                    value={checkout.note}
+                    onChange={(event) => checkout.setNote(event.target.value)}
+                    placeholder="اكتب ملاحظة..."
+                    className="min-h-[86px] w-full rounded-[22px] border border-cyan-300/12 bg-[#020817]/70 px-4 py-3 text-right text-sm font-bold text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/36 focus:ring-4 focus:ring-cyan-300/10"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="mb-2 block text-xs font-bold text-slate-400">
-                  ملاحظة
-                </label>
-                <textarea
-                  value={checkout.note}
-                  onChange={(event) => checkout.setNote(event.target.value)}
-                  placeholder="اكتب ملاحظة..."
-                  className="min-h-[72px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-right text-sm text-slate-700 outline-none transition focus:ring-2 focus:ring-slate-200"
-                />
-              </div>
-              </div>
-              </div>
-
-              <div className="mt-auto flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center">
+              <div className="mt-3 flex shrink-0 flex-col gap-2 border-t border-cyan-300/10 pt-3 sm:flex-row sm:items-center">
                 <button
                   type="button"
                   onClick={handleCreateInvoice}
                   disabled={!canSubmitInvoice}
-                  className="flex h-12 min-h-[44px] flex-1 items-center justify-center rounded-xl bg-slate-900 text-base font-bold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                  className="flex h-16 flex-1 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] text-lg font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
                 >
                   {checkout.loading ? 'جاري إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
                 </button>
@@ -909,13 +838,111 @@ export default function PosSaleCheckoutPage() {
                 <button
                   type="button"
                   onClick={handleCancelInvoice}
-                  className="flex min-h-[44px] items-center justify-center rounded-xl border border-red-200 bg-red-50 px-5 text-sm font-semibold text-red-600 transition active:scale-[0.98]"
+                  className="flex h-14 items-center justify-center rounded-[22px] border border-red-400/18 bg-red-500/10 px-6 text-sm font-black text-red-200 transition active:scale-[0.98]"
                 >
                   إلغاء الفاتورة
                 </button>
               </div>
             </section>
           </main>
+
+          <aside className="order-2 flex h-full w-[330px] shrink-0 flex-col overflow-hidden rounded-[30px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl]">
+            <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
+              <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
+                INVOICE
+              </p>
+              <h2 className="mt-1 text-xl font-black text-white">ملخص الفاتورة</h2>
+            </div>
+
+            <div className="mt-2.5 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3.5">
+              <p className="text-xs font-black text-slate-400">العميل</p>
+              <p className="mt-2 truncate text-lg font-black text-white">
+                {customerName || 'بدون اسم'}
+              </p>
+              <p className="mt-1 truncate text-sm font-bold text-slate-400">
+                {customerPhone || 'بدون رقم جوال'}
+              </p>
+            </div>
+
+            <div className="mt-2 flex min-h-0 flex-1 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-base font-black text-white">العناصر</h3>
+                <span className="rounded-full bg-cyan-300/12 px-3 py-1 text-xs font-black text-cyan-100">
+                  {invoiceItems.length}
+                </span>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {invoiceItems.map((item) => (
+                  <div
+                    key={item.item_name}
+                    className="rounded-[20px] border border-cyan-300/10 bg-[#020817]/58 p-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-white">
+                          {item.item_name}
+                        </p>
+                        <div className="mt-1.5 flex items-center gap-3 text-xs font-bold text-slate-400">
+                          <span>الكمية: {item.quantity}</span>
+                          <span>{formatCurrency(item.unit_price)}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(item.item_name)}
+                        className="flex h-9 w-9 flex-none items-center justify-center rounded-2xl text-red-300 transition hover:bg-red-500/10"
+                        aria-label={`حذف ${item.item_name}`}
+                      >
+                        <Trash2 />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-2 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3">
+              <div className="space-y-2">
+                <SummaryMetric
+                  label="المجموع الفرعي"
+                  value={formatCurrency(checkout.subtotal)}
+                />
+                <SummaryMetric
+                  label="الخصم"
+                  value={formatCurrency(checkout.discountAmount)}
+                />
+                <SummaryMetric
+                  label="VAT"
+                  value={formatCurrency(checkout.taxAmount)}
+                />
+              </div>
+              <div className="mt-3 border-t border-cyan-300/10 pt-3">
+                <p className="text-xs font-black text-cyan-100">الإجمالي</p>
+                <p className="mt-1 text-3xl font-black text-white">
+                  {formatCurrency(checkout.finalTotal)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-2 shrink-0 space-y-2">
+              <button
+                type="button"
+                onClick={() => router.push('/pos/sale/items')}
+                className="flex h-12 w-full items-center justify-center rounded-[20px] border border-cyan-300/14 bg-cyan-400/10 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15"
+              >
+                العودة إلى العناصر
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelInvoice}
+                className="flex h-12 w-full items-center justify-center rounded-[20px] border border-red-400/18 bg-red-500/10 text-sm font-black text-red-200 transition hover:bg-red-500/14"
+              >
+                إلغاء الفاتورة
+              </button>
+            </div>
+          </aside>
         </div>
       </div>
 
@@ -1078,22 +1105,22 @@ export default function PosSaleCheckoutPage() {
 
       {showCancelModal ? (
         <>
-          <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" />
+          <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm" />
 
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 text-right shadow-xl">
-              <h2 className="mb-2 text-lg font-semibold text-slate-950">
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-[28px] border border-red-400/18 bg-[#020817]/95 p-6 text-right shadow-[0_28px_80px_rgba(0,0,0,0.55)]">
+              <h2 className="mb-2 text-lg font-black text-white">
                 إلغاء الفاتورة
               </h2>
 
-              <p className="mb-6 text-gray-600">
+              <p className="mb-6 text-sm font-bold leading-7 text-slate-300">
                 هل أنت متأكد من إلغاء الفاتورة؟
               </p>
 
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="h-11 rounded-2xl border border-cyan-300/12 bg-[#061426] px-5 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10"
                   onClick={() => setShowCancelModal(false)}
                 >
                   إلغاء
@@ -1101,7 +1128,7 @@ export default function PosSaleCheckoutPage() {
 
                 <button
                   type="button"
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+                  className="h-11 rounded-2xl bg-red-500 px-5 text-sm font-black text-white transition hover:bg-red-400"
                   onClick={confirmCancelInvoice}
                 >
                   تأكيد
@@ -1137,10 +1164,10 @@ function DiscountSelectorCard({
     : 'بدون خصم'
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
+    <div className="rounded-[26px] border border-cyan-300/10 bg-[#061426]/58 p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-bold text-slate-700">الخصومات</p>
-        <span className="truncate text-[11px] font-medium text-slate-500">
+        <p className="text-sm font-black text-white">الخصومات</p>
+        <span className="truncate text-[11px] font-bold text-slate-400">
           {currentLabel}
         </span>
       </div>
@@ -1149,10 +1176,10 @@ function DiscountSelectorCard({
         <button
           type="button"
           onClick={onClear}
-          className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+          className={`min-h-[38px] rounded-2xl px-3 py-1.5 text-xs font-black transition ${
             !selectedDiscount
-              ? 'bg-[#020617] text-white'
-              : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              ? 'bg-cyan-300 text-[#02101c] shadow-[0_0_24px_rgba(34,211,238,0.22)]'
+              : 'border border-cyan-300/12 bg-[#020817]/65 text-slate-300 hover:bg-cyan-400/10'
           }`}
         >
           بدون خصم
@@ -1163,10 +1190,10 @@ function DiscountSelectorCard({
             key={discountOption.id}
             type="button"
             onClick={() => onSelect(discountOption)}
-            className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+            className={`min-h-[38px] rounded-2xl px-3 py-1.5 text-xs font-black transition ${
               selectedDiscount?.id === discountOption.id
-                ? 'bg-[#020617] text-white'
-                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                ? 'bg-cyan-300 text-[#02101c] shadow-[0_0_24px_rgba(34,211,238,0.22)]'
+                : 'border border-cyan-300/12 bg-[#020817]/65 text-slate-300 hover:bg-cyan-400/10'
             }`}
           >
             {formatDiscountOptionLabel(discountOption)}
@@ -1175,7 +1202,7 @@ function DiscountSelectorCard({
       </div>
 
       {loading ? (
-        <p className="mt-3 text-xs text-slate-500">جاري التحميل...</p>
+        <p className="mt-3 text-xs font-bold text-slate-400">جاري التحميل...</p>
       ) : null}
     </div>
   )
@@ -1191,15 +1218,15 @@ function VatInfoCard({
   loading: boolean
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="mb-2 text-sm font-bold text-slate-700">الضريبة VAT</p>
-      <div className="flex min-h-[44px] items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+    <div className="rounded-[26px] border border-cyan-300/10 bg-[#061426]/58 p-3.5">
+      <p className="mb-2 text-sm font-black text-white">الضريبة VAT</p>
+      <div className="flex min-h-[52px] items-center justify-between rounded-[20px] border border-cyan-300/10 bg-[#020817]/65 px-3 py-2 text-sm">
         <span
-          className={`font-medium ${enabled ? 'text-emerald-600' : 'text-slate-500'}`}
+          className={`font-black ${enabled ? 'text-[#14B8A6]' : 'text-slate-500'}`}
         >
           {loading ? 'جاري التحميل...' : enabled ? 'مطبقة' : 'غير مفعلة'}
         </span>
-        <span className="font-bold text-slate-900">{enabled ? `${rate}%` : '0%'}</span>
+        <span className="font-black text-white">{enabled ? `${rate}%` : '0%'}</span>
       </div>
     </div>
   )
@@ -1208,8 +1235,8 @@ function VatInfoCard({
 function SummaryMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-black text-slate-900">{value}</span>
+      <span className="font-bold text-slate-400">{label}</span>
+      <span className="font-black text-white">{value}</span>
     </div>
   )
 }
@@ -1221,20 +1248,103 @@ function CalculationCard({
 }: {
   label: string
   value: string
-  tone: 'slate' | 'green' | 'red'
+  tone: 'slate' | 'teal' | 'red'
 }) {
   const toneClass =
-    tone === 'green'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    tone === 'teal'
+      ? 'border-[#14B8A6]/25 bg-[#0D9488]/12 text-teal-50 shadow-[0_0_24px_rgba(20,184,166,0.14)]'
       : tone === 'red'
-        ? 'border-red-200 bg-red-50 text-red-600'
-        : 'border-slate-300 bg-slate-50 text-slate-900'
+        ? 'border-red-300/18 bg-red-500/10 text-red-100'
+        : 'border-cyan-300/12 bg-[#061426]/58 text-white'
 
   return (
-    <div className={`rounded-xl border p-3 text-center ${toneClass}`}>
-      <p className="text-xs font-bold text-slate-400">{label}</p>
+    <div className={`rounded-[24px] border p-3 text-center ${toneClass}`}>
+      <p className="text-xs font-black text-slate-400">{label}</p>
       <p className="mt-2 text-lg font-black">{value}</p>
     </div>
+  )
+}
+
+function PaymentMethodIcon({
+  method,
+}: {
+  method: (typeof PAYMENT_METHODS)[number]['id']
+}) {
+  if (method === 'cash') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className="h-10 w-10" aria-hidden="true">
+        <path
+          d="M3.5 7.5h17v9h-17z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M7 7.5a3 3 0 0 1-3 3M17 7.5a3 3 0 0 0 3 3M7 16.5a3 3 0 0 0-3-3M17 16.5a3 3 0 0 1 3-3"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle
+          cx="12"
+          cy="12"
+          r="2.4"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+      </svg>
+    )
+  }
+
+  if (method === 'cod') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className="h-10 w-10" aria-hidden="true">
+        <path
+          d="M3 7h11v10H3zM14 11h3.4l2.6 3v3h-6z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="7" cy="18" r="1.7" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="18" cy="18" r="1.7" stroke="currentColor" strokeWidth="1.8" />
+        <path
+          d="M6 10h5M6 13h3"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+      </svg>
+    )
+  }
+
+  return (
+    <span className="flex flex-col items-center justify-center gap-0.5">
+      <svg viewBox="0 0 24 24" fill="none" className="h-9 w-9" aria-hidden="true">
+        <rect
+          x="3"
+          y="5.5"
+          width="18"
+          height="13"
+          rx="2.6"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M3.5 10h17M7 14.5h4.5"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+      </svg>
+      {method === 'visa' ? (
+        <span className="text-[10px] font-black leading-none tracking-[0.18em] text-cyan-100">
+          VISA
+        </span>
+      ) : null}
+    </span>
   )
 }
 

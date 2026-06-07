@@ -895,12 +895,14 @@ export default function AdminCatalogPage() {
 
   useEffect(() => {
     if (!accessLoading && allowed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void Promise.all([loadItems(), loadBranches(), loadCategories()])
     }
   }, [accessLoading, allowed])
 
   useEffect(() => {
     if (!accessLoading && allowed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadBranchScopedItems()
     }
   }, [accessLoading, allowed, loadBranchScopedItems])
@@ -1287,17 +1289,20 @@ export default function AdminCatalogPage() {
     bulkDeleteTotal > 0 ? Math.min(100, (bulkDeleteDone / bulkDeleteTotal) * 100) : 0
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedItemIds((current) =>
       current.filter((id) => filteredItems.some((item) => item.id === id))
     )
   }, [filteredItems])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1)
   }, [searchQuery, statusFilter, categoryFilter, branchFilter])
 
   useEffect(() => {
     if (currentPage > totalPages) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentPage(totalPages)
     }
   }, [currentPage, totalPages])
@@ -1650,22 +1655,78 @@ export default function AdminCatalogPage() {
       setSuccessMessage('')
       setErrorMessage('')
 
+      const uploadFile = file as File
       const formData = new FormData()
       formData.append('itemId', itemId)
-      formData.append('file', file as File)
+      formData.append('file', uploadFile)
 
       const response = await fetch('/api/admin/catalog/upload-image', {
         method: 'POST',
         body: formData,
       })
 
-      const result = await response.json()
+      let result: unknown = null
+      let fallbackText = ''
 
-      if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل رفع صورة العنصر')
+      try {
+        result = await response.json()
+      } catch {
+        try {
+          fallbackText = await response.text()
+        } catch {
+          fallbackText = ''
+        }
       }
 
-      setSuccessMessage(result?.message || 'تم رفع صورة العنصر بنجاح')
+      if (!response.ok) {
+        const errorBody = result ?? null
+        const apiError =
+          result && typeof result === 'object'
+            ? (result as {
+                code?: unknown
+                error?: unknown
+                details?: unknown
+              })
+            : null
+        const code =
+          typeof apiError?.code === 'string' ? apiError.code : undefined
+        const error =
+          typeof apiError?.error === 'string' ? apiError.error : undefined
+        const details =
+          typeof apiError?.details === 'string' ? apiError.details : undefined
+        const debugObject = {
+          status: response.status,
+          statusText: response.statusText,
+          errorBody,
+          rawText: fallbackText,
+          itemId,
+          fileName: uploadFile.name,
+          fileType: uploadFile.type,
+          fileSize: uploadFile.size,
+        }
+
+        console.error(
+          '[CATALOG_UPLOAD_FAILED]',
+          JSON.stringify(debugObject, null, 2)
+        )
+
+        throw new Error(
+          [code, error, details].filter(Boolean).join(' - ') ||
+            fallbackText ||
+            'فشل رفع صورة العنصر'
+        )
+      }
+
+      const successBody =
+        result && typeof result === 'object'
+          ? (result as { message?: unknown })
+          : null
+      const successMessage =
+        typeof successBody?.message === 'string'
+          ? successBody.message
+          : 'تم رفع صورة العنصر بنجاح'
+
+      setSuccessMessage(successMessage)
       await loadItems(true)
     } catch (error) {
       setErrorMessage(

@@ -25,27 +25,31 @@
 html.is-capacitor,
 body.is-capacitor {
   width: 100vw;
+  height: 100%;
   min-height: 100vh;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #f8fafc;
+  overscroll-behavior: none;
+  background: #020617;
 }
 
 body.is-capacitor .pos-shell-viewport,
 body.is-capacitor .pos-shell-inner {
   width: 100vw;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #f8fafc;
+  background: #020617;
 }
 
 body.is-capacitor .pos-tablet-frame-mobile {
   display: block !important;
   width: 100vw;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
 }
 
 body.is-capacitor .pos-tablet-frame-desktop {
@@ -54,7 +58,8 @@ body.is-capacitor .pos-tablet-frame-desktop {
 
 body.is-capacitor .page-wrap {
   width: 100vw;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   margin: 0;
   padding: 0 !important;
 }
@@ -76,6 +81,47 @@ body.is-capacitor .pos-checkout-page > div,
 body.is-capacitor .pos-success-page > div {
   margin: 0 !important;
   border-radius: 0 !important;
+}
+
+html:has(.pos-shell-viewport),
+body:has(.pos-shell-viewport) {
+  height: 100%;
+  overscroll-behavior: none;
+  background: #020617;
+}
+
+.pos-shell-viewport {
+  direction: rtl;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+  touch-action: manipulation;
+}
+
+.pos-shell-viewport .pos-shell-inner,
+.pos-shell-viewport .pos-tablet-frame-mobile,
+.pos-shell-viewport .pos-tablet-frame-mobile > div,
+.pos-shell-viewport .pos-tablet-frame-mobile > div > div {
+  height: 100%;
+  min-height: 0;
+}
+
+.pos-shell-viewport .page-wrap {
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pos-shell-viewport input,
+.pos-shell-viewport textarea,
+.pos-shell-viewport select,
+.pos-shell-viewport button,
+.pos-shell-viewport a {
+  touch-action: manipulation;
+}
+
+@media (orientation: landscape) and (min-width: 900px) {
+  .pos-shell-viewport .page-wrap {
+    overflow: hidden;
+  }
 }
 
 * {

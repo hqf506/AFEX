@@ -30,7 +30,7 @@ export function PosTabletFrame({
   children,
   isLoginPage = false,
 }: PosTabletFrameProps) {
-  const [mode, setMode] = useState<PosTabletMode>('portrait')
+  const [mode, setMode] = useState<PosTabletMode>('landscape')
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -76,15 +76,15 @@ export function PosTabletFrame({
 
   return (
     <PosTabletFrameContext.Provider value={contextValue}>
-      <div className="pos-tablet-frame-mobile w-full xl:hidden">
-        <div className="w-full">
-          <div className={`w-full overflow-hidden ${isLoginPage ? 'min-h-[100dvh]' : ''}`}>
+      <div className="pos-tablet-frame-mobile h-full min-h-0 w-full xl:hidden">
+        <div className="h-full min-h-0 w-full">
+          <div className={`h-full min-h-0 w-full overflow-hidden ${isLoginPage ? 'min-h-[100dvh]' : ''}`}>
             {children}
           </div>
         </div>
       </div>
 
-      <div className="pos-tablet-frame-desktop hidden min-h-screen w-screen overflow-auto bg-black xl:flex xl:items-center xl:justify-center">
+      <div className="pos-tablet-frame-desktop hidden h-[100dvh] w-screen overflow-hidden bg-black xl:flex xl:items-center xl:justify-center">
         <div
           className={`pos-tablet-frame-shell relative shrink-0 transition-all duration-200 ease-out ${frameWidthClass} ${desktopScreenHeightClass} ${
             hydrated ? 'opacity-100 transition-opacity duration-150' : 'opacity-0'

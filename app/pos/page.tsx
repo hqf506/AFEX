@@ -1,9 +1,8 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { usePosTabletFrame } from '@/components/pos-tablet-frame'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import {
@@ -89,6 +88,7 @@ function triggerPosClickFeedback() {
 
 const sidebarItems = [
   {
+    id: 'home',
     label: 'الرئيسية',
     href: '/pos',
     active: true,
@@ -96,51 +96,54 @@ const sidebarItems = [
     icon: 'home' as const,
   },
   {
-    label: 'بيانات العميل',
+    id: 'new-sale',
+    label: 'بيع جديد',
     href: '/pos/sale/customer',
     active: false,
-    disabled: true,
-    icon: 'user' as const,
+    disabled: false,
+    icon: 'shoppingCart' as const,
   },
   {
-    label: 'العناصر',
+    id: 'products',
+    label: 'المنتجات',
     href: '/pos/sale/items',
     active: false,
     disabled: true,
     icon: 'package' as const,
   },
   {
-    label: 'الدفع',
+    id: 'customers',
+    label: 'العملاء',
+    href: '/pos/sale/customer',
+    active: false,
+    disabled: true,
+    icon: 'user' as const,
+  },
+  {
+    id: 'orders',
+    label: 'الطلبات',
+    href: '/pos',
+    active: false,
+    disabled: true,
+    icon: 'clipboard' as const,
+  },
+  {
+    id: 'payments',
+    label: 'المدفوعات',
     href: '/pos/sale/checkout',
     active: false,
     disabled: true,
     icon: 'creditCard' as const,
   },
+  {
+    id: 'settings',
+    label: 'الإعدادات',
+    href: '/pos/offline-drafts',
+    active: false,
+    disabled: false,
+    icon: 'settings' as const,
+  },
 ]
-
-const orderStatusCards = [
-  {
-    status: 'in_progress' as const,
-    label: 'قيد التنفيذ',
-    description: 'طلبات تحت المعالجة',
-    className: 'border-amber-200 bg-amber-50 text-amber-700',
-    icon: 'clock' as const,
-  },
-  {
-    status: 'ready' as const,
-    label: 'جاهز',
-    description: 'طلبات جاهزة للتسليم',
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    icon: 'checkCircle' as const,
-  },
-  {
-    status: 'closed' as const,
-    label: 'تم تسليم',
-    description: 'طلبات مكتملة',
-    className: 'border-slate-300 bg-slate-100 text-slate-700',
-    icon: 'truck' as const,
-  },
-] as const
 
 type PosKanbanStatus = 'in_progress' | 'ready' | 'closed'
 type PosKanbanTransitionStatus = Exclude<PosKanbanStatus, 'closed'>
@@ -163,7 +166,6 @@ const POS_ORDER_STATUS_UI: Record<
     emptyLabel: string
     nextActionLabel?: string
     badgeClassName: string
-    columnClassName: string
     dotClassName: string
   }
 > = {
@@ -171,24 +173,21 @@ const POS_ORDER_STATUS_UI: Record<
     label: 'قيد التنفيذ',
     emptyLabel: 'لا توجد طلبات قيد التنفيذ',
     nextActionLabel: 'نقل إلى جاهز',
-    badgeClassName: 'bg-amber-100 text-amber-700',
-    columnClassName: 'bg-amber-50',
-    dotClassName: 'bg-amber-500',
+    badgeClassName: 'bg-[rgba(34,211,238,0.10)] text-cyan-100',
+    dotClassName: 'bg-[#22D3EE]',
   },
   ready: {
     label: 'جاهز',
     emptyLabel: 'لا توجد طلبات جاهزة',
     nextActionLabel: 'نقل إلى تم تسليم',
-    badgeClassName: 'bg-emerald-100 text-emerald-700',
-    columnClassName: 'bg-emerald-50',
-    dotClassName: 'bg-emerald-500',
+    badgeClassName: 'bg-[rgba(34,211,238,0.08)] text-cyan-100',
+    dotClassName: 'bg-cyan-200',
   },
   closed: {
     label: 'تم تسليم',
     emptyLabel: 'لا توجد طلبات بهذه الحالة',
-    badgeClassName: 'bg-slate-200 text-slate-700',
-    columnClassName: 'bg-slate-100',
-    dotClassName: 'bg-slate-500',
+    badgeClassName: 'bg-slate-300/10 text-slate-200',
+    dotClassName: 'bg-slate-400',
   },
 }
 
@@ -198,8 +197,10 @@ type IconName =
   | 'clock'
   | 'creditCard'
   | 'home'
+  | 'logout'
   | 'package'
   | 'shoppingCart'
+  | 'settings'
   | 'truck'
   | 'user'
   | 'zap'
@@ -302,39 +303,22 @@ function PosIcon({
           <path d="M13 2 5 13h5l-1 9 8-11h-5l1-9Z" />
         </svg>
       )
+    case 'settings':
+      return (
+        <svg {...props}>
+          <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+          <path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.06.06a2.1 2.1 0 0 1-2.97 2.97l-.06-.06a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.66V21a2.1 2.1 0 0 1-4.2 0v-.1a1.8 1.8 0 0 0-1.08-1.65 1.8 1.8 0 0 0-2 .36l-.06.06a2.1 2.1 0 0 1-2.97-2.97l.06-.06a1.8 1.8 0 0 0 .36-2 1.8 1.8 0 0 0-1.66-1.1H2a2.1 2.1 0 0 1 0-4.2h.1a1.8 1.8 0 0 0 1.65-1.08 1.8 1.8 0 0 0-.36-2l-.06-.06a2.1 2.1 0 0 1 2.97-2.97l.06.06a1.8 1.8 0 0 0 2 .36h.01A1.8 1.8 0 0 0 9.45 2V2a2.1 2.1 0 0 1 4.2 0v.1a1.8 1.8 0 0 0 1.08 1.65 1.8 1.8 0 0 0 2-.36l.06-.06a2.1 2.1 0 0 1 2.97 2.97l-.06.06a1.8 1.8 0 0 0-.36 2v.01A1.8 1.8 0 0 0 21 9.45h.1a2.1 2.1 0 0 1 0 4.2H21a1.8 1.8 0 0 0-1.6 1.35Z" />
+        </svg>
+      )
+    case 'logout':
+      return (
+        <svg {...props}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <path d="M16 17l5-5-5-5" />
+          <path d="M21 12H9" />
+        </svg>
+      )
   }
-}
-
-function TabletOrientationIcon({
-  mode,
-  className = 'h-4 w-4',
-}: {
-  mode: 'portrait' | 'landscape'
-  className?: string
-}) {
-  const isPortrait = mode === 'portrait'
-
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <rect
-        x={isPortrait ? 7 : 4}
-        y={isPortrait ? 3 : 6}
-        width={isPortrait ? 10 : 16}
-        height={isPortrait ? 18 : 12}
-        rx="2.5"
-      />
-      <circle cx="12" cy={isPortrait ? 18 : 12} r="0.8" fill="currentColor" stroke="none" />
-    </svg>
-  )
 }
 
 function resolvePosKanbanStatus(status: OrderStatus): PosKanbanStatus | null {
@@ -359,10 +343,22 @@ function getPosEmployeeDisplayName(employee: ActivePosEmployee | null) {
   return employee?.full_name?.trim() || employee?.username?.trim() || 'غير محدد'
 }
 
+function formatOrderTime(createdAt: string) {
+  const date = new Date(createdAt)
+
+  if (Number.isNaN(date.getTime())) {
+    return '--:--'
+  }
+
+  return new Intl.DateTimeFormat('ar-SA', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 export default function PosPage() {
   const router = useRouter()
   const pathname = usePathname()
-  const tabletFrame = usePosTabletFrame()
   const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
   const [loggingOut, setLoggingOut] = useState(false)
   const [ordersLoading, setOrdersLoading] = useState(false)
@@ -371,6 +367,7 @@ export default function PosPage() {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const [activePosEmployee, setActivePosEmployee] =
     useState<ActivePosEmployee | null>(null)
+  const [currentNow, setCurrentNow] = useState(() => new Date())
   const [offlineDraftSyncState, setOfflineDraftSyncState] =
     useState<PosOfflineDraftSyncState>({
       draftsCount: 0,
@@ -386,26 +383,30 @@ export default function PosPage() {
   )
 
   const storeName = settings?.store_name?.trim() || 'AFEX POS'
-  const orderStatusCounts = useMemo(
-    () => ({
-      in_progress: orders.filter(
-        (order) => resolvePosKanbanStatus(order.status) === 'in_progress'
-      ).length,
-      ready: orders.filter(
-        (order) => resolvePosKanbanStatus(order.status) === 'ready'
-      ).length,
-      closed: orders.filter(
-        (order) => resolvePosKanbanStatus(order.status) === 'closed'
-      ).length,
-    }),
-    [orders]
-  )
-  const visibleKanbanOrdersCount =
-    orderStatusCounts.in_progress +
-    orderStatusCounts.ready +
-    orderStatusCounts.closed
-  const showKanbanStartPrompt =
-    !ordersLoading && !ordersError && visibleKanbanOrdersCount === 0
+  const employeeDisplayName = getPosEmployeeDisplayName(activePosEmployee)
+  const recentOrders = orders.slice(0, 6)
+  const dayName = new Intl.DateTimeFormat('ar-SA', {
+    weekday: 'long',
+  }).format(currentNow)
+  const dateLabel = new Intl.DateTimeFormat('ar-SA', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(currentNow)
+  const timeLabel = new Intl.DateTimeFormat('ar-SA', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(currentNow)
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentNow(new Date())
+    }, 30_000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   useEffect(() => {
     if (!access.allowed || isPosLoginPage) {
@@ -650,367 +651,384 @@ export default function PosPage() {
     router.push('/pos/sale/customer')
   }
 
+  const handleQuickCustomer = () => {
+    triggerPosClickFeedback()
+    router.push('/pos/sale/customer')
+  }
+
+  const handleScanProduct = () => {
+    triggerPosClickFeedback()
+    router.push('/pos/sale/items')
+  }
+
   if (access.authError === 'timeout') {
     console.warn('[POS PAGE] auth timeout', pathname, access.authStatus)
     return (
-      <div className="page-card space-y-4 text-right">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">تعذر تجهيز نقطة البيع</h2>
-          <p className="mt-1 text-sm text-slate-600">تحقق من تسجيل الدخول أو أعد المحاولة</p>
+      <div className="flex h-full w-full items-center justify-center bg-[#020817] p-6 text-right text-white">
+        <div className="w-full max-w-md rounded-[28px] border border-cyan-300/20 bg-[rgba(2,8,23,0.72)] p-6 shadow-[0_0_45px_rgba(34,211,238,0.14)] backdrop-blur-2xl">
+          <h2 className="text-xl font-black">تعذر تجهيز نقطة البيع</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-300">تحقق من تسجيل الدخول أو أعد المحاولة</p>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = '/pos/login'
+            }}
+            className="mt-5 min-h-[48px] rounded-2xl border border-cyan-300/30 bg-cyan-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.24)] transition active:scale-[0.98]"
+          >
+            تسجيل الدخول
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            window.location.href = '/pos/login'
-          }}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-        >
-          تسجيل الدخول
-        </button>
       </div>
     )
   }
 
   if (access.loading || !access.allowed) {
-    return <div className="page-card">جاري تحميل نقطة البيع...</div>
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-[#020817] text-white">
+        <div className="rounded-[24px] border border-cyan-300/20 bg-[rgba(2,8,23,0.72)] px-6 py-4 text-sm font-bold text-slate-200 shadow-[0_0_40px_rgba(34,211,238,0.12)]">
+          جاري تحميل نقطة البيع...
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="pos-home-screen flex h-full w-full min-h-0 min-w-0 flex-col bg-slate-50">
-      <div className="pos-home-surface grid h-full min-h-0 gap-2 rounded-[28px] border border-slate-200 bg-white p-2 shadow-sm md:gap-3 md:p-3 lg:[direction:ltr] lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-4">
-        <main className="order-2 min-w-0 lg:order-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:[direction:rtl]">
-          <div className="flex h-full min-h-0 flex-col gap-5">
-            <div className="space-y-5">
-              <div className="flex flex-col items-start gap-3 rounded-[24px] bg-slate-50/80 p-3 md:p-4 sm:flex-row">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
-                  <PosIcon name="zap" className="h-6 w-6" />
-                </div>
+    <main
+      dir="rtl"
+      className="fixed inset-0 z-[60] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white"
+    >
+      <section
+        className="relative h-full w-full overflow-hidden bg-[#020817]"
+      >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(34,211,238,0.10),transparent_30%),radial-gradient(circle_at_82%_2%,rgba(34,211,238,0.08),transparent_28%),linear-gradient(135deg,#020817_0%,#04101F_48%,#061426_100%)]" />
+      <div className="pointer-events-none absolute inset-x-28 top-0 h-px bg-[#22D3EE]/25 blur-sm" />
 
-                <div className="min-w-0">
-                  <h2 className="break-words text-2xl font-black tracking-tight text-slate-950">{storeName}</h2>
-                  <p className="mt-1 text-sm leading-7 text-slate-400">
-                    لوحة تشغيل خفيفة وسريعة للوصول إلى البيع اليومي والفواتير الحالية.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleStartSale}
-                className="group flex h-20 w-full items-center justify-between gap-4 rounded-2xl bg-[#0B1B34] px-5 text-right text-white shadow-sm transition-all duration-150 hover:scale-[1.01] hover:bg-[#0B1B34]/95 active:scale-[0.98]"
-              >
-                <div className="flex min-w-0 items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/30 text-white transition-all duration-150 group-hover:translate-x-1 group-hover:scale-105 group-hover:rotate-[2deg] group-active:scale-95">
-                    <PosIcon name="shoppingCart" className="h-6 w-6" />
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="text-xl font-black text-white md:text-2xl">بدء البيع</div>
-                    <div className="text-sm text-white/70">ابدأ فاتورة جديدة بسرعة</div>
-                  </div>
-                </div>
-
-                <span className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-base font-semibold text-white/85 shadow-inner transition-colors duration-150 group-hover:bg-white/15">
-                  ابدأ الآن
-                </span>
-              </button>
-
-              <div className="rounded-[24px] bg-slate-50/70 p-3 shadow-sm ring-1 ring-slate-100 md:p-4">
-                <div className="mb-3">
-                  <h3 className="text-lg font-extrabold text-slate-950">حالة الطلبات</h3>
-                  <p className="mt-1 text-sm text-slate-500">تحديث حالة الطلبات بسرعة من شاشة POS</p>
-                </div>
-
-                {ordersError ? (
-                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                    {ordersError}
-                  </div>
-                ) : null}
-
-                {showKanbanStartPrompt ? (
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-3 text-right">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
-                        <PosIcon name="clipboard" className="h-5 w-5" />
-                      </span>
-
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-slate-800">
-                          لا توجد طلبات حالياً
-                        </p>
-                        <p className="mt-0.5 truncate text-xs text-slate-400">
-                          ابدأ أول عملية بيع
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleStartSale}
-                      className="shrink-0 rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white transition-all duration-150 hover:scale-105 hover:bg-slate-800 active:scale-95"
-                    >
-                      بدء البيع
-                    </button>
-                  </div>
-                ) : null}
-
-                <div className="mt-3 grid grid-cols-3 gap-5">
-                  {orderStatusCards.map((statusCard) => {
-                    const statusOrders = orders.filter(
-                      (order) => resolvePosKanbanStatus(order.status) === statusCard.status
-                    )
-                    const statusUi = POS_ORDER_STATUS_UI[statusCard.status]
-
-                    return (
-                        <div
-                          key={`kanban-${statusCard.status}`}
-                          className={`group/kanban flex min-h-[280px] min-w-0 flex-col gap-2 rounded-2xl p-2 ${statusUi.columnClassName}`}
-                        >
-                          <div className="flex min-h-[44px] items-center justify-between gap-2 border-b border-slate-200 px-1 pb-2">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/70 text-gray-500 opacity-70 ring-1 ring-white/70 transition-opacity duration-150 group-hover/kanban:opacity-100">
-                              <PosIcon
-                                name={statusCard.icon}
-                                className="h-4 w-4 text-gray-500"
-                              />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-bold text-slate-950">
-                                {statusUi.label}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
-                                {orderStatusCounts[statusCard.status]} طلب
-                              </span>
-                            {ordersLoading ? (
-                              <span className="text-[11px] font-semibold text-slate-400">
-                                تحميل...
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        {ordersLoading ? (
-                          <div className="space-y-2">
-                            {Array.from({ length: 3 }).map((_, index) => (
-                              <div
-                                key={`${statusCard.status}-skeleton-${index}`}
-                                className="h-[112px] animate-pulse rounded-lg border border-slate-200 bg-white/80"
-                              />
-                            ))}
-                          </div>
-                        ) : statusOrders.length === 0 ? (
-                            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 py-6 text-center text-slate-400 opacity-75">
-                              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 ring-1 ring-white/80">
-                                <PosIcon name="clipboard" className="h-5 w-5" />
-                              </span>
-                              <span className="text-xs font-semibold">
-                                لا توجد طلبات
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex max-h-[280px] flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                            {statusOrders.map((order) => {
-                              const nextStatus = getNextPosOrderStatus(order.status)
-                              const isUpdatingOrder = updatingOrderId === order.id
-
-                              return (
-                                <div
-                                  key={order.id}
-                                  className={`flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${
-                                    isUpdatingOrder ? 'opacity-60' : 'opacity-100'
-                                  }`}
-                                  >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="truncate text-sm font-black text-slate-950">
-                                      {order.order_number}
-                                    </p>
-                                    <span
-                                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${statusUi.badgeClassName}`}
-                                    >
-                                      {statusUi.label}
-                                    </span>
-                                  </div>
-
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="text-sm font-black text-slate-950">
-                                        {formatCurrency(order.total)}
-                                      </p>
-
-                                      {nextStatus ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleAdvanceOrderStatus(order)}
-                                          disabled={isUpdatingOrder}
-                                          className="h-8 rounded-md bg-slate-950 px-3 text-xs font-bold text-white transition hover:bg-slate-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                          {isUpdatingOrder
-                                            ? 'جارٍ...'
-                                            : order.status === 'in_progress'
-                                              ? 'جاهز'
-                                              : 'تم تسليم'}
-                                        </button>
-                                      ) : (
-                                        <span className="text-xs text-slate-400">
-                                          مكتمل
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </main>
-
-        <aside className="order-1 flex min-w-0 flex-col gap-3 lg:order-2 lg:h-full lg:border-l lg:border-slate-200 lg:pl-4 lg:[direction:rtl]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-bold tracking-[0.18em] text-slate-400">
-                الرئيسية
-              </p>
-              <h1 className="mt-2 break-words text-2xl font-black text-slate-950">
-                AFEX POS
-              </h1>
-            </div>
-
-            {tabletFrame ? (
-              <button
-                type="button"
-                onClick={tabletFrame.toggleMode}
-                aria-label={
-                  tabletFrame.mode === 'portrait'
-                    ? 'تبديل إلى وضع العرض'
-                    : 'تبديل إلى وضع الطول'
-                }
-                title={
-                  tabletFrame.mode === 'portrait'
-                    ? 'تبديل إلى وضع العرض'
-                    : 'تبديل إلى وضع الطول'
-                }
-                className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-slate-700 transition-all duration-150 ease-out hover:scale-105 hover:bg-slate-200 active:scale-95 lg:flex ${
-                  tabletFrame.mode === 'landscape'
-                    ? 'bg-slate-300 ring-2 ring-slate-400'
-                    : 'bg-slate-100'
-                }`}
-              >
-                <TabletOrientationIcon mode={tabletFrame.mode} />
-              </button>
-            ) : null}
+      <div className="relative z-10 grid h-full w-full gap-6 p-6 [direction:rtl] lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8 xl:p-8">
+        <aside className="flex min-h-0 flex-col overflow-hidden rounded-[26px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl]">
+          <div className="mb-5 rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)]">
+            <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
+              AFEX
+            </p>
+            <p className="mt-0.5 text-xs font-black tracking-[0.26em] text-[#22D3EE]">
+              POS
+            </p>
           </div>
 
-          <div className="space-y-2">
+          <nav className="min-h-0 flex-1 space-y-1.5 overflow-hidden">
             {sidebarItems.map((item) =>
               item.disabled ? (
                 <div
-                  key={item.href}
+                  key={item.id}
                   aria-disabled="true"
-                  className="flex min-h-[52px] cursor-not-allowed items-center gap-3 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-medium text-gray-500 opacity-75"
+                  className="flex min-h-[46px] cursor-not-allowed items-center gap-2.5 rounded-[18px] border border-transparent px-3 text-sm font-bold text-slate-500/80"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/60">
-                    <PosIcon
-                      name={item.icon}
-                      className="h-5 w-5 text-gray-500"
-                    />
+                  <span className="flex h-8 w-8 items-center justify-center rounded-2xl text-slate-500/80">
+                    <PosIcon name={item.icon} className="h-4.5 w-4.5" />
                   </span>
                   <span>{item.label}</span>
                 </div>
               ) : (
                 <Link
-                  key={item.href}
+                  key={item.id}
                   href={item.href}
-                  className={`group relative flex min-h-[52px] origin-right items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 ${
+                  className={`group relative flex min-h-[46px] items-center gap-2.5 overflow-hidden rounded-[18px] border px-3 text-sm font-black transition-all duration-150 active:scale-[0.98] ${
                     item.active
-                      ? 'bg-slate-950 font-semibold text-white shadow-sm'
-                      : 'bg-slate-100 font-medium text-gray-500 hover:bg-slate-200 hover:text-gray-700'
+                      ? 'border-transparent bg-[rgba(34,211,238,0.10)] text-cyan-50 shadow-[0_0_18px_rgba(34,211,238,0.11),inset_0_0_24px_rgba(34,211,238,0.07)]'
+                      : 'border-transparent text-slate-300/86 hover:border-[rgba(34,211,238,0.14)] hover:bg-[rgba(34,211,238,0.055)] hover:text-white'
                   }`}
                 >
                   {item.active ? (
                     <span
                       aria-hidden="true"
-                      className="absolute bottom-3 right-0 top-3 w-[3px] rounded-l-full bg-white/80"
+                      className="absolute bottom-3 left-2.5 top-3 w-1 rounded-full bg-[#22D3EE] shadow-[0_0_14px_rgba(34,211,238,0.70)]"
                     />
                   ) : null}
 
                   <span
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-150 group-hover:scale-105 group-active:scale-95 ${
-                      item.active ? 'bg-white/10' : 'bg-white/70'
+                    className={`flex h-8 w-8 items-center justify-center rounded-2xl transition ${
+                      item.active
+                        ? 'text-cyan-100'
+                        : 'text-slate-400 group-hover:text-cyan-100'
                     }`}
                   >
-                    <PosIcon
-                      name={item.icon}
-                      className={`${
-                        item.active
-                          ? 'h-[22px] w-[22px] text-white'
-                          : 'h-5 w-5 text-gray-500 group-hover:text-gray-700'
-                      }`}
-                    />
+                    <PosIcon name={item.icon} className="h-4.5 w-4.5" />
                   </span>
                   <span>{item.label}</span>
                 </Link>
               )
             )}
-          </div>
+          </nav>
 
-          <div className="mt-auto space-y-3">
-            <Link
-              href="/pos/offline-drafts"
-              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600 transition-all duration-150 hover:scale-[1.02] hover:bg-slate-50 active:scale-95"
-            >
-              <PosIcon name="clipboard" className="h-5 w-5 text-gray-500" />
-              <span>المسودات</span>
-            </Link>
-
-            {offlineDraftSyncState.draftsCount > 0 ||
-            offlineDraftSyncState.isSyncing ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
-                {offlineDraftSyncState.isSyncing
-                  ? 'جارٍ المزامنة...'
-                  : `يوجد ${offlineDraftSyncState.draftsCount} مسودات غير متزامنة`}
+          <div className="mt-4 space-y-2.5">
+            {activePosEmployee ? (
+              <div className="rounded-[22px] bg-[rgba(6,20,38,0.58)] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_20px_rgba(34,211,238,0.03)]">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#22D3EE] text-sm font-black text-slate-950 shadow-[0_0_16px_rgba(34,211,238,0.14)]">
+                    {employeeDisplayName.charAt(0)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black text-white">
+                      {employeeDisplayName}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-slate-400">الكاشير النشط</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSwitchEmployee}
+                    aria-label="تبديل الموظف"
+                    className="rounded-xl px-2 py-1 text-xs font-bold text-slate-400 transition hover:bg-[rgba(34,211,238,0.08)] hover:text-cyan-100 active:scale-[0.98]"
+                  >
+                    تبديل
+                  </button>
+                </div>
               </div>
             ) : null}
 
-            {activePosEmployee ? (
-              <div className="flex items-center justify-between gap-2 px-1 text-xs text-slate-500">
-                <span className="min-w-0 truncate">
-                  الموظف:{' '}
-                  <span className="font-bold text-slate-700">
-                    {getPosEmployeeDisplayName(activePosEmployee)}
-                  </span>
+            {offlineDraftSyncState.draftsCount > 0 ||
+            offlineDraftSyncState.isSyncing ? (
+              <Link
+                href="/pos/offline-drafts"
+                className="flex min-h-[44px] items-center justify-between rounded-[18px] bg-[rgba(6,20,38,0.55)] px-3 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.055)] active:scale-[0.98]"
+              >
+                <span className="flex items-center gap-2">
+                  <PosIcon name="clipboard" className="h-4 w-4" />
+                  {offlineDraftSyncState.isSyncing ? 'مزامنة المسودات' : 'مسودات معلقة'}
                 </span>
-
-                <button
-                  type="button"
-                  onClick={handleSwitchEmployee}
-                  className="shrink-0 text-xs font-bold text-slate-700 underline-offset-4 transition hover:text-slate-950 hover:underline active:scale-[0.98]"
-                >
-                  تبديل
-                </button>
-              </div>
+                {offlineDraftSyncState.draftsCount > 0 ? (
+                  <span className="rounded-full bg-[#22D3EE] px-2 py-0.5 text-xs font-black text-slate-950">
+                    {offlineDraftSyncState.draftsCount}
+                  </span>
+                ) : null}
+              </Link>
             ) : null}
 
             <button
               type="button"
               onClick={handleLogout}
               disabled={loggingOut}
-              className="flex min-h-[52px] w-full items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-base font-bold text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[18px] bg-[rgba(6,20,38,0.46)] px-4 text-sm font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] transition hover:bg-red-400/10 hover:text-red-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             >
+              <PosIcon name="logout" className="h-5 w-5" />
               {loggingOut ? 'جارٍ تسجيل الخروج...' : 'تسجيل الخروج'}
             </button>
           </div>
         </aside>
+
+        <main className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.24)] p-6 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] backdrop-blur-xl [direction:rtl] xl:p-8">
+          <header className="flex shrink-0 items-start justify-between gap-6">
+            <div className="text-right">
+              <p className="text-sm font-black tracking-[0.18em] text-[#22D3EE]">
+                {storeName}
+              </p>
+              <h1 className="mt-3 text-3xl font-black leading-tight text-white xl:text-[42px]">
+                مرحباً بك، فيصل
+              </h1>
+              <p className="mt-2 text-base font-bold text-slate-300 xl:text-lg">
+                جاهز لبدء البيع
+              </p>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 [direction:rtl]">
+              <div className="flex min-h-[48px] items-center gap-2.5 rounded-[20px] bg-[rgba(2,8,23,0.68)] px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10),inset_0_0_18px_rgba(34,211,238,0.03)]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                  <PosIcon name="clock" className="h-4.5 w-4.5" />
+                </span>
+                <span className="text-sm font-black text-white">{timeLabel}</span>
+              </div>
+              <div className="flex min-h-[48px] items-center gap-2.5 rounded-[20px] bg-[rgba(2,8,23,0.68)] px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10),inset_0_0_18px_rgba(34,211,238,0.03)]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                  <PosIcon name="clipboard" className="h-4.5 w-4.5" />
+                </span>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-slate-300">{dayName}</p>
+                  <p className="text-xs font-bold text-slate-500">{dateLabel}</p>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <section className="mt-7 grid shrink-0 gap-5 xl:mt-9 xl:gap-6">
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={handleStartSale}
+                className="group relative flex h-[198px] w-full flex-col items-center justify-center overflow-hidden rounded-[32px] bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.18),transparent_58%),rgba(2,8,23,0.72)] px-9 text-center shadow-[0_0_36px_rgba(34,211,238,0.13),inset_0_0_0_1px_rgba(34,211,238,0.16),inset_0_1px_0_rgba(34,211,238,0.08)] transition hover:shadow-[0_0_44px_rgba(34,211,238,0.16),inset_0_0_0_1px_rgba(34,211,238,0.22)] active:scale-[0.99] xl:h-[232px]"
+              >
+                <span className="absolute inset-x-24 top-0 h-px bg-[#22D3EE]/55 blur-sm" />
+                <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[rgba(34,211,238,0.09)] text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.12)] xl:h-24 xl:w-24">
+                  <PosIcon name="shoppingCart" className="h-10 w-10 xl:h-12 xl:w-12" />
+                </span>
+                <h2 className="mt-6 text-4xl font-black text-white xl:text-5xl">
+                  بدء بيع جديد
+                </h2>
+                <p className="mt-2 text-sm font-bold text-slate-400 xl:text-base">
+                  ابدأ عملية بيع بسرعة وسهولة
+                </p>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 [direction:rtl] xl:gap-5">
+              <button
+                type="button"
+                onClick={handleQuickCustomer}
+                className="group flex h-[104px] items-center gap-4 rounded-[26px] bg-[rgba(2,8,23,0.60)] px-5 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] active:scale-[0.98]"
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                  <PosIcon name="user" className="h-6 w-6" />
+                </span>
+                <span className="text-base font-black text-white">إضافة عميل</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleStartSale}
+                className="group flex h-[104px] items-center gap-4 rounded-[26px] bg-[rgba(2,8,23,0.60)] px-5 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] active:scale-[0.98]"
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                  <PosIcon name="zap" className="h-6 w-6" />
+                </span>
+                <span className="text-base font-black text-white">عميل سريع</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleScanProduct}
+                className="group flex h-[104px] items-center gap-4 rounded-[26px] bg-[rgba(2,8,23,0.60)] px-5 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] active:scale-[0.98]"
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                  <PosIcon name="package" className="h-6 w-6" />
+                </span>
+                <span className="text-base font-black text-white">مسح منتج</span>
+              </button>
+            </div>
+          </section>
+
+          <section className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.60)] p-5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_28px_rgba(34,211,238,0.03)] xl:mt-8">
+            <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
+                <div className="text-right">
+                  <h2 className="text-xl font-black text-white xl:text-2xl">آخر الطلبات</h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-500 xl:text-sm">
+                    صفوف مختصرة لآخر عمليات البيع
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {ordersLoading ? (
+                    <span className="rounded-full border border-[rgba(34,211,238,0.18)] bg-[rgba(34,211,238,0.075)] px-3 py-1 text-xs font-bold text-cyan-100">
+                      تحميل...
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="min-h-[36px] rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] active:scale-[0.98]"
+                  >
+                    عرض الكل
+                  </button>
+                </div>
+              </div>
+
+              {ordersError ? (
+                <div className="rounded-[18px] border border-red-300/18 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">
+                  {ordersError}
+                </div>
+              ) : null}
+
+              {!ordersError && ordersLoading ? (
+                <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 xl:gap-4">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                      key={`pos-order-skeleton-${index}`}
+                      className="h-full min-h-[118px] animate-pulse rounded-[24px] bg-[rgba(6,20,38,0.55)] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)]"
+                    />
+                  ))}
+                </div>
+              ) : null}
+
+              {!ordersError && !ordersLoading && recentOrders.length === 0 ? (
+                <div className="flex min-h-0 flex-1 items-center justify-center rounded-[22px] border border-dashed border-[rgba(34,211,238,0.16)] bg-[rgba(6,20,38,0.42)] text-center">
+                  <div>
+                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-[rgba(34,211,238,0.16)] bg-[rgba(34,211,238,0.06)] text-cyan-100">
+                      <PosIcon name="clipboard" className="h-7 w-7" />
+                    </span>
+                    <p className="mt-3 text-sm font-black text-slate-200">لا توجد طلبات حالياً</p>
+                  </div>
+                </div>
+              ) : null}
+
+              {!ordersError && !ordersLoading && recentOrders.length > 0 ? (
+                <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden xl:gap-4">
+                  {recentOrders.map((order) => {
+                    const statusKey = resolvePosKanbanStatus(order.status)
+                    const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
+                    const nextStatus = getNextPosOrderStatus(order.status)
+                    const isUpdatingOrder = updatingOrderId === order.id
+
+                    return (
+                      <div
+                        key={order.id}
+                        className={`flex min-h-[118px] flex-col justify-between rounded-[24px] bg-[rgba(6,20,38,0.54)] p-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] transition hover:bg-[rgba(34,211,238,0.045)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_18px_rgba(34,211,238,0.07)] xl:min-h-[132px] ${
+                          isUpdatingOrder ? 'opacity-60' : 'opacity-100'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-lg font-black text-white">
+                              {order.order_number}
+                            </p>
+                            <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                              POS · {formatOrderTime(order.created_at)}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${
+                              statusUi?.badgeClassName ||
+                              'bg-slate-300/10 text-slate-200'
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                statusUi?.dotClassName || 'bg-slate-400'
+                              }`}
+                            />
+                            {statusUi?.label || order.status}
+                          </span>
+                        </div>
+
+                        <div className="flex items-end justify-between gap-3">
+                          <p className="text-xl font-black text-cyan-100">
+                            {formatCurrency(order.total)}
+                          </p>
+
+                          {nextStatus ? (
+                            <button
+                              type="button"
+                              onClick={() => handleAdvanceOrderStatus(order)}
+                              disabled={isUpdatingOrder}
+                              className="min-h-[34px] rounded-2xl bg-[rgba(34,211,238,0.08)] px-3 text-xs font-black text-cyan-100 transition hover:bg-[rgba(34,211,238,0.13)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isUpdatingOrder
+                                ? 'جارٍ...'
+                                : order.status === 'in_progress'
+                                  ? 'جاهز'
+                                  : 'تم تسليم'}
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-500">
+                              <PosIcon name="clock" className="h-4 w-4" />
+                              {formatOrderTime(order.created_at)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : null}
+          </section>
+        </main>
       </div>
-    </div>
+      </section>
+    </main>
   )
 }

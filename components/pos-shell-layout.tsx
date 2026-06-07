@@ -62,8 +62,8 @@ function PosShellViewport({
   }, [])
 
   return (
-    <div className="pos-shell-viewport min-h-screen w-screen bg-slate-100 text-slate-900 xl:bg-black">
-      <div className="pos-shell-inner h-full w-full min-h-screen px-0 py-0 xl:min-h-screen xl:px-0 xl:py-0">
+    <div className="pos-shell-viewport h-[100dvh] min-h-[100dvh] w-screen overflow-hidden bg-slate-950 text-slate-900 xl:bg-black">
+      <div className="pos-shell-inner h-full min-h-0 w-full overflow-hidden px-0 py-0">
         <PosTabletFrame isLoginPage={isLoginPage}>{children}</PosTabletFrame>
       </div>
     </div>
@@ -80,10 +80,14 @@ export function PosShellLayout({ children }: PosShellLayoutProps) {
     return <PosShellViewport isLoginPage>{children}</PosShellViewport>
   }
 
+  if (isPosEmployeePinPage) {
+    return <PosShellViewport isLoginPage>{children}</PosShellViewport>
+  }
+
   return (
     <ProtectedPosShellLayout
-      key={isPosEmployeePinPage ? 'employee-pin' : 'employee-required'}
-      requireEmployee={!isPosEmployeePinPage}
+      key="employee-required"
+      requireEmployee
     >
       {children}
     </ProtectedPosShellLayout>
@@ -320,7 +324,7 @@ function ProtectedPosShellLayout({
 
   return (
     <PosShellViewport>
-      <div className="page-wrap flex h-full w-full min-h-0 flex-col px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-[max(env(safe-area-inset-top),0.5rem)] sm:px-3 md:px-4 lg:overflow-hidden">
+      <div className="page-wrap flex h-full w-full min-h-0 flex-col overflow-y-auto overscroll-contain px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-[max(env(safe-area-inset-top),0.5rem)] sm:px-3 md:px-4 lg:overflow-hidden">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col text-right">
           <div className="space-y-3 md:space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
             {children}

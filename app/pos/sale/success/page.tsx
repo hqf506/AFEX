@@ -2,10 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AdminButton } from '@/components/admin-button'
 import { ReceiptView } from '@/components/receipt-view'
-import { SummaryRow } from '@/components/summary-row'
-import { createInvoicePrintHtml } from '@/lib/invoices/items'
 import {
   renderThermalInvoiceHtml,
   renderThermalShopCopyHtml,
@@ -15,10 +12,8 @@ import {
   parseStoredInvoiceSuccessSnapshot,
   type InvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
+import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
-import type {
-  DigitalInvoiceTemplateSettings,
-} from '@/lib/admin/settings'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -132,11 +127,20 @@ function SuccessCheckIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-7 w-7"
+      className="h-12 w-12"
     >
       <circle cx="12" cy="12" r="9" />
       <path d="m8.5 12 2.2 2.2 4.8-4.8" />
     </svg>
+  )
+}
+
+function ReceiptLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-slate-500">{label}</span>
+      <span className="truncate text-left font-black text-slate-100">{value}</span>
+    </div>
   )
 }
 
@@ -222,19 +226,6 @@ export default function PosSaleSuccessPage() {
     }).format(new Date(snapshot.createdAt))
   }, [snapshot])
 
-  const loadDigitalInvoiceSettings = async () => {
-    const response = await fetch('/api/invoices/digital-settings', {
-      method: 'GET',
-      credentials: 'include',
-    })
-
-    const result = await response.json().catch(() => null)
-
-    return (response.ok && result?.success
-      ? result.settings
-      : null) as DigitalInvoiceTemplateSettings | null
-  }
-
   const loadThermalInvoiceSettings = () => {
     if (typeof window === 'undefined') return null
 
@@ -249,45 +240,6 @@ export default function PosSaleSuccessPage() {
     } catch {
       return null
     }
-  }
-
-  const handlePrint = () => {
-    void (async () => {
-      if (!snapshot) return
-      // TODO(iOS native): replace browser-window printing with AirPrint support.
-      if (runningInCapacitor) return
-
-      const digitalInvoiceSettings = await loadDigitalInvoiceSettings()
-      const printWindow = window.open('', '_blank', 'width=900,height=700')
-
-      if (!printWindow) return
-
-      printWindow.document.write(
-        createInvoicePrintHtml({
-          invoiceItems: snapshot.invoiceItems,
-          invoiceNumber: snapshot.invoiceNumber,
-          orderNumber: snapshot.orderNumber,
-          customerName: snapshot.customerName,
-          customerPhone: snapshot.customerPhone,
-          paymentMethod: snapshot.paymentMethod,
-          paymentMethodLabel:
-            snapshot.paymentMethod === 'cod' ? 'عند الاستلام' : undefined,
-          cashReceived: snapshot.cashReceived,
-          numericCashReceived: snapshot.numericCashReceived,
-          remainingFromCustomer: snapshot.remainingFromCustomer,
-          cashChange: snapshot.cashChange,
-          subtotal: snapshot.subtotal,
-          discount: snapshot.discount,
-          tax: snapshot.tax,
-          finalTotal: snapshot.finalTotal,
-          note: snapshot.note,
-          now: new Date(snapshot.createdAt || new Date().toISOString()),
-          digitalInvoiceSettings: digitalInvoiceSettings || undefined,
-        })
-      )
-
-      printWindow.document.close()
-    })()
   }
 
   const runThermalPrint = useCallback(async () => {
@@ -345,14 +297,26 @@ export default function PosSaleSuccessPage() {
     }, 300)
   }, [runningInCapacitor, snapshot])
 
-  const handleThermalPrint = () => {
-    void runThermalPrint()
-  }
-
   const handlePagePrint = () => {
     if (runningInCapacitor) return
 
     window.print()
+  }
+
+  const handleWhatsApp = () => {
+    if (!snapshot?.customerPhone) return
+
+    const phone = snapshot.customerPhone.replace(/[^\d]/g, '')
+    if (!phone) return
+
+    const message = [
+      'تم إنشاء فاتورتك بنجاح من AFEX POS',
+      `رقم الفاتورة: ${snapshot.invoiceNumber || '—'}`,
+      `رقم الطلب: ${snapshot.orderNumber || '—'}`,
+      `الإجمالي: ${formatCurrency(snapshot.finalTotal)}`,
+    ].join('\n')
+
+    window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
   }
 
   useEffect(() => {
@@ -414,18 +378,21 @@ export default function PosSaleSuccessPage() {
           }
         `}</style>
 
-        <div className="mt-4 w-full min-w-0 rounded-[28px] border border-slate-100 bg-white p-3 shadow-sm md:p-4 lg:p-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right shadow-sm">
-            <p className="text-sm font-medium text-slate-600">
+        <div className="fixed inset-0 h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_80%_82%,rgba(20,184,166,0.12),transparent_36%),linear-gradient(135deg,#020817_0%,#061426_54%,#020817_100%)]" />
+          <div className="relative flex h-full items-center justify-center p-5 text-right">
+            <div className="w-full max-w-md rounded-[30px] border border-cyan-300/12 bg-[#020817]/72 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.36)] backdrop-blur-2xl">
+              <p className="text-sm font-bold text-slate-300">
               لا توجد فاتورة مكتملة
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push('/pos')}
-              className="mt-4 flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-5 text-sm font-medium text-slate-700 transition-all duration-150 hover:bg-slate-100"
-            >
-              العودة إلى POS
-            </button>
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push('/pos')}
+                className="mt-5 flex h-12 w-full items-center justify-center rounded-[20px] border border-cyan-300/18 bg-cyan-400/10 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15"
+              >
+                العودة إلى POS
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -449,23 +416,9 @@ export default function PosSaleSuccessPage() {
           width: min(100%, 100mm) !important;
         }
 
-        .receipt-curtain-panel {
-          width: min(100mm, calc(100vw - 24px));
-          filter: drop-shadow(0 24px 42px rgba(15, 23, 42, 0.18));
-          animation: receipt-curtain-drop 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-
         @media print {
           body {
             background: #ffffff !important;
-          }
-
-          .receipt-curtain-panel {
-            animation: none !important;
-            filter: none !important;
-            max-width: 100mm !important;
-            transform: none !important;
-            width: 100mm !important;
           }
 
           .receipt-print-hide {
@@ -509,162 +462,156 @@ export default function PosSaleSuccessPage() {
             opacity: 1;
           }
         }
-
-        @keyframes receipt-curtain-drop {
-          from {
-            opacity: 0;
-            transform: translate3d(0, -110%, 0) scale(0.985);
-          }
-
-          70% {
-            opacity: 1;
-            transform: translate3d(0, 10px, 0) scale(1);
-          }
-
-          to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0) scale(1);
-          }
-        }
       `}</style>
 
-      <div className="receipt-print-hide pointer-events-none fixed inset-0 z-30 bg-slate-950/[0.035]" />
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-3 pt-3 sm:pt-4">
-        <div className="receipt-curtain-panel pointer-events-auto w-[100mm] max-w-[calc(100vw-24px)]">
-          <ReceiptView snapshot={snapshot} />
-        </div>
+      <div className="receipt-print-root pointer-events-none fixed left-[-9999px] top-0">
+        <ReceiptView snapshot={snapshot} />
       </div>
 
-      <div className="mt-2 flex h-full w-full min-h-0 min-w-0 flex-col space-y-3 rounded-[28px] border border-slate-100 bg-white p-3 shadow-sm md:p-4 lg:overflow-hidden">
-        <div className="receipt-print-hide flex flex-col items-center justify-center space-y-2 py-1 text-center">
-          <div className="flex h-[72px] w-[72px] animate-[success-pop_420ms_ease-out] items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shadow-sm ring-8 ring-emerald-50">
-            <SuccessCheckIcon />
-          </div>
-          <h1 className="text-xl font-bold text-slate-900 md:text-2xl">
-            تم إنشاء الفاتورة بنجاح
-          </h1>
-          <p className="max-w-xl text-sm text-slate-500">
-            يمكنك الآن متابعة الطباعة أو فتح نسخة PDF أو البدء بعملية بيع جديدة
-          </p>
-          <p className="text-sm font-bold text-emerald-700">جاهز للعميل التالي</p>
-          <p className="text-xs font-bold text-slate-400">
-            عودة تلقائية إلى POS خلال {redirectCountdown} ثوانٍ
-          </p>
-        </div>
-
-        <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:[direction:ltr] lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-4">
-          <section className="receipt-print-hide min-w-0 space-y-3 self-start rounded-2xl border border-slate-200 p-3 text-right md:p-4 lg:h-full lg:overflow-y-auto">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">القائمة</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                اختر الإجراء المناسب للكاشير بعد إتمام الفاتورة.
+      <div className="receipt-print-hide fixed inset-0 h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_80%_82%,rgba(20,184,166,0.12),transparent_36%),linear-gradient(135deg,#020817_0%,#061426_54%,#020817_100%)]" />
+        <div className="relative grid h-full w-full grid-cols-[minmax(0,1fr)_360px] gap-5 overflow-hidden p-5 [direction:ltr]">
+          <main className="flex min-w-0 flex-col justify-between gap-5 overflow-hidden rounded-[34px] border border-cyan-300/10 bg-[#020817]/62 p-6 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl [direction:rtl]">
+            <section className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+              <div className="relative flex h-28 w-28 animate-[success-pop_420ms_ease-out] items-center justify-center rounded-full border border-[#14B8A6]/35 bg-[#14B8A6]/14 text-teal-50 shadow-[0_0_46px_rgba(20,184,166,0.28)]">
+                <div className="absolute inset-3 rounded-full border border-cyan-300/12" />
+                <SuccessCheckIcon />
+              </div>
+              <p className="mt-7 text-xs font-black tracking-[0.22em] text-cyan-300">
+                AFEX POS
               </p>
-            </div>
-
-            <AdminButton
-              onClick={() => router.push('/pos')}
-              onMouseEnter={(event) => {
-                event.currentTarget.style.backgroundColor = '#000000'
-                event.currentTarget.style.color = '#ffffff'
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.backgroundColor = '#ffffff'
-                event.currentTarget.style.color = '#0B1B34'
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 font-semibold text-[#0B1B34] transition-colors duration-200"
-              type="button"
-            >
-              القائمة الرئيسية
-            </AdminButton>
-
-            <AdminButton
-              onClick={() => router.push('/pos/sale/customer')}
-              className="w-full rounded-xl bg-slate-900 py-3 font-bold text-white shadow-sm transition-all duration-200 hover:bg-slate-800"
-              type="button"
-            >
-              إنشاء فاتورة جديدة
-            </AdminButton>
-
-            <AdminButton
-              onClick={handlePagePrint}
-              onMouseEnter={(event) => {
-                event.currentTarget.style.backgroundColor = '#000000'
-                event.currentTarget.style.color = '#ffffff'
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.backgroundColor = '#ffffff'
-                event.currentTarget.style.color = '#0B1B34'
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 font-semibold text-[#0B1B34] transition-colors duration-200"
-              type="button"
-            >
-              طباعة الفاتورة
-            </AdminButton>
-
-            <AdminButton
-              onClick={handlePrint}
-              onMouseEnter={(event) => {
-                event.currentTarget.style.backgroundColor = '#000000'
-                event.currentTarget.style.color = '#ffffff'
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.backgroundColor = '#ffffff'
-                event.currentTarget.style.color = '#0B1B34'
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 font-semibold text-[#0B1B34] transition-colors duration-200"
-              type="button"
-            >
-              طباعة فاتورة إلكترونية
-            </AdminButton>
-
-            <AdminButton
-              onClick={handleThermalPrint}
-              onMouseEnter={(event) => {
-                event.currentTarget.style.backgroundColor = '#000000'
-                event.currentTarget.style.color = '#ffffff'
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.backgroundColor = '#ffffff'
-                event.currentTarget.style.color = '#0B1B34'
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 font-semibold text-[#0B1B34] transition-colors duration-200"
-              type="button"
-            >
-              طباعة فاتورة حرارية
-            </AdminButton>
-          </section>
-
-          <section className="min-w-0 space-y-3 self-start text-right lg:flex lg:min-h-0 lg:flex-col">
-            <div className="receipt-print-hide rounded-2xl border border-slate-200 p-4">
-              <h2 className="text-lg font-semibold text-slate-900">ملخص الفاتورة</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                معلومات الفاتورة النهائية كما تم إنشاؤها في النظام.
+              <h1 className="mt-2 text-4xl font-black text-white">
+                تم إنشاء الفاتورة بنجاح
+              </h1>
+              <p className="mt-3 max-w-xl text-base font-bold text-slate-400">
+                تم حفظ العملية وإصدار الفاتورة بنجاح
               </p>
+
+              <div className="mt-7 grid w-full max-w-3xl grid-cols-2 gap-3">
+                <div className="rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4">
+                  <p className="text-xs font-black text-slate-400">رقم الفاتورة</p>
+                  <p className="mt-2 text-2xl font-black text-white">
+                    {snapshot.invoiceNumber || '—'}
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4">
+                  <p className="text-xs font-black text-slate-400">رقم الطلب</p>
+                  <p className="mt-2 text-2xl font-black text-white">
+                    {snapshot.orderNumber || '—'}
+                  </p>
+                </div>
+                <div className="col-span-2 rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4">
+                  <p className="text-xs font-black text-slate-400">العميل</p>
+                  <p className="mt-2 text-2xl font-black text-white">
+                    {snapshot.customerName || '—'}{' '}
+                    <span className="text-lg text-cyan-100">
+                      {snapshot.customerPhone || ''}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-5 text-xs font-black text-slate-500">
+                عودة تلقائية إلى نقطة البيع خلال {redirectCountdown} ثوانٍ
+              </p>
+            </section>
+
+            <section className="grid shrink-0 grid-cols-4 gap-3">
+              <button
+                type="button"
+                onClick={handlePagePrint}
+                className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-base font-black text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)] transition active:scale-[0.98]"
+              >
+                🖨 طباعة الفاتورة
+              </button>
+              <button
+                type="button"
+                onClick={handleWhatsApp}
+                disabled={!snapshot.customerPhone}
+                className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/14 bg-[#061426]/70 px-4 text-base font-black text-cyan-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:text-slate-600"
+              >
+                📱 إرسال واتساب
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/pos/sale/customer')}
+                className="flex h-16 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] px-4 text-base font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98]"
+              >
+                ➕ بيع جديد
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/pos')}
+                className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/14 bg-[#061426]/70 px-4 text-base font-black text-slate-200 transition active:scale-[0.98]"
+              >
+                🏠 العودة للرئيسية
+              </button>
+            </section>
+          </main>
+
+          <aside className="flex min-h-0 flex-col overflow-hidden rounded-[34px] border border-cyan-300/10 bg-[#020817]/72 p-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl]">
+            <div className="shrink-0 rounded-[26px] border border-cyan-300/10 bg-[#061426]/68 p-4">
+              <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
+                RECEIPT
+              </p>
+              <h2 className="mt-1 text-xl font-black text-white">معاينة الإيصال</h2>
             </div>
 
-            <div className="space-y-2 rounded-2xl border border-slate-100 bg-slate-50 p-3">
-              <SummaryRow
-                label="رقم الفاتورة"
-                value={snapshot.invoiceNumber || '—'}
-              />
-              <SummaryRow label="رقم الطلب" value={snapshot.orderNumber || '—'} />
-              <SummaryRow
-                label="اسم العميل"
-                value={snapshot.customerName || '—'}
-              />
-              <SummaryRow label="الجوال" value={snapshot.customerPhone || '—'} />
-              <SummaryRow label="التاريخ" value={issuedAtLabel} />
-            </div>
+            <div className="mt-3 flex min-h-0 flex-1 flex-col rounded-[28px] border border-cyan-300/12 bg-[#061426]/58 p-4">
+              <div className="border-b border-cyan-300/10 pb-4 text-center">
+                <p className="text-3xl font-black tracking-[0.18em] text-white">
+                  AFEX
+                </p>
+                <p className="mt-1 text-xs font-black tracking-[0.25em] text-cyan-300">
+                  POS
+                </p>
+              </div>
 
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700 shadow-sm">
-              <p className="mb-2 text-xs font-bold text-emerald-600">الإجمالي النهائي</p>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-bold">الإجمالي</span>
-                <span className="text-2xl font-black">{formatCurrency(snapshot.finalTotal)}</span>
+              <div className="mt-4 space-y-2 text-sm font-bold text-slate-300">
+                <ReceiptLine label="الفاتورة" value={snapshot.invoiceNumber || '—'} />
+                <ReceiptLine label="الطلب" value={snapshot.orderNumber || '—'} />
+                <ReceiptLine label="العميل" value={snapshot.customerName || '—'} />
+                <ReceiptLine label="الجوال" value={snapshot.customerPhone || '—'} />
+                <ReceiptLine label="الدفع" value={getPaymentMethodLabel(snapshot.paymentMethod)} />
+                <ReceiptLine label="التاريخ" value={issuedAtLabel} />
+              </div>
+
+              <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto border-y border-cyan-300/10 py-4">
+                {snapshot.invoiceItems.map((item) => (
+                  <div
+                    key={`${item.item_name}-${item.quantity}-${item.unit_price}`}
+                    className="rounded-[18px] border border-cyan-300/10 bg-[#020817]/56 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-white">
+                          {item.item_name}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">
+                          الكمية: {item.quantity}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-sm font-black text-cyan-100">
+                        {formatCurrency(item.unit_price * item.quantity)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <ReceiptLine label="الإجمالي" value={formatCurrency(snapshot.subtotal)} />
+                <ReceiptLine label="VAT" value={formatCurrency(snapshot.tax)} />
+                <ReceiptLine label="الخصم" value={formatCurrency(snapshot.discount)} />
+                <div className="mt-3 rounded-[22px] border border-[#14B8A6]/25 bg-[#0D9488]/12 p-4 shadow-[0_0_24px_rgba(20,184,166,0.14)]">
+                  <p className="text-xs font-black text-cyan-100">الإجمالي النهائي</p>
+                  <p className="mt-1 text-3xl font-black text-white">
+                    {formatCurrency(snapshot.finalTotal)}
+                  </p>
+                </div>
               </div>
             </div>
-
-          </section>
+          </aside>
         </div>
       </div>
     </div>

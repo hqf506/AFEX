@@ -32,7 +32,7 @@ type SharedAuthState = {
 }
 
 const AuthStateContext = createContext<SharedAuthState | null>(null)
-const AUTH_STATE_CACHE_KEY = 'lf_shared_auth_profile'
+const AUTH_STATE_CACHE_KEY = 'lf_shared_auth_profile_v2'
 const AUTH_BOOTSTRAP_TIMEOUT_MS = 7000
 const AUTH_LOCK_RETRY_DELAY_MS = 75
 const AUTH_LOCK_MAX_RETRIES = 6
@@ -122,6 +122,14 @@ function readCachedAuthProfile(): CachedAuthProfile | null {
       parsedValue.profile &&
       typeof parsedValue.userId === 'string'
     ) {
+      if (
+        !('tenant_name' in parsedValue.profile) ||
+        (parsedValue.profile.tenant_id && !parsedValue.profile.tenant_name)
+      ) {
+        window.sessionStorage.removeItem(AUTH_STATE_CACHE_KEY)
+        return null
+      }
+
       return parsedValue
     }
 
@@ -131,6 +139,14 @@ function readCachedAuthProfile(): CachedAuthProfile | null {
       'id' in parsedValue &&
       typeof parsedValue.id === 'string'
     ) {
+      if (
+        !('tenant_name' in parsedValue) ||
+        (parsedValue.tenant_id && !parsedValue.tenant_name)
+      ) {
+        window.sessionStorage.removeItem(AUTH_STATE_CACHE_KEY)
+        return null
+      }
+
       return {
         profile: parsedValue as CurrentUserProfile,
         userId: parsedValue.id,
