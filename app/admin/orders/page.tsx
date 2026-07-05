@@ -973,7 +973,7 @@ export default function OrdersPage() {
             typeof pdfResult.filename === 'string'
               ? pdfResult.filename
               : `${order.invoice_number || order.order_number || 'invoice'}.pdf`,
-          caption: `فاتورتك من AFEX${order.invoice_number ? ` - ${order.invoice_number}` : ''}`,
+          caption: `فاتورتك من: ${getOrderStoreName(order)}\nرقم الفاتورة: ${order.invoice_number || ''}`,
           notification: {
             orderId: order.id,
             status: 'invoice_pdf',
