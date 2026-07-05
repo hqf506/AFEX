@@ -20,6 +20,8 @@ type SettingsTab =
   | 'features'
   | 'notes'
 
+type InvoiceSettingsSection = 'digital' | 'thermal'
+
 const tabs: Array<{ key: SettingsTab; label: string }> = [
   { key: 'status', label: 'حالة النظام' },
   { key: 'organization', label: 'معلومات المنشأة' },
@@ -61,6 +63,8 @@ function safeValue(value?: string | null) {
 export default function AdminSettingsPage() {
   const access = usePageAccess(['admin'])
   const [activeTab, setActiveTab] = useState<SettingsTab>('status')
+  const [activeInvoiceSection, setActiveInvoiceSection] =
+    useState<InvoiceSettingsSection>('digital')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<SystemSettings | null>(null)
@@ -436,328 +440,449 @@ export default function AdminSettingsPage() {
             title="إعدادات الفاتورة"
             description="إعدادات الفاتورة الرقمية والحرارية كما تحفظها API الحالية."
           >
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Field label="اسم العلامة في الفاتورة الرقمية">
-                <input
-                  value={form.digital_invoice_brand_name}
-                  onChange={(event) =>
-                    updateField('digital_invoice_brand_name', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder={settings?.store_name || 'AFEX'}
-                />
-              </Field>
-
-              <Field label="اسم الفرع في الفاتورة الرقمية">
-                <input
-                  value={form.digital_invoice_branch_name}
-                  onChange={(event) =>
-                    updateField('digital_invoice_branch_name', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder={settings?.branch_name || 'الفرع الرئيسي'}
-                />
-              </Field>
-
-              <Field label="سطر العنوان الأول في الفاتورة الرقمية">
-                <input
-                  value={form.digital_invoice_address_line_1}
-                  onChange={(event) =>
-                    updateField('digital_invoice_address_line_1', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder="اكتب العنوان"
-                />
-              </Field>
-
-              <Field label="سطر العنوان الثاني في الفاتورة الرقمية">
-                <input
-                  value={form.digital_invoice_address_line_2}
-                  onChange={(event) =>
-                    updateField('digital_invoice_address_line_2', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder="اكتب تفاصيل إضافية للعنوان"
-                />
-              </Field>
-
-              <Field label="رقم واتساب في الفاتورة الرقمية">
-                <input
-                  value={form.digital_invoice_whatsapp_number}
-                  onChange={(event) =>
-                    updateField('digital_invoice_whatsapp_number', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder="966xxxxxx"
-                />
-              </Field>
-
-              <Field label="رابط تقييم Google">
-                <input
-                  value={form.digital_invoice_google_review_link}
-                  onChange={(event) =>
-                    updateField('digital_invoice_google_review_link', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder="https://..."
-                />
-              </Field>
-
-              <Field label="رابط الموقع / الخريطة">
-                <input
-                  value={form.digital_invoice_map_link}
-                  onChange={(event) =>
-                    updateField('digital_invoice_map_link', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder="https://maps.google.com/..."
-                />
-              </Field>
-
-              <Field label="رابط Instagram">
-                <input
-                  value={form.digital_invoice_instagram_link}
-                  onChange={(event) =>
-                    updateField('digital_invoice_instagram_link', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder="https://instagram.com/..."
-                />
-              </Field>
-
-              <Field label="رابط TikTok">
-                <input
-                  value={form.digital_invoice_tiktok_link}
-                  onChange={(event) =>
-                    updateField('digital_invoice_tiktok_link', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder="https://tiktok.com/@..."
-                />
-              </Field>
-
-              <Field label="لون خلفية اسم النشاط">
-                <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/15 bg-[#091522]/90 px-4 py-3">
-                  <input
-                    type="color"
-                    value={
-                      form.digital_invoice_brand_background_color ||
-                      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_background_color
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        'digital_invoice_brand_background_color',
-                        event.target.value
-                      )
-                    }
-                    className="h-9 w-14 cursor-pointer rounded-xl border border-cyan-300/20 bg-[#07111d] p-1"
-                    aria-label="لون خلفية اسم النشاط"
-                  />
-                  <input
-                    value={form.digital_invoice_brand_background_color}
-                    onChange={(event) =>
-                      updateField(
-                        'digital_invoice_brand_background_color',
-                        event.target.value
-                      )
-                    }
-                    className="min-w-0 flex-1 bg-transparent text-left text-sm font-bold text-white outline-none"
-                    placeholder={
-                      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_background_color
-                    }
-                  />
-                </div>
-              </Field>
-
-              <Field label="لون نص اسم النشاط">
-                <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/15 bg-[#091522]/90 px-4 py-3">
-                  <input
-                    type="color"
-                    value={
-                      form.digital_invoice_brand_text_color ||
-                      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_text_color
-                    }
-                    onChange={(event) =>
-                      updateField('digital_invoice_brand_text_color', event.target.value)
-                    }
-                    className="h-9 w-14 cursor-pointer rounded-xl border border-cyan-300/20 bg-[#07111d] p-1"
-                    aria-label="لون نص اسم النشاط"
-                  />
-                  <input
-                    value={form.digital_invoice_brand_text_color}
-                    onChange={(event) =>
-                      updateField('digital_invoice_brand_text_color', event.target.value)
-                    }
-                    className="min-w-0 flex-1 bg-transparent text-left text-sm font-bold text-white outline-none"
-                    placeholder={
-                      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_text_color
-                    }
-                  />
-                </div>
-              </Field>
-
-              <Field label="اسم العلامة في الفاتورة الحرارية">
-                <input
-                  value={form.thermal_invoice_brand_name}
-                  onChange={(event) =>
-                    updateField('thermal_invoice_brand_name', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder={settings?.store_name || 'AFEX'}
-                />
-              </Field>
-
-              <Field label="اسم الفرع في الفاتورة الحرارية">
-                <input
-                  value={form.thermal_invoice_branch_name}
-                  onChange={(event) =>
-                    updateField('thermal_invoice_branch_name', event.target.value)
-                  }
-                  className={inputClassName}
-                  placeholder={settings?.branch_name || 'الفرع الرئيسي'}
-                />
-              </Field>
-
-              <Field label="عرض ورق الفاتورة الحرارية">
-                <div className="grid grid-cols-2 gap-2">
-                  {(['80mm', '58mm'] as const).map((paperWidth) => (
-                    <ChoiceButton
-                      key={paperWidth}
-                      active={form.thermal_invoice_paper_width === paperWidth}
-                      onClick={() => updateField('thermal_invoice_paper_width', paperWidth)}
-                    >
-                      {paperWidth}
-                    </ChoiceButton>
-                  ))}
-                </div>
-              </Field>
-
-              <Field label="ملاحظة الفاتورة الرقمية">
-                <textarea
-                  value={form.digital_invoice_note}
-                  onChange={(event) =>
-                    updateField('digital_invoice_note', event.target.value)
-                  }
-                  className={textareaClassName}
-                  placeholder="ملاحظة تظهر أسفل الفاتورة الرقمية"
-                />
-              </Field>
-
-              <Field label="ملاحظة الفاتورة الحرارية">
-                <textarea
-                  value={form.thermal_invoice_note}
-                  onChange={(event) =>
-                    updateField('thermal_invoice_note', event.target.value)
-                  }
-                  className={textareaClassName}
-                  placeholder="ملاحظة تظهر داخل الإيصال الحراري"
-                />
-              </Field>
-
-              <Field label="رسالة ختام الفاتورة الحرارية">
-                <textarea
-                  value={form.thermal_invoice_footer_message}
-                  onChange={(event) =>
-                    updateField('thermal_invoice_footer_message', event.target.value)
-                  }
-                  className={textareaClassName}
-                  placeholder="شكراً لتعاملكم معنا"
-                />
-              </Field>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <StatusRow
-                title="إظهار جوال العميل"
-                description="في الفاتورة الحرارية"
-                enabled={form.thermal_invoice_show_customer_phone}
-                onClick={() =>
-                  updateField(
-                    'thermal_invoice_show_customer_phone',
-                    !form.thermal_invoice_show_customer_phone
-                  )
-                }
+            <div className="grid gap-3 md:grid-cols-2">
+              <InvoiceSectionButton
+                active={activeInvoiceSection === 'digital'}
+                title="الفاتورة الرقمية"
+                description="ألوان وروابط ومحتوى PDF"
+                onClick={() => setActiveInvoiceSection('digital')}
               />
-              <StatusRow
-                title="إظهار طريقة الدفع"
-                description="في الفاتورة الحرارية"
-                enabled={form.thermal_invoice_show_payment_method}
-                onClick={() =>
-                  updateField(
-                    'thermal_invoice_show_payment_method',
-                    !form.thermal_invoice_show_payment_method
-                  )
-                }
-              />
-              <StatusRow
-                title="إظهار ملاحظة"
-                description="داخل الإيصال"
-                enabled={form.thermal_invoice_show_note}
-                onClick={() =>
-                  updateField('thermal_invoice_show_note', !form.thermal_invoice_show_note)
-                }
-              />
-              <StatusRow
-                title="خرائط في الإيصال"
-                description="رابط الموقع"
-                enabled={form.thermal_invoice_show_map}
-                onClick={() =>
-                  updateField('thermal_invoice_show_map', !form.thermal_invoice_show_map)
-                }
-              />
-              <StatusRow
-                title="واتساب في PDF"
-                description="إظهار زر التواصل"
-                enabled={form.digital_invoice_whatsapp_enabled}
-                onClick={() =>
-                  updateField(
-                    'digital_invoice_whatsapp_enabled',
-                    !form.digital_invoice_whatsapp_enabled
-                  )
-                }
-              />
-              <StatusRow
-                title="تقييم Google في PDF"
-                description="إظهار رابط التقييم"
-                enabled={form.digital_invoice_google_review_enabled}
-                onClick={() =>
-                  updateField(
-                    'digital_invoice_google_review_enabled',
-                    !form.digital_invoice_google_review_enabled
-                  )
-                }
-              />
-              <StatusRow
-                title="الخريطة في PDF"
-                description="إظهار رابط الموقع"
-                enabled={form.digital_invoice_map_enabled}
-                onClick={() =>
-                  updateField('digital_invoice_map_enabled', !form.digital_invoice_map_enabled)
-                }
-              />
-              <StatusRow
-                title="Instagram في PDF"
-                description="إظهار رابط Instagram"
-                enabled={form.digital_invoice_instagram_enabled}
-                onClick={() =>
-                  updateField(
-                    'digital_invoice_instagram_enabled',
-                    !form.digital_invoice_instagram_enabled
-                  )
-                }
-              />
-              <StatusRow
-                title="TikTok في PDF"
-                description="إظهار رابط TikTok"
-                enabled={form.digital_invoice_tiktok_enabled}
-                onClick={() =>
-                  updateField(
-                    'digital_invoice_tiktok_enabled',
-                    !form.digital_invoice_tiktok_enabled
-                  )
-                }
+              <InvoiceSectionButton
+                active={activeInvoiceSection === 'thermal'}
+                title="الفاتورة الحرارية"
+                description="إعدادات الإيصال والطباعة"
+                onClick={() => setActiveInvoiceSection('thermal')}
               />
             </div>
+
+            <div
+              key={activeInvoiceSection}
+              className="mt-5 rounded-[28px] border border-cyan-300/15 bg-[#091522]/80 p-4 shadow-[inset_18px_0_36px_rgba(34,211,238,0.05),0_22px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl motion-safe:animate-[invoiceSettingsSlideIn_260ms_ease-out_both] md:p-5"
+            >
+              {activeInvoiceSection === 'digital' ? (
+                <>
+                  <div className="mb-5 flex items-center justify-between gap-4 border-b border-cyan-300/10 pb-4">
+                    <div className="text-right">
+                      <h3 className="text-xl font-black text-white">الفاتورة الرقمية</h3>
+                      <p className="mt-1 text-sm font-semibold text-slate-400">
+                        إعدادات تصميم وروابط فاتورة PDF الرقمية.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Field label="اسم العلامة في الفاتورة الرقمية">
+                      <input
+                        value={form.digital_invoice_brand_name}
+                        onChange={(event) =>
+                          updateField('digital_invoice_brand_name', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder={settings?.store_name || 'AFEX'}
+                      />
+                    </Field>
+
+                    <Field label="اسم الفرع في الفاتورة الرقمية">
+                      <input
+                        value={form.digital_invoice_branch_name}
+                        onChange={(event) =>
+                          updateField('digital_invoice_branch_name', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder={settings?.branch_name || 'الفرع الرئيسي'}
+                      />
+                    </Field>
+
+                    <Field label="سطر العنوان الأول في الفاتورة الرقمية">
+                      <input
+                        value={form.digital_invoice_address_line_1}
+                        onChange={(event) =>
+                          updateField('digital_invoice_address_line_1', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder="اكتب العنوان"
+                      />
+                    </Field>
+
+                    <Field label="سطر العنوان الثاني في الفاتورة الرقمية">
+                      <input
+                        value={form.digital_invoice_address_line_2}
+                        onChange={(event) =>
+                          updateField('digital_invoice_address_line_2', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder="اكتب تفاصيل إضافية للعنوان"
+                      />
+                    </Field>
+
+                    <Field label="رقم واتساب في الفاتورة الرقمية">
+                      <input
+                        value={form.digital_invoice_whatsapp_number}
+                        onChange={(event) =>
+                          updateField('digital_invoice_whatsapp_number', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder="966xxxxxx"
+                      />
+                    </Field>
+
+                    <Field label="رابط تقييم Google">
+                      <input
+                        value={form.digital_invoice_google_review_link}
+                        onChange={(event) =>
+                          updateField(
+                            'digital_invoice_google_review_link',
+                            event.target.value
+                          )
+                        }
+                        className={inputClassName}
+                        placeholder="https://..."
+                      />
+                    </Field>
+
+                    <Field label="رابط الموقع / الخريطة">
+                      <input
+                        value={form.digital_invoice_map_link}
+                        onChange={(event) =>
+                          updateField('digital_invoice_map_link', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder="https://maps.google.com/..."
+                      />
+                    </Field>
+
+                    <Field label="رابط Instagram">
+                      <input
+                        value={form.digital_invoice_instagram_link}
+                        onChange={(event) =>
+                          updateField('digital_invoice_instagram_link', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder="https://instagram.com/..."
+                      />
+                    </Field>
+
+                    <Field label="رابط TikTok">
+                      <input
+                        value={form.digital_invoice_tiktok_link}
+                        onChange={(event) =>
+                          updateField('digital_invoice_tiktok_link', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder="https://tiktok.com/@..."
+                      />
+                    </Field>
+
+                    <Field label="لون خلفية اسم النشاط">
+                      <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/15 bg-[#091522]/90 px-4 py-3">
+                        <input
+                          type="color"
+                          value={
+                            form.digital_invoice_brand_background_color ||
+                            SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_background_color
+                          }
+                          onChange={(event) =>
+                            updateField(
+                              'digital_invoice_brand_background_color',
+                              event.target.value
+                            )
+                          }
+                          className="h-9 w-14 cursor-pointer rounded-xl border border-cyan-300/20 bg-[#07111d] p-1"
+                          aria-label="لون خلفية اسم النشاط"
+                        />
+                        <input
+                          value={form.digital_invoice_brand_background_color}
+                          onChange={(event) =>
+                            updateField(
+                              'digital_invoice_brand_background_color',
+                              event.target.value
+                            )
+                          }
+                          className="min-w-0 flex-1 bg-transparent text-left text-sm font-bold text-white outline-none"
+                          placeholder={
+                            SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_background_color
+                          }
+                        />
+                      </div>
+                    </Field>
+
+                    <Field label="لون نص اسم النشاط">
+                      <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/15 bg-[#091522]/90 px-4 py-3">
+                        <input
+                          type="color"
+                          value={
+                            form.digital_invoice_brand_text_color ||
+                            SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_text_color
+                          }
+                          onChange={(event) =>
+                            updateField('digital_invoice_brand_text_color', event.target.value)
+                          }
+                          className="h-9 w-14 cursor-pointer rounded-xl border border-cyan-300/20 bg-[#07111d] p-1"
+                          aria-label="لون نص اسم النشاط"
+                        />
+                        <input
+                          value={form.digital_invoice_brand_text_color}
+                          onChange={(event) =>
+                            updateField('digital_invoice_brand_text_color', event.target.value)
+                          }
+                          className="min-w-0 flex-1 bg-transparent text-left text-sm font-bold text-white outline-none"
+                          placeholder={
+                            SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_text_color
+                          }
+                        />
+                      </div>
+                    </Field>
+
+                    <Field label="ملاحظة الفاتورة الرقمية">
+                      <textarea
+                        value={form.digital_invoice_note}
+                        onChange={(event) =>
+                          updateField('digital_invoice_note', event.target.value)
+                        }
+                        className={textareaClassName}
+                        placeholder="ملاحظة تظهر أسفل الفاتورة الرقمية"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <StatusRow
+                      title="واتساب في PDF"
+                      description="إظهار زر التواصل"
+                      enabled={form.digital_invoice_whatsapp_enabled}
+                      onClick={() =>
+                        updateField(
+                          'digital_invoice_whatsapp_enabled',
+                          !form.digital_invoice_whatsapp_enabled
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="تقييم Google في PDF"
+                      description="إظهار رابط التقييم"
+                      enabled={form.digital_invoice_google_review_enabled}
+                      onClick={() =>
+                        updateField(
+                          'digital_invoice_google_review_enabled',
+                          !form.digital_invoice_google_review_enabled
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="الخريطة في PDF"
+                      description="إظهار رابط الموقع"
+                      enabled={form.digital_invoice_map_enabled}
+                      onClick={() =>
+                        updateField(
+                          'digital_invoice_map_enabled',
+                          !form.digital_invoice_map_enabled
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="Instagram في PDF"
+                      description="إظهار رابط Instagram"
+                      enabled={form.digital_invoice_instagram_enabled}
+                      onClick={() =>
+                        updateField(
+                          'digital_invoice_instagram_enabled',
+                          !form.digital_invoice_instagram_enabled
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="TikTok في PDF"
+                      description="إظهار رابط TikTok"
+                      enabled={form.digital_invoice_tiktok_enabled}
+                      onClick={() =>
+                        updateField(
+                          'digital_invoice_tiktok_enabled',
+                          !form.digital_invoice_tiktok_enabled
+                        )
+                      }
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-5 flex items-center justify-between gap-4 border-b border-cyan-300/10 pb-4">
+                    <div className="text-right">
+                      <h3 className="text-xl font-black text-white">الفاتورة الحرارية</h3>
+                      <p className="mt-1 text-sm font-semibold text-slate-400">
+                        إعدادات محتوى الإيصال الحراري وروابطه.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Field label="اسم العلامة في الفاتورة الحرارية">
+                      <input
+                        value={form.thermal_invoice_brand_name}
+                        onChange={(event) =>
+                          updateField('thermal_invoice_brand_name', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder={settings?.store_name || 'AFEX'}
+                      />
+                    </Field>
+
+                    <Field label="اسم الفرع في الفاتورة الحرارية">
+                      <input
+                        value={form.thermal_invoice_branch_name}
+                        onChange={(event) =>
+                          updateField('thermal_invoice_branch_name', event.target.value)
+                        }
+                        className={inputClassName}
+                        placeholder={settings?.branch_name || 'الفرع الرئيسي'}
+                      />
+                    </Field>
+
+                    <Field label="عرض ورق الفاتورة الحرارية">
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['80mm', '58mm'] as const).map((paperWidth) => (
+                          <ChoiceButton
+                            key={paperWidth}
+                            active={form.thermal_invoice_paper_width === paperWidth}
+                            onClick={() =>
+                              updateField('thermal_invoice_paper_width', paperWidth)
+                            }
+                          >
+                            {paperWidth}
+                          </ChoiceButton>
+                        ))}
+                      </div>
+                    </Field>
+
+                    <Field label="ملاحظة الفاتورة الحرارية">
+                      <textarea
+                        value={form.thermal_invoice_note}
+                        onChange={(event) =>
+                          updateField('thermal_invoice_note', event.target.value)
+                        }
+                        className={textareaClassName}
+                        placeholder="ملاحظة تظهر داخل الإيصال الحراري"
+                      />
+                    </Field>
+
+                    <Field label="رسالة ختام الفاتورة الحرارية">
+                      <textarea
+                        value={form.thermal_invoice_footer_message}
+                        onChange={(event) =>
+                          updateField('thermal_invoice_footer_message', event.target.value)
+                        }
+                        className={textareaClassName}
+                        placeholder="شكراً لتعاملكم معنا"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <StatusRow
+                      title="إظهار جوال العميل"
+                      description="في الفاتورة الحرارية"
+                      enabled={form.thermal_invoice_show_customer_phone}
+                      onClick={() =>
+                        updateField(
+                          'thermal_invoice_show_customer_phone',
+                          !form.thermal_invoice_show_customer_phone
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="إظهار طريقة الدفع"
+                      description="في الفاتورة الحرارية"
+                      enabled={form.thermal_invoice_show_payment_method}
+                      onClick={() =>
+                        updateField(
+                          'thermal_invoice_show_payment_method',
+                          !form.thermal_invoice_show_payment_method
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="إظهار ملاحظة"
+                      description="داخل الإيصال"
+                      enabled={form.thermal_invoice_show_note}
+                      onClick={() =>
+                        updateField(
+                          'thermal_invoice_show_note',
+                          !form.thermal_invoice_show_note
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="الخريطة في الإيصال"
+                      description="إظهار رابط الموقع"
+                      enabled={form.thermal_invoice_show_map}
+                      onClick={() =>
+                        updateField(
+                          'thermal_invoice_show_map',
+                          !form.thermal_invoice_show_map
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="واتساب في الإيصال"
+                      description="إظهار رقم التواصل"
+                      enabled={form.thermal_invoice_show_whatsapp}
+                      onClick={() =>
+                        updateField(
+                          'thermal_invoice_show_whatsapp',
+                          !form.thermal_invoice_show_whatsapp
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="Instagram في الإيصال"
+                      description="إظهار رابط Instagram"
+                      enabled={form.thermal_invoice_show_instagram}
+                      onClick={() =>
+                        updateField(
+                          'thermal_invoice_show_instagram',
+                          !form.thermal_invoice_show_instagram
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="TikTok في الإيصال"
+                      description="إظهار رابط TikTok"
+                      enabled={form.thermal_invoice_show_tiktok}
+                      onClick={() =>
+                        updateField(
+                          'thermal_invoice_show_tiktok',
+                          !form.thermal_invoice_show_tiktok
+                        )
+                      }
+                    />
+                    <StatusRow
+                      title="تقييم Google في الإيصال"
+                      description="إظهار رابط التقييم"
+                      enabled={form.thermal_invoice_show_google_review}
+                      onClick={() =>
+                        updateField(
+                          'thermal_invoice_show_google_review',
+                          !form.thermal_invoice_show_google_review
+                        )
+                      }
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <style>{`
+              @keyframes invoiceSettingsSlideIn {
+                from {
+                  opacity: 0;
+                  transform: translateX(-24px);
+                }
+
+                to {
+                  opacity: 1;
+                  transform: translateX(0);
+                }
+              }
+            `}</style>
           </Panel>
         ) : null}
 
@@ -1003,6 +1128,40 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="mb-2 block text-sm font-black text-slate-200">{label}</span>
       {children}
     </label>
+  )
+}
+
+function InvoiceSectionButton({
+  active,
+  title,
+  description,
+  onClick,
+}: {
+  active: boolean
+  title: string
+  description: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`min-h-28 rounded-[26px] border p-5 text-right transition ${
+        active
+          ? 'border-cyan-200/60 bg-gradient-to-l from-cyan-300 to-emerald-300 text-[#04131d] shadow-[0_0_34px_rgba(34,211,238,0.18)]'
+          : 'border-cyan-300/15 bg-[#091522]/80 text-slate-200 hover:border-cyan-300/35 hover:bg-cyan-300/10'
+      }`}
+    >
+      <span className="block text-xl font-black">{title}</span>
+      <span
+        className={`mt-2 block text-sm font-bold leading-6 ${
+          active ? 'text-[#12303a]' : 'text-slate-400'
+        }`}
+      >
+        {description}
+      </span>
+    </button>
   )
 }
 
