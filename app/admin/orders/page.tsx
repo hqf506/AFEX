@@ -45,6 +45,7 @@ type OrdersFilterKey = OrderFilter | 'new' | 'delivered' | 'cancelled'
 type AdminOrderStatus = 'in_progress' | 'ready' | 'closed' | 'cancelled'
 type StatusEditOptionKey = AdminOrderStatus | 'delivered_closed'
 type WhatsAppDeliveryStatus = 'sent' | 'failed' | 'not_sent' | 'pending'
+type InvoicePdfAction = 'preview' | 'send'
 type PageOrderRecord = OrderRecord & {
   status_raw: string
 }
@@ -408,6 +409,9 @@ export default function OrdersPage() {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
   const [whatsappStatusByOrderId, setWhatsappStatusByOrderId] = useState<
     Record<string, WhatsAppDeliveryStatus>
+  >({})
+  const [invoicePdfActionByOrderId, setInvoicePdfActionByOrderId] = useState<
+    Record<string, InvoicePdfAction | undefined>
   >({})
 
   const [successMessage, setSuccessMessage] = useState('')
@@ -841,6 +845,170 @@ export default function OrdersPage() {
   const getOrderStoreName = (order: OrderRecord) => {
     if (!order.branch_id) return ''
     return branchStoreNameById.get(order.branch_id) || ''
+  }
+
+  const buildInvoicePdfPayload = (order: PageOrderRecord) => {
+    const invoiceItems = order.items.map((item) => ({
+      item_id: null,
+      item_name: item.item_name,
+      item_type: item.item_type === 'product' ? 'product' : 'service',
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+    }))
+
+    return {
+      invoiceItems,
+      invoiceNumber: order.invoice_number,
+      orderNumber: order.order_number,
+      customerName: fixArabic(order.customer_name),
+      customerPhone: order.customer_phone,
+      branchName: getOrderBranchLabel(order),
+      paymentMethod:
+        order.payment_method_key === 'card' ||
+        order.payment_method_key === 'transfer'
+          ? order.payment_method_key
+          : 'cash',
+      paymentMethodLabel: order.payment_method,
+      numericCashReceived: order.cash_received,
+      remainingFromCustomer: order.remaining_from_customer,
+      cashChange: order.cash_change,
+      subtotal: order.subtotal || order.total,
+      discount: order.discount,
+      tax: order.tax,
+      finalTotal: order.total,
+      note: order.note === EMPTY_DASH ? '' : fixArabic(order.note),
+      issuedAt: order.created_at,
+    }
+  }
+
+  const encodeInvoicePreviewPayload = (order: PageOrderRecord) => {
+    const json = JSON.stringify(buildInvoicePdfPayload(order))
+    const bytes = new TextEncoder().encode(json)
+    let binary = ''
+
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte)
+    }
+
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  }
+
+  const previewDigitalInvoice = (order: PageOrderRecord) => {
+    if (order.items.length === 0) {
+      showError('لا توجد عناصر في الفاتورة لمعاينة PDF')
+      return
+    }
+
+    setInvoicePdfActionByOrderId((current) => ({
+      ...current,
+      [order.id]: 'preview',
+    }))
+
+    try {
+      const payload = encodeInvoicePreviewPayload(order)
+      window.open(`/api/invoices/pdf?format=html&payload=${payload}`, '_blank')
+    } catch (error) {
+      console.error('Invoice preview error:', error)
+      showError('تعذر فتح معاينة الفاتورة الرقمية')
+    } finally {
+      setInvoicePdfActionByOrderId((current) => ({
+        ...current,
+        [order.id]: undefined,
+      }))
+    }
+  }
+
+  const sendDigitalInvoicePdf = async (order: PageOrderRecord) => {
+    if (!canManageOrders) {
+      showError('لا تملك صلاحية لإرسال الفاتورة الرقمية')
+      return
+    }
+
+    if (!isSendableWhatsAppPhone(order.customer_phone)) {
+      showError('لا يوجد رقم واتساب صالح لهذا العميل')
+      return
+    }
+
+    if (order.items.length === 0) {
+      showError('لا توجد عناصر في الفاتورة لإرسال PDF')
+      return
+    }
+
+    if (invoicePdfActionByOrderId[order.id]) return
+
+    setInvoicePdfActionByOrderId((current) => ({
+      ...current,
+      [order.id]: 'send',
+    }))
+    setWhatsappStatusByOrderId((current) => ({
+      ...current,
+      [order.id]: 'pending',
+    }))
+
+    try {
+      const pdfResponse = await fetch('/api/invoices/pdf?delivery=whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(buildInvoicePdfPayload(order)),
+      })
+      const pdfResult = await pdfResponse.json().catch(() => null)
+
+      if (!pdfResponse.ok || !pdfResult?.success || !pdfResult?.fileUrl) {
+        throw new Error(pdfResult?.error || 'فشل توليد ملف PDF')
+      }
+
+      const whatsappResponse = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'file',
+          to: order.customer_phone,
+          branchId: effectiveBranchId || order.branch_id || branchId || undefined,
+          fileUrl: pdfResult.fileUrl,
+          filename:
+            typeof pdfResult.filename === 'string'
+              ? pdfResult.filename
+              : `${order.invoice_number || order.order_number || 'invoice'}.pdf`,
+          caption: `فاتورتك من AFEX${order.invoice_number ? ` - ${order.invoice_number}` : ''}`,
+          notification: {
+            orderId: order.id,
+            status: 'invoice_pdf',
+            channel: 'whatsapp',
+          },
+        }),
+      })
+      const whatsappResult = await whatsappResponse.json().catch(() => null)
+
+      if (!whatsappResponse.ok || !whatsappResult?.success) {
+        throw new Error(whatsappResult?.error || 'فشل إرسال PDF عبر واتساب')
+      }
+
+      setWhatsappStatusByOrderId((current) => ({
+        ...current,
+        [order.id]: 'sent',
+      }))
+      showSuccess('تم إرسال الفاتورة الرقمية PDF عبر واتساب')
+    } catch (error) {
+      console.error('Invoice PDF WhatsApp send error:', error)
+      setWhatsappStatusByOrderId((current) => ({
+        ...current,
+        [order.id]: 'failed',
+      }))
+      showError(
+        error instanceof Error
+          ? error.message
+          : 'فشل إرسال الفاتورة الرقمية PDF عبر واتساب'
+      )
+    } finally {
+      setInvoicePdfActionByOrderId((current) => ({
+        ...current,
+        [order.id]: undefined,
+      }))
+    }
   }
 
   const updateStatus = async (
@@ -1392,7 +1560,7 @@ export default function OrdersPage() {
                     <col className="w-[150px]" />
                     <col className="w-[140px]" />
                     <col className="w-[190px]" />
-                    <col className="w-[330px]" />
+                    <col className="w-[520px]" />
                   </colgroup>
                   <thead className="bg-[#0b1626]/90">
                     <tr className="border-b border-cyan-300/10 text-[11px] font-black text-slate-300">
@@ -1422,6 +1590,15 @@ export default function OrdersPage() {
                       const deliveryStatusUi = orderIsCancelled
                         ? CANCELLED_RECEIPT_WHATSAPP_UI
                         : whatsAppStatusUi
+                      const invoicePdfAction = invoicePdfActionByOrderId[order.id]
+                      const canUseDigitalInvoice =
+                        !orderIsCancelled && order.items.length > 0
+                      const canSendDigitalInvoice =
+                        canManageOrders &&
+                        canUseDigitalInvoice &&
+                        isSendableWhatsAppPhone(order.customer_phone)
+                      const hasSentDigitalInvoice =
+                        whatsappStatusByOrderId[order.id] === 'sent'
 
                       return (
                         <tr
@@ -1501,6 +1678,28 @@ export default function OrdersPage() {
                                 className="h-9 rounded-xl border border-emerald-300/35 bg-emerald-500/15 px-3 text-[11px] font-black text-emerald-100 transition hover:bg-emerald-500/25 hover:shadow-[0_0_14px_rgba(16,185,129,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
                               >
                                 تم التسليم
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!canUseDigitalInvoice || Boolean(invoicePdfAction)}
+                                onClick={() => previewDigitalInvoice(order)}
+                                className="h-9 rounded-xl border border-violet-300/35 bg-violet-500/15 px-3 text-[11px] font-black text-violet-100 transition hover:bg-violet-500/25 hover:shadow-[0_0_14px_rgba(139,92,246,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
+                              >
+                                {invoicePdfAction === 'preview'
+                                  ? 'جاري المعاينة...'
+                                  : 'معاينة PDF'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!canSendDigitalInvoice || Boolean(invoicePdfAction)}
+                                onClick={() => sendDigitalInvoicePdf(order)}
+                                className="h-9 rounded-xl border border-teal-300/35 bg-teal-500/15 px-3 text-[11px] font-black text-teal-100 transition hover:bg-teal-500/25 hover:shadow-[0_0_14px_rgba(20,184,166,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
+                              >
+                                {invoicePdfAction === 'send'
+                                  ? 'جاري الإرسال...'
+                                  : hasSentDigitalInvoice
+                                    ? 'إعادة إرسال PDF'
+                                    : 'إرسال PDF'}
                               </button>
                               {canCancelOrders && (
                               <button

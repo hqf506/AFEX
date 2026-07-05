@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import { chromium } from 'playwright'
 import type { DigitalInvoiceTemplateSettings } from '@/lib/admin/settings'
 import type { InvoiceLineItem } from '@/lib/invoices/items'
@@ -29,6 +32,28 @@ export type InvoicePdfPayload = {
   note: string
   issuedAt?: string
   digitalInvoiceSettings?: DigitalInvoiceTemplateSettings
+}
+
+export type StoredInvoicePdf = {
+  fileId: string
+  filename: string
+  filePath: string
+}
+
+const STORAGE_DIR = path.join(process.cwd(), '.runtime-data', 'invoice-pdfs')
+
+function getStoragePath(fileId: string) {
+  return path.join(STORAGE_DIR, `${fileId}.pdf`)
+}
+
+function sanitizeFileNamePart(value?: string) {
+  const normalized = value?.trim() || ''
+
+  if (!normalized) {
+    return 'invoice'
+  }
+
+  return normalized.replace(/[^\w\u0600-\u06FF-]+/g, '-').replace(/-+/g, '-')
 }
 
 export function renderInvoiceHtmlDocument(payload: InvoicePdfPayload) {
@@ -119,4 +144,35 @@ export async function generateInvoicePdf(payload: InvoicePdfPayload) {
   } finally {
     await browser.close()
   }
+}
+
+export async function storeInvoicePdf(
+  payload: InvoicePdfPayload
+): Promise<StoredInvoicePdf> {
+  await mkdir(STORAGE_DIR, { recursive: true })
+
+  const fileId = randomUUID()
+  const filename = `${sanitizeFileNamePart(
+    payload.invoiceNumber || payload.orderNumber
+  )}.pdf`
+  const filePath = getStoragePath(fileId)
+  const pdfBytes = await generateInvoicePdf(payload)
+
+  await writeFile(filePath, pdfBytes)
+
+  return {
+    fileId,
+    filename,
+    filePath,
+  }
+}
+
+export async function readStoredInvoicePdf(fileId: string) {
+  const sanitizedId = fileId.trim()
+
+  if (!/^[a-f0-9-]{16,}$/i.test(sanitizedId)) {
+    throw new Error('Invalid invoice PDF id')
+  }
+
+  return readFile(getStoragePath(sanitizedId))
 }

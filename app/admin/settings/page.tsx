@@ -6,6 +6,7 @@ import {
   createSystemSettingsPayload,
   createSystemSettingsSavePayload,
   resolveSystemSettingsSaveNames,
+  SYSTEM_SETTINGS_DEFAULT_VALUES,
   type SystemSettings,
   type SystemSettingsPayload,
 } from '@/lib/admin/settings'
@@ -458,6 +459,143 @@ export default function AdminSettingsPage() {
                 />
               </Field>
 
+              <Field label="سطر العنوان الأول في الفاتورة الرقمية">
+                <input
+                  value={form.digital_invoice_address_line_1}
+                  onChange={(event) =>
+                    updateField('digital_invoice_address_line_1', event.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="اكتب العنوان"
+                />
+              </Field>
+
+              <Field label="سطر العنوان الثاني في الفاتورة الرقمية">
+                <input
+                  value={form.digital_invoice_address_line_2}
+                  onChange={(event) =>
+                    updateField('digital_invoice_address_line_2', event.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="اكتب تفاصيل إضافية للعنوان"
+                />
+              </Field>
+
+              <Field label="رقم واتساب في الفاتورة الرقمية">
+                <input
+                  value={form.digital_invoice_whatsapp_number}
+                  onChange={(event) =>
+                    updateField('digital_invoice_whatsapp_number', event.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="966xxxxxx"
+                />
+              </Field>
+
+              <Field label="رابط تقييم Google">
+                <input
+                  value={form.digital_invoice_google_review_link}
+                  onChange={(event) =>
+                    updateField('digital_invoice_google_review_link', event.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="https://..."
+                />
+              </Field>
+
+              <Field label="رابط الموقع / الخريطة">
+                <input
+                  value={form.digital_invoice_map_link}
+                  onChange={(event) =>
+                    updateField('digital_invoice_map_link', event.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="https://maps.google.com/..."
+                />
+              </Field>
+
+              <Field label="رابط Instagram">
+                <input
+                  value={form.digital_invoice_instagram_link}
+                  onChange={(event) =>
+                    updateField('digital_invoice_instagram_link', event.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="https://instagram.com/..."
+                />
+              </Field>
+
+              <Field label="رابط TikTok">
+                <input
+                  value={form.digital_invoice_tiktok_link}
+                  onChange={(event) =>
+                    updateField('digital_invoice_tiktok_link', event.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="https://tiktok.com/@..."
+                />
+              </Field>
+
+              <Field label="لون خلفية اسم النشاط">
+                <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/15 bg-[#091522]/90 px-4 py-3">
+                  <input
+                    type="color"
+                    value={
+                      form.digital_invoice_brand_background_color ||
+                      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_background_color
+                    }
+                    onChange={(event) =>
+                      updateField(
+                        'digital_invoice_brand_background_color',
+                        event.target.value
+                      )
+                    }
+                    className="h-9 w-14 cursor-pointer rounded-xl border border-cyan-300/20 bg-[#07111d] p-1"
+                    aria-label="لون خلفية اسم النشاط"
+                  />
+                  <input
+                    value={form.digital_invoice_brand_background_color}
+                    onChange={(event) =>
+                      updateField(
+                        'digital_invoice_brand_background_color',
+                        event.target.value
+                      )
+                    }
+                    className="min-w-0 flex-1 bg-transparent text-left text-sm font-bold text-white outline-none"
+                    placeholder={
+                      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_background_color
+                    }
+                  />
+                </div>
+              </Field>
+
+              <Field label="لون نص اسم النشاط">
+                <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/15 bg-[#091522]/90 px-4 py-3">
+                  <input
+                    type="color"
+                    value={
+                      form.digital_invoice_brand_text_color ||
+                      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_text_color
+                    }
+                    onChange={(event) =>
+                      updateField('digital_invoice_brand_text_color', event.target.value)
+                    }
+                    className="h-9 w-14 cursor-pointer rounded-xl border border-cyan-300/20 bg-[#07111d] p-1"
+                    aria-label="لون نص اسم النشاط"
+                  />
+                  <input
+                    value={form.digital_invoice_brand_text_color}
+                    onChange={(event) =>
+                      updateField('digital_invoice_brand_text_color', event.target.value)
+                    }
+                    className="min-w-0 flex-1 bg-transparent text-left text-sm font-bold text-white outline-none"
+                    placeholder={
+                      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_brand_text_color
+                    }
+                  />
+                </div>
+              </Field>
+
               <Field label="اسم العلامة في الفاتورة الحرارية">
                 <input
                   value={form.thermal_invoice_brand_name}
@@ -565,6 +703,58 @@ export default function AdminSettingsPage() {
                 enabled={form.thermal_invoice_show_map}
                 onClick={() =>
                   updateField('thermal_invoice_show_map', !form.thermal_invoice_show_map)
+                }
+              />
+              <StatusRow
+                title="واتساب في PDF"
+                description="إظهار زر التواصل"
+                enabled={form.digital_invoice_whatsapp_enabled}
+                onClick={() =>
+                  updateField(
+                    'digital_invoice_whatsapp_enabled',
+                    !form.digital_invoice_whatsapp_enabled
+                  )
+                }
+              />
+              <StatusRow
+                title="تقييم Google في PDF"
+                description="إظهار رابط التقييم"
+                enabled={form.digital_invoice_google_review_enabled}
+                onClick={() =>
+                  updateField(
+                    'digital_invoice_google_review_enabled',
+                    !form.digital_invoice_google_review_enabled
+                  )
+                }
+              />
+              <StatusRow
+                title="الخريطة في PDF"
+                description="إظهار رابط الموقع"
+                enabled={form.digital_invoice_map_enabled}
+                onClick={() =>
+                  updateField('digital_invoice_map_enabled', !form.digital_invoice_map_enabled)
+                }
+              />
+              <StatusRow
+                title="Instagram في PDF"
+                description="إظهار رابط Instagram"
+                enabled={form.digital_invoice_instagram_enabled}
+                onClick={() =>
+                  updateField(
+                    'digital_invoice_instagram_enabled',
+                    !form.digital_invoice_instagram_enabled
+                  )
+                }
+              />
+              <StatusRow
+                title="TikTok في PDF"
+                description="إظهار رابط TikTok"
+                enabled={form.digital_invoice_tiktok_enabled}
+                onClick={() =>
+                  updateField(
+                    'digital_invoice_tiktok_enabled',
+                    !form.digital_invoice_tiktok_enabled
+                  )
                 }
               />
             </div>

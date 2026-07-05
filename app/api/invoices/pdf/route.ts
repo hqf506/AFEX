@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import {
   generateInvoicePdf,
+  readStoredInvoicePdf,
   renderInvoiceHtmlDocument,
+  storeInvoicePdf,
   type InvoicePdfPayload,
 } from '@/lib/invoices/pdf'
 import {
@@ -116,6 +118,36 @@ async function loadDigitalInvoiceSettings(tenantId: string | null | undefined) {
 }
 
 export async function GET(request: NextRequest) {
+  const fileId = getTrimmedString(request.nextUrl.searchParams.get('id'))
+
+  if (fileId) {
+    try {
+      const requestedFilename =
+        getTrimmedString(request.nextUrl.searchParams.get('filename')) ||
+        'invoice.pdf'
+      const pdfBuffer = await readStoredInvoicePdf(fileId)
+      const pdfBody = new Uint8Array(pdfBuffer)
+
+      return new NextResponse(pdfBody, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="${requestedFilename.replace(/"/g, '')}"`,
+          'Cache-Control': 'private, max-age=300',
+        },
+      })
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            error instanceof Error ? error.message : 'Invoice PDF not found',
+        },
+        { status: 404 }
+      )
+    }
+  }
+
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
   if (!auth.ok) {
@@ -211,12 +243,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const pdfBuffer = await generateInvoicePdf({
+    const pdfPayload = {
       ...payload,
       digitalInvoiceSettings: await loadDigitalInvoiceSettings(
         auth.profile.tenant_id
       ),
-    })
+    }
+
+    if (request.nextUrl.searchParams.get('delivery') === 'whatsapp') {
+      const storedFile = await storeInvoicePdf(pdfPayload)
+      const fileUrl = `${request.nextUrl.origin}/api/invoices/pdf?id=${storedFile.fileId}&filename=${encodeURIComponent(storedFile.filename)}`
+
+      return withAuthCookies(
+        auth.response,
+        NextResponse.json({
+          success: true,
+          fileUrl,
+          filename: storedFile.filename,
+        })
+      )
+    }
+
+    const pdfBuffer = await generateInvoicePdf(pdfPayload)
     const pdfBody = new Uint8Array(pdfBuffer)
     const filenameBase = sanitizeFilename(
       payload.invoiceNumber || payload.orderNumber || 'invoice'

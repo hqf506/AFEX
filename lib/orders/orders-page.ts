@@ -22,10 +22,14 @@ export type OrderRecord = {
   customer_name: string
   customer_phone: string
   total: number
+  subtotal: number
+  discount: number
+  tax: number
   status: OrderStatus
   created_at: string
   invoice_number: string
   payment_method: string
+  payment_method_key: string
   payment_status: string
   note: string
   cash_received: number
@@ -84,6 +88,9 @@ export function mapOrderSummaryToOrderRecord(record: OrderSummary): OrderRecord 
     customer_name: record.customerName,
     customer_phone: record.customerPhone,
     total: record.total,
+    subtotal: record.subtotal,
+    discount: record.discount,
+    tax: record.tax,
     status: record.status,
     created_at: record.createdAt,
     invoice_number: record.invoiceNumber,
@@ -91,6 +98,7 @@ export function mapOrderSummaryToOrderRecord(record: OrderSummary): OrderRecord 
       record.paymentMethod,
       record.paymentMethodRaw
     ),
+    payment_method_key: record.paymentMethod,
     payment_status: record.paymentStatus,
     note: record.note,
     cash_received: record.cashReceived,
