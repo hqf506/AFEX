@@ -959,6 +959,9 @@ export default function OrdersPage() {
         throw new Error(pdfResult?.error || 'فشل توليد ملف PDF')
       }
 
+      const invoiceNumber = order.invoice_number || ''
+      const safeInvoiceNumber = `\u200E${invoiceNumber}\u200E`
+
       const whatsappResponse = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: {
@@ -973,7 +976,7 @@ export default function OrdersPage() {
             typeof pdfResult.filename === 'string'
               ? pdfResult.filename
               : `${order.invoice_number || order.order_number || 'invoice'}.pdf`,
-          caption: `فاتورتك من: ${getOrderStoreName(order)}\nرقم الفاتورة: ${order.invoice_number || ''}`,
+          caption: `فاتورتك من: ${getOrderStoreName(order)}\nرقم الفاتورة: ${safeInvoiceNumber}`,
           notification: {
             orderId: order.id,
             status: 'invoice_pdf',
