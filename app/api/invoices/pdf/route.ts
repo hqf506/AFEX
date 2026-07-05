@@ -18,6 +18,82 @@ export const runtime = 'nodejs'
 
 type CreateInvoicePdfBody = InvoicePdfPayload
 
+function createInvoicePdfRequestId() {
+  return `invoice-pdf-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`
+}
+
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause:
+        error.cause instanceof Error
+          ? {
+              name: error.cause.name,
+              message: error.cause.message,
+              stack: error.cause.stack,
+            }
+          : error.cause,
+    }
+  }
+
+  return {
+    name: typeof error,
+    message: String(error),
+  }
+}
+
+function summarizeInvoicePayload(payload: Partial<InvoicePdfPayload>) {
+  return {
+    invoiceNumber: payload.invoiceNumber || null,
+    orderNumber: payload.orderNumber || null,
+    hasCustomerName: Boolean(payload.customerName),
+    hasCustomerPhone: Boolean(payload.customerPhone),
+    itemCount: Array.isArray(payload.invoiceItems)
+      ? payload.invoiceItems.length
+      : 0,
+    paymentMethod: payload.paymentMethod || null,
+    subtotal: payload.subtotal ?? null,
+    discount: payload.discount ?? null,
+    tax: payload.tax ?? null,
+    finalTotal: payload.finalTotal ?? null,
+    hasIssuedAt: Boolean(payload.issuedAt),
+    hasDigitalInvoiceSettings: Boolean(payload.digitalInvoiceSettings),
+  }
+}
+
+function logInvoicePdfInfo(
+  requestId: string,
+  stage: string,
+  details?: Record<string, unknown>
+) {
+  console.info({
+    scope: 'invoice-pdf-route',
+    requestId,
+    stage,
+    ...details,
+  })
+}
+
+function logInvoicePdfError(
+  requestId: string,
+  stage: string,
+  error: unknown,
+  details?: Record<string, unknown>
+) {
+  console.error({
+    scope: 'invoice-pdf-route',
+    requestId,
+    stage,
+    error: serializeError(error),
+    ...details,
+  })
+}
+
 function getTrimmedString(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -118,15 +194,23 @@ async function loadDigitalInvoiceSettings(tenantId: string | null | undefined) {
 }
 
 export async function GET(request: NextRequest) {
+  const requestId = createInvoicePdfRequestId()
   const fileId = getTrimmedString(request.nextUrl.searchParams.get('id'))
 
   if (fileId) {
     try {
+      logInvoicePdfInfo(requestId, 'stored-pdf-read-start', {
+        fileIdLength: fileId.length,
+      })
       const requestedFilename =
         getTrimmedString(request.nextUrl.searchParams.get('filename')) ||
         'invoice.pdf'
       const pdfBuffer = await readStoredInvoicePdf(fileId)
       const pdfBody = new Uint8Array(pdfBuffer)
+      logInvoicePdfInfo(requestId, 'stored-pdf-read-success', {
+        byteLength: pdfBody.byteLength,
+        requestedFilename,
+      })
 
       return new NextResponse(pdfBody, {
         status: 200,
@@ -137,6 +221,7 @@ export async function GET(request: NextRequest) {
         },
       })
     } catch (error) {
+      logInvoicePdfError(requestId, 'stored-pdf-read-error', error)
       return NextResponse.json(
         {
           success: false,
@@ -157,6 +242,11 @@ export async function GET(request: NextRequest) {
   try {
     const format = request.nextUrl.searchParams.get('format')
     const encodedPayload = request.nextUrl.searchParams.get('payload')
+    logInvoicePdfInfo(requestId, 'html-preview-request', {
+      format,
+      hasEncodedPayload: Boolean(encodedPayload),
+      encodedPayloadLength: encodedPayload?.length ?? 0,
+    })
 
     if (format !== 'html' || !encodedPayload) {
       return withAuthCookies(
@@ -171,15 +261,41 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const payload = normalizeInvoicePdfPayload(
-      decodePayloadFromQuery(encodedPayload)
-    )
+    let decodedBody: CreateInvoicePdfBody
+    try {
+      logInvoicePdfInfo(requestId, 'html-preview-payload-decode-start')
+      decodedBody = decodePayloadFromQuery(encodedPayload)
+      logInvoicePdfInfo(requestId, 'html-preview-payload-decode-success', {
+        decodedKeys: Object.keys(decodedBody || {}),
+      })
+    } catch (error) {
+      logInvoicePdfError(requestId, 'html-preview-payload-decode-error', error)
+      throw error
+    }
 
+    const payload = normalizeInvoicePdfPayload(decodedBody)
+    logInvoicePdfInfo(requestId, 'html-preview-payload-normalized', {
+      payload: summarizeInvoicePayload(payload),
+    })
+
+    logInvoicePdfInfo(requestId, 'html-preview-settings-load-start', {
+      hasTenantId: Boolean(auth.profile.tenant_id),
+    })
+    const digitalInvoiceSettings = await loadDigitalInvoiceSettings(
+      auth.profile.tenant_id
+    )
+    logInvoicePdfInfo(requestId, 'html-preview-settings-load-success', {
+      hasBrandName: Boolean(digitalInvoiceSettings.brandName),
+      hasBranchName: Boolean(digitalInvoiceSettings.branchName),
+    })
+
+    logInvoicePdfInfo(requestId, 'html-preview-render-start')
     const html = renderInvoiceHtmlDocument({
       ...payload,
-      digitalInvoiceSettings: await loadDigitalInvoiceSettings(
-        auth.profile.tenant_id
-      ),
+      digitalInvoiceSettings,
+    })
+    logInvoicePdfInfo(requestId, 'html-preview-render-success', {
+      htmlLength: html.length,
     })
 
     return withAuthCookies(
@@ -192,7 +308,8 @@ export async function GET(request: NextRequest) {
         },
       })
     )
-  } catch {
+  } catch (error) {
+    logInvoicePdfError(requestId, 'html-preview-error', error)
     return withAuthCookies(
       auth.response,
       NextResponse.json(
@@ -207,6 +324,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = createInvoicePdfRequestId()
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
   if (!auth.ok) {
@@ -214,10 +332,36 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = (await request.json()) as CreateInvoicePdfBody
+    const deliveryMode = request.nextUrl.searchParams.get('delivery')
+    logInvoicePdfInfo(requestId, 'post-request-start', {
+      deliveryMode,
+      hasTenantId: Boolean(auth.profile.tenant_id),
+      role: auth.profile.role || null,
+    })
+
+    let body: CreateInvoicePdfBody
+    try {
+      logInvoicePdfInfo(requestId, 'post-payload-decode-start')
+      body = (await request.json()) as CreateInvoicePdfBody
+      logInvoicePdfInfo(requestId, 'post-payload-decode-success', {
+        bodyKeys: Object.keys(body || {}),
+      })
+    } catch (error) {
+      logInvoicePdfError(requestId, 'post-payload-decode-error', error)
+      throw error
+    }
+
+    logInvoicePdfInfo(requestId, 'post-invoice-data-build-start')
     const payload = normalizeInvoicePdfPayload(body)
+    logInvoicePdfInfo(requestId, 'post-invoice-data-build-success', {
+      payload: summarizeInvoicePayload(payload),
+    })
 
     if (!payload.customerName || !payload.customerPhone) {
+      logInvoicePdfInfo(requestId, 'post-validation-error', {
+        reason: 'missing-customer',
+        payload: summarizeInvoicePayload(payload),
+      })
       return withAuthCookies(
         auth.response,
         NextResponse.json(
@@ -231,6 +375,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (payload.invoiceItems.length === 0) {
+      logInvoicePdfInfo(requestId, 'post-validation-error', {
+        reason: 'missing-items',
+        payload: summarizeInvoicePayload(payload),
+      })
       return withAuthCookies(
         auth.response,
         NextResponse.json(
@@ -243,16 +391,48 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    logInvoicePdfInfo(requestId, 'post-settings-load-start', {
+      hasTenantId: Boolean(auth.profile.tenant_id),
+    })
+    const digitalInvoiceSettings = await loadDigitalInvoiceSettings(
+      auth.profile.tenant_id
+    )
+    logInvoicePdfInfo(requestId, 'post-settings-load-success', {
+      hasBrandName: Boolean(digitalInvoiceSettings.brandName),
+      hasBranchName: Boolean(digitalInvoiceSettings.branchName),
+    })
+
     const pdfPayload = {
       ...payload,
-      digitalInvoiceSettings: await loadDigitalInvoiceSettings(
-        auth.profile.tenant_id
-      ),
+      digitalInvoiceSettings,
+    }
+    logInvoicePdfInfo(requestId, 'post-pdf-payload-ready', {
+      payload: summarizeInvoicePayload(pdfPayload),
+    })
+
+    try {
+      logInvoicePdfInfo(requestId, 'post-render-html-start')
+      const html = renderInvoiceHtmlDocument(pdfPayload)
+      logInvoicePdfInfo(requestId, 'post-render-html-success', {
+        htmlLength: html.length,
+      })
+    } catch (error) {
+      logInvoicePdfError(requestId, 'post-render-html-error', error, {
+        payload: summarizeInvoicePayload(pdfPayload),
+      })
+      throw error
     }
 
-    if (request.nextUrl.searchParams.get('delivery') === 'whatsapp') {
+    if (deliveryMode === 'whatsapp') {
+      logInvoicePdfInfo(requestId, 'post-store-pdf-start')
       const storedFile = await storeInvoicePdf(pdfPayload)
       const fileUrl = `${request.nextUrl.origin}/api/invoices/pdf?id=${storedFile.fileId}&filename=${encodeURIComponent(storedFile.filename)}`
+      logInvoicePdfInfo(requestId, 'post-store-pdf-success', {
+        fileId: storedFile.fileId,
+        filename: storedFile.filename,
+        filePath: storedFile.filePath,
+        fileUrlLength: fileUrl.length,
+      })
 
       return withAuthCookies(
         auth.response,
@@ -264,8 +444,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    logInvoicePdfInfo(requestId, 'post-generate-pdf-start')
     const pdfBuffer = await generateInvoicePdf(pdfPayload)
     const pdfBody = new Uint8Array(pdfBuffer)
+    logInvoicePdfInfo(requestId, 'post-generate-pdf-success', {
+      byteLength: pdfBody.byteLength,
+    })
     const filenameBase = sanitizeFilename(
       payload.invoiceNumber || payload.orderNumber || 'invoice'
     )
@@ -282,6 +466,7 @@ export async function POST(request: NextRequest) {
       })
     )
   } catch (error) {
+    logInvoicePdfError(requestId, 'post-error', error)
     return withAuthCookies(
       auth.response,
       NextResponse.json(

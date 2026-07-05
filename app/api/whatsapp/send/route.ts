@@ -43,6 +43,63 @@ const WHATSAPP_RATE_LIMIT_MAX_MESSAGES = 20
 const WHATSAPP_RATE_LIMIT_WINDOW_MS = 60 * 1000
 const whatsappRateLimitStore = new Map<string, WhatsAppRateLimitEntry>()
 
+function createWhatsAppRequestId() {
+  return `whatsapp-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`
+}
+
+function serializeWhatsAppError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause:
+        error.cause instanceof Error
+          ? {
+              name: error.cause.name,
+              message: error.cause.message,
+              stack: error.cause.stack,
+            }
+          : error.cause,
+    }
+  }
+
+  return {
+    name: typeof error,
+    message: String(error),
+  }
+}
+
+function logWhatsAppRouteInfo(
+  requestId: string,
+  stage: string,
+  details?: Record<string, unknown>
+) {
+  console.info({
+    scope: 'whatsapp-route',
+    requestId,
+    stage,
+    ...details,
+  })
+}
+
+function logWhatsAppRouteError(
+  requestId: string,
+  stage: string,
+  error: unknown,
+  details?: Record<string, unknown>
+) {
+  console.error({
+    scope: 'whatsapp-route',
+    requestId,
+    stage,
+    error: serializeWhatsAppError(error),
+    ...details,
+  })
+}
+
 function resolveRequestBranchId(
   requestedBranchId: string,
   role: string | null | undefined,
@@ -180,6 +237,7 @@ async function writeSuccessfulWhatsAppAudit({
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = createWhatsAppRequestId()
   let to = ''
   let type: 'text' | 'file' = 'text'
   let mode: 'text' | 'test' = 'text'
@@ -221,6 +279,26 @@ export async function POST(req: NextRequest) {
         : null
     const rateLimitKey =
       tenantId && branchId ? buildWhatsAppRateLimitKey(req, tenantId, branchId) : ''
+
+    logWhatsAppRouteInfo(requestId, 'request-parsed', {
+      type,
+      mode,
+      hasRecipient: Boolean(to),
+      toMasked: maskPhone(to),
+      hasFileUrl: Boolean(fileUrl),
+      fileUrlLength: fileUrl.length,
+      filename: filename || null,
+      hasCaption: Boolean(caption),
+      tenantIdMasked: tenantId ? maskId(tenantId) : '[missing]',
+      requestedBranchMasked: requestedBranchId
+        ? maskId(requestedBranchId)
+        : '[missing]',
+      resolvedBranchMasked: branchId ? maskId(branchId) : '[missing]',
+      notificationOrderMasked: notificationOrderId
+        ? maskId(notificationOrderId)
+        : '[missing]',
+      notificationStatus: notificationStatus || null,
+    })
 
     if (!to) {
       return jsonResponse(
@@ -312,25 +390,40 @@ export async function POST(req: NextRequest) {
 
         const result =
           type === 'file'
-            ? await sendWhatsAppFile(
-                {
-                  to,
-                  branchId,
-                  tenantId,
-                  fileUrl,
-                  filename: filename || undefined,
-                  caption: caption || undefined,
-                  metadata: {
-                    type: 'order_status',
-                    orderId: notificationOrderId,
-                    status: notificationStatus,
+            ? await (async () => {
+                logWhatsAppRouteInfo(requestId, 'notification-file-send-start', {
+                  fileUrlLength: fileUrl.length,
+                  filename: filename || null,
+                  orderMasked: maskId(notificationOrderId),
+                })
+                const fileResult = await sendWhatsAppFile(
+                  {
+                    to,
+                    branchId,
+                    tenantId,
+                    fileUrl,
+                    filename: filename || undefined,
+                    caption: caption || undefined,
+                    metadata: {
+                      type: 'order_status',
+                      orderId: notificationOrderId,
+                      status: notificationStatus,
+                    },
                   },
-                },
-                {
-                  mode: 'file',
-                  messageType: 'file',
-                }
-              )
+                  {
+                    mode: 'file',
+                    messageType: 'file',
+                  }
+                )
+                logWhatsAppRouteInfo(requestId, 'notification-file-send-result', {
+                  success: fileResult.success,
+                  providerKey: fileResult.providerKey,
+                  providerStatus: fileResult.providerStatus,
+                  providerMessageId: fileResult.providerMessageId || null,
+                  errorMessage: fileResult.errorMessage || null,
+                })
+                return fileResult
+              })()
             : await sendWhatsAppText(
                 {
                   to,
@@ -350,6 +443,12 @@ export async function POST(req: NextRequest) {
               )
 
         if (!result.success) {
+          logWhatsAppRouteInfo(requestId, 'notification-send-failed-result', {
+            type,
+            providerKey: result.providerKey,
+            providerStatus: result.providerStatus,
+            errorMessage: result.errorMessage || null,
+          })
           return whatsAppFailureResponse()
         }
 
@@ -404,20 +503,34 @@ export async function POST(req: NextRequest) {
             text || undefined
           )
         : type === 'file'
-          ? await sendWhatsAppFile(
-              {
-                to,
-                branchId,
-                tenantId,
-                fileUrl,
-                filename: filename || undefined,
-                caption: caption || undefined,
-              },
-              {
-                mode: 'file',
-                messageType: 'file',
-              }
-            )
+          ? await (async () => {
+              logWhatsAppRouteInfo(requestId, 'file-send-start', {
+                fileUrlLength: fileUrl.length,
+                filename: filename || null,
+              })
+              const fileResult = await sendWhatsAppFile(
+                {
+                  to,
+                  branchId,
+                  tenantId,
+                  fileUrl,
+                  filename: filename || undefined,
+                  caption: caption || undefined,
+                },
+                {
+                  mode: 'file',
+                  messageType: 'file',
+                }
+              )
+              logWhatsAppRouteInfo(requestId, 'file-send-result', {
+                success: fileResult.success,
+                providerKey: fileResult.providerKey,
+                providerStatus: fileResult.providerStatus,
+                providerMessageId: fileResult.providerMessageId || null,
+                errorMessage: fileResult.errorMessage || null,
+              })
+              return fileResult
+            })()
           : await sendWhatsAppText(
               {
                 to,
@@ -432,6 +545,12 @@ export async function POST(req: NextRequest) {
             )
 
     if (!result.success) {
+      logWhatsAppRouteInfo(requestId, 'send-failed-result', {
+        type,
+        providerKey: result.providerKey,
+        providerStatus: result.providerStatus,
+        errorMessage: result.errorMessage || null,
+      })
       return whatsAppFailureResponse()
     }
 
@@ -449,6 +568,12 @@ export async function POST(req: NextRequest) {
 
     return whatsAppSuccessResponse(result)
   } catch (error) {
+    logWhatsAppRouteError(requestId, 'catch', error, {
+      type,
+      mode,
+      toMasked: maskPhone(to),
+    })
+
     logWhatsAppSend({
       provider: 'unknown',
       phone: to || 'unknown',

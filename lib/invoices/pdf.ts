@@ -52,6 +52,72 @@ const A4_WIDTH = 595.28
 const A4_HEIGHT = 841.89
 const PAGE_MARGIN = 40
 
+function serializeInvoicePdfError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause:
+        error.cause instanceof Error
+          ? {
+              name: error.cause.name,
+              message: error.cause.message,
+              stack: error.cause.stack,
+            }
+          : error.cause,
+    }
+  }
+
+  return {
+    name: typeof error,
+    message: String(error),
+  }
+}
+
+function summarizeInvoicePdfPayload(payload: Partial<InvoicePdfPayload>) {
+  return {
+    invoiceNumber: payload.invoiceNumber || null,
+    orderNumber: payload.orderNumber || null,
+    hasCustomerName: Boolean(payload.customerName),
+    hasCustomerPhone: Boolean(payload.customerPhone),
+    itemCount: Array.isArray(payload.invoiceItems)
+      ? payload.invoiceItems.length
+      : 0,
+    paymentMethod: payload.paymentMethod || null,
+    subtotal: payload.subtotal ?? null,
+    discount: payload.discount ?? null,
+    tax: payload.tax ?? null,
+    finalTotal: payload.finalTotal ?? null,
+    hasIssuedAt: Boolean(payload.issuedAt),
+    hasDigitalInvoiceSettings: Boolean(payload.digitalInvoiceSettings),
+  }
+}
+
+function logInvoicePdfLibraryInfo(
+  stage: string,
+  details?: Record<string, unknown>
+) {
+  console.info({
+    scope: 'invoice-pdf-library',
+    stage,
+    ...details,
+  })
+}
+
+function logInvoicePdfLibraryError(
+  stage: string,
+  error: unknown,
+  details?: Record<string, unknown>
+) {
+  console.error({
+    scope: 'invoice-pdf-library',
+    stage,
+    error: serializeInvoicePdfError(error),
+    ...details,
+  })
+}
+
 function getStoragePath(fileId: string) {
   return path.join(STORAGE_DIR, `${fileId}.pdf`)
 }
@@ -124,7 +190,12 @@ window.onload = function() {
 }
 
 async function generateInvoicePdfWithPlaywright(payload: InvoicePdfPayload) {
+  logInvoicePdfLibraryInfo('playwright-import-start')
   const { chromium } = await import('playwright')
+  logInvoicePdfLibraryInfo('playwright-import-success')
+  logInvoicePdfLibraryInfo('playwright-launch-start', {
+    platform: process.platform,
+  })
   const browser = await chromium.launch({
     headless: true,
     args:
@@ -132,16 +203,26 @@ async function generateInvoicePdfWithPlaywright(payload: InvoicePdfPayload) {
         ? ['--no-sandbox', '--disable-setuid-sandbox']
         : [],
   })
+  logInvoicePdfLibraryInfo('playwright-launch-success')
 
   try {
+    logInvoicePdfLibraryInfo('playwright-page-start')
     const page = await browser.newPage()
+    logInvoicePdfLibraryInfo('playwright-render-html-start', {
+      payload: summarizeInvoicePdfPayload(payload),
+    })
     const html = renderInvoiceHtmlDocument(payload)
+    logInvoicePdfLibraryInfo('playwright-render-html-success', {
+      htmlLength: html.length,
+    })
 
+    logInvoicePdfLibraryInfo('playwright-set-content-start')
     await page.setContent(html, { waitUntil: 'load' })
     await page.emulateMedia({ media: 'screen' })
     await page.waitForTimeout(200)
+    logInvoicePdfLibraryInfo('playwright-pdf-start')
 
-    return await page.pdf({
+    const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
@@ -152,18 +233,33 @@ async function generateInvoicePdfWithPlaywright(payload: InvoicePdfPayload) {
         left: '0',
       },
     })
+    logInvoicePdfLibraryInfo('playwright-pdf-success', {
+      byteLength: pdf.byteLength,
+    })
+
+    return pdf
   } finally {
+    logInvoicePdfLibraryInfo('playwright-close-start')
     await browser.close()
+    logInvoicePdfLibraryInfo('playwright-close-success')
   }
 }
 
 async function loadPdfFont(pdfDoc: PDFDocument) {
   try {
+    logInvoicePdfLibraryInfo('fallback-font-load-start', {
+      fontPath: FONT_PATH,
+    })
     const { readFile: readFontFile } = await import('node:fs/promises')
     const fontBytes = await readFontFile(FONT_PATH)
     pdfDoc.registerFontkit(fontkit)
-    return await pdfDoc.embedFont(fontBytes)
-  } catch {
+    const font = await pdfDoc.embedFont(fontBytes)
+    logInvoicePdfLibraryInfo('fallback-font-load-success', {
+      byteLength: fontBytes.byteLength,
+    })
+    return font
+  } catch (error) {
+    logInvoicePdfLibraryError('fallback-font-load-error', error)
     return pdfDoc.embedFont(StandardFonts.Helvetica)
   }
 }
@@ -249,6 +345,9 @@ function drawInfoRow(params: {
 }
 
 async function generateInvoicePdfFallback(payload: InvoicePdfPayload) {
+  logInvoicePdfLibraryInfo('fallback-generate-start', {
+    payload: summarizeInvoicePdfPayload(payload),
+  })
   const pdfDoc = await PDFDocument.create()
   const font = await loadPdfFont(pdfDoc)
   let page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT])
@@ -376,34 +475,71 @@ async function generateInvoicePdfFallback(payload: InvoicePdfPayload) {
     })
   }
 
-  return pdfDoc.save()
+  const pdf = await pdfDoc.save()
+  logInvoicePdfLibraryInfo('fallback-generate-success', {
+    byteLength: pdf.byteLength,
+  })
+
+  return pdf
 }
 
 export async function generateInvoicePdf(payload: InvoicePdfPayload) {
   try {
+    logInvoicePdfLibraryInfo('generate-start', {
+      payload: summarizeInvoicePdfPayload(payload),
+      renderer: 'playwright',
+    })
     return await generateInvoicePdfWithPlaywright(payload)
   } catch (error) {
-    console.warn(
-      '[invoice-pdf] Playwright PDF generation unavailable, using pdf-lib fallback',
-      error instanceof Error ? error.message : error
-    )
-    return generateInvoicePdfFallback(payload)
+    logInvoicePdfLibraryError('playwright-generate-error', error, {
+      message: 'Playwright PDF generation unavailable, using pdf-lib fallback',
+    })
+
+    try {
+      return await generateInvoicePdfFallback(payload)
+    } catch (fallbackError) {
+      logInvoicePdfLibraryError('fallback-generate-error', fallbackError)
+      throw fallbackError
+    }
   }
 }
 
 export async function storeInvoicePdf(
   payload: InvoicePdfPayload
 ): Promise<StoredInvoicePdf> {
+  logInvoicePdfLibraryInfo('store-start', {
+    storageDir: STORAGE_DIR,
+    payload: summarizeInvoicePdfPayload(payload),
+  })
+  logInvoicePdfLibraryInfo('store-mkdir-start')
   await mkdir(STORAGE_DIR, { recursive: true })
+  logInvoicePdfLibraryInfo('store-mkdir-success')
 
   const fileId = randomUUID()
   const filename = `${sanitizeFileNamePart(
     payload.invoiceNumber || payload.orderNumber
   )}.pdf`
   const filePath = getStoragePath(fileId)
+  logInvoicePdfLibraryInfo('store-generate-start', {
+    fileId,
+    filename,
+    filePath,
+  })
   const pdfBytes = await generateInvoicePdf(payload)
+  logInvoicePdfLibraryInfo('store-generate-success', {
+    fileId,
+    byteLength: pdfBytes.byteLength,
+  })
 
+  logInvoicePdfLibraryInfo('store-write-start', {
+    fileId,
+    filePath,
+  })
   await writeFile(filePath, pdfBytes)
+  logInvoicePdfLibraryInfo('store-write-success', {
+    fileId,
+    filePath,
+  })
 
   return {
     fileId,
@@ -419,5 +555,16 @@ export async function readStoredInvoicePdf(fileId: string) {
     throw new Error('Invalid invoice PDF id')
   }
 
-  return readFile(getStoragePath(sanitizedId))
+  const filePath = getStoragePath(sanitizedId)
+  logInvoicePdfLibraryInfo('read-stored-start', {
+    fileId: sanitizedId,
+    filePath,
+  })
+  const pdf = await readFile(filePath)
+  logInvoicePdfLibraryInfo('read-stored-success', {
+    fileId: sanitizedId,
+    byteLength: pdf.byteLength,
+  })
+
+  return pdf
 }
