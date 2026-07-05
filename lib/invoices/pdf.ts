@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import fontkit from '@pdf-lib/fontkit'
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib'
 import type { DigitalInvoiceTemplateSettings } from '@/lib/admin/settings'
@@ -35,19 +33,14 @@ export type InvoicePdfPayload = {
   digitalInvoiceSettings?: DigitalInvoiceTemplateSettings
 }
 
-export type StoredInvoicePdf = {
+export type GeneratedInvoicePdfFile = {
   fileId: string
   filename: string
-  filePath: string
+  buffer: Buffer
+  base64: string
+  dataUrl: string
 }
 
-const STORAGE_DIR = path.join(process.cwd(), '.runtime-data', 'invoice-pdfs')
-const FONT_PATH = path.join(
-  process.cwd(),
-  'assets',
-  'fonts',
-  'NotoSansArabic-Regular.ttf'
-)
 const A4_WIDTH = 595.28
 const A4_HEIGHT = 841.89
 const PAGE_MARGIN = 40
@@ -116,10 +109,6 @@ function logInvoicePdfLibraryError(
     error: serializeInvoicePdfError(error),
     ...details,
   })
-}
-
-function getStoragePath(fileId: string) {
-  return path.join(STORAGE_DIR, `${fileId}.pdf`)
 }
 
 function sanitizeFileNamePart(value?: string) {
@@ -247,19 +236,13 @@ async function generateInvoicePdfWithPlaywright(payload: InvoicePdfPayload) {
 
 async function loadPdfFont(pdfDoc: PDFDocument) {
   try {
-    logInvoicePdfLibraryInfo('fallback-font-load-start', {
-      fontPath: FONT_PATH,
-    })
-    const { readFile: readFontFile } = await import('node:fs/promises')
-    const fontBytes = await readFontFile(FONT_PATH)
+    logInvoicePdfLibraryInfo('fallback-standard-font-load-start')
     pdfDoc.registerFontkit(fontkit)
-    const font = await pdfDoc.embedFont(fontBytes)
-    logInvoicePdfLibraryInfo('fallback-font-load-success', {
-      byteLength: fontBytes.byteLength,
-    })
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    logInvoicePdfLibraryInfo('fallback-standard-font-load-success')
     return font
   } catch (error) {
-    logInvoicePdfLibraryError('fallback-font-load-error', error)
+    logInvoicePdfLibraryError('fallback-standard-font-load-error', error)
     return pdfDoc.embedFont(StandardFonts.Helvetica)
   }
 }
@@ -504,67 +487,37 @@ export async function generateInvoicePdf(payload: InvoicePdfPayload) {
   }
 }
 
-export async function storeInvoicePdf(
+export async function generateInvoicePdfFile(
   payload: InvoicePdfPayload
-): Promise<StoredInvoicePdf> {
-  logInvoicePdfLibraryInfo('store-start', {
-    storageDir: STORAGE_DIR,
+): Promise<GeneratedInvoicePdfFile> {
+  logInvoicePdfLibraryInfo('memory-file-generate-start', {
     payload: summarizeInvoicePdfPayload(payload),
   })
-  logInvoicePdfLibraryInfo('store-mkdir-start')
-  await mkdir(STORAGE_DIR, { recursive: true })
-  logInvoicePdfLibraryInfo('store-mkdir-success')
 
   const fileId = randomUUID()
   const filename = `${sanitizeFileNamePart(
     payload.invoiceNumber || payload.orderNumber
   )}.pdf`
-  const filePath = getStoragePath(fileId)
-  logInvoicePdfLibraryInfo('store-generate-start', {
+  logInvoicePdfLibraryInfo('memory-file-pdf-generate-start', {
     fileId,
     filename,
-    filePath,
   })
   const pdfBytes = await generateInvoicePdf(payload)
-  logInvoicePdfLibraryInfo('store-generate-success', {
+  const buffer = Buffer.from(pdfBytes)
+  const base64 = buffer.toString('base64')
+  const dataUrl = `data:application/pdf;base64,${base64}`
+  logInvoicePdfLibraryInfo('memory-file-pdf-generate-success', {
     fileId,
-    byteLength: pdfBytes.byteLength,
-  })
-
-  logInvoicePdfLibraryInfo('store-write-start', {
-    fileId,
-    filePath,
-  })
-  await writeFile(filePath, pdfBytes)
-  logInvoicePdfLibraryInfo('store-write-success', {
-    fileId,
-    filePath,
+    byteLength: buffer.byteLength,
+    base64Length: base64.length,
+    dataUrlLength: dataUrl.length,
   })
 
   return {
     fileId,
     filename,
-    filePath,
+    buffer,
+    base64,
+    dataUrl,
   }
-}
-
-export async function readStoredInvoicePdf(fileId: string) {
-  const sanitizedId = fileId.trim()
-
-  if (!/^[a-f0-9-]{16,}$/i.test(sanitizedId)) {
-    throw new Error('Invalid invoice PDF id')
-  }
-
-  const filePath = getStoragePath(sanitizedId)
-  logInvoicePdfLibraryInfo('read-stored-start', {
-    fileId: sanitizedId,
-    filePath,
-  })
-  const pdf = await readFile(filePath)
-  logInvoicePdfLibraryInfo('read-stored-success', {
-    fileId: sanitizedId,
-    byteLength: pdf.byteLength,
-  })
-
-  return pdf
 }

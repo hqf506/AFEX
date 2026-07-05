@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import {
   generateInvoicePdf,
-  readStoredInvoicePdf,
+  generateInvoicePdfFile,
   renderInvoiceHtmlDocument,
-  storeInvoicePdf,
   type InvoicePdfPayload,
 } from '@/lib/invoices/pdf'
 import {
@@ -195,43 +194,6 @@ async function loadDigitalInvoiceSettings(tenantId: string | null | undefined) {
 
 export async function GET(request: NextRequest) {
   const requestId = createInvoicePdfRequestId()
-  const fileId = getTrimmedString(request.nextUrl.searchParams.get('id'))
-
-  if (fileId) {
-    try {
-      logInvoicePdfInfo(requestId, 'stored-pdf-read-start', {
-        fileIdLength: fileId.length,
-      })
-      const requestedFilename =
-        getTrimmedString(request.nextUrl.searchParams.get('filename')) ||
-        'invoice.pdf'
-      const pdfBuffer = await readStoredInvoicePdf(fileId)
-      const pdfBody = new Uint8Array(pdfBuffer)
-      logInvoicePdfInfo(requestId, 'stored-pdf-read-success', {
-        byteLength: pdfBody.byteLength,
-        requestedFilename,
-      })
-
-      return new NextResponse(pdfBody, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="${requestedFilename.replace(/"/g, '')}"`,
-          'Cache-Control': 'private, max-age=300',
-        },
-      })
-    } catch (error) {
-      logInvoicePdfError(requestId, 'stored-pdf-read-error', error)
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            error instanceof Error ? error.message : 'Invoice PDF not found',
-        },
-        { status: 404 }
-      )
-    }
-  }
 
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
@@ -424,22 +386,22 @@ export async function POST(request: NextRequest) {
     }
 
     if (deliveryMode === 'whatsapp') {
-      logInvoicePdfInfo(requestId, 'post-store-pdf-start')
-      const storedFile = await storeInvoicePdf(pdfPayload)
-      const fileUrl = `${request.nextUrl.origin}/api/invoices/pdf?id=${storedFile.fileId}&filename=${encodeURIComponent(storedFile.filename)}`
-      logInvoicePdfInfo(requestId, 'post-store-pdf-success', {
-        fileId: storedFile.fileId,
-        filename: storedFile.filename,
-        filePath: storedFile.filePath,
-        fileUrlLength: fileUrl.length,
+      logInvoicePdfInfo(requestId, 'post-memory-pdf-file-start')
+      const generatedFile = await generateInvoicePdfFile(pdfPayload)
+      logInvoicePdfInfo(requestId, 'post-memory-pdf-file-success', {
+        fileId: generatedFile.fileId,
+        filename: generatedFile.filename,
+        byteLength: generatedFile.buffer.byteLength,
+        base64Length: generatedFile.base64.length,
+        fileUrlLength: generatedFile.dataUrl.length,
       })
 
       return withAuthCookies(
         auth.response,
         NextResponse.json({
           success: true,
-          fileUrl,
-          filename: storedFile.filename,
+          fileUrl: generatedFile.dataUrl,
+          filename: generatedFile.filename,
         })
       )
     }
