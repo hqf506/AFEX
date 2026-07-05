@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
   outputFileTracingIncludes: {
-    '/api/invoices/pdf': ['./assets/fonts/NotoSansArabic-Regular.ttf'],
+    '/api/invoices/pdf': ['./node_modules/@sparticuz/chromium/bin/**/*'],
   },
 }
 
