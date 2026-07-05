@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import fontkit from '@pdf-lib/fontkit'
+import { ArabicShaper } from 'arabic-persian-reshaper'
+import bidiFactory from 'bidi-js'
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
 import type { DigitalInvoiceTemplateSettings } from '@/lib/admin/settings'
 import type { InvoiceLineItem } from '@/lib/invoices/items'
@@ -52,60 +54,7 @@ const ARABIC_FONT_PATH = path.join(
   'NotoSansArabic-Regular.ttf'
 )
 const ARABIC_LETTER_PATTERN = /[\u0621-\u064A\u0671-\u06D3]/
-const ARABIC_RUN_PATTERN = /[\u0621-\u064A\u0671-\u06D3]+/g
-const RIGHT_JOINING_ARABIC_LETTERS = new Set([
-  'آ',
-  'أ',
-  'ؤ',
-  'إ',
-  'ا',
-  'ة',
-  'د',
-  'ذ',
-  'ر',
-  'ز',
-  'و',
-  'ى',
-])
-const ARABIC_PRESENTATION_FORMS: Record<string, [string, string, string, string]> =
-  {
-    ء: ['\uFE80', '\uFE80', '\uFE80', '\uFE80'],
-    آ: ['\uFE81', '\uFE82', '\uFE81', '\uFE82'],
-    أ: ['\uFE83', '\uFE84', '\uFE83', '\uFE84'],
-    ؤ: ['\uFE85', '\uFE86', '\uFE85', '\uFE86'],
-    إ: ['\uFE87', '\uFE88', '\uFE87', '\uFE88'],
-    ئ: ['\uFE89', '\uFE8A', '\uFE8B', '\uFE8C'],
-    ا: ['\uFE8D', '\uFE8E', '\uFE8D', '\uFE8E'],
-    ب: ['\uFE8F', '\uFE90', '\uFE91', '\uFE92'],
-    ة: ['\uFE93', '\uFE94', '\uFE93', '\uFE94'],
-    ت: ['\uFE95', '\uFE96', '\uFE97', '\uFE98'],
-    ث: ['\uFE99', '\uFE9A', '\uFE9B', '\uFE9C'],
-    ج: ['\uFE9D', '\uFE9E', '\uFE9F', '\uFEA0'],
-    ح: ['\uFEA1', '\uFEA2', '\uFEA3', '\uFEA4'],
-    خ: ['\uFEA5', '\uFEA6', '\uFEA7', '\uFEA8'],
-    د: ['\uFEA9', '\uFEAA', '\uFEA9', '\uFEAA'],
-    ذ: ['\uFEAB', '\uFEAC', '\uFEAB', '\uFEAC'],
-    ر: ['\uFEAD', '\uFEAE', '\uFEAD', '\uFEAE'],
-    ز: ['\uFEAF', '\uFEB0', '\uFEAF', '\uFEB0'],
-    س: ['\uFEB1', '\uFEB2', '\uFEB3', '\uFEB4'],
-    ش: ['\uFEB5', '\uFEB6', '\uFEB7', '\uFEB8'],
-    ص: ['\uFEB9', '\uFEBA', '\uFEBB', '\uFEBC'],
-    ض: ['\uFEBD', '\uFEBE', '\uFEBF', '\uFEC0'],
-    ط: ['\uFEC1', '\uFEC2', '\uFEC3', '\uFEC4'],
-    ظ: ['\uFEC5', '\uFEC6', '\uFEC7', '\uFEC8'],
-    ع: ['\uFEC9', '\uFECA', '\uFECB', '\uFECC'],
-    غ: ['\uFECD', '\uFECE', '\uFECF', '\uFED0'],
-    ف: ['\uFED1', '\uFED2', '\uFED3', '\uFED4'],
-    ق: ['\uFED5', '\uFED6', '\uFED7', '\uFED8'],
-    ك: ['\uFED9', '\uFEDA', '\uFEDB', '\uFEDC'],
-    ل: ['\uFEDD', '\uFEDE', '\uFEDF', '\uFEE0'],
-    م: ['\uFEE1', '\uFEE2', '\uFEE3', '\uFEE4'],
-    ن: ['\uFEE5', '\uFEE6', '\uFEE7', '\uFEE8'],
-    ه: ['\uFEE9', '\uFEEA', '\uFEEB', '\uFEEC'],
-    و: ['\uFEED', '\uFEEE', '\uFEED', '\uFEEE'],
-    ى: ['\uFEEF', '\uFEF0', '\uFEEF', '\uFEF0'],
-    ي: ['\uFEF1', '\uFEF2', '\uFEF3', '\uFEF4'],
-  }
+const bidi = bidiFactory()
 
 function serializeInvoicePdfError(error: unknown) {
   if (error instanceof Error) {
@@ -318,73 +267,15 @@ function formatCurrencyValue(value: number) {
   return `${Number(value || 0).toFixed(2)} SAR`
 }
 
-function canJoinPreviousArabicLetter(letter?: string) {
-  return Boolean(letter && ARABIC_PRESENTATION_FORMS[letter])
-}
-
-function canJoinNextArabicLetter(letter?: string) {
-  return Boolean(
-    letter &&
-      ARABIC_PRESENTATION_FORMS[letter] &&
-      !RIGHT_JOINING_ARABIC_LETTERS.has(letter)
-  )
-}
-
-function shapeArabicRun(value: string) {
-  return Array.from(value, (letter, index) => {
-    const forms = ARABIC_PRESENTATION_FORMS[letter]
-
-    if (!forms) {
-      return letter
-    }
-
-    const previousLetter = value[index - 1]
-    const nextLetter = value[index + 1]
-    const joinsPrevious =
-      canJoinPreviousArabicLetter(letter) &&
-      canJoinNextArabicLetter(previousLetter)
-    const joinsNext =
-      canJoinNextArabicLetter(letter) &&
-      canJoinPreviousArabicLetter(nextLetter)
-
-    if (joinsPrevious && joinsNext) {
-      return forms[3]
-    }
-
-    if (joinsPrevious) {
-      return forms[1]
-    }
-
-    if (joinsNext) {
-      return forms[2]
-    }
-
-    return forms[0]
-  }).join('')
-}
-
 function preparePdfText(value: string) {
   if (!ARABIC_LETTER_PATTERN.test(value)) {
     return value
   }
 
-  const runs = value.split(ARABIC_RUN_PATTERN)
-  const arabicRuns = value.match(ARABIC_RUN_PATTERN) ?? []
-  const parts: string[] = []
+  const shapedText = ArabicShaper.convertArabic(value)
+  const embeddingLevels = bidi.getEmbeddingLevels(shapedText, 'rtl')
 
-  for (let index = 0; index < runs.length; index += 1) {
-    if (runs[index]) {
-      parts.push(runs[index])
-    }
-
-    const arabicRun = arabicRuns[index]
-
-    if (arabicRun) {
-      parts.push(Array.from(shapeArabicRun(arabicRun)).reverse().join(''))
-    }
-  }
-
-  return parts.reverse().join('')
+  return bidi.getReorderedString(shapedText, embeddingLevels)
 }
 
 function drawRightAlignedText(params: {
