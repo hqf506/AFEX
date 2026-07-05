@@ -146,6 +146,57 @@ export default function AdminSettingsPage() {
     setErrorMessage('')
   }
 
+  const encodeInvoicePreviewPayload = (payload: unknown) => {
+    const json = JSON.stringify(payload)
+    const bytes = new TextEncoder().encode(json)
+    let binary = ''
+
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte)
+    }
+
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  }
+
+  const previewDigitalInvoiceSettings = () => {
+    const payload = encodeInvoicePreviewPayload({
+      invoiceItems: [
+        {
+          item_id: null,
+          item_name: 'تنظيف جلد',
+          item_type: 'service',
+          quantity: 1,
+          unit_price: 120,
+        },
+        {
+          item_id: null,
+          item_name: 'إصلاح شنطة جلد',
+          item_type: 'service',
+          quantity: 1,
+          unit_price: 240,
+        },
+      ],
+      invoiceNumber: '02-0007',
+      orderNumber: '02-0007',
+      customerName: 'عميل تجريبي',
+      customerPhone: '0500000000',
+      branchName: settings?.branch_name || 'الفرع الرئيسي',
+      paymentMethod: 'mada',
+      paymentMethodLabel: 'مدى',
+      numericCashReceived: 414,
+      remainingFromCustomer: 0,
+      cashChange: 0,
+      subtotal: 360,
+      discount: 0,
+      tax: 54,
+      finalTotal: 414,
+      note: '',
+      issuedAt: new Date().toISOString(),
+    })
+
+    window.open(`/api/invoices/pdf?format=html&payload=${payload}`, '_blank')
+  }
+
   const sendWhatsAppTestMessage = async () => {
     if (testSending) return
 
@@ -462,11 +513,22 @@ export default function AdminSettingsPage() {
               {activeInvoiceSection === 'digital' ? (
                 <>
                   <div className="mb-5 flex items-center justify-between gap-4 border-b border-cyan-300/10 pb-4">
-                    <div className="text-right">
-                      <h3 className="text-xl font-black text-white">الفاتورة الرقمية</h3>
-                      <p className="mt-1 text-sm font-semibold text-slate-400">
-                        إعدادات تصميم وروابط فاتورة PDF الرقمية.
-                      </p>
+                    <div className="flex items-start gap-3 text-right">
+                      <button
+                        type="button"
+                        onClick={previewDigitalInvoiceSettings}
+                        title="معاينة الفاتورة"
+                        aria-label="معاينة الفاتورة"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/35 bg-transparent text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/10 hover:text-white hover:shadow-[0_0_24px_rgba(34,211,238,0.24)] focus:outline-none focus:ring-2 focus:ring-cyan-300/25"
+                      >
+                        <EyeIcon />
+                      </button>
+                      <div>
+                        <h3 className="text-xl font-black text-white">الفاتورة الرقمية</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-400">
+                          إعدادات تصميم وروابط فاتورة PDF الرقمية.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -1266,6 +1328,15 @@ function SettingsIcon() {
     <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
       <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.05.05a2 2 0 0 1-2.83 2.83l-.05-.05A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.39 1.1V21a2 2 0 0 1-4 0v-.08A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.05.05a2 2 0 0 1-2.83-2.83l.05-.05A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.39H3a2 2 0 0 1 0-4h.08A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.05-.05a2 2 0 0 1 2.83-2.83l.05.05A1.7 1.7 0 0 0 9 4.6c.2-.5.39-.8.6-1A1.7 1.7 0 0 0 10 2.5V2a2 2 0 0 1 4 0v.08A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.05-.05a2 2 0 0 1 2.83 2.83l-.05.05A1.7 1.7 0 0 0 19.4 9c.5.2.8.39 1 .6a1.7 1.7 0 0 0 1.1.39H22a2 2 0 0 1 0 4h-.08A1.7 1.7 0 0 0 19.4 15Z" />
+    </svg>
+  )
+}
+
+function EyeIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z" />
+      <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" />
     </svg>
   )
 }

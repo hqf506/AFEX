@@ -5,12 +5,22 @@ import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth, type ApiAuthProfile } from '@/lib/api-auth'
 import { writeAuditLog } from '@/lib/audit-log'
 import {
+  resolveDigitalInvoiceTemplateSettings,
+  type SystemSettings,
+} from '@/lib/admin/settings'
+import {
   isBranchScopedWithoutBranchId,
   shouldFilterByBranch,
 } from '@/lib/branch-access'
+import {
+  generateInvoicePdfFile,
+  type InvoicePdfPayload,
+} from '@/lib/invoices/pdf'
 import type { OrderStatus } from '@/lib/orders/normalize'
-import { maskId } from '@/lib/security/redaction'
+import { maskId, maskPhone } from '@/lib/security/redaction'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import { isSendableWhatsAppPhone } from '@/lib/whatsapp/messages'
+import { sendWhatsAppFile } from '@/lib/whatsapp/service'
 
 type OrdersApiQuery = {
   mode: 'full' | 'meta'
@@ -53,6 +63,45 @@ type CreateOrderBody = {
   taxAmount?: number
   note?: string
   items?: CreateOrderItemInput[]
+}
+
+type CreatedOrderInvoiceDeliveryRow = {
+  id?: string | null
+  order_number?: string | null
+  branch_id?: string | null
+  created_at?: string | null
+  customers?: {
+    name?: string | null
+    phone?: string | null
+  } | null
+  invoices?: unknown
+}
+
+type CreatedOrderInvoiceRecord = {
+  id?: string | null
+  invoice_number?: string | null
+  payment_method?: string | null
+  note?: string | null
+  total?: number | string | null
+  subtotal?: number | string | null
+  discount?: number | string | null
+  tax?: number | string | null
+  cash_received?: number | string | null
+  remaining_from_customer?: number | string | null
+  cash_change?: number | string | null
+  invoice_items?: unknown
+}
+
+type CreatedOrderInvoiceItemRecord = {
+  item_name_snapshot?: string | null
+  item_type_snapshot?: string | null
+  quantity?: number | string | null
+  unit_price?: number | string | null
+  line_total?: number | string | null
+}
+
+type OrderCreationServiceClient = {
+  from: ReturnType<typeof createClient>['from']
 }
 
 interface OrdersFilterQuery {
@@ -722,6 +771,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    await sendCreatedInvoicePdfOverWhatsApp({
+      auth,
+      request,
+      supabase: serviceSupabase,
+      tenantId: profileTenantId,
+      branchId,
+      orderId,
+    })
+
     return jsonWithAuthCookies(auth.response, {
       success: true,
       data: createdOrder,
@@ -736,6 +794,338 @@ export async function POST(request: NextRequest) {
       500
     )
   }
+}
+
+async function sendCreatedInvoicePdfOverWhatsApp({
+  auth,
+  request,
+  supabase,
+  tenantId,
+  branchId,
+  orderId,
+}: {
+  auth: Extract<Awaited<ReturnType<typeof requireApiAuth>>, { ok: true }>
+  request: NextRequest
+  supabase: OrderCreationServiceClient
+  tenantId: string
+  branchId: string
+  orderId: string
+}) {
+  try {
+    if (!orderId) {
+      console.info('[api/orders] skip automatic invoice PDF WhatsApp: missing order id')
+      return
+    }
+
+    const { data: orderRow, error: orderError } = await supabase
+      .from('orders')
+      .select(
+        `
+          id,
+          order_number,
+          branch_id,
+          created_at,
+          customers (
+            name,
+            phone
+          ),
+          invoices (
+            id,
+            invoice_number,
+            payment_method,
+            note,
+            total,
+            subtotal,
+            discount,
+            tax,
+            cash_received,
+            remaining_from_customer,
+            cash_change,
+            invoice_items (
+              item_name_snapshot,
+              item_type_snapshot,
+              quantity,
+              unit_price,
+              line_total
+            )
+          )
+        `
+      )
+      .eq('tenant_id', tenantId)
+      .eq('id', orderId)
+      .maybeSingle()
+
+    if (orderError || !orderRow) {
+      console.error('[api/orders] automatic invoice PDF WhatsApp order lookup failed', {
+        orderId: maskId(orderId),
+        message: orderError?.message || 'Order not found after creation',
+      })
+      return
+    }
+
+    const order = orderRow as CreatedOrderInvoiceDeliveryRow
+    const customerPhone = order.customers?.phone?.trim() || ''
+
+    if (!customerPhone || !isSendableWhatsAppPhone(customerPhone)) {
+      console.info('[api/orders] skip automatic invoice PDF WhatsApp: missing customer phone', {
+        orderId: maskId(orderId),
+        recipientMasked: maskPhone(customerPhone),
+      })
+      return
+    }
+
+    let settingsQuery = supabase
+      .from('system_settings')
+      .select(
+        [
+          'store_name',
+          'branch_name',
+          'whatsapp_phone',
+          'digital_invoice_brand_name',
+          'digital_invoice_branch_name',
+          'digital_invoice_address_line_1',
+          'digital_invoice_address_line_2',
+          'digital_invoice_whatsapp_number',
+          'digital_invoice_whatsapp_enabled',
+          'digital_invoice_google_review_link',
+          'digital_invoice_google_review_enabled',
+          'digital_invoice_map_link',
+          'digital_invoice_map_enabled',
+          'digital_invoice_instagram_enabled',
+          'digital_invoice_instagram_link',
+          'digital_invoice_tiktok_enabled',
+          'digital_invoice_tiktok_link',
+          'digital_invoice_note',
+          'digital_invoice_brand_background_color',
+          'digital_invoice_brand_text_color',
+          'enable_whatsapp',
+        ].join(', ')
+      )
+      .limit(1)
+
+    settingsQuery = applyTenantFilter(settingsQuery, tenantId)
+
+    const { data: settingsRow, error: settingsError } = await settingsQuery.maybeSingle()
+
+    if (settingsError) {
+      console.error('[api/orders] automatic invoice PDF WhatsApp settings lookup failed', {
+        orderId: maskId(orderId),
+        message: settingsError.message,
+      })
+      return
+    }
+
+    const settings = (settingsRow as Partial<SystemSettings> | null) ?? null
+
+    if (settings?.enable_whatsapp === false) {
+      console.info('[api/orders] skip automatic invoice PDF WhatsApp: feature disabled', {
+        orderId: maskId(orderId),
+      })
+      return
+    }
+
+    const { data: branchRow, error: branchError } = await supabase
+      .from('branches')
+      .select('id, name, display_store_name, display_branch_name')
+      .eq('tenant_id', tenantId)
+      .eq('id', branchId)
+      .maybeSingle()
+
+    if (branchError) {
+      console.error('[api/orders] automatic invoice PDF WhatsApp branch lookup failed', {
+        orderId: maskId(orderId),
+        branchId: maskId(branchId),
+        message: branchError.message,
+      })
+      return
+    }
+
+    const branch = (branchRow || {}) as {
+      name?: string | null
+      display_store_name?: string | null
+      display_branch_name?: string | null
+    }
+    const storeNameInMessages = branch.display_store_name?.trim() || ''
+    const branchName =
+      branch.display_branch_name?.trim() || branch.name?.trim() || undefined
+    const invoice = normalizeCreatedOrderInvoice(order.invoices)
+
+    if (!invoice) {
+      console.info('[api/orders] skip automatic invoice PDF WhatsApp: missing invoice', {
+        orderId: maskId(orderId),
+      })
+      return
+    }
+
+    const invoiceItems = normalizeCreatedOrderInvoiceItems(invoice.invoice_items)
+
+    if (invoiceItems.length === 0) {
+      console.info('[api/orders] skip automatic invoice PDF WhatsApp: missing invoice items', {
+        orderId: maskId(orderId),
+        invoiceId: maskId(invoice.id || ''),
+      })
+      return
+    }
+
+    const invoiceNumber = invoice.invoice_number?.trim() || ''
+    const safeInvoiceNumber = `\u200E${invoiceNumber}\u200E`
+    const pdfPayload: InvoicePdfPayload = {
+      invoiceItems,
+      invoiceNumber,
+      orderNumber: order.order_number?.trim() || undefined,
+      customerName: order.customers?.name?.trim() || '',
+      customerPhone,
+      branchName,
+      paymentMethod: normalizeInvoicePdfPaymentMethod(invoice.payment_method),
+      paymentMethodLabel: invoice.payment_method?.trim() || undefined,
+      numericCashReceived: numberValue(invoice.cash_received),
+      remainingFromCustomer: numberValue(invoice.remaining_from_customer),
+      cashChange: numberValue(invoice.cash_change),
+      subtotal: numberValue(invoice.subtotal) || numberValue(invoice.total),
+      discount: numberValue(invoice.discount),
+      tax: numberValue(invoice.tax),
+      finalTotal: numberValue(invoice.total),
+      note: invoice.note?.trim() || '',
+      issuedAt: order.created_at || undefined,
+      digitalInvoiceSettings: resolveDigitalInvoiceTemplateSettings(settings),
+    }
+
+    const generatedFile = await generateInvoicePdfFile(pdfPayload)
+    const result = await sendWhatsAppFile(
+      {
+        to: customerPhone,
+        branchId,
+        tenantId,
+        fileUrl: generatedFile.dataUrl,
+        filename: generatedFile.filename,
+        caption: `فاتورتك من: ${storeNameInMessages}\nرقم الفاتورة: ${safeInvoiceNumber}`,
+        metadata: {
+          type: 'invoice_pdf',
+          orderId,
+          invoiceId: invoice.id || null,
+          invoiceNumber,
+        },
+      },
+      {
+        mode: 'file',
+        messageType: 'file',
+      }
+    )
+
+    if (!result.success) {
+      console.error('[api/orders] automatic invoice PDF WhatsApp send failed', {
+        orderId: maskId(orderId),
+        invoiceId: maskId(invoice.id || ''),
+        recipientMasked: maskPhone(customerPhone),
+        providerKey: result.providerKey,
+        providerStatus: result.providerStatus || null,
+        errorMessage: result.errorMessage || null,
+      })
+      return
+    }
+
+    await writeAuditLog({
+      auth,
+      request,
+      action: 'whatsapp.message_sent',
+      entityType: 'whatsapp_message',
+      entityId: result.providerMessageId || orderId || null,
+      branchId,
+      metadata: {
+        channel: 'whatsapp',
+        mode: 'file',
+        type: 'file',
+        has_text: false,
+        has_file: true,
+        order_id: orderId,
+        order_status: 'invoice_pdf',
+        invoice_id: invoice.id || null,
+        invoice_number: invoiceNumber || null,
+        recipient_masked: maskPhone(customerPhone),
+        provider_status: result.providerStatus || null,
+      },
+    })
+
+    console.info('[api/orders] automatic invoice PDF WhatsApp sent', {
+      orderId: maskId(orderId),
+      invoiceId: maskId(invoice.id || ''),
+      recipientMasked: maskPhone(customerPhone),
+      providerKey: result.providerKey,
+      providerStatus: result.providerStatus || null,
+    })
+  } catch (error) {
+    console.error('[api/orders] automatic invoice PDF WhatsApp failed without blocking invoice creation', {
+      orderId: maskId(orderId),
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : String(error),
+    })
+  }
+}
+
+function normalizeCreatedOrderInvoice(value: unknown): CreatedOrderInvoiceRecord | null {
+  if (Array.isArray(value)) {
+    return (value[0] as CreatedOrderInvoiceRecord | undefined) || null
+  }
+
+  if (value && typeof value === 'object') {
+    return value as CreatedOrderInvoiceRecord
+  }
+
+  return null
+}
+
+function normalizeCreatedOrderInvoiceItems(value: unknown): InvoicePdfPayload['invoiceItems'] {
+  const rows = Array.isArray(value)
+    ? (value as CreatedOrderInvoiceItemRecord[])
+    : []
+
+  return rows
+    .map((item) => {
+      const quantity = numberValue(item.quantity)
+      const lineTotal = numberValue(item.line_total)
+      const unitPrice = numberValue(item.unit_price) || (quantity > 0 ? lineTotal / quantity : 0)
+      const itemName = item.item_name_snapshot?.trim() || ''
+
+      return {
+        item_id: null,
+        item_name: itemName,
+        item_type: item.item_type_snapshot === 'product' ? 'product' : 'service',
+        quantity,
+        unit_price: unitPrice,
+      } satisfies InvoicePdfPayload['invoiceItems'][number]
+    })
+    .filter((item) => item.item_name && item.quantity > 0)
+}
+
+function normalizeInvoicePdfPaymentMethod(
+  value: string | null | undefined
+): InvoicePdfPayload['paymentMethod'] {
+  if (value === 'card' || value === 'transfer' || value === 'cash') {
+    return value
+  }
+
+  if (value === 'mada' || value === 'visa' || value === 'cod') {
+    return value
+  }
+
+  return 'cash'
+}
+
+function numberValue(value: unknown) {
+  const numericValue =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+      ? Number(value)
+      : NaN
+
+  return Number.isFinite(numericValue) ? numericValue : 0
 }
 
 function parseOrdersQuery(request: NextRequest): OrdersApiQuery {
