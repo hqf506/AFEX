@@ -175,53 +175,44 @@ window.onload = function() {
 export async function generateInvoicePdf(payload: InvoicePdfPayload) {
   logInvoicePdfLibraryInfo('generate-start', {
     payload: summarizeInvoicePdfPayload(payload),
-    renderer: 'html-playwright-core',
+    renderer: 'html-puppeteer-core',
   })
 
   let browser: Awaited<
-    ReturnType<
-      (typeof import('playwright-core'))['chromium']['launch']
-    >
+    ReturnType<(typeof import('puppeteer-core'))['default']['launch']>
   > | null = null
 
   try {
     logInvoicePdfLibraryInfo('chromium-import-start')
-    const [{ default: serverlessChromium }, { chromium: playwrightChromium }] =
-      await Promise.all([
-        import('@sparticuz/chromium'),
-        import('playwright-core'),
-      ])
+    const [{ default: serverlessChromium }, puppeteer] = await Promise.all([
+      import('@sparticuz/chromium'),
+      import('puppeteer-core'),
+    ])
     logInvoicePdfLibraryInfo('chromium-import-success')
 
     logInvoicePdfLibraryInfo('chromium-executable-path-start', {
       platform: process.platform,
     })
-    const executablePath =
-      process.platform === 'linux'
-        ? await serverlessChromium.executablePath()
-        : undefined
+    const executablePath = await serverlessChromium.executablePath()
     logInvoicePdfLibraryInfo('chromium-executable-path-success', {
       hasExecutablePath: Boolean(executablePath),
     })
 
     logInvoicePdfLibraryInfo('chromium-launch-start')
-    browser = await playwrightChromium.launch({
-      args:
-        process.platform === 'linux'
-          ? serverlessChromium.args
-          : ['--no-sandbox', '--disable-setuid-sandbox'],
+    browser = await puppeteer.default.launch({
+      args: serverlessChromium.args,
+      defaultViewport: {
+        width: 794,
+        height: 1123,
+        deviceScaleFactor: 1,
+      },
       executablePath,
       headless: true,
     })
     logInvoicePdfLibraryInfo('chromium-launch-success')
 
     logInvoicePdfLibraryInfo('chromium-page-start')
-    const page = await browser.newPage({
-      viewport: {
-        width: 794,
-        height: 1123,
-      },
-    })
+    const page = await browser.newPage()
     logInvoicePdfLibraryInfo('chromium-render-html-start', {
       payload: summarizeInvoicePdfPayload(payload),
     })
@@ -231,8 +222,9 @@ export async function generateInvoicePdf(payload: InvoicePdfPayload) {
     })
 
     logInvoicePdfLibraryInfo('chromium-set-content-start')
-    await page.setContent(html, { waitUntil: 'networkidle' })
-    await page.emulateMedia({ media: 'screen' })
+    await page.setContent(html, { waitUntil: 'load' })
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 5000 })
+    await page.emulateMediaType('screen')
     logInvoicePdfLibraryInfo('chromium-pdf-start')
 
     const pdf = await page.pdf({
