@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { chromium } from 'playwright'
+import fontkit from '@pdf-lib/fontkit'
+import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib'
 import type { DigitalInvoiceTemplateSettings } from '@/lib/admin/settings'
 import type { InvoiceLineItem } from '@/lib/invoices/items'
 import { renderInvoiceHtmlFromPayload } from '@/lib/invoices/receipt-template'
@@ -41,6 +42,15 @@ export type StoredInvoicePdf = {
 }
 
 const STORAGE_DIR = path.join(process.cwd(), '.runtime-data', 'invoice-pdfs')
+const FONT_PATH = path.join(
+  process.cwd(),
+  'assets',
+  'fonts',
+  'NotoSansArabic-Regular.ttf'
+)
+const A4_WIDTH = 595.28
+const A4_HEIGHT = 841.89
+const PAGE_MARGIN = 40
 
 function getStoragePath(fileId: string) {
   return path.join(STORAGE_DIR, `${fileId}.pdf`)
@@ -113,7 +123,8 @@ window.onload = function() {
   )
 }
 
-export async function generateInvoicePdf(payload: InvoicePdfPayload) {
+async function generateInvoicePdfWithPlaywright(payload: InvoicePdfPayload) {
+  const { chromium } = await import('playwright')
   const browser = await chromium.launch({
     headless: true,
     args:
@@ -143,6 +154,240 @@ export async function generateInvoicePdf(payload: InvoicePdfPayload) {
     })
   } finally {
     await browser.close()
+  }
+}
+
+async function loadPdfFont(pdfDoc: PDFDocument) {
+  try {
+    const { readFile: readFontFile } = await import('node:fs/promises')
+    const fontBytes = await readFontFile(FONT_PATH)
+    pdfDoc.registerFontkit(fontkit)
+    return await pdfDoc.embedFont(fontBytes)
+  } catch {
+    return pdfDoc.embedFont(StandardFonts.Helvetica)
+  }
+}
+
+function formatCurrencyValue(value: number) {
+  return `${Number(value || 0).toFixed(2)} SAR`
+}
+
+function drawRightAlignedText(params: {
+  page: PDFPage
+  text: string
+  font: PDFFont
+  fontSize: number
+  rightX: number
+  y: number
+  color?: ReturnType<typeof rgb>
+}) {
+  const { page, text, font, fontSize, rightX, y, color = rgb(0.07, 0.09, 0.15) } =
+    params
+  const width = font.widthOfTextAtSize(text, fontSize)
+
+  page.drawText(text, {
+    x: rightX - width,
+    y,
+    size: fontSize,
+    font,
+    color,
+  })
+}
+
+function drawLeftText(params: {
+  page: PDFPage
+  text: string
+  font: PDFFont
+  fontSize: number
+  x: number
+  y: number
+  color?: ReturnType<typeof rgb>
+}) {
+  const { page, text, font, fontSize, x, y, color = rgb(0.07, 0.09, 0.15) } =
+    params
+
+  page.drawText(text, {
+    x,
+    y,
+    size: fontSize,
+    font,
+    color,
+  })
+}
+
+function safePdfText(value: unknown) {
+  return typeof value === 'string'
+    ? value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim()
+    : ''
+}
+
+function drawInfoRow(params: {
+  page: PDFPage
+  font: PDFFont
+  label: string
+  value: string
+  y: number
+}) {
+  const { page, font, label, value, y } = params
+  drawLeftText({
+    page,
+    text: label,
+    font,
+    fontSize: 10,
+    x: PAGE_MARGIN,
+    y,
+    color: rgb(0.42, 0.46, 0.52),
+  })
+  drawRightAlignedText({
+    page,
+    text: value || '-',
+    font,
+    fontSize: 11,
+    rightX: A4_WIDTH - PAGE_MARGIN,
+    y,
+  })
+}
+
+async function generateInvoicePdfFallback(payload: InvoicePdfPayload) {
+  const pdfDoc = await PDFDocument.create()
+  const font = await loadPdfFont(pdfDoc)
+  let page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT])
+  let y = A4_HEIGHT - PAGE_MARGIN
+  const rightX = A4_WIDTH - PAGE_MARGIN
+
+  drawRightAlignedText({
+    page,
+    text:
+      safePdfText(payload.digitalInvoiceSettings?.brandName) ||
+      safePdfText(payload.branchName) ||
+      'AFEX',
+    font,
+    fontSize: 22,
+    rightX,
+    y,
+  })
+  y -= 28
+  drawRightAlignedText({
+    page,
+    text: 'Digital Invoice',
+    font,
+    fontSize: 12,
+    rightX,
+    y,
+    color: rgb(0.35, 0.4, 0.48),
+  })
+  y -= 34
+
+  const rows = [
+    ['Invoice number', payload.invoiceNumber || '-'],
+    ['Order number', payload.orderNumber || '-'],
+    ['Customer', payload.customerName || '-'],
+    ['Phone', payload.customerPhone || '-'],
+    ['Branch', payload.digitalInvoiceSettings?.branchName || payload.branchName || '-'],
+    ['Payment', payload.paymentMethodLabel || payload.paymentMethod || '-'],
+    ['Issued at', payload.issuedAt ? new Date(payload.issuedAt).toLocaleString('ar-SA') : new Date().toLocaleString('ar-SA')],
+  ]
+
+  for (const [label, value] of rows) {
+    drawInfoRow({ page, font, label, value, y })
+    y -= 22
+  }
+
+  y -= 14
+  page.drawRectangle({
+    x: PAGE_MARGIN,
+    y: y - 24,
+    width: A4_WIDTH - PAGE_MARGIN * 2,
+    height: 24,
+    color: rgb(0.94, 0.97, 0.98),
+    borderColor: rgb(0.82, 0.88, 0.9),
+    borderWidth: 1,
+  })
+  drawLeftText({ page, text: 'Item', font, fontSize: 10, x: PAGE_MARGIN + 10, y: y - 16 })
+  drawRightAlignedText({ page, text: 'Total', font, fontSize: 10, rightX: rightX - 10, y: y - 16 })
+  y -= 32
+
+  for (const item of payload.invoiceItems) {
+    if (y < 140) {
+      page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT])
+      y = A4_HEIGHT - PAGE_MARGIN
+    }
+
+    const itemName = safePdfText(item.item_name) || 'Item'
+    const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0)
+    drawLeftText({
+      page,
+      text: `${itemName} x ${item.quantity}`,
+      font,
+      fontSize: 10,
+      x: PAGE_MARGIN + 10,
+      y,
+    })
+    drawRightAlignedText({
+      page,
+      text: formatCurrencyValue(lineTotal),
+      font,
+      fontSize: 10,
+      rightX: rightX - 10,
+      y,
+    })
+    y -= 20
+  }
+
+  y -= 18
+  const totals = [
+    ['Subtotal', payload.subtotal],
+    ['Discount', payload.discount],
+    ['VAT', payload.tax],
+    ['Final total', payload.finalTotal],
+  ]
+
+  for (const [label, value] of totals) {
+    drawInfoRow({
+      page,
+      font,
+      label: String(label),
+      value: formatCurrencyValue(Number(value || 0)),
+      y,
+    })
+    y -= 22
+  }
+
+  const note = safePdfText(payload.note || payload.digitalInvoiceSettings?.note)
+  if (note && y > 80) {
+    y -= 14
+    drawLeftText({
+      page,
+      text: 'Note',
+      font,
+      fontSize: 10,
+      x: PAGE_MARGIN,
+      y,
+      color: rgb(0.42, 0.46, 0.52),
+    })
+    y -= 18
+    drawRightAlignedText({
+      page,
+      text: note.slice(0, 120),
+      font,
+      fontSize: 10,
+      rightX,
+      y,
+    })
+  }
+
+  return pdfDoc.save()
+}
+
+export async function generateInvoicePdf(payload: InvoicePdfPayload) {
+  try {
+    return await generateInvoicePdfWithPlaywright(payload)
+  } catch (error) {
+    console.warn(
+      '[invoice-pdf] Playwright PDF generation unavailable, using pdf-lib fallback',
+      error instanceof Error ? error.message : error
+    )
+    return generateInvoicePdfFallback(payload)
   }
 }
 
