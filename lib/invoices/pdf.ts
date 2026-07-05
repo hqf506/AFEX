@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import fontkit from '@pdf-lib/fontkit'
-import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib'
+import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
 import type { DigitalInvoiceTemplateSettings } from '@/lib/admin/settings'
 import type { InvoiceLineItem } from '@/lib/invoices/items'
 import { renderInvoiceHtmlFromPayload } from '@/lib/invoices/receipt-template'
@@ -44,6 +46,67 @@ export type GeneratedInvoicePdfFile = {
 const A4_WIDTH = 595.28
 const A4_HEIGHT = 841.89
 const PAGE_MARGIN = 40
+const ARABIC_FONT_PATH = path.join(
+  process.cwd(),
+  'assets',
+  'fonts',
+  'NotoSansArabic-Regular.ttf'
+)
+const ARABIC_LETTER_PATTERN = /[\u0621-\u064A\u0671-\u06D3]/
+const ARABIC_RUN_PATTERN = /[\u0621-\u064A\u0671-\u06D3]+/g
+const RIGHT_JOINING_ARABIC_LETTERS = new Set([
+  'آ',
+  'أ',
+  'ؤ',
+  'إ',
+  'ا',
+  'ة',
+  'د',
+  'ذ',
+  'ر',
+  'ز',
+  'و',
+  'ى',
+])
+const ARABIC_PRESENTATION_FORMS: Record<string, [string, string, string, string]> =
+  {
+    ء: ['\uFE80', '\uFE80', '\uFE80', '\uFE80'],
+    آ: ['\uFE81', '\uFE82', '\uFE81', '\uFE82'],
+    أ: ['\uFE83', '\uFE84', '\uFE83', '\uFE84'],
+    ؤ: ['\uFE85', '\uFE86', '\uFE85', '\uFE86'],
+    إ: ['\uFE87', '\uFE88', '\uFE87', '\uFE88'],
+    ئ: ['\uFE89', '\uFE8A', '\uFE8B', '\uFE8C'],
+    ا: ['\uFE8D', '\uFE8E', '\uFE8D', '\uFE8E'],
+    ب: ['\uFE8F', '\uFE90', '\uFE91', '\uFE92'],
+    ة: ['\uFE93', '\uFE94', '\uFE93', '\uFE94'],
+    ت: ['\uFE95', '\uFE96', '\uFE97', '\uFE98'],
+    ث: ['\uFE99', '\uFE9A', '\uFE9B', '\uFE9C'],
+    ج: ['\uFE9D', '\uFE9E', '\uFE9F', '\uFEA0'],
+    ح: ['\uFEA1', '\uFEA2', '\uFEA3', '\uFEA4'],
+    خ: ['\uFEA5', '\uFEA6', '\uFEA7', '\uFEA8'],
+    د: ['\uFEA9', '\uFEAA', '\uFEA9', '\uFEAA'],
+    ذ: ['\uFEAB', '\uFEAC', '\uFEAB', '\uFEAC'],
+    ر: ['\uFEAD', '\uFEAE', '\uFEAD', '\uFEAE'],
+    ز: ['\uFEAF', '\uFEB0', '\uFEAF', '\uFEB0'],
+    س: ['\uFEB1', '\uFEB2', '\uFEB3', '\uFEB4'],
+    ش: ['\uFEB5', '\uFEB6', '\uFEB7', '\uFEB8'],
+    ص: ['\uFEB9', '\uFEBA', '\uFEBB', '\uFEBC'],
+    ض: ['\uFEBD', '\uFEBE', '\uFEBF', '\uFEC0'],
+    ط: ['\uFEC1', '\uFEC2', '\uFEC3', '\uFEC4'],
+    ظ: ['\uFEC5', '\uFEC6', '\uFEC7', '\uFEC8'],
+    ع: ['\uFEC9', '\uFECA', '\uFECB', '\uFECC'],
+    غ: ['\uFECD', '\uFECE', '\uFECF', '\uFED0'],
+    ف: ['\uFED1', '\uFED2', '\uFED3', '\uFED4'],
+    ق: ['\uFED5', '\uFED6', '\uFED7', '\uFED8'],
+    ك: ['\uFED9', '\uFEDA', '\uFEDB', '\uFEDC'],
+    ل: ['\uFEDD', '\uFEDE', '\uFEDF', '\uFEE0'],
+    م: ['\uFEE1', '\uFEE2', '\uFEE3', '\uFEE4'],
+    ن: ['\uFEE5', '\uFEE6', '\uFEE7', '\uFEE8'],
+    ه: ['\uFEE9', '\uFEEA', '\uFEEB', '\uFEEC'],
+    و: ['\uFEED', '\uFEEE', '\uFEED', '\uFEEE'],
+    ى: ['\uFEEF', '\uFEF0', '\uFEEF', '\uFEF0'],
+    ي: ['\uFEF1', '\uFEF2', '\uFEF3', '\uFEF4'],
+  }
 
 function serializeInvoicePdfError(error: unknown) {
   if (error instanceof Error) {
@@ -236,19 +299,93 @@ async function generateInvoicePdfWithPlaywright(payload: InvoicePdfPayload) {
 
 async function loadPdfFont(pdfDoc: PDFDocument) {
   try {
-    logInvoicePdfLibraryInfo('fallback-standard-font-load-start')
+    logInvoicePdfLibraryInfo('fallback-arabic-font-load-start', {
+      fontPath: ARABIC_FONT_PATH,
+    })
+    const fontBytes = readFileSync(ARABIC_FONT_PATH)
     pdfDoc.registerFontkit(fontkit)
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-    logInvoicePdfLibraryInfo('fallback-standard-font-load-success')
+    const font = await pdfDoc.embedFont(fontBytes, { subset: true })
+    logInvoicePdfLibraryInfo('fallback-arabic-font-load-success', {
+      byteLength: fontBytes.byteLength,
+    })
     return font
   } catch (error) {
-    logInvoicePdfLibraryError('fallback-standard-font-load-error', error)
-    return pdfDoc.embedFont(StandardFonts.Helvetica)
+    logInvoicePdfLibraryError('fallback-arabic-font-load-error', error)
+    throw error
   }
 }
 
 function formatCurrencyValue(value: number) {
   return `${Number(value || 0).toFixed(2)} SAR`
+}
+
+function canJoinPreviousArabicLetter(letter?: string) {
+  return Boolean(letter && ARABIC_PRESENTATION_FORMS[letter])
+}
+
+function canJoinNextArabicLetter(letter?: string) {
+  return Boolean(
+    letter &&
+      ARABIC_PRESENTATION_FORMS[letter] &&
+      !RIGHT_JOINING_ARABIC_LETTERS.has(letter)
+  )
+}
+
+function shapeArabicRun(value: string) {
+  return Array.from(value, (letter, index) => {
+    const forms = ARABIC_PRESENTATION_FORMS[letter]
+
+    if (!forms) {
+      return letter
+    }
+
+    const previousLetter = value[index - 1]
+    const nextLetter = value[index + 1]
+    const joinsPrevious =
+      canJoinPreviousArabicLetter(letter) &&
+      canJoinNextArabicLetter(previousLetter)
+    const joinsNext =
+      canJoinNextArabicLetter(letter) &&
+      canJoinPreviousArabicLetter(nextLetter)
+
+    if (joinsPrevious && joinsNext) {
+      return forms[3]
+    }
+
+    if (joinsPrevious) {
+      return forms[1]
+    }
+
+    if (joinsNext) {
+      return forms[2]
+    }
+
+    return forms[0]
+  }).join('')
+}
+
+function preparePdfText(value: string) {
+  if (!ARABIC_LETTER_PATTERN.test(value)) {
+    return value
+  }
+
+  const runs = value.split(ARABIC_RUN_PATTERN)
+  const arabicRuns = value.match(ARABIC_RUN_PATTERN) ?? []
+  const parts: string[] = []
+
+  for (let index = 0; index < runs.length; index += 1) {
+    if (runs[index]) {
+      parts.push(runs[index])
+    }
+
+    const arabicRun = arabicRuns[index]
+
+    if (arabicRun) {
+      parts.push(Array.from(shapeArabicRun(arabicRun)).reverse().join(''))
+    }
+  }
+
+  return parts.reverse().join('')
 }
 
 function drawRightAlignedText(params: {
@@ -262,9 +399,10 @@ function drawRightAlignedText(params: {
 }) {
   const { page, text, font, fontSize, rightX, y, color = rgb(0.07, 0.09, 0.15) } =
     params
-  const width = font.widthOfTextAtSize(text, fontSize)
+  const preparedText = preparePdfText(text)
+  const width = font.widthOfTextAtSize(preparedText, fontSize)
 
-  page.drawText(text, {
+  page.drawText(preparedText, {
     x: rightX - width,
     y,
     size: fontSize,
@@ -284,8 +422,9 @@ function drawLeftText(params: {
 }) {
   const { page, text, font, fontSize, x, y, color = rgb(0.07, 0.09, 0.15) } =
     params
+  const preparedText = preparePdfText(text)
 
-  page.drawText(text, {
+  page.drawText(preparedText, {
     x,
     y,
     size: fontSize,
@@ -361,13 +500,13 @@ async function generateInvoicePdfFallback(payload: InvoicePdfPayload) {
   y -= 34
 
   const rows = [
-    ['Invoice number', payload.invoiceNumber || '-'],
-    ['Order number', payload.orderNumber || '-'],
-    ['Customer', payload.customerName || '-'],
-    ['Phone', payload.customerPhone || '-'],
-    ['Branch', payload.digitalInvoiceSettings?.branchName || payload.branchName || '-'],
-    ['Payment', payload.paymentMethodLabel || payload.paymentMethod || '-'],
-    ['Issued at', payload.issuedAt ? new Date(payload.issuedAt).toLocaleString('ar-SA') : new Date().toLocaleString('ar-SA')],
+    ['رقم الفاتورة', payload.invoiceNumber || '-'],
+    ['رقم الطلب', payload.orderNumber || '-'],
+    ['العميل', payload.customerName || '-'],
+    ['الجوال', payload.customerPhone || '-'],
+    ['الفرع', payload.digitalInvoiceSettings?.branchName || payload.branchName || '-'],
+    ['طريقة الدفع', payload.paymentMethodLabel || payload.paymentMethod || '-'],
+    ['تاريخ الإصدار', payload.issuedAt ? new Date(payload.issuedAt).toLocaleString('ar-SA') : new Date().toLocaleString('ar-SA')],
   ]
 
   for (const [label, value] of rows) {
@@ -385,8 +524,8 @@ async function generateInvoicePdfFallback(payload: InvoicePdfPayload) {
     borderColor: rgb(0.82, 0.88, 0.9),
     borderWidth: 1,
   })
-  drawLeftText({ page, text: 'Item', font, fontSize: 10, x: PAGE_MARGIN + 10, y: y - 16 })
-  drawRightAlignedText({ page, text: 'Total', font, fontSize: 10, rightX: rightX - 10, y: y - 16 })
+  drawLeftText({ page, text: 'العنصر', font, fontSize: 10, x: PAGE_MARGIN + 10, y: y - 16 })
+  drawRightAlignedText({ page, text: 'الإجمالي', font, fontSize: 10, rightX: rightX - 10, y: y - 16 })
   y -= 32
 
   for (const item of payload.invoiceItems) {
@@ -395,7 +534,7 @@ async function generateInvoicePdfFallback(payload: InvoicePdfPayload) {
       y = A4_HEIGHT - PAGE_MARGIN
     }
 
-    const itemName = safePdfText(item.item_name) || 'Item'
+    const itemName = safePdfText(item.item_name) || 'عنصر'
     const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0)
     drawLeftText({
       page,
@@ -418,10 +557,10 @@ async function generateInvoicePdfFallback(payload: InvoicePdfPayload) {
 
   y -= 18
   const totals = [
-    ['Subtotal', payload.subtotal],
-    ['Discount', payload.discount],
-    ['VAT', payload.tax],
-    ['Final total', payload.finalTotal],
+    ['المجموع الفرعي', payload.subtotal],
+    ['الخصم', payload.discount],
+    ['ضريبة القيمة المضافة', payload.tax],
+    ['الإجمالي النهائي', payload.finalTotal],
   ]
 
   for (const [label, value] of totals) {
@@ -440,7 +579,7 @@ async function generateInvoicePdfFallback(payload: InvoicePdfPayload) {
     y -= 14
     drawLeftText({
       page,
-      text: 'Note',
+      text: 'ملاحظة',
       font,
       fontSize: 10,
       x: PAGE_MARGIN,

@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  outputFileTracingIncludes: {
+    '/api/invoices/pdf': ['./assets/fonts/NotoSansArabic-Regular.ttf'],
+  },
 }
 
 export default nextConfig
