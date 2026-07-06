@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
           'branch_name',
           'logo_url',
           'whatsapp_phone',
+          'digital_invoice_address_line_1',
+          'digital_invoice_address_line_2',
           'digital_invoice_whatsapp_number',
           'digital_invoice_google_review_link',
           'digital_invoice_map_link',

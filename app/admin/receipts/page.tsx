@@ -64,6 +64,8 @@ type ThermalTemplateSettings = {
   logoUrl?: string | null
   brandName?: string | null
   branchName?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
   paperWidth?: string | null
   showCustomerPhone?: boolean | null
   showPaymentMethod?: boolean | null
@@ -365,6 +367,8 @@ function buildThermalReceiptHtml(
     thermalLogoUrl: thermalSettings?.logoUrl || '',
     thermalBrandName: thermalSettings?.brandName || 'AFEX',
     thermalBranchName: thermalSettings?.branchName || receipt.branchName,
+    addressLine1: thermalSettings?.addressLine1 || undefined,
+    addressLine2: thermalSettings?.addressLine2 || undefined,
     thermalPaperWidth: thermalSettings?.paperWidth === '58mm' ? '58mm' : '80mm',
     thermalShowCustomerPhone:
       thermalSettings?.showCustomerPhone ??

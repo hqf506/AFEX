@@ -176,6 +176,10 @@ export type ThermalInvoiceSettingsPayload = {
   logo_url: string
   thermal_invoice_brand_name: string
   thermal_invoice_branch_name: string
+  digital_invoice_address_line_1: string
+  digital_invoice_address_line_2: string
+  digital_invoice_whatsapp_number: string
+  digital_invoice_map_link: string
   thermal_invoice_paper_width: string
   thermal_invoice_show_customer_phone: boolean
   thermal_invoice_show_payment_method: boolean
@@ -213,6 +217,8 @@ export type ThermalInvoiceTemplateSettings = {
   logoUrl: string
   brandName: string
   branchName: string
+  addressLine1: string
+  addressLine2: string
   paperWidth: string
   showCustomerPhone: boolean
   showPaymentMethod: boolean
@@ -520,6 +526,18 @@ export function createThermalInvoiceSettingsPayload(
     thermal_invoice_branch_name:
       settings?.thermal_invoice_branch_name ??
       DEFAULT_THERMAL_INVOICE_SETTINGS.branchName,
+    digital_invoice_address_line_1:
+      settings?.digital_invoice_address_line_1 ??
+      DEFAULT_DIGITAL_INVOICE_SETTINGS.addressLine1,
+    digital_invoice_address_line_2:
+      settings?.digital_invoice_address_line_2 ??
+      DEFAULT_DIGITAL_INVOICE_SETTINGS.addressLine2,
+    digital_invoice_whatsapp_number:
+      settings?.digital_invoice_whatsapp_number ??
+      DEFAULT_DIGITAL_INVOICE_SETTINGS.whatsappNumber,
+    digital_invoice_map_link:
+      settings?.digital_invoice_map_link ??
+      DEFAULT_DIGITAL_INVOICE_SETTINGS.mapLink,
     thermal_invoice_paper_width:
       settings?.thermal_invoice_paper_width ??
       DEFAULT_THERMAL_INVOICE_SETTINGS.paperWidth,
@@ -639,6 +657,18 @@ export function createThermalInvoiceSettingsSavePayload(
     thermal_invoice_branch_name: normalizeEditableText(
       form.thermal_invoice_branch_name
     ),
+    digital_invoice_address_line_1: normalizeEditableText(
+      form.digital_invoice_address_line_1
+    ),
+    digital_invoice_address_line_2: normalizeEditableText(
+      form.digital_invoice_address_line_2
+    ),
+    digital_invoice_whatsapp_number: normalizeEditableText(
+      form.digital_invoice_whatsapp_number
+    ),
+    digital_invoice_map_link: normalizeEditableText(
+      form.digital_invoice_map_link
+    ),
     thermal_invoice_paper_width:
       form.thermal_invoice_paper_width === '58mm' ? '58mm' : '80mm',
     thermal_invoice_show_customer_phone:
@@ -732,6 +762,12 @@ export function resolveThermalInvoiceTemplateSettings(
       settings?.thermal_invoice_branch_name ??
       settings?.branch_name ??
       SYSTEM_SETTINGS_DEFAULT_VALUES.thermal_invoice_branch_name,
+    addressLine1:
+      settings?.digital_invoice_address_line_1 ??
+      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_address_line_1,
+    addressLine2:
+      settings?.digital_invoice_address_line_2 ??
+      SYSTEM_SETTINGS_DEFAULT_VALUES.digital_invoice_address_line_2,
     paperWidth:
       settings?.thermal_invoice_paper_width === '58mm' ? '58mm' : '80mm',
     showCustomerPhone:

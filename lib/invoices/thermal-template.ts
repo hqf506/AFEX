@@ -135,6 +135,8 @@ export function renderThermalInvoiceHtml(
     payload.branchName ??
     payload.branch_name ??
     DEFAULT_THERMAL_INVOICE_SETTINGS.branchName
+  const addressLine1 = payload.addressLine1 ?? ''
+  const addressLine2 = payload.addressLine2 ?? ''
   const customerName = payload.customerName || payload.customer_name || 'عميل'
   const customerPhone = payload.customerPhone || payload.customer_phone || '-'
   const invoiceNumber =
@@ -193,14 +195,26 @@ export function renderThermalInvoiceHtml(
   const footerMessage =
     payload.thermalFooterMessage ??
     DEFAULT_THERMAL_INVOICE_SETTINGS.footerMessage
+  const showStoreWhatsapp =
+    payload.thermalShowWhatsapp ?? DEFAULT_THERMAL_INVOICE_SETTINGS.showWhatsapp
+  const showStoreMap =
+    payload.thermalShowMap ?? DEFAULT_THERMAL_INVOICE_SETTINGS.showMap
+  const headerDetails = [
+    addressLine1,
+    addressLine2,
+    showStoreWhatsapp && payload.whatsappNumber?.trim()
+      ? `واتساب: ${payload.whatsappNumber}`
+      : '',
+    showStoreMap && payload.mapLink?.trim() ? `الموقع: ${payload.mapLink}` : '',
+  ].filter((item): item is string => Boolean(item && item.trim()))
+  const headerDetailsHtml = headerDetails.length
+    ? `
+      <div class="header-details">
+        ${headerDetails.map((item) => `<div>${escapeHtml(item)}</div>`).join('')}
+      </div>
+    `
+    : ''
   const thermalContactItems = [
-    {
-      enabled:
-        payload.thermalShowWhatsapp ??
-        DEFAULT_THERMAL_INVOICE_SETTINGS.showWhatsapp,
-      label: 'واتساب',
-      value: payload.whatsappNumber,
-    },
     {
       enabled:
         payload.thermalShowInstagram ??
@@ -221,13 +235,6 @@ export function renderThermalInvoiceHtml(
         DEFAULT_THERMAL_INVOICE_SETTINGS.showGoogleReview,
       label: 'Google Review',
       value: payload.googleReviewLink,
-    },
-    {
-      enabled:
-        payload.thermalShowMap ??
-        DEFAULT_THERMAL_INVOICE_SETTINGS.showMap,
-      label: 'Map',
-      value: payload.mapLink,
     },
   ].filter((item) => item.enabled && item.value?.trim())
   const thermalContactHtml = thermalContactItems.length
@@ -366,6 +373,17 @@ export function renderThermalInvoiceHtml(
       font-size: 12px;
     }
 
+    .header-details {
+      margin-top: 5px;
+      display: grid;
+      gap: 2px;
+      text-align: center;
+      font-size: 10px;
+      line-height: 1.5;
+      color: #222;
+      word-break: break-word;
+    }
+
     .divider {
       border-top: 1px solid #000;
       margin: 12px 0;
@@ -479,6 +497,7 @@ export function renderThermalInvoiceHtml(
       ${logoHtml}
       <div class="brand">${escapeHtml(brandName)}</div>
       <div class="branch">${escapeHtml(branchName)}</div>
+      ${headerDetailsHtml}
     </div>
 
     <div class="divider"></div>

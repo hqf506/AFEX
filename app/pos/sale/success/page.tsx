@@ -123,6 +123,8 @@ type ServerThermalReceiptSettings = {
   logoUrl?: string | null
   brandName?: string | null
   branchName?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
   paperWidth?: '80mm' | '58mm' | string | null
   showCustomerPhone?: boolean | null
   showPaymentMethod?: boolean | null
@@ -310,6 +312,8 @@ export default function PosSaleSuccessPage() {
       thermalBranchName:
         serverThermalInvoiceSettings?.branchName ||
         thermalInvoiceSettings?.branchName,
+      addressLine1: serverThermalInvoiceSettings?.addressLine1 || undefined,
+      addressLine2: serverThermalInvoiceSettings?.addressLine2 || undefined,
       thermalPaperWidth:
         serverThermalInvoiceSettings?.paperWidth === '58mm' ||
         thermalInvoiceSettings?.paperWidth === '58mm'

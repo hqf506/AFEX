@@ -227,6 +227,8 @@ function buildSampleThermalPreviewHtml(
     thermalLogoUrl: form.logo_url,
     thermalBrandName: displayAfexText(form.thermal_invoice_brand_name),
     thermalBranchName: displayAfexText(form.thermal_invoice_branch_name),
+    addressLine1: form.digital_invoice_address_line_1,
+    addressLine2: form.digital_invoice_address_line_2,
     thermalPaperWidth:
       form.thermal_invoice_paper_width === '58mm' ? '58mm' : '80mm',
     thermalShowCustomerPhone: form.thermal_invoice_show_customer_phone,
@@ -239,11 +241,11 @@ function buildSampleThermalPreviewHtml(
     thermalShowTiktok: form.thermal_invoice_show_tiktok,
     thermalShowGoogleReview: form.thermal_invoice_show_google_review,
     thermalShowMap: form.thermal_invoice_show_map,
-    whatsappNumber: settings?.digital_invoice_whatsapp_number ?? '',
+    whatsappNumber: form.digital_invoice_whatsapp_number,
     instagramLink: settings?.digital_invoice_instagram_link ?? '',
     tiktokLink: settings?.digital_invoice_tiktok_link ?? '',
     googleReviewLink: settings?.digital_invoice_google_review_link ?? '',
-    mapLink: settings?.digital_invoice_map_link ?? '',
+    mapLink: form.digital_invoice_map_link,
     customerName: 'عميل تجريبي',
     customerPhone: '0500000000',
     invoiceNumber: 'PREVIEW-001',
@@ -541,6 +543,58 @@ export default function AdminThermalInvoiceSettingsPage() {
                     }
                     className={darkInputClassName}
                     placeholder="يرجى إدخال اسم الفرع."
+                  />
+                </div>
+
+                <div className={darkCardClassName}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">العنوان الأول في الفاتورة الحرارية</label>
+                  <input
+                    type="text"
+                    value={form.digital_invoice_address_line_1}
+                    onChange={(e) =>
+                      updateField('digital_invoice_address_line_1', e.target.value)
+                    }
+                    className={darkInputClassName}
+                    placeholder="يرجى إدخال العنوان الأول"
+                  />
+                </div>
+
+                <div className={darkCardClassName}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">العنوان الثاني في الفاتورة الحرارية</label>
+                  <input
+                    type="text"
+                    value={form.digital_invoice_address_line_2}
+                    onChange={(e) =>
+                      updateField('digital_invoice_address_line_2', e.target.value)
+                    }
+                    className={darkInputClassName}
+                    placeholder="يرجى إدخال العنوان الثاني"
+                  />
+                </div>
+
+                <div className={darkCardClassName}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">رقم واتساب في الفاتورة الحرارية</label>
+                  <input
+                    type="text"
+                    value={form.digital_invoice_whatsapp_number}
+                    onChange={(e) =>
+                      updateField('digital_invoice_whatsapp_number', e.target.value)
+                    }
+                    className={darkInputClassName}
+                    placeholder="يرجى إدخال رقم الواتساب"
+                  />
+                </div>
+
+                <div className={darkCardClassName}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">رابط الموقع/الخريطة في الفاتورة الحرارية</label>
+                  <input
+                    type="text"
+                    value={form.digital_invoice_map_link}
+                    onChange={(e) =>
+                      updateField('digital_invoice_map_link', e.target.value)
+                    }
+                    className={darkInputClassName}
+                    placeholder="يرجى إدخال رابط الموقع/الخريطة"
                   />
                 </div>
               </div>
