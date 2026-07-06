@@ -297,12 +297,12 @@ export function renderThermalInvoiceHtml(
 
     .receipt-logo {
       display: block;
-      max-width: ${paperWidth === '58mm' ? '120px' : '150px'};
-      max-height: ${paperWidth === '58mm' ? '90px' : '120px'};
+      max-width: 120px;
+      max-height: 55px;
       width: auto;
       height: auto;
       object-fit: contain;
-      margin: 0 auto 8px;
+      margin: 0 auto 6px;
     }
 
     .brand {

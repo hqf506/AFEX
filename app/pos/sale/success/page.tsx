@@ -118,6 +118,10 @@ type LocalThermalReceiptSettings = {
   footerText?: string
 }
 
+type ServerThermalReceiptSettings = {
+  logoUrl?: string | null
+}
+
 function SuccessCheckIcon() {
   return (
     <svg
@@ -227,7 +231,7 @@ export default function PosSaleSuccessPage() {
     }).format(new Date(snapshot.createdAt))
   }, [snapshot])
 
-  const loadThermalInvoiceSettings = () => {
+  const loadThermalInvoiceSettings = useCallback(() => {
     if (typeof window === 'undefined') return null
 
     const local = window.localStorage.getItem(THERMAL_RECEIPT_SETTINGS_KEY)
@@ -241,7 +245,26 @@ export default function PosSaleSuccessPage() {
     } catch {
       return null
     }
-  }
+  }, [])
+
+  const fetchThermalInvoiceSettings = useCallback(async () => {
+    try {
+      const response = await fetch('/api/invoices/thermal-settings', {
+        method: 'GET',
+        credentials: 'include',
+      })
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success) {
+        return null
+      }
+
+      return result.settings as ServerThermalReceiptSettings
+    } catch (error) {
+      console.error('Failed to load thermal invoice settings:', error)
+      return null
+    }
+  }, [])
 
   const runThermalPrint = useCallback(async () => {
     if (!snapshot) return
@@ -249,13 +272,16 @@ export default function PosSaleSuccessPage() {
     if (runningInCapacitor) return
 
     const thermalInvoiceSettings = loadThermalInvoiceSettings()
+    const serverThermalInvoiceSettings = await fetchThermalInvoiceSettings()
     const printWindow = window.open('', '_blank', 'width=420,height=800')
 
     if (!printWindow) return
 
     const thermalPayload = {
       thermalBrandName: thermalInvoiceSettings?.brandName,
-      thermalLogoUrl: thermalInvoiceSettings?.thermalReceiptLogoUrl,
+      thermalLogoUrl:
+        serverThermalInvoiceSettings?.logoUrl ||
+        thermalInvoiceSettings?.thermalReceiptLogoUrl,
       thermalBranchName: thermalInvoiceSettings?.branchName,
       thermalPaperWidth:
         thermalInvoiceSettings?.paperWidth === '58mm' ? '58mm' : '80mm',
@@ -297,7 +323,12 @@ export default function PosSaleSuccessPage() {
         printWindow.close()
       }, 300)
     }, 300)
-  }, [runningInCapacitor, snapshot])
+  }, [
+    fetchThermalInvoiceSettings,
+    loadThermalInvoiceSettings,
+    runningInCapacitor,
+    snapshot,
+  ])
 
   const handlePagePrint = () => {
     if (runningInCapacitor) return

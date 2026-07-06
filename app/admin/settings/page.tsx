@@ -1,6 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import Image from 'next/image'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import {
   createDefaultSystemSettingsPayload,
   createSystemSettingsPayload,
@@ -84,6 +93,8 @@ export default function AdminSettingsPage() {
   const [testErrorMessage, setTestErrorMessage] = useState('')
   const [invoicePreviewFrame, setInvoicePreviewFrame] =
     useState<InvoicePreviewFrame | null>(null)
+  const [uploadingThermalLogo, setUploadingThermalLogo] = useState(false)
+  const thermalLogoInputRef = useRef<HTMLInputElement | null>(null)
 
   const allowed = access.allowed
   const roleLabel =
@@ -145,6 +156,39 @@ export default function AdminSettingsPage() {
       ...previous,
       [key]: value,
     }))
+  }
+
+  const uploadThermalLogo = async (file?: File) => {
+    if (!file || uploadingThermalLogo) return
+
+    setUploadingThermalLogo(true)
+    setErrorMessage('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/admin/system-settings/upload-logo', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success || !result?.logoUrl) {
+        setErrorMessage(result?.details || result?.error || 'فشل رفع شعار الفاتورة')
+        return
+      }
+
+      updateField('logo_url', result.logoUrl)
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'فشل رفع شعار الفاتورة')
+    } finally {
+      setUploadingThermalLogo(false)
+      if (thermalLogoInputRef.current) {
+        thermalLogoInputRef.current.value = ''
+      }
+    }
   }
 
   const resetForm = () => {
@@ -805,14 +849,13 @@ export default function AdminSettingsPage() {
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <Field label="رابط شعار الفاتورة">
-                      <input
-                        value={form.logo_url}
-                        onChange={(event) => updateField('logo_url', event.target.value)}
-                        className={inputClassName}
-                        placeholder="https://..."
-                      />
-                    </Field>
+                    <ThermalLogoUploadCard
+                      logoUrl={form.logo_url}
+                      uploading={uploadingThermalLogo}
+                      inputRef={thermalLogoInputRef}
+                      onUpload={(file) => void uploadThermalLogo(file)}
+                      onRemove={() => updateField('logo_url', '')}
+                    />
 
                     <Field label="اسم العلامة في الفاتورة الحرارية">
                       <input
@@ -1205,6 +1248,83 @@ function Alert({ children, tone }: { children: ReactNode; tone: 'success' | 'err
   return (
     <div className={`rounded-2xl border px-4 py-3 text-sm font-black ${className}`}>
       {children}
+    </div>
+  )
+}
+
+function ThermalLogoUploadCard({
+  logoUrl,
+  uploading,
+  inputRef,
+  onUpload,
+  onRemove,
+}: {
+  logoUrl: string
+  uploading: boolean
+  inputRef: RefObject<HTMLInputElement | null>
+  onUpload: (file?: File) => void
+  onRemove: () => void
+}) {
+  const hasLogo = Boolean(logoUrl.trim())
+
+  return (
+    <div className="rounded-3xl border border-cyan-300/25 bg-[#091522]/80 p-4 shadow-[0_0_34px_rgba(34,211,238,0.08)] backdrop-blur-xl lg:col-span-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(event) => onUpload(event.target.files?.[0])}
+      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#050d18]">
+            {hasLogo ? (
+              <Image
+                src={logoUrl}
+                alt="شعار الفاتورة الحرارية"
+                width={80}
+                height={80}
+                unoptimized
+                className="max-h-20 max-w-20 object-contain"
+              />
+            ) : (
+              <span className="px-3 text-center text-xs font-black text-slate-500">
+                شعار
+              </span>
+            )}
+          </div>
+          <div className="text-right">
+            <h4 className="text-sm font-black text-white">شعار الفاتورة الحرارية</h4>
+            <p className="mt-1 text-xs font-bold leading-6 text-slate-400">
+              يفضل استخدام صورة بخلفية شفافة أو بيضاء
+              <br />
+              المقاس المقترح: 500 × 500 بكسل
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="h-10 rounded-2xl border border-cyan-300/35 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/20 hover:text-white hover:shadow-[0_0_22px_rgba(34,211,238,0.22)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {uploading ? 'جاري الرفع...' : hasLogo ? 'تغيير الصورة' : 'رفع الشعار'}
+          </button>
+          {hasLogo ? (
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={uploading}
+              className="h-10 rounded-2xl border border-red-300/25 bg-red-400/10 px-4 text-xs font-black text-red-100 transition hover:border-red-200/60 hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              حذف الصورة
+            </button>
+          ) : null}
+        </div>
+      </div>
     </div>
   )
 }

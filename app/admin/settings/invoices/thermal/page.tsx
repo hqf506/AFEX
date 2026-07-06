@@ -1,7 +1,16 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import {
   createThermalInvoiceSettingsPayload,
   createThermalInvoiceSettingsSavePayload,
@@ -133,6 +142,83 @@ function ThermalToggleCard({
   )
 }
 
+function ThermalLogoUploadCard({
+  logoUrl,
+  uploading,
+  inputRef,
+  onUpload,
+  onRemove,
+}: {
+  logoUrl: string
+  uploading: boolean
+  inputRef: RefObject<HTMLInputElement | null>
+  onUpload: (file?: File) => void
+  onRemove: () => void
+}) {
+  const hasLogo = Boolean(logoUrl.trim())
+
+  return (
+    <div className={`${darkCardClassName} md:col-span-2`}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(event) => onUpload(event.target.files?.[0])}
+      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#050d18]">
+            {hasLogo ? (
+              <Image
+                src={logoUrl}
+                alt="شعار الفاتورة الحرارية"
+                width={80}
+                height={80}
+                unoptimized
+                className="max-h-20 max-w-20 object-contain"
+              />
+            ) : (
+              <span className="px-3 text-center text-xs font-black text-slate-500">
+                شعار
+              </span>
+            )}
+          </div>
+          <div className="text-right">
+            <h4 className="text-sm font-black text-white">شعار الفاتورة الحرارية</h4>
+            <p className="mt-1 text-xs font-bold leading-6 text-slate-400">
+              يفضل استخدام صورة بخلفية شفافة أو بيضاء
+              <br />
+              المقاس المقترح: 500 × 500 بكسل
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="h-10 rounded-2xl border border-cyan-300/35 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/20 hover:text-white hover:shadow-[0_0_22px_rgba(34,211,238,0.22)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {uploading ? 'جاري الرفع...' : hasLogo ? 'تغيير الصورة' : 'رفع الشعار'}
+          </button>
+          {hasLogo ? (
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={uploading}
+              className="h-10 rounded-2xl border border-red-300/25 bg-red-400/10 px-4 text-xs font-black text-red-100 transition hover:border-red-200/60 hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              حذف الصورة
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function buildSampleThermalPreviewHtml(
   form: ThermalInvoiceSettingsPayload,
   settings: SystemSettings | null
@@ -188,6 +274,8 @@ export default function AdminThermalInvoiceSettingsPage() {
   )
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
   const [activeTab, setActiveTab] = useState<ThermalInvoiceTabId>(() =>
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('tab') === 'preview'
@@ -254,6 +342,39 @@ export default function AdminThermalInvoiceSettingsPage() {
 
   const resetForm = () => {
     setForm(createThermalInvoiceSettingsPayload(settings))
+  }
+
+  const uploadLogo = async (file?: File) => {
+    if (!file || uploadingLogo) return
+
+    setUploadingLogo(true)
+    setErrorMessage('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/admin/system-settings/upload-logo', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success || !result?.logoUrl) {
+        setErrorMessage(result?.details || result?.error || 'فشل رفع شعار الفاتورة')
+        return
+      }
+
+      updateField('logo_url', result.logoUrl)
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'فشل رفع شعار الفاتورة')
+    } finally {
+      setUploadingLogo(false)
+      if (logoInputRef.current) {
+        logoInputRef.current.value = ''
+      }
+    }
   }
 
   const previewInvoice = () => {
@@ -389,16 +510,13 @@ export default function AdminThermalInvoiceSettingsPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className={`${darkCardClassName} md:col-span-2`}>
-                  <label className="mb-2 block text-sm font-bold text-slate-200">رابط شعار الفاتورة</label>
-                  <input
-                    type="text"
-                    value={form.logo_url}
-                    onChange={(e) => updateField('logo_url', e.target.value)}
-                    className={darkInputClassName}
-                    placeholder="https://..."
-                  />
-                </div>
+                <ThermalLogoUploadCard
+                  logoUrl={form.logo_url}
+                  uploading={uploadingLogo}
+                  inputRef={logoInputRef}
+                  onUpload={(file) => void uploadLogo(file)}
+                  onRemove={() => updateField('logo_url', '')}
+                />
 
                 <div className={darkCardClassName}>
                   <label className="mb-2 block text-sm font-bold text-slate-200">اسم النشاط</label>

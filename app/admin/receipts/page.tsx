@@ -334,8 +334,9 @@ function buildReceiptRecords(
   })
 }
 
-function buildThermalReceiptHtml(receipt: ReceiptRecord) {
+function buildThermalReceiptHtml(receipt: ReceiptRecord, thermalLogoUrl = '') {
   return renderThermalInvoiceHtml({
+    thermalLogoUrl,
     thermalBrandName: 'AFEX',
     thermalBranchName: receipt.branchName,
     thermalPaperWidth: '80mm',
@@ -362,7 +363,7 @@ function buildThermalReceiptHtml(receipt: ReceiptRecord) {
   })
 }
 
-function printThermalReceipt(receipt: ReceiptRecord) {
+function printThermalReceipt(receipt: ReceiptRecord, thermalLogoUrl = '') {
   const printWindow = window.open('', '_blank', 'width=420,height=900')
 
   if (!printWindow) {
@@ -370,7 +371,7 @@ function printThermalReceipt(receipt: ReceiptRecord) {
     return
   }
 
-  printWindow.document.write(buildThermalReceiptHtml(receipt))
+  printWindow.document.write(buildThermalReceiptHtml(receipt, thermalLogoUrl))
   printWindow.document.close()
   printWindow.focus()
   printWindow.print()
@@ -401,6 +402,7 @@ export default function AdminReceiptsPage() {
   const [error, setError] = useState('')
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [thermalLogoUrl, setThermalLogoUrl] = useState('')
 
   useEffect(() => {
     if (!selectedReceiptId) return
@@ -417,6 +419,30 @@ export default function AdminReceiptsPage() {
 
   useEffect(() => {
     let mounted = true
+
+    if (!access.allowed || access.loading) {
+      return () => {
+        mounted = false
+      }
+    }
+
+    async function fetchThermalSettings() {
+      if (!tenantId) return
+
+      try {
+        const response = await fetch('/api/invoices/thermal-settings', {
+          method: 'GET',
+          credentials: 'include',
+        })
+        const result = await response.json().catch(() => null)
+
+        if (mounted && response.ok && result?.success) {
+          setThermalLogoUrl(result.settings?.logoUrl || '')
+        }
+      } catch (settingsError) {
+        console.error('[admin-receipts] failed to fetch thermal settings', settingsError)
+      }
+    }
 
     async function fetchReceipts() {
       if (!access.allowed || access.loading) {
@@ -564,6 +590,7 @@ export default function AdminReceiptsPage() {
     }
 
     void fetchReceipts()
+    void fetchThermalSettings()
 
     return () => {
       mounted = false
@@ -945,6 +972,7 @@ export default function AdminReceiptsPage() {
 
       <ReceiptDrawer
         receipt={selectedReceipt}
+        thermalLogoUrl={thermalLogoUrl}
         onClose={() => setSelectedReceiptId(null)}
         onCanceled={handleReceiptCanceled}
       />
@@ -985,10 +1013,12 @@ function SummaryCard({
 
 function ReceiptDrawer({
   receipt,
+  thermalLogoUrl,
   onClose,
   onCanceled,
 }: {
   receipt: ReceiptRecord | null
+  thermalLogoUrl: string
   onClose: () => void
   onCanceled: (receiptId: string) => void
 }) {
@@ -998,7 +1028,9 @@ function ReceiptDrawer({
     message: string
   } | null>(null)
   const [canceling, setCanceling] = useState(false)
-  const thermalReceiptHtml = receipt ? buildThermalReceiptHtml(receipt) : ''
+  const thermalReceiptHtml = receipt
+    ? buildThermalReceiptHtml(receipt, thermalLogoUrl)
+    : ''
   const receiptCancelled = receipt ? isCancelledReceiptStatus(receipt.paymentStatus) : false
   const cancelActionVisible = receipt ? canShowCancelReceiptAction(receipt.paymentStatus) : false
 
@@ -1108,7 +1140,7 @@ function ReceiptDrawer({
             <footer className="grid grid-cols-1 gap-3 border-t border-white/10 p-5 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => printThermalReceipt(receipt)}
+                onClick={() => printThermalReceipt(receipt, thermalLogoUrl)}
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-cyan-300/20 bg-white/[0.04] text-sm font-black text-slate-100 transition hover:border-cyan-300/50 hover:bg-cyan-500/10"
               >
                 <PrintIcon className="h-4 w-4" />
