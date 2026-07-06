@@ -4,6 +4,9 @@ import { getPaymentMethodLabel as getSharedPaymentMethodLabel } from '@/lib/invo
 export type ThermalPaperWidth = '80mm' | '58mm'
 
 export type ThermalInvoiceTemplatePayload = ReceiptTemplatePayload & {
+  thermalLogoUrl?: string
+  logoUrl?: string
+  logo_url?: string
   thermalBrandName?: string
   thermalBranchName?: string
   thermalPaperWidth?: ThermalPaperWidth
@@ -121,6 +124,8 @@ export function renderThermalInvoiceHtml(
   payload: ThermalInvoiceTemplatePayload
 ): string {
   const paperWidth = resolvePaperWidth(payload.thermalPaperWidth)
+  const logoUrl =
+    payload.thermalLogoUrl ?? payload.logoUrl ?? payload.logo_url ?? ''
   const brandName =
     payload.thermalBrandName ??
     payload.brandName ??
@@ -189,6 +194,15 @@ export function renderThermalInvoiceHtml(
     payload.thermalFooterMessage ??
     DEFAULT_THERMAL_INVOICE_SETTINGS.footerMessage
   const items = payload.invoiceItems || payload.items || []
+  const logoHtml = logoUrl.trim()
+    ? `
+      <img
+        class="receipt-logo"
+        src="${escapeHtml(logoUrl)}"
+        alt="${escapeHtml(brandName)}"
+      />
+    `
+    : ''
 
   const itemsHtml = items
     .map((item) => {
@@ -279,6 +293,16 @@ export function renderThermalInvoiceHtml(
 
     .header {
       text-align: center;
+    }
+
+    .receipt-logo {
+      display: block;
+      max-width: ${paperWidth === '58mm' ? '120px' : '150px'};
+      max-height: ${paperWidth === '58mm' ? '90px' : '120px'};
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      margin: 0 auto 8px;
     }
 
     .brand {
@@ -392,6 +416,7 @@ export function renderThermalInvoiceHtml(
 <body style="background: #ffffff; margin: 0;">
   <div class="receipt">
     <div class="header">
+      ${logoHtml}
       <div class="brand">${escapeHtml(brandName)}</div>
       <div class="branch">${escapeHtml(branchName)}</div>
     </div>

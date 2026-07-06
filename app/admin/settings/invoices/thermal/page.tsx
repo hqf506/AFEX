@@ -138,6 +138,7 @@ function buildSampleThermalPreviewHtml(
   settings: SystemSettings | null
 ) {
   const html = renderThermalInvoiceHtml({
+    thermalLogoUrl: form.logo_url,
     thermalBrandName: displayAfexText(form.thermal_invoice_brand_name),
     thermalBranchName: displayAfexText(form.thermal_invoice_branch_name),
     thermalPaperWidth:
@@ -388,6 +389,17 @@ export default function AdminThermalInvoiceSettingsPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
+                <div className={`${darkCardClassName} md:col-span-2`}>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">رابط شعار الفاتورة</label>
+                  <input
+                    type="text"
+                    value={form.logo_url}
+                    onChange={(e) => updateField('logo_url', e.target.value)}
+                    className={darkInputClassName}
+                    placeholder="https://..."
+                  />
+                </div>
+
                 <div className={darkCardClassName}>
                   <label className="mb-2 block text-sm font-bold text-slate-200">اسم النشاط</label>
                   <input

@@ -45,6 +45,7 @@ function buildSampleThermalPreviewHtml(
   settings: SystemSettings | null
 ) {
   const html = renderThermalInvoiceHtml({
+    thermalLogoUrl: form.logo_url,
     thermalBrandName: displayAfexText(form.thermal_invoice_brand_name),
     thermalBranchName: displayAfexText(form.thermal_invoice_branch_name),
     thermalPaperWidth:

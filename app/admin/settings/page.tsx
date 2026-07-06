@@ -805,6 +805,15 @@ export default function AdminSettingsPage() {
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">
+                    <Field label="رابط شعار الفاتورة">
+                      <input
+                        value={form.logo_url}
+                        onChange={(event) => updateField('logo_url', event.target.value)}
+                        className={inputClassName}
+                        placeholder="https://..."
+                      />
+                    </Field>
+
                     <Field label="اسم العلامة في الفاتورة الحرارية">
                       <input
                         value={form.thermal_invoice_brand_name}

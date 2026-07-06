@@ -114,6 +114,7 @@ type LocalThermalReceiptSettings = {
   brandName?: string
   branchName?: string
   paperWidth?: '80mm' | '58mm'
+  thermalReceiptLogoUrl?: string
   footerText?: string
 }
 
@@ -254,6 +255,7 @@ export default function PosSaleSuccessPage() {
 
     const thermalPayload = {
       thermalBrandName: thermalInvoiceSettings?.brandName,
+      thermalLogoUrl: thermalInvoiceSettings?.thermalReceiptLogoUrl,
       thermalBranchName: thermalInvoiceSettings?.branchName,
       thermalPaperWidth:
         thermalInvoiceSettings?.paperWidth === '58mm' ? '58mm' : '80mm',

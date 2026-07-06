@@ -173,6 +173,7 @@ export type DigitalInvoiceSettingsPayload = {
 }
 
 export type ThermalInvoiceSettingsPayload = {
+  logo_url: string
   thermal_invoice_brand_name: string
   thermal_invoice_branch_name: string
   thermal_invoice_paper_width: string
@@ -209,6 +210,7 @@ export type DigitalInvoiceTemplateSettings = {
 }
 
 export type ThermalInvoiceTemplateSettings = {
+  logoUrl: string
   brandName: string
   branchName: string
   paperWidth: string
@@ -511,6 +513,7 @@ export function createThermalInvoiceSettingsPayload(
   settings: SystemSettings | null | undefined
 ): ThermalInvoiceSettingsPayload {
   return {
+    logo_url: settings?.logo_url ?? '',
     thermal_invoice_brand_name:
       settings?.thermal_invoice_brand_name ??
       DEFAULT_THERMAL_INVOICE_SETTINGS.brandName,
@@ -621,6 +624,7 @@ export function createThermalInvoiceSettingsSavePayload(
   form: ThermalInvoiceSettingsPayload
 ) {
   return {
+    logo_url: normalizeNullableText(form.logo_url),
     thermal_invoice_brand_name: normalizeEditableText(
       form.thermal_invoice_brand_name
     ),
@@ -711,6 +715,7 @@ export function resolveThermalInvoiceTemplateSettings(
   settings: Partial<SystemSettings> | null | undefined
 ): ThermalInvoiceTemplateSettings {
   return {
+    logoUrl: settings?.logo_url ?? '',
     brandName:
       settings?.thermal_invoice_brand_name ??
       settings?.store_name ??
