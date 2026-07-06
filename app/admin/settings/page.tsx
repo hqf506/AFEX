@@ -901,28 +901,6 @@ export default function AdminSettingsPage() {
                       />
                     </Field>
 
-                    <Field label="رقم واتساب في الفاتورة الحرارية">
-                      <input
-                        value={form.digital_invoice_whatsapp_number}
-                        onChange={(event) =>
-                          updateField('digital_invoice_whatsapp_number', event.target.value)
-                        }
-                        className={inputClassName}
-                        placeholder="يرجى إدخال رقم الواتساب"
-                      />
-                    </Field>
-
-                    <Field label="رابط الموقع/الخريطة في الفاتورة الحرارية">
-                      <input
-                        value={form.digital_invoice_map_link}
-                        onChange={(event) =>
-                          updateField('digital_invoice_map_link', event.target.value)
-                        }
-                        className={inputClassName}
-                        placeholder="يرجى إدخال رابط الموقع/الخريطة"
-                      />
-                    </Field>
-
                     <Field label="عرض ورق الفاتورة الحرارية">
                       <div className="grid grid-cols-2 gap-2">
                         {(['80mm', '58mm'] as const).map((paperWidth) => (
@@ -993,28 +971,6 @@ export default function AdminSettingsPage() {
                         updateField(
                           'thermal_invoice_show_note',
                           !form.thermal_invoice_show_note
-                        )
-                      }
-                    />
-                    <StatusRow
-                      title="الخريطة في الإيصال"
-                      description="إظهار رابط الموقع"
-                      enabled={form.thermal_invoice_show_map}
-                      onClick={() =>
-                        updateField(
-                          'thermal_invoice_show_map',
-                          !form.thermal_invoice_show_map
-                        )
-                      }
-                    />
-                    <StatusRow
-                      title="واتساب في الإيصال"
-                      description="إظهار رقم التواصل"
-                      enabled={form.thermal_invoice_show_whatsapp}
-                      onClick={() =>
-                        updateField(
-                          'thermal_invoice_show_whatsapp',
-                          !form.thermal_invoice_show_whatsapp
                         )
                       }
                     />

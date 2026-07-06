@@ -572,31 +572,6 @@ export default function AdminThermalInvoiceSettingsPage() {
                   />
                 </div>
 
-                <div className={darkCardClassName}>
-                  <label className="mb-2 block text-sm font-bold text-slate-200">رقم واتساب في الفاتورة الحرارية</label>
-                  <input
-                    type="text"
-                    value={form.digital_invoice_whatsapp_number}
-                    onChange={(e) =>
-                      updateField('digital_invoice_whatsapp_number', e.target.value)
-                    }
-                    className={darkInputClassName}
-                    placeholder="يرجى إدخال رقم الواتساب"
-                  />
-                </div>
-
-                <div className={darkCardClassName}>
-                  <label className="mb-2 block text-sm font-bold text-slate-200">رابط الموقع/الخريطة في الفاتورة الحرارية</label>
-                  <input
-                    type="text"
-                    value={form.digital_invoice_map_link}
-                    onChange={(e) =>
-                      updateField('digital_invoice_map_link', e.target.value)
-                    }
-                    className={darkInputClassName}
-                    placeholder="يرجى إدخال رابط الموقع/الخريطة"
-                  />
-                </div>
               </div>
             </div>
           ) : null}
