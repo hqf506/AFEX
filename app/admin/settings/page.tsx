@@ -22,6 +22,11 @@ type SettingsTab =
 
 type InvoiceSettingsSection = 'digital' | 'thermal'
 
+type InvoicePreviewFrame = {
+  src: string
+  title: string
+}
+
 const tabs: Array<{ key: SettingsTab; label: string }> = [
   { key: 'status', label: 'حالة النظام' },
   { key: 'organization', label: 'معلومات المنشأة' },
@@ -77,6 +82,8 @@ export default function AdminSettingsPage() {
   const [testSending, setTestSending] = useState(false)
   const [testSuccessMessage, setTestSuccessMessage] = useState('')
   const [testErrorMessage, setTestErrorMessage] = useState('')
+  const [invoicePreviewFrame, setInvoicePreviewFrame] =
+    useState<InvoicePreviewFrame | null>(null)
 
   const allowed = access.allowed
   const roleLabel =
@@ -194,7 +201,17 @@ export default function AdminSettingsPage() {
       issuedAt: new Date().toISOString(),
     })
 
-    window.open(`/api/invoices/pdf?format=html&payload=${payload}`, '_blank')
+    setInvoicePreviewFrame({
+      title: 'معاينة الفاتورة',
+      src: `/api/invoices/pdf?format=html&payload=${payload}`,
+    })
+  }
+
+  const previewThermalInvoiceSettings = () => {
+    setInvoicePreviewFrame({
+      title: 'معاينة الفاتورة',
+      src: '/admin/settings/invoices/thermal?tab=preview',
+    })
   }
 
   const sendWhatsAppTestMessage = async () => {
@@ -768,11 +785,22 @@ export default function AdminSettingsPage() {
               ) : (
                 <>
                   <div className="mb-5 flex items-center justify-between gap-4 border-b border-cyan-300/10 pb-4">
-                    <div className="text-right">
-                      <h3 className="text-xl font-black text-white">الفاتورة الحرارية</h3>
-                      <p className="mt-1 text-sm font-semibold text-slate-400">
-                        إعدادات محتوى الإيصال الحراري وروابطه.
-                      </p>
+                    <div className="flex items-start gap-3 text-right">
+                      <button
+                        type="button"
+                        onClick={previewThermalInvoiceSettings}
+                        title="معاينة الفاتورة"
+                        aria-label="معاينة الفاتورة"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/35 bg-transparent text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/10 hover:text-white hover:shadow-[0_0_24px_rgba(34,211,238,0.24)] focus:outline-none focus:ring-2 focus:ring-cyan-300/25"
+                      >
+                        <EyeIcon />
+                      </button>
+                      <div>
+                        <h3 className="text-xl font-black text-white">الفاتورة الحرارية</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-400">
+                          إعدادات محتوى الإيصال الحراري وروابطه.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -1108,6 +1136,38 @@ export default function AdminSettingsPage() {
           </div>
         </section>
       </div>
+
+      {invoicePreviewFrame ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
+          <div className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]">
+            <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
+              <div className="text-right">
+                <h3 className="text-lg font-black text-white">{invoicePreviewFrame.title}</h3>
+                <p className="mt-1 text-xs font-bold text-cyan-100/70">
+                  معاينة داخل إعدادات النظام
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInvoicePreviewFrame(null)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-[#091522]/80 text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/10 hover:text-white hover:shadow-[0_0_24px_rgba(34,211,238,0.22)] focus:outline-none focus:ring-2 focus:ring-cyan-300/25"
+                aria-label="إغلاق المعاينة"
+                title="إغلاق"
+              >
+                ×
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 bg-[#020817] p-2 sm:p-3">
+              <iframe
+                key={invoicePreviewFrame.src}
+                title={invoicePreviewFrame.title}
+                src={invoicePreviewFrame.src}
+                className="h-full w-full rounded-[20px] border border-cyan-300/10 bg-white"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

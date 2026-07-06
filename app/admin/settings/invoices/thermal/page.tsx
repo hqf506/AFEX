@@ -187,7 +187,13 @@ export default function AdminThermalInvoiceSettingsPage() {
   )
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
-  const [activeTab, setActiveTab] = useState<ThermalInvoiceTabId>('identity')
+  const [activeTab, setActiveTab] = useState<ThermalInvoiceTabId>(() =>
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('tab') === 'preview'
+      ? 'preview'
+      : 'identity'
+  )
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const livePreviewHtml = useMemo(
     () => buildSampleThermalPreviewHtml(form, settings),
@@ -250,12 +256,7 @@ export default function AdminThermalInvoiceSettingsPage() {
   }
 
   const previewInvoice = () => {
-    const previewWindow = window.open('', '_blank', 'width=520,height=900')
-
-    if (!previewWindow) return
-
-    previewWindow.document.write(buildSampleThermalPreviewHtml(form, settings))
-    previewWindow.document.close()
+    setPreviewOpen(true)
   }
 
   const saveSettings = async () => {
@@ -606,6 +607,37 @@ export default function AdminThermalInvoiceSettingsPage() {
           </div>
         </div>
       </div>
+
+      {previewOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
+          <div className="flex h-[88vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]">
+            <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
+              <div className="text-right">
+                <h3 className="text-lg font-black text-white">معاينة الفاتورة</h3>
+                <p className="mt-1 text-xs font-bold text-cyan-100/70">
+                  معاينة داخل إعدادات النظام
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-[#091522]/80 text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/10 hover:text-white hover:shadow-[0_0_24px_rgba(34,211,238,0.22)] focus:outline-none focus:ring-2 focus:ring-cyan-300/25"
+                aria-label="إغلاق المعاينة"
+                title="إغلاق"
+              >
+                ×
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 bg-[#020817] p-2 sm:p-3">
+              <iframe
+                title="معاينة الفاتورة"
+                srcDoc={livePreviewHtml}
+                className="h-full w-full rounded-[20px] border border-cyan-300/10 bg-white"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
       </div>
     </div>
   )
