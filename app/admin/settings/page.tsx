@@ -210,7 +210,7 @@ export default function AdminSettingsPage() {
   const previewThermalInvoiceSettings = () => {
     setInvoicePreviewFrame({
       title: 'معاينة الفاتورة',
-      src: '/admin/settings/invoices/thermal?tab=preview',
+      src: '/thermal-invoice-preview',
     })
   }
 
