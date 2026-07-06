@@ -15,6 +15,9 @@ import { applyTenantFilter } from '@/lib/tenant-filter'
 
 export const runtime = 'nodejs'
 
+const WHATSAPP_FEATURE_DISABLED_MESSAGE =
+  'ميزة الواتساب غير مفعلة من إعدادات النظام.'
+
 type CreateInvoicePdfBody = InvoicePdfPayload
 
 function createInvoicePdfRequestId() {
@@ -190,6 +193,25 @@ async function loadDigitalInvoiceSettings(tenantId: string | null | undefined) {
   return resolveDigitalInvoiceTemplateSettings(
     (settingsRow as Partial<SystemSettings> | null) ?? null
   )
+}
+
+async function isWhatsAppFeatureEnabled(tenantId: string | null | undefined) {
+  if (!tenantId) return true
+
+  let query = supabaseAdmin
+    .from('system_settings')
+    .select('enable_whatsapp')
+    .limit(1)
+
+  query = applyTenantFilter(query, tenantId)
+
+  const { data, error } = await query.maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data?.enable_whatsapp !== false
 }
 
 export async function GET(request: NextRequest) {
@@ -386,6 +408,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (deliveryMode === 'whatsapp') {
+      if (!(await isWhatsAppFeatureEnabled(auth.profile.tenant_id))) {
+        return withAuthCookies(
+          auth.response,
+          NextResponse.json(
+            {
+              success: false,
+              error: WHATSAPP_FEATURE_DISABLED_MESSAGE,
+            },
+            { status: 403 }
+          )
+        )
+      }
+
       logInvoicePdfInfo(requestId, 'post-memory-pdf-file-start')
       const generatedFile = await generateInvoicePdfFile(pdfPayload)
       logInvoicePdfInfo(requestId, 'post-memory-pdf-file-success', {

@@ -864,7 +864,7 @@ export default function AdminSettingsPage() {
                           updateField('thermal_invoice_brand_name', event.target.value)
                         }
                         className={inputClassName}
-                        placeholder={settings?.store_name || 'AFEX'}
+                        placeholder="يرجى إدخال اسم العلامة."
                       />
                     </Field>
 
@@ -875,7 +875,7 @@ export default function AdminSettingsPage() {
                           updateField('thermal_invoice_branch_name', event.target.value)
                         }
                         className={inputClassName}
-                        placeholder={settings?.branch_name || 'الفرع الرئيسي'}
+                        placeholder="يرجى إدخال اسم الفرع."
                       />
                     </Field>
 
@@ -902,7 +902,7 @@ export default function AdminSettingsPage() {
                           updateField('thermal_invoice_note', event.target.value)
                         }
                         className={textareaClassName}
-                        placeholder="ملاحظة تظهر داخل الإيصال الحراري"
+                        placeholder="يرجى إدخال ملاحظة الفاتورة."
                       />
                     </Field>
 
@@ -913,7 +913,7 @@ export default function AdminSettingsPage() {
                           updateField('thermal_invoice_footer_message', event.target.value)
                         }
                         className={textareaClassName}
-                        placeholder="شكراً لتعاملكم معنا"
+                        placeholder="يرجى إدخال رسالة ختام الفاتورة."
                       />
                     </Field>
                   </div>

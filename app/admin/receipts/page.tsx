@@ -7,6 +7,7 @@ import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { useAuthState } from '@/components/auth-state-provider'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { useSystemSettings } from '@/hooks/use-system-settings'
 import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
 import { getDateInputValue } from '@/lib/orders/format'
 import { type OrderSourceRow } from '@/lib/orders/normalize'
@@ -57,6 +58,28 @@ type ReceiptRecord = {
   total: number
   note: string
   items: ReportOrderItemRecord[]
+}
+
+type ThermalTemplateSettings = {
+  logoUrl?: string | null
+  brandName?: string | null
+  branchName?: string | null
+  paperWidth?: string | null
+  showCustomerPhone?: boolean | null
+  showPaymentMethod?: boolean | null
+  showNote?: boolean | null
+  note?: string | null
+  footerMessage?: string | null
+  showWhatsapp?: boolean | null
+  showInstagram?: boolean | null
+  showTiktok?: boolean | null
+  showGoogleReview?: boolean | null
+  showMap?: boolean | null
+  whatsappNumber?: string | null
+  instagramLink?: string | null
+  tiktokLink?: string | null
+  googleReviewLink?: string | null
+  mapLink?: string | null
 }
 
 type CancelReceiptResponse = {
@@ -334,17 +357,36 @@ function buildReceiptRecords(
   })
 }
 
-function buildThermalReceiptHtml(receipt: ReceiptRecord, thermalLogoUrl = '') {
+function buildThermalReceiptHtml(
+  receipt: ReceiptRecord,
+  thermalSettings: ThermalTemplateSettings | null = null
+) {
   return renderThermalInvoiceHtml({
-    thermalLogoUrl,
-    thermalBrandName: 'AFEX',
-    thermalBranchName: receipt.branchName,
-    thermalPaperWidth: '80mm',
-    thermalShowCustomerPhone: Boolean(receipt.customerPhone && receipt.customerPhone !== '—'),
-    thermalShowPaymentMethod: true,
-    thermalShowNote: Boolean(receipt.note && receipt.note !== '—'),
-    thermalNote: receipt.note && receipt.note !== '—' ? receipt.note : '',
-    thermalFooterMessage: 'شكراً لزيارتكم',
+    thermalLogoUrl: thermalSettings?.logoUrl || '',
+    thermalBrandName: thermalSettings?.brandName || 'AFEX',
+    thermalBranchName: thermalSettings?.branchName || receipt.branchName,
+    thermalPaperWidth: thermalSettings?.paperWidth === '58mm' ? '58mm' : '80mm',
+    thermalShowCustomerPhone:
+      thermalSettings?.showCustomerPhone ??
+      Boolean(receipt.customerPhone && receipt.customerPhone !== '—'),
+    thermalShowPaymentMethod: thermalSettings?.showPaymentMethod ?? true,
+    thermalShowNote:
+      thermalSettings?.showNote ??
+      Boolean(receipt.note && receipt.note !== '—'),
+    thermalNote:
+      thermalSettings?.note ||
+      (receipt.note && receipt.note !== '—' ? receipt.note : ''),
+    thermalFooterMessage: thermalSettings?.footerMessage || 'شكراً لزيارتكم',
+    thermalShowWhatsapp: thermalSettings?.showWhatsapp ?? true,
+    thermalShowInstagram: thermalSettings?.showInstagram ?? false,
+    thermalShowTiktok: thermalSettings?.showTiktok ?? false,
+    thermalShowGoogleReview: thermalSettings?.showGoogleReview ?? true,
+    thermalShowMap: thermalSettings?.showMap ?? true,
+    whatsappNumber: thermalSettings?.whatsappNumber || undefined,
+    instagramLink: thermalSettings?.instagramLink || undefined,
+    tiktokLink: thermalSettings?.tiktokLink || undefined,
+    googleReviewLink: thermalSettings?.googleReviewLink || undefined,
+    mapLink: thermalSettings?.mapLink || undefined,
     customerName: receipt.customerName,
     customerPhone: receipt.customerPhone,
     invoiceNumber: receipt.receiptNumber,
@@ -363,7 +405,10 @@ function buildThermalReceiptHtml(receipt: ReceiptRecord, thermalLogoUrl = '') {
   })
 }
 
-function printThermalReceipt(receipt: ReceiptRecord, thermalLogoUrl = '') {
+function printThermalReceipt(
+  receipt: ReceiptRecord,
+  thermalSettings: ThermalTemplateSettings | null = null
+) {
   const printWindow = window.open('', '_blank', 'width=420,height=900')
 
   if (!printWindow) {
@@ -371,7 +416,7 @@ function printThermalReceipt(receipt: ReceiptRecord, thermalLogoUrl = '') {
     return
   }
 
-  printWindow.document.write(buildThermalReceiptHtml(receipt, thermalLogoUrl))
+  printWindow.document.write(buildThermalReceiptHtml(receipt, thermalSettings))
   printWindow.document.close()
   printWindow.focus()
   printWindow.print()
@@ -402,7 +447,8 @@ export default function AdminReceiptsPage() {
   const [error, setError] = useState('')
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [thermalLogoUrl, setThermalLogoUrl] = useState('')
+  const [thermalSettings, setThermalSettings] =
+    useState<ThermalTemplateSettings | null>(null)
 
   useEffect(() => {
     if (!selectedReceiptId) return
@@ -437,7 +483,7 @@ export default function AdminReceiptsPage() {
         const result = await response.json().catch(() => null)
 
         if (mounted && response.ok && result?.success) {
-          setThermalLogoUrl(result.settings?.logoUrl || '')
+          setThermalSettings(result.settings || null)
         }
       } catch (settingsError) {
         console.error('[admin-receipts] failed to fetch thermal settings', settingsError)
@@ -972,7 +1018,7 @@ export default function AdminReceiptsPage() {
 
       <ReceiptDrawer
         receipt={selectedReceipt}
-        thermalLogoUrl={thermalLogoUrl}
+        thermalSettings={thermalSettings}
         onClose={() => setSelectedReceiptId(null)}
         onCanceled={handleReceiptCanceled}
       />
@@ -1013,12 +1059,12 @@ function SummaryCard({
 
 function ReceiptDrawer({
   receipt,
-  thermalLogoUrl,
+  thermalSettings,
   onClose,
   onCanceled,
 }: {
   receipt: ReceiptRecord | null
-  thermalLogoUrl: string
+  thermalSettings: ThermalTemplateSettings | null
   onClose: () => void
   onCanceled: (receiptId: string) => void
 }) {
@@ -1028,8 +1074,10 @@ function ReceiptDrawer({
     message: string
   } | null>(null)
   const [canceling, setCanceling] = useState(false)
+  const { settings: systemSettings } = useSystemSettings(Boolean(receipt))
+  const printingEnabled = systemSettings?.enable_printing !== false
   const thermalReceiptHtml = receipt
-    ? buildThermalReceiptHtml(receipt, thermalLogoUrl)
+    ? buildThermalReceiptHtml(receipt, thermalSettings)
     : ''
   const receiptCancelled = receipt ? isCancelledReceiptStatus(receipt.paymentStatus) : false
   const cancelActionVisible = receipt ? canShowCancelReceiptAction(receipt.paymentStatus) : false
@@ -1140,8 +1188,17 @@ function ReceiptDrawer({
             <footer className="grid grid-cols-1 gap-3 border-t border-white/10 p-5 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => printThermalReceipt(receipt, thermalLogoUrl)}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-cyan-300/20 bg-white/[0.04] text-sm font-black text-slate-100 transition hover:border-cyan-300/50 hover:bg-cyan-500/10"
+                onClick={() => {
+                  if (!printingEnabled) return
+                  printThermalReceipt(receipt, thermalSettings)
+                }}
+                disabled={!printingEnabled}
+                title={
+                  printingEnabled
+                    ? undefined
+                    : 'ميزة الطباعة غير مفعلة من إعدادات النظام.'
+                }
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-cyan-300/20 bg-white/[0.04] text-sm font-black text-slate-100 transition hover:border-cyan-300/50 hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500"
               >
                 <PrintIcon className="h-4 w-4" />
                 طباعة

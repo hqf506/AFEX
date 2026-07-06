@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput } from '@/components/admin-input'
+import { FeatureDisabledState } from '@/components/feature-disabled-state'
+import { useSystemSettings } from '@/hooks/use-system-settings'
 import {
   type AdminBranchRecord,
   requiresAssignedBranch,
@@ -175,6 +177,8 @@ export default function AdminUsersPage() {
   const access = usePageAccess(['admin'])
   const { loading: accessLoading, allowed, scopeType, branchId: actorBranchId } =
     access
+  const { settings: systemSettings, loading: settingsLoading } =
+    useSystemSettings(allowed && !accessLoading)
   const isSystemAdmin = scopeType === 'system'
 
   const [users, setUsers] = useState<ProfileRow[]>([])
@@ -830,6 +834,15 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </div>
+    )
+  }
+
+  if (!settingsLoading && systemSettings?.enable_users === false) {
+    return (
+      <FeatureDisabledState
+        title="ميزة المستخدمين غير مفعلة"
+        message="تم تعطيل إدارة المستخدمين من إعدادات النظام."
+      />
     )
   }
 

@@ -44,6 +44,8 @@ type RecipientPayload = {
 }
 
 const DEFAULT_CTA_LABEL = 'اضغط هنا للوصول للموقع'
+const WHATSAPP_FEATURE_DISABLED_MESSAGE =
+  'ميزة الواتساب غير مفعلة من إعدادات النظام.'
 
 function normalizeId(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
@@ -133,6 +135,21 @@ async function saveRecipientResult(recipient: RecipientPayload) {
   }
 }
 
+async function isWhatsAppFeatureEnabled(tenantId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('system_settings')
+    .select('enable_whatsapp')
+    .eq('tenant_id', tenantId)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data?.enable_whatsapp !== false
+}
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -160,6 +177,14 @@ export async function POST(
       const response = jsonResponse(
         { success: false, error: 'تعذر تحديد نطاق المنشأة' },
         400
+      )
+      return withAuthCookies(auth.response, response)
+    }
+
+    if (!(await isWhatsAppFeatureEnabled(tenantId))) {
+      const response = jsonResponse(
+        { success: false, error: WHATSAPP_FEATURE_DISABLED_MESSAGE },
+        403
       )
       return withAuthCookies(auth.response, response)
     }

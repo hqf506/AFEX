@@ -17,6 +17,8 @@ import {
   sendWhatsAppText,
 } from '@/lib/whatsapp/service'
 import type { WhatsAppServiceResult } from '@/lib/whatsapp/types'
+import { supabaseAdmin } from '@/lib/supabase/admin'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type SendWhatsAppBody = {
   type?: 'text' | 'file'
@@ -41,6 +43,8 @@ type WhatsAppRateLimitEntry = {
 
 const WHATSAPP_RATE_LIMIT_MAX_MESSAGES = 20
 const WHATSAPP_RATE_LIMIT_WINDOW_MS = 60 * 1000
+const WHATSAPP_FEATURE_DISABLED_MESSAGE =
+  'ميزة الواتساب غير مفعلة من إعدادات النظام.'
 const whatsappRateLimitStore = new Map<string, WhatsAppRateLimitEntry>()
 
 function createWhatsAppRequestId() {
@@ -164,6 +168,33 @@ function rateLimitResponse() {
     },
     429
   )
+}
+
+function whatsappFeatureDisabledResponse() {
+  return jsonResponse(
+    {
+      success: false,
+      error: WHATSAPP_FEATURE_DISABLED_MESSAGE,
+    },
+    403
+  )
+}
+
+async function isWhatsAppFeatureEnabled(tenantId: string) {
+  let query = supabaseAdmin
+    .from('system_settings')
+    .select('enable_whatsapp')
+    .limit(1)
+
+  query = applyTenantFilter(query, tenantId)
+
+  const { data, error } = await query.maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data?.enable_whatsapp !== false
 }
 
 function whatsAppSuccessResponse(result: WhatsAppServiceResult) {
@@ -328,6 +359,10 @@ export async function POST(req: NextRequest) {
         },
         400
       )
+    }
+
+    if (!(await isWhatsAppFeatureEnabled(tenantId))) {
+      return whatsappFeatureDisabledResponse()
     }
 
     if (type === 'text' && mode === 'text' && !text) {

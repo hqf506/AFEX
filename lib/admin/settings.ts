@@ -566,9 +566,17 @@ export function resolveSystemSettingsSaveNames(
 }
 
 export function createSystemSettingsSavePayload(form: SystemSettingsPayload) {
+  const preservedWhenEmpty = new Set([
+    'ultramsg_instance_id',
+    'ultramsg_token',
+    'ultramsg_api_url',
+  ])
   const systemSettingsPayload = Object.fromEntries(
     Object.entries(form).filter(
-      ([key]) => key !== 'store_name' && key !== 'branch_name'
+      ([key, value]) =>
+        key !== 'store_name' &&
+        key !== 'branch_name' &&
+        !(preservedWhenEmpty.has(key) && String(value || '').trim() === '')
     )
   ) as SystemSettingsUpdatePayload
 

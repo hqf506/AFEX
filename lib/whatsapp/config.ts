@@ -15,6 +15,48 @@ type BranchWhatsAppConfigDbRow = {
   is_active: boolean
 }
 
+type SystemWhatsAppConfigDbRow = {
+  whatsapp_provider: string | null
+  ultramsg_instance_id: string | null
+  ultramsg_token: string | null
+  ultramsg_api_url: string | null
+}
+
+function resolveSystemProviderKey(provider?: string | null) {
+  if (provider === 'official') return 'meta'
+  return 'ultramsg'
+}
+
+function buildWhatsAppConfigFromSystemSettings(
+  config: SystemWhatsAppConfigDbRow | null
+): WhatsAppProviderConfig | null {
+  if (!config) return null
+
+  const providerKey = resolveSystemProviderKey(config.whatsapp_provider)
+  const apiUrl = config.ultramsg_api_url?.trim() || ''
+  const token = config.ultramsg_token?.trim() || ''
+  const instanceId = config.ultramsg_instance_id?.trim() || ''
+
+  if (providerKey === 'meta') {
+    const metaConfig: MetaCompatibleProviderConfig = {
+      providerKey: 'meta',
+      apiUrl,
+      accessToken: token,
+      phoneNumberId: instanceId,
+    }
+
+    return metaConfig
+  }
+
+  const ultraMsgConfig: UltraMsgProviderConfig = {
+    providerKey: 'ultramsg',
+    apiUrl,
+    token,
+  }
+
+  return ultraMsgConfig
+}
+
 export async function getBranchWhatsAppProviderConfig(
   branchId: string | null | undefined,
   tenantId: string | null | undefined
@@ -22,16 +64,18 @@ export async function getBranchWhatsAppProviderConfig(
   const normalizedBranchId = typeof branchId === 'string' ? branchId.trim() : ''
   const normalizedTenantId = typeof tenantId === 'string' ? tenantId.trim() : ''
 
-  if (!normalizedBranchId || !normalizedTenantId) {
+  if (!normalizedTenantId) {
     return null
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('branch_whatsapp_configs')
-    .select('provider, phone_number, instance_id, token, api_url, is_active')
-    .eq('branch_id', normalizedBranchId)
-    .eq('tenant_id', normalizedTenantId)
-    .maybeSingle()
+  const { data, error } = normalizedBranchId
+    ? await supabaseAdmin
+        .from('branch_whatsapp_configs')
+        .select('provider, phone_number, instance_id, token, api_url, is_active')
+        .eq('branch_id', normalizedBranchId)
+        .eq('tenant_id', normalizedTenantId)
+        .maybeSingle()
+    : { data: null, error: null }
 
   if (error) {
     throw new Error(error.message)
@@ -52,26 +96,39 @@ export async function getBranchWhatsAppProviderConfig(
     hasApiUrl: Boolean(config?.api_url?.trim()),
   })
 
-  if (!config || !config.is_active) {
-    return null
-  }
+  if (config?.is_active) {
+    if (config.provider === 'meta') {
+      const metaConfig: MetaCompatibleProviderConfig = {
+        providerKey: 'meta',
+        apiUrl: config.api_url.trim(),
+        accessToken: config.token.trim(),
+        phoneNumberId: config.instance_id.trim(),
+      }
 
-  if (config.provider === 'meta') {
-    const metaConfig: MetaCompatibleProviderConfig = {
-      providerKey: 'meta',
-      apiUrl: config.api_url.trim(),
-      accessToken: config.token.trim(),
-      phoneNumberId: config.instance_id.trim(),
+      return metaConfig
     }
 
-    return metaConfig
+    const ultraMsgConfig: UltraMsgProviderConfig = {
+      providerKey: 'ultramsg',
+      apiUrl: config.api_url.trim(),
+      token: config.token.trim(),
+    }
+
+    return ultraMsgConfig
   }
 
-  const ultraMsgConfig: UltraMsgProviderConfig = {
-    providerKey: 'ultramsg',
-    apiUrl: config.api_url.trim(),
-    token: config.token.trim(),
+  const { data: systemConfig, error: systemError } = await supabaseAdmin
+    .from('system_settings')
+    .select('whatsapp_provider, ultramsg_instance_id, ultramsg_token, ultramsg_api_url')
+    .eq('tenant_id', normalizedTenantId)
+    .limit(1)
+    .maybeSingle()
+
+  if (systemError) {
+    throw new Error(systemError.message)
   }
 
-  return ultraMsgConfig
+  return buildWhatsAppConfigFromSystemSettings(
+    (systemConfig as SystemWhatsAppConfigDbRow | null) ?? null
+  )
 }

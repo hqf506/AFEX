@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
+import { FeatureDisabledState } from '@/components/feature-disabled-state'
 import { PosTabletFrame } from '@/components/pos-tablet-frame'
+import { useSystemSettings } from '@/hooks/use-system-settings'
 import { canAccessPos } from '@/lib/permissions'
 import {
   readActivePosEmployee,
@@ -81,7 +83,14 @@ export function PosShellLayout({ children }: PosShellLayoutProps) {
   }
 
   if (isPosEmployeePinPage) {
-    return <PosShellViewport isLoginPage>{children}</PosShellViewport>
+    return (
+      <ProtectedPosShellLayout
+        key="pin-entry"
+        requireEmployee={false}
+      >
+        {children}
+      </ProtectedPosShellLayout>
+    )
   }
 
   return (
@@ -107,6 +116,9 @@ function ProtectedPosShellLayout({
     useState<ActivePosEmployee | null>(null)
   const allowed = Boolean(
     authState.profile && canAccessPos(authState.profile.role)
+  )
+  const { settings, loading: settingsLoading } = useSystemSettings(
+    !authState.loading && allowed
   )
   const hasAuthError = Boolean(authState.error)
   const isTimeoutError = authState.error === 'timeout'
@@ -317,6 +329,19 @@ function ProtectedPosShellLayout({
       <PosShellViewport>
         <div className="page-wrap">
           <div className="page-card">جاري فتح شاشة رمز الموظف...</div>
+        </div>
+      </PosShellViewport>
+    )
+  }
+
+  if (!settingsLoading && settings?.enable_pos === false) {
+    return (
+      <PosShellViewport>
+        <div className="page-wrap">
+          <FeatureDisabledState
+            title="ميزة نقطة البيع غير مفعلة"
+            message="تم تعطيل نقطة البيع من إعدادات النظام."
+          />
         </div>
       </PosShellViewport>
     )

@@ -21,6 +21,8 @@ export type SystemSettings = {
   ultramsg_instance_id: string | null
   ultramsg_token: string | null
   ultramsg_api_url: string | null
+  whatsapp_order_ready_message_template: string | null
+  whatsapp_order_delivered_message_template: string | null
   enable_whatsapp: boolean
   enable_printing: boolean
   enable_pos: boolean

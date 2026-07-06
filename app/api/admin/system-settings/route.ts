@@ -69,7 +69,7 @@ function sanitizeSystemSettings(settings: unknown) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin'])
+  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
   if (!auth.ok) {
     return auth.response

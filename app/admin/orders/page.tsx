@@ -17,6 +17,8 @@ import {
 } from '@/lib/orders/orders-page'
 import { supabase } from '@/lib/supabase/client'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { useSystemSettings } from '@/hooks/use-system-settings'
+import { FeatureDisabledState } from '@/components/feature-disabled-state'
 import { normalizeOrderRecord, type OrderStatus, type OrderSourceRow } from '@/lib/orders/normalize'
 import {
   buildDeliveredOrderStatusWhatsAppMessage,
@@ -40,6 +42,8 @@ function maskDebugId(id: string | null | undefined) {
 const EMPTY_DASH = '-'
 
 const ORDERS_FETCH_LIMIT = 200
+const WHATSAPP_FEATURE_DISABLED_MESSAGE =
+  'ميزة الواتساب غير مفعلة من إعدادات النظام.'
 
 type OrdersFilterKey = OrderFilter | 'new' | 'delivered' | 'cancelled'
 type AdminOrderStatus = 'in_progress' | 'ready' | 'closed' | 'cancelled'
@@ -432,6 +436,9 @@ export default function OrdersPage() {
     role === 'admin' || role === 'employee' || roleValue === 'manager'
   const canCancelOrders = canManageOrders
   const canUseOrderSound = role === 'admin' || role === 'employee'
+  const { settings: systemSettings, loading: settingsLoading } =
+    useSystemSettings(allowed && !authLoading)
+  const whatsappFeatureEnabled = systemSettings?.enable_whatsapp !== false
 
   const showSuccess = (message: string) => {
     setSuccessMessage(message)
@@ -924,6 +931,11 @@ export default function OrdersPage() {
       return
     }
 
+    if (!whatsappFeatureEnabled) {
+      showError(WHATSAPP_FEATURE_DISABLED_MESSAGE)
+      return
+    }
+
     if (!isSendableWhatsAppPhone(order.customer_phone)) {
       showError('لا يوجد رقم واتساب صالح لهذا العميل')
       return
@@ -1072,7 +1084,10 @@ export default function OrdersPage() {
       status === 'closed' &&
       isSendableWhatsAppPhone(order.customer_phone)
 
-    if (shouldSendReadyNotification || shouldSendDeliveredNotification) {
+    if (
+      (shouldSendReadyNotification || shouldSendDeliveredNotification) &&
+      whatsappFeatureEnabled
+    ) {
       setWhatsappStatusByOrderId((current) => ({
         ...current,
         [order.id]: 'pending',
@@ -1090,14 +1105,14 @@ export default function OrdersPage() {
             mode: 'text',
             text: shouldSendReadyNotification
               ? applyReadyOrderWhatsAppTemplate(
-                  '',
+                  systemSettings?.whatsapp_order_ready_message_template || '',
                   order,
                   getOrderBranchLabel(order),
                   getOrderBranchMapUrl(order),
                   getOrderStoreName(order)
                 )
               : applyDeliveredOrderWhatsAppTemplate(
-                  '',
+                  systemSettings?.whatsapp_order_delivered_message_template || '',
                   order,
                   getOrderBranchLabel(order),
                   getOrderStoreName(order)
@@ -1135,6 +1150,15 @@ export default function OrdersPage() {
         setUpdatingId(null)
         return
       }
+    } else if (
+      (shouldSendReadyNotification || shouldSendDeliveredNotification) &&
+      !whatsappFeatureEnabled
+    ) {
+      setWhatsappStatusByOrderId((current) => ({
+        ...current,
+        [order.id]: 'not_sent',
+      }))
+      showError(WHATSAPP_FEATURE_DISABLED_MESSAGE)
     }
 
     showSuccess('تم تحديث الحالة بنجاح')
@@ -1357,6 +1381,15 @@ export default function OrdersPage() {
           <div className="text-slate-300">جارٍ التحويل...</div>
         </div>
       </div>
+    )
+  }
+
+  if (!settingsLoading && systemSettings?.enable_orders === false) {
+    return (
+      <FeatureDisabledState
+        title="ميزة الطلبات غير مفعلة"
+        message="تم تعطيل متابعة الطلبات من إعدادات النظام."
+      />
     )
   }
 
@@ -1598,6 +1631,7 @@ export default function OrdersPage() {
                         !orderIsCancelled && order.items.length > 0
                       const canSendDigitalInvoice =
                         canManageOrders &&
+                        whatsappFeatureEnabled &&
                         canUseDigitalInvoice &&
                         isSendableWhatsAppPhone(order.customer_phone)
                       const hasSentDigitalInvoice =

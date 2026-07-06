@@ -193,6 +193,56 @@ export function renderThermalInvoiceHtml(
   const footerMessage =
     payload.thermalFooterMessage ??
     DEFAULT_THERMAL_INVOICE_SETTINGS.footerMessage
+  const thermalContactItems = [
+    {
+      enabled:
+        payload.thermalShowWhatsapp ??
+        DEFAULT_THERMAL_INVOICE_SETTINGS.showWhatsapp,
+      label: 'واتساب',
+      value: payload.whatsappNumber,
+    },
+    {
+      enabled:
+        payload.thermalShowInstagram ??
+        DEFAULT_THERMAL_INVOICE_SETTINGS.showInstagram,
+      label: 'Instagram',
+      value: payload.instagramLink,
+    },
+    {
+      enabled:
+        payload.thermalShowTiktok ??
+        DEFAULT_THERMAL_INVOICE_SETTINGS.showTiktok,
+      label: 'TikTok',
+      value: payload.tiktokLink,
+    },
+    {
+      enabled:
+        payload.thermalShowGoogleReview ??
+        DEFAULT_THERMAL_INVOICE_SETTINGS.showGoogleReview,
+      label: 'Google Review',
+      value: payload.googleReviewLink,
+    },
+    {
+      enabled:
+        payload.thermalShowMap ??
+        DEFAULT_THERMAL_INVOICE_SETTINGS.showMap,
+      label: 'Map',
+      value: payload.mapLink,
+    },
+  ].filter((item) => item.enabled && item.value?.trim())
+  const thermalContactHtml = thermalContactItems.length
+    ? `
+    <div class="contact-links">
+      ${thermalContactItems
+        .map(
+          (item) => `
+      <div>${escapeHtml(item.label)}: ${escapeHtml(item.value)}</div>
+      `
+        )
+        .join('')}
+    </div>
+    `
+    : ''
   const items = payload.invoiceItems || payload.items || []
   const logoHtml = logoUrl.trim()
     ? `
@@ -411,6 +461,16 @@ export function renderThermalInvoiceHtml(
       font-size: 12px;
       font-weight: 700;
     }
+
+    .contact-links {
+      margin-top: 10px;
+      display: grid;
+      gap: 3px;
+      text-align: center;
+      font-size: 10px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body style="background: #ffffff; margin: 0;">
@@ -493,6 +553,7 @@ export function renderThermalInvoiceHtml(
     }
 
     <div class="thanks">${escapeHtml(footerMessage)}</div>
+    ${thermalContactHtml}
   </div>
 </body>
 </html>

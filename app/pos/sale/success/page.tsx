@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ReceiptView } from '@/components/receipt-view'
+import { useSystemSettings } from '@/hooks/use-system-settings'
 import {
   renderThermalInvoiceHtml,
   renderThermalShopCopyHtml,
@@ -120,6 +121,24 @@ type LocalThermalReceiptSettings = {
 
 type ServerThermalReceiptSettings = {
   logoUrl?: string | null
+  brandName?: string | null
+  branchName?: string | null
+  paperWidth?: '80mm' | '58mm' | string | null
+  showCustomerPhone?: boolean | null
+  showPaymentMethod?: boolean | null
+  showNote?: boolean | null
+  note?: string | null
+  footerMessage?: string | null
+  showWhatsapp?: boolean | null
+  showInstagram?: boolean | null
+  showTiktok?: boolean | null
+  showGoogleReview?: boolean | null
+  showMap?: boolean | null
+  whatsappNumber?: string | null
+  instagramLink?: string | null
+  tiktokLink?: string | null
+  googleReviewLink?: string | null
+  mapLink?: string | null
 }
 
 function SuccessCheckIcon() {
@@ -221,6 +240,9 @@ export default function PosSaleSuccessPage() {
     )
   })
   const [redirectCountdown, setRedirectCountdown] = useState(10)
+  const { settings: systemSettings } = useSystemSettings(Boolean(snapshot))
+  const printingEnabled = systemSettings?.enable_printing !== false
+  const whatsappEnabled = systemSettings?.enable_whatsapp !== false
 
   const issuedAtLabel = useMemo(() => {
     if (!snapshot || !snapshot.createdAt) return '—'
@@ -270,6 +292,7 @@ export default function PosSaleSuccessPage() {
     if (!snapshot) return
     // TODO(iOS native): add Bluetooth printer integration for thermal receipts.
     if (runningInCapacitor) return
+    if (!printingEnabled) return
 
     const thermalInvoiceSettings = loadThermalInvoiceSettings()
     const serverThermalInvoiceSettings = await fetchThermalInvoiceSettings()
@@ -278,18 +301,41 @@ export default function PosSaleSuccessPage() {
     if (!printWindow) return
 
     const thermalPayload = {
-      thermalBrandName: thermalInvoiceSettings?.brandName,
+      thermalBrandName:
+        serverThermalInvoiceSettings?.brandName ||
+        thermalInvoiceSettings?.brandName,
       thermalLogoUrl:
         serverThermalInvoiceSettings?.logoUrl ||
         thermalInvoiceSettings?.thermalReceiptLogoUrl,
-      thermalBranchName: thermalInvoiceSettings?.branchName,
+      thermalBranchName:
+        serverThermalInvoiceSettings?.branchName ||
+        thermalInvoiceSettings?.branchName,
       thermalPaperWidth:
-        thermalInvoiceSettings?.paperWidth === '58mm' ? '58mm' : '80mm',
-      thermalShowCustomerPhone: true,
-      thermalShowPaymentMethod: true,
-      thermalShowNote: true,
-      thermalNote: snapshot.note,
-      thermalFooterMessage: thermalInvoiceSettings?.footerText,
+        serverThermalInvoiceSettings?.paperWidth === '58mm' ||
+        thermalInvoiceSettings?.paperWidth === '58mm'
+          ? '58mm'
+          : '80mm',
+      thermalShowCustomerPhone:
+        serverThermalInvoiceSettings?.showCustomerPhone ?? true,
+      thermalShowPaymentMethod:
+        serverThermalInvoiceSettings?.showPaymentMethod ?? true,
+      thermalShowNote: serverThermalInvoiceSettings?.showNote ?? true,
+      thermalNote: serverThermalInvoiceSettings?.note || snapshot.note,
+      thermalFooterMessage:
+        serverThermalInvoiceSettings?.footerMessage ||
+        thermalInvoiceSettings?.footerText,
+      thermalShowWhatsapp: serverThermalInvoiceSettings?.showWhatsapp ?? true,
+      thermalShowInstagram: serverThermalInvoiceSettings?.showInstagram ?? false,
+      thermalShowTiktok: serverThermalInvoiceSettings?.showTiktok ?? false,
+      thermalShowGoogleReview:
+        serverThermalInvoiceSettings?.showGoogleReview ?? true,
+      thermalShowMap: serverThermalInvoiceSettings?.showMap ?? true,
+      whatsappNumber: serverThermalInvoiceSettings?.whatsappNumber || undefined,
+      instagramLink: serverThermalInvoiceSettings?.instagramLink || undefined,
+      tiktokLink: serverThermalInvoiceSettings?.tiktokLink || undefined,
+      googleReviewLink:
+        serverThermalInvoiceSettings?.googleReviewLink || undefined,
+      mapLink: serverThermalInvoiceSettings?.mapLink || undefined,
       customerName: snapshot.customerName,
       customerPhone: snapshot.customerPhone,
       invoiceNumber: snapshot.invoiceNumber,
@@ -326,17 +372,20 @@ export default function PosSaleSuccessPage() {
   }, [
     fetchThermalInvoiceSettings,
     loadThermalInvoiceSettings,
+    printingEnabled,
     runningInCapacitor,
     snapshot,
   ])
 
   const handlePagePrint = () => {
     if (runningInCapacitor) return
+    if (!printingEnabled) return
 
     window.print()
   }
 
   const handleWhatsApp = () => {
+    if (!whatsappEnabled) return
     if (!snapshot?.customerPhone) return
 
     const phone = snapshot.customerPhone.replace(/[^\d]/g, '')
@@ -553,14 +602,25 @@ export default function PosSaleSuccessPage() {
               <button
                 type="button"
                 onClick={handlePagePrint}
-                className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-base font-black text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)] transition active:scale-[0.98]"
+                disabled={!printingEnabled}
+                title={
+                  printingEnabled
+                    ? undefined
+                    : 'ميزة الطباعة غير مفعلة من إعدادات النظام.'
+                }
+                className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-base font-black text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-slate-600/30 disabled:bg-slate-700/20 disabled:text-slate-500 disabled:shadow-none"
               >
                 🖨 طباعة الفاتورة
               </button>
               <button
                 type="button"
                 onClick={handleWhatsApp}
-                disabled={!snapshot.customerPhone}
+                disabled={!snapshot.customerPhone || !whatsappEnabled}
+                title={
+                  whatsappEnabled
+                    ? undefined
+                    : 'ميزة الواتساب غير مفعلة من إعدادات النظام.'
+                }
                 className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/14 bg-[#061426]/70 px-4 text-base font-black text-cyan-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:text-slate-600"
               >
                 📱 إرسال واتساب

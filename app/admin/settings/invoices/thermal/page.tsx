@@ -519,7 +519,7 @@ export default function AdminThermalInvoiceSettingsPage() {
                 />
 
                 <div className={darkCardClassName}>
-                  <label className="mb-2 block text-sm font-bold text-slate-200">اسم النشاط</label>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">اسم العلامة في الفاتورة الحرارية</label>
                   <input
                     type="text"
                     value={displayAfexText(form.thermal_invoice_brand_name)}
@@ -527,12 +527,12 @@ export default function AdminThermalInvoiceSettingsPage() {
                       updateField('thermal_invoice_brand_name', e.target.value)
                     }
                     className={darkInputClassName}
-                    placeholder="اكتب اسم النشاط"
+                    placeholder="يرجى إدخال اسم العلامة."
                   />
                 </div>
 
                 <div className={darkCardClassName}>
-                  <label className="mb-2 block text-sm font-bold text-slate-200">اسم الفرع</label>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">اسم الفرع في الفاتورة الحرارية</label>
                   <input
                     type="text"
                     value={displayAfexText(form.thermal_invoice_branch_name)}
@@ -540,7 +540,7 @@ export default function AdminThermalInvoiceSettingsPage() {
                       updateField('thermal_invoice_branch_name', e.target.value)
                     }
                     className={darkInputClassName}
-                    placeholder="اكتب اسم الفرع"
+                    placeholder="يرجى إدخال اسم الفرع."
                   />
                 </div>
               </div>
@@ -633,26 +633,26 @@ export default function AdminThermalInvoiceSettingsPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className={darkCardClassName}>
-                  <label className="mb-2 block text-sm font-bold text-slate-200">ملاحظة الإيصال</label>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">ملاحظة الفاتورة</label>
                   <textarea
                     value={form.thermal_invoice_note}
                     onChange={(e) =>
                       updateField('thermal_invoice_note', e.target.value)
                     }
                     className={darkTextareaClassName}
-                    placeholder="اكتب ملاحظة الإيصال"
+                    placeholder="يرجى إدخال ملاحظة الفاتورة."
                   />
                 </div>
 
                 <div className={darkCardClassName}>
-                  <label className="mb-2 block text-sm font-bold text-slate-200">رسالة نهاية الإيصال</label>
+                  <label className="mb-2 block text-sm font-bold text-slate-200">رسالة ختام الفاتورة</label>
                   <textarea
                     value={form.thermal_invoice_footer_message}
                     onChange={(e) =>
                       updateField('thermal_invoice_footer_message', e.target.value)
                     }
                     className={darkTextareaClassName}
-                    placeholder="اكتب رسالة النهاية"
+                    placeholder="يرجى إدخال رسالة ختام الفاتورة."
                   />
                 </div>
               </div>
