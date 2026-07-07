@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import {
@@ -52,6 +52,15 @@ type WhatsAppDeliveryStatus = 'sent' | 'failed' | 'not_sent' | 'pending'
 type InvoicePdfAction = 'preview' | 'send'
 type PageOrderRecord = OrderRecord & {
   status_raw: string
+  created_by_employee_id: string
+  updated_at: string
+}
+type WhatsAppHistoryRecord = {
+  id: string
+  created_at: string
+  status: 'sent' | 'failed'
+  messageType: string
+  error: string | undefined
 }
 
 function filterOrders(
@@ -247,6 +256,24 @@ const CANCELLED_ORDER_UI = {
   dotClassName: 'bg-rose-300',
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value || value === EMPTY_DASH) return EMPTY_DASH
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return EMPTY_DASH
+
+  return date.toLocaleString('ar-SA', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function formatMoney(value: number) {
+  return `${Number(value || 0).toLocaleString('ar-SA', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} ر.س`
+}
+
 const CANCELLED_RECEIPT_WHATSAPP_UI = {
   label: 'تم إلغاء الإيصال',
   className: 'border-rose-300/35 bg-rose-500/[0.12] text-rose-100',
@@ -265,6 +292,84 @@ function isCancelledOrder(order: OrderRecord) {
     paymentStatus === 'canceled' ||
     rawStatus === 'cancelled' ||
     rawStatus === 'canceled'
+  )
+}
+
+function DrawerSection({
+  title,
+  children,
+}: {
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <section className="rounded-[24px] border border-cyan-300/12 bg-[#07111d]/85 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.22)]">
+      <h3 className="mb-3 text-base font-black text-white">{title}</h3>
+      {children}
+    </section>
+  )
+}
+
+function DetailGrid({
+  children,
+  className = '',
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return <div className={`grid gap-2 sm:grid-cols-2 ${className}`}>{children}</div>
+}
+
+function DetailItem({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-cyan-300/10 bg-[#091522]/75 px-3 py-2">
+      <p className="text-[11px] font-bold text-slate-500">{label}</p>
+      <p className="mt-1 break-words text-sm font-black text-slate-100">
+        {value || EMPTY_DASH}
+      </p>
+    </div>
+  )
+}
+
+function FinancialCard({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string
+  value: string
+  strong?: boolean
+}) {
+  return (
+    <div
+      className={`rounded-2xl border px-3 py-3 ${
+        strong
+          ? 'border-cyan-300/25 bg-cyan-300/10'
+          : 'border-cyan-300/10 bg-[#091522]/75'
+      }`}
+    >
+      <p className="text-[11px] font-bold text-slate-500">{label}</p>
+      <p className="mt-1 text-base font-black text-white">{value}</p>
+    </div>
+  )
+}
+
+function EmptyDrawerText({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-cyan-300/10 bg-[#091522]/65 px-4 py-5 text-center text-sm font-bold text-slate-400">
+      {children}
+    </div>
+  )
+}
+
+function NoteBlock({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-cyan-300/10 bg-[#091522]/75 p-3">
+      <p className="text-xs font-black text-cyan-100">{title}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm font-bold leading-7 text-slate-200">
+        {value}
+      </p>
+    </div>
   )
 }
 
@@ -417,6 +522,14 @@ export default function OrdersPage() {
   const [invoicePdfActionByOrderId, setInvoicePdfActionByOrderId] = useState<
     Record<string, InvoicePdfAction | undefined>
   >({})
+  const [detailsDrawerOrderId, setDetailsDrawerOrderId] = useState<string | null>(
+    null
+  )
+  const [whatsAppHistoryByOrderId, setWhatsAppHistoryByOrderId] = useState<
+    Record<string, WhatsAppHistoryRecord[]>
+  >({})
+  const [whatsAppHistoryLoadingId, setWhatsAppHistoryLoadingId] =
+    useState<string | null>(null)
 
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -546,6 +659,7 @@ export default function OrdersPage() {
           id,
           order_number,
           branch_id,
+          created_by_employee_id,
           status,
           created_at,
           customers (
@@ -610,6 +724,12 @@ export default function OrdersPage() {
         .map((row, index) => ({
           ...mapOrderSummaryToOrderRecord(normalizeOrderRecord(row, index)),
           status_raw: typeof row.status === 'string' ? row.status : '',
+          created_by_employee_id:
+            typeof row.created_by_employee_id === 'string'
+              ? row.created_by_employee_id
+              : '',
+          updated_at:
+            typeof row.updated_at === 'string' ? row.updated_at : '',
         }))
       const nextIds = new Set(normalized.map((order) => order.id))
 
@@ -779,6 +899,115 @@ export default function OrdersPage() {
           ['delivered', 'completed'].includes(order.status_raw))
     ).length
   }, [orders])
+
+  const detailsDrawerOrder = useMemo(() => {
+    if (!detailsDrawerOrderId) return null
+    return orders.find((order) => order.id === detailsDrawerOrderId) || null
+  }, [detailsDrawerOrderId, orders])
+
+  const drawerCustomerSummary = useMemo(() => {
+    if (!detailsDrawerOrder) {
+      return {
+        visits: 0,
+        spend: 0,
+        lastVisit: '',
+      }
+    }
+
+    const customerPhone = detailsDrawerOrder.customer_phone
+    const customerOrders = orders.filter(
+      (order) => order.customer_phone === customerPhone
+    )
+    const spend = customerOrders.reduce((sum, order) => sum + order.total, 0)
+    const lastVisit =
+      customerOrders
+        .map((order) => order.created_at)
+        .filter(Boolean)
+        .sort()
+        .at(-1) || ''
+
+    return {
+      visits: customerOrders.length,
+      spend,
+      lastVisit,
+    }
+  }, [detailsDrawerOrder, orders])
+
+  useEffect(() => {
+    if (!detailsDrawerOrderId || whatsAppHistoryByOrderId[detailsDrawerOrderId]) {
+      return
+    }
+
+    let cancelled = false
+
+    async function fetchWhatsAppHistory(orderId: string) {
+      setWhatsAppHistoryLoadingId(orderId)
+
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('id, action, created_at, metadata')
+        .eq('entity_type', 'whatsapp_message')
+        .order('created_at', { ascending: false })
+        .limit(500)
+
+      if (cancelled) return
+
+      if (error || !Array.isArray(data)) {
+        setWhatsAppHistoryByOrderId((current) => ({
+          ...current,
+          [orderId]: [],
+        }))
+        setWhatsAppHistoryLoadingId(null)
+        return
+      }
+
+      const history = data
+        .map((log) => {
+          const metadata =
+            log && typeof log.metadata === 'object' && log.metadata
+              ? (log.metadata as Record<string, unknown>)
+              : null
+          const logOrderId =
+            typeof metadata?.order_id === 'string' ? metadata.order_id : ''
+
+          if (logOrderId !== orderId) return null
+
+          const messageType =
+            typeof metadata?.order_status === 'string'
+              ? metadata.order_status
+              : typeof metadata?.type === 'string'
+                ? metadata.type
+                : 'whatsapp'
+
+          return {
+            id: typeof log.id === 'string' ? log.id : `${orderId}-${log.created_at}`,
+            created_at:
+              typeof log.created_at === 'string' ? log.created_at : '',
+            status:
+              log.action === 'whatsapp.message_sent' ? 'sent' : 'failed',
+            messageType,
+            error:
+              typeof metadata?.error === 'string' ? metadata.error : undefined,
+          } satisfies WhatsAppHistoryRecord
+        })
+        .filter(
+          (item): item is WhatsAppHistoryRecord => item !== null
+        )
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+
+      setWhatsAppHistoryByOrderId((current) => ({
+        ...current,
+        [orderId]: history,
+      }))
+      setWhatsAppHistoryLoadingId(null)
+    }
+
+    void fetchWhatsAppHistory(detailsDrawerOrderId)
+
+    return () => {
+      cancelled = true
+    }
+  }, [detailsDrawerOrderId, whatsAppHistoryByOrderId])
 
   const selectedStatusOption = useMemo(() => {
     return (
@@ -1398,6 +1627,18 @@ export default function OrdersPage() {
       <div className="min-w-0 space-y-4">
         {successMessage && <div className="success-alert">{fixArabic(successMessage)}</div>}
         {errorMessage && <div className="error-alert">{fixArabic(errorMessage)}</div>}
+        <style>{`
+          @keyframes ordersDrawerSlideIn {
+            from {
+              opacity: 0;
+              transform: translateX(28px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
+          }
+        `}</style>
 
         <section dir="rtl" className="w-full max-w-full space-y-5 text-white">
           <div className="relative overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#07111d]/90 p-5 backdrop-blur-xl">
@@ -1681,6 +1922,17 @@ export default function OrdersPage() {
                             <div className="flex flex-wrap items-center gap-1.5">
                               <button
                                 type="button"
+                                onClick={() => setDetailsDrawerOrderId(order.id)}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-cyan-200/45 bg-cyan-300/15 px-3 text-[11px] font-black text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)] transition hover:bg-cyan-300/25 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                              >
+                                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                  <path d="M7 3h10a2 2 0 0 1 2 2v16l-3-1.5-3 1.5-3-1.5L7 21V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                                  <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                                </svg>
+                                تفاصيل الطلب
+                              </button>
+                              <button
+                                type="button"
                                 disabled={!canManageOrders || isUpdating}
                                 onClick={() => {
                                   const nextStatus =
@@ -1758,6 +2010,286 @@ export default function OrdersPage() {
               </div>
             )}
           </div>
+          {detailsDrawerOrder ? (
+            <div
+              className="fixed inset-0 z-[110] flex justify-end bg-slate-950/70 backdrop-blur-sm"
+              onClick={() => setDetailsDrawerOrderId(null)}
+            >
+              <aside
+                dir="rtl"
+                className="flex h-full w-full max-w-[560px] animate-[ordersDrawerSlideIn_180ms_ease-out] flex-col border-r border-cyan-300/20 bg-[#06101c]/95 text-right text-white shadow-[0_0_90px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:w-[92vw]"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="sticky top-0 z-10 border-b border-cyan-300/15 bg-[#07111d]/95 p-5 backdrop-blur-xl">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-200/70">
+                        AFEX Order
+                      </p>
+                      <h2 className="mt-2 text-2xl font-black text-white">
+                        تفاصيل الطلب
+                      </h2>
+                      <p className="mt-1 text-xs font-bold text-slate-400">
+                        {detailsDrawerOrder.order_number}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDetailsDrawerOrderId(null)}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] text-cyan-100 transition hover:border-cyan-300/45 hover:bg-cyan-300/12"
+                      aria-label="إغلاق تفاصيل الطلب"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                  <DrawerSection title="معلومات الطلب">
+                    <DetailGrid>
+                      <DetailItem label="رقم الطلب" value={detailsDrawerOrder.order_number} />
+                      <DetailItem label="رقم الفاتورة" value={detailsDrawerOrder.invoice_number} />
+                      <DetailItem
+                        label="الحالة الحالية"
+                        value={
+                          isCancelledOrder(detailsDrawerOrder)
+                            ? CANCELLED_ORDER_UI.label
+                            : ORDER_STATUS_UI[detailsDrawerOrder.status].label
+                        }
+                      />
+                      <DetailItem label="الفرع" value={getOrderBranchLabel(detailsDrawerOrder)} />
+                      <DetailItem
+                        label="الموظف"
+                        value={detailsDrawerOrder.created_by_employee_id || 'غير محدد'}
+                      />
+                      <DetailItem
+                        label="تاريخ الإنشاء"
+                        value={formatDateTime(detailsDrawerOrder.created_at)}
+                      />
+                      <DetailItem
+                        label="آخر تحديث"
+                        value={formatDateTime(detailsDrawerOrder.updated_at || detailsDrawerOrder.created_at)}
+                      />
+                    </DetailGrid>
+                  </DrawerSection>
+
+                  <DrawerSection title="بيانات العميل">
+                    <DetailGrid>
+                      <DetailItem label="الاسم" value={fixArabic(detailsDrawerOrder.customer_name)} />
+                      <DetailItem label="الجوال" value={detailsDrawerOrder.customer_phone} />
+                      <DetailItem
+                        label="عدد الزيارات"
+                        value={drawerCustomerSummary.visits.toLocaleString('ar-SA')}
+                      />
+                      <DetailItem
+                        label="إجمالي الصرف"
+                        value={formatMoney(drawerCustomerSummary.spend)}
+                      />
+                      <DetailItem
+                        label="آخر زيارة"
+                        value={formatDateTime(drawerCustomerSummary.lastVisit)}
+                      />
+                    </DetailGrid>
+                  </DrawerSection>
+
+                  <DrawerSection title="المعلومات المالية">
+                    {detailsDrawerOrder.remaining_from_customer > 0 ? (
+                      <div className="mb-3 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-black text-amber-100">
+                        متبقي على العميل مبلغ {formatMoney(detailsDrawerOrder.remaining_from_customer)}
+                      </div>
+                    ) : null}
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <FinancialCard label="الإجمالي" value={formatMoney(detailsDrawerOrder.subtotal || detailsDrawerOrder.total)} />
+                      <FinancialCard label="الخصم" value={formatMoney(detailsDrawerOrder.discount)} />
+                      <FinancialCard label="الضريبة" value={formatMoney(detailsDrawerOrder.tax)} />
+                      <FinancialCard label="الإجمالي النهائي" value={formatMoney(detailsDrawerOrder.total)} strong />
+                      <FinancialCard label="المدفوع" value={formatMoney(detailsDrawerOrder.cash_received)} />
+                      <FinancialCard label="المتبقي" value={formatMoney(detailsDrawerOrder.remaining_from_customer)} />
+                    </div>
+                    <DetailGrid className="mt-3">
+                      <DetailItem label="طريقة الدفع" value={fixArabic(detailsDrawerOrder.payment_method)} />
+                      <DetailItem label="حالة الدفع" value={fixArabic(detailsDrawerOrder.payment_status)} />
+                    </DetailGrid>
+                  </DrawerSection>
+
+                  <DrawerSection title="المنتجات">
+                    {detailsDrawerOrder.items.length > 0 ? (
+                      <div className="space-y-2">
+                        {detailsDrawerOrder.items.map((item, index) => (
+                          <div
+                            key={`${item.item_name}-${index}`}
+                            className="flex gap-3 rounded-2xl border border-cyan-300/10 bg-[#091522]/80 p-3"
+                          >
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/10 text-xs font-black text-cyan-100">
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-black text-white">
+                                {fixArabic(item.item_name)}
+                              </p>
+                              <p className="mt-1 text-xs font-bold text-slate-400">
+                                الكمية: {item.quantity} · سعر الوحدة: {formatMoney(item.unit_price)}
+                              </p>
+                              <p className="mt-1 text-xs font-black text-cyan-100">
+                                الإجمالي: {formatMoney(item.line_total)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyDrawerText>لا توجد منتجات.</EmptyDrawerText>
+                    )}
+                  </DrawerSection>
+
+                  <DrawerSection title="سجل الواتساب">
+                    {whatsAppHistoryLoadingId === detailsDrawerOrder.id ? (
+                      <EmptyDrawerText>جاري تحميل سجل الإرسال...</EmptyDrawerText>
+                    ) : (whatsAppHistoryByOrderId[detailsDrawerOrder.id] || []).length > 0 ? (
+                      <div className="space-y-2">
+                        {(whatsAppHistoryByOrderId[detailsDrawerOrder.id] || []).map((entry) => {
+                          const entryUi = getWhatsAppStatusUi(entry.status)
+
+                          return (
+                            <div key={entry.id} className="rounded-2xl border border-cyan-300/10 bg-[#091522]/80 p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${entryUi.className}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${entryUi.dotClassName}`} />
+                                  {entry.status === 'sent' ? '✓ تم الإرسال' : '✕ فشل الإرسال'}
+                                </span>
+                                <span className="text-[11px] font-bold text-slate-500">
+                                  {formatDateTime(entry.created_at)}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-xs font-bold text-slate-300">
+                                {entry.messageType === 'invoice_pdf'
+                                  ? 'فاتورة PDF'
+                                  : entry.messageType === 'ready'
+                                    ? 'تم إرسال رسالة "جاهز"'
+                                    : entry.messageType === 'closed'
+                                      ? 'تم إرسال رسالة "تم التسليم"'
+                                      : entry.messageType}
+                              </p>
+                              {entry.error ? (
+                                <p className="mt-1 text-xs font-bold text-rose-200">{entry.error}</p>
+                              ) : null}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <EmptyDrawerText>لا يوجد سجل إرسال.</EmptyDrawerText>
+                    )}
+                  </DrawerSection>
+
+                  <DrawerSection title="سجل حالة الطلب">
+                    <div className="space-y-2">
+                      {[
+                        ['Created', detailsDrawerOrder.created_at, true],
+                        ['Preparing', detailsDrawerOrder.created_at, detailsDrawerOrder.status === 'in_progress'],
+                        ['Ready', detailsDrawerOrder.status === 'ready' ? detailsDrawerOrder.updated_at || detailsDrawerOrder.created_at : '', detailsDrawerOrder.status === 'ready'],
+                        ['Delivered', detailsDrawerOrder.status === 'closed' ? detailsDrawerOrder.updated_at || detailsDrawerOrder.created_at : '', detailsDrawerOrder.status === 'closed'],
+                        ['Cancelled', isCancelledOrder(detailsDrawerOrder) ? detailsDrawerOrder.updated_at || detailsDrawerOrder.created_at : '', isCancelledOrder(detailsDrawerOrder)],
+                      ].map(([label, time, active]) => (
+                        <div key={String(label)} className="flex items-center gap-3 rounded-2xl border border-cyan-300/10 bg-[#091522]/75 px-3 py-2">
+                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${active ? 'bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.45)]' : 'bg-slate-600'}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-black text-white">{label}</p>
+                            <p className="text-[11px] font-bold text-slate-500">{formatDateTime(String(time || ''))}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </DrawerSection>
+
+                  <DrawerSection title="الملاحظات">
+                    {detailsDrawerOrder.note && detailsDrawerOrder.note !== EMPTY_DASH ? (
+                      <div className="space-y-2">
+                        <NoteBlock title="ملاحظات الفاتورة" value={fixArabic(detailsDrawerOrder.note)} />
+                      </div>
+                    ) : (
+                      <EmptyDrawerText>لا توجد ملاحظات.</EmptyDrawerText>
+                    )}
+                  </DrawerSection>
+
+                  <DrawerSection title="الفواتير">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        disabled={detailsDrawerOrder.items.length === 0}
+                        onClick={() => previewDigitalInvoice(detailsDrawerOrder)}
+                        className="h-11 rounded-2xl border border-violet-300/30 bg-violet-500/15 px-4 text-xs font-black text-violet-100 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:border-slate-500/20 disabled:bg-slate-500/10 disabled:text-slate-500"
+                      >
+                        معاينة الفاتورة الرقمية
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => printThermalReceipt(detailsDrawerOrder)}
+                        className="h-11 rounded-2xl border border-cyan-300/30 bg-cyan-500/15 px-4 text-xs font-black text-cyan-100 transition hover:bg-cyan-500/25"
+                      >
+                        معاينة الفاتورة الحرارية
+                      </button>
+                    </div>
+                  </DrawerSection>
+                </div>
+
+                <div className="sticky bottom-0 border-t border-cyan-300/15 bg-[#07111d]/95 p-4 backdrop-blur-xl">
+                  <p className="mb-3 text-sm font-black text-white">إجراءات سريعة</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={!canManageOrders || updatingId === detailsDrawerOrder.id}
+                      onClick={() => {
+                        const nextStatus =
+                          detailsDrawerOrder.status === 'unknown'
+                            ? 'in_progress'
+                            : detailsDrawerOrder.status
+                        setStatusModalOrder(detailsDrawerOrder)
+                        setStatusModalValue(nextStatus)
+                        setStatusModalOptionKey(
+                          nextStatus === 'closed' ? 'delivered_closed' : nextStatus
+                        )
+                        setStatusDropdownOpen(false)
+                      }}
+                      className="h-10 rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:opacity-50"
+                    >
+                      تعديل الحالة
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        !canManageOrders ||
+                        !whatsappFeatureEnabled ||
+                        detailsDrawerOrder.items.length === 0 ||
+                        Boolean(invoicePdfActionByOrderId[detailsDrawerOrder.id])
+                      }
+                      onClick={() => sendDigitalInvoicePdf(detailsDrawerOrder)}
+                      className="h-10 rounded-xl border border-teal-300/25 bg-teal-500/15 px-3 text-xs font-black text-teal-100 transition hover:bg-teal-500/25 disabled:opacity-50"
+                    >
+                      {whatsappStatusByOrderId[detailsDrawerOrder.id] === 'sent'
+                        ? 'إعادة إرسال PDF'
+                        : 'إرسال PDF'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => printThermalReceipt(detailsDrawerOrder)}
+                      className="h-10 rounded-xl border border-slate-300/20 bg-slate-400/10 px-3 text-xs font-black text-slate-100 transition hover:bg-slate-400/15"
+                    >
+                      طباعة
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canCancelOrders || isCancelledOrder(detailsDrawerOrder)}
+                      onClick={() => setCancelModalOrder(detailsDrawerOrder)}
+                      className="h-10 rounded-xl border border-rose-300/25 bg-rose-500/15 px-3 text-xs font-black text-rose-100 transition hover:bg-rose-500/25 disabled:opacity-50"
+                    >
+                      إلغاء الطلب
+                    </button>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          ) : null}
           {statusModalOrder ? (
             <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
               <div className="w-full max-w-md rounded-[28px] border border-cyan-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
