@@ -7,6 +7,7 @@ import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 const ALLOWED_ORDER_STATUSES = ['in_progress', 'ready', 'closed'] as const
+const INVALID_STATUS_SEQUENCE_MESSAGE = 'لا يمكن تغيير الحالة بهذا التسلسل.'
 
 type OrderStatusUpdate = (typeof ALLOWED_ORDER_STATUSES)[number]
 
@@ -28,6 +29,15 @@ function normalizeStatus(value: unknown): OrderStatusUpdate | null {
   return ALLOWED_ORDER_STATUSES.includes(normalized as OrderStatusUpdate)
     ? (normalized as OrderStatusUpdate)
     : null
+}
+
+function isAllowedStatusTransition(
+  currentStatus: string | null,
+  nextStatus: OrderStatusUpdate
+) {
+  if (currentStatus === 'in_progress') return nextStatus === 'ready'
+  if (currentStatus === 'ready') return nextStatus === 'closed'
+  return false
 }
 
 export async function PATCH(
@@ -119,6 +129,14 @@ export async function PATCH(
 
     const oldStatus =
       typeof existingOrder.status === 'string' ? existingOrder.status : null
+
+    if (!isAllowedStatusTransition(oldStatus, nextStatus)) {
+      const response = jsonResponse(
+        { error: INVALID_STATUS_SEQUENCE_MESSAGE },
+        400
+      )
+      return withAuthCookies(auth.response, response)
+    }
 
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')

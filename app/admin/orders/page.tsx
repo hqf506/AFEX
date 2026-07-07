@@ -44,6 +44,7 @@ const EMPTY_DASH = '-'
 const ORDERS_FETCH_LIMIT = 200
 const WHATSAPP_FEATURE_DISABLED_MESSAGE =
   'ميزة الواتساب غير مفعلة من إعدادات النظام.'
+const INVALID_STATUS_SEQUENCE_MESSAGE = 'لا يمكن تغيير الحالة بهذا التسلسل.'
 
 type OrdersFilterKey = OrderFilter | 'new' | 'delivered' | 'cancelled'
 type AdminOrderStatus = 'in_progress' | 'ready' | 'closed' | 'cancelled'
@@ -155,7 +156,7 @@ const ORDER_STATUS_ACTIONS: Array<{
   },
   {
     status: 'in_progress',
-    label: 'قيد التنفيذ',
+    label: 'قيد التجهيز',
     description: 'بدء تنفيذ الطلب داخل الورشة.',
   },
   {
@@ -177,7 +178,7 @@ const STANDARDIZED_ORDER_STATUS_ACTIONS: Array<{
 }> = [
   {
     status: 'in_progress',
-    label: 'قيد التنفيذ',
+    label: 'قيد التجهيز',
     description: 'بدء تنفيذ الطلب داخل الورشة.',
   },
   {
@@ -310,6 +311,27 @@ function isCancelledOrder(order: OrderRecord) {
     rawStatus === 'cancelled' ||
     rawStatus === 'canceled'
   )
+}
+
+function isFinalOrderStatus(order: OrderRecord) {
+  return order.status === 'closed' || isCancelledOrder(order)
+}
+
+function isAllowedStatusTransition(
+  order: OrderRecord,
+  nextStatus: AdminOrderStatus
+) {
+  if (isFinalOrderStatus(order)) return false
+  if (nextStatus === 'cancelled') return false
+  if (order.status === 'in_progress') return nextStatus === 'ready'
+  if (order.status === 'ready') return nextStatus === 'closed'
+  return false
+}
+
+function getNextAllowedStatus(order: OrderRecord): AdminOrderStatus | null {
+  if (order.status === 'in_progress' && !isFinalOrderStatus(order)) return 'ready'
+  if (order.status === 'ready' && !isFinalOrderStatus(order)) return 'closed'
+  return null
 }
 
 function DrawerSection({
@@ -1339,6 +1361,7 @@ export default function OrdersPage() {
       }))
     }
   }
+  void previewDigitalInvoice
 
   const previewDigitalInvoiceInPage = (order: PageOrderRecord) => {
     if (order.items.length === 0) {
@@ -1468,10 +1491,12 @@ export default function OrdersPage() {
       return
     }
 
-    if (status === 'cancelled') {
-      showError('إلغاء الطلب يتم من مسار إلغاء الإيصال وليس من حالة الطلب')
+    if (!isAllowedStatusTransition(order, status)) {
+      showError(INVALID_STATUS_SEQUENCE_MESSAGE)
       return
     }
+
+    const nextOrderStatus = status as OrderStatus
 
     if (!access.tenantId) {
       showError('تعذر تحديد نطاق المنشأة لتحديث الطلب')
@@ -1502,7 +1527,7 @@ export default function OrdersPage() {
 
     setOrders((prev) => {
       const nextOrders = prev.map((item) =>
-        item.id === order.id ? { ...item, status } : item
+        item.id === order.id ? { ...item, status: nextOrderStatus } : item
       )
       ordersSignatureRef.current = buildOrderComparisonSignature(nextOrders)
       return nextOrders
@@ -2134,14 +2159,14 @@ export default function OrdersPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1080px] table-fixed text-right" dir="rtl">
+                <table className="w-full min-w-[760px] table-fixed text-right" dir="rtl">
                   <colgroup>
                     <col className="w-[150px]" />
                     <col className="w-[180px]" />
                     <col className="w-[150px]" />
                     <col className="w-[140px]" />
                     <col className="w-[190px]" />
-                    <col className="w-[520px]" />
+                    <col className="w-[190px]" />
                   </colgroup>
                   <thead className="bg-[#0b1626]/90">
                     <tr className="border-b border-cyan-300/10 text-[11px] font-black text-slate-300">
@@ -2159,28 +2184,12 @@ export default function OrdersPage() {
                       const statusUi = orderIsCancelled
                         ? CANCELLED_ORDER_UI
                         : ORDER_STATUS_UI[order.status]
-                      const isUpdating = updatingId === order.id
-                      const canPrepare =
-                        canManageOrders && !orderIsCancelled && order.status === 'in_progress'
-                      const canDeliver =
-                        canManageOrders && !orderIsCancelled && order.status === 'ready'
-                      const isClosed = order.status === 'closed'
                       const whatsAppStatusUi = getWhatsAppStatusUi(
                         whatsappStatusByOrderId[order.id] || 'not_sent'
                       )
                       const deliveryStatusUi = orderIsCancelled
                         ? CANCELLED_RECEIPT_WHATSAPP_UI
                         : whatsAppStatusUi
-                      const invoicePdfAction = invoicePdfActionByOrderId[order.id]
-                      const canUseDigitalInvoice =
-                        !orderIsCancelled && order.items.length > 0
-                      const canSendDigitalInvoice =
-                        canManageOrders &&
-                        whatsappFeatureEnabled &&
-                        canUseDigitalInvoice &&
-                        isSendableWhatsAppPhone(order.customer_phone)
-                      const hasSentDigitalInvoice =
-                        whatsappStatusByOrderId[order.id] === 'sent'
 
                       return (
                         <tr
@@ -2223,11 +2232,11 @@ export default function OrdersPage() {
                             </div>
                           </td>
                           <td className="px-4 py-4 align-middle">
-                            <div className="flex flex-wrap items-center gap-1.5">
+                            <div className="flex items-center">
                               <button
                                 type="button"
                                 onClick={() => setDetailsDrawerOrderId(order.id)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-cyan-200/45 bg-cyan-300/15 px-3 text-[11px] font-black text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)] transition hover:bg-cyan-300/25 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-cyan-200/55 bg-cyan-300/15 px-4 text-[11px] font-black text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)] transition hover:border-cyan-200/80 hover:bg-cyan-300/25 hover:shadow-[0_0_22px_rgba(34,211,238,0.24)]"
                               >
                                 <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                   <path d="M7 3h10a2 2 0 0 1 2 2v16l-3-1.5-3 1.5-3-1.5L7 21V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -2235,75 +2244,6 @@ export default function OrdersPage() {
                                 </svg>
                                 تفاصيل الطلب
                               </button>
-                              <button
-                                type="button"
-                                disabled={!canManageOrders || isUpdating}
-                                onClick={() => {
-                                  const nextStatus =
-                                    order.status === 'unknown'
-                                      ? 'in_progress'
-                                      : order.status
-                                  setStatusModalOrder(order)
-                                  setStatusModalValue(nextStatus)
-                                  setStatusModalOptionKey(
-                                    nextStatus === 'closed'
-                                      ? 'delivered_closed'
-                                      : nextStatus
-                                  )
-                                  setStatusDropdownOpen(false)
-                                }}
-                                className="h-9 rounded-xl border border-cyan-300/30 bg-cyan-400/10 px-3 text-[11px] font-black text-cyan-100 transition hover:bg-cyan-400/15 hover:shadow-[0_0_14px_rgba(34,211,238,0.16)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
-                              >
-                                تعديل الحالة
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!canPrepare || isUpdating}
-                                onClick={() => updateStatus(order, 'ready')}
-                                className="h-9 rounded-xl border border-sky-300/35 bg-sky-500/15 px-3 text-[11px] font-black text-sky-100 transition hover:bg-sky-500/25 hover:shadow-[0_0_14px_rgba(14,165,233,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
-                              >
-                                تم التجهيز
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!canDeliver || isUpdating || isClosed}
-                                onClick={() => updateStatus(order, 'closed')}
-                                className="h-9 rounded-xl border border-emerald-300/35 bg-emerald-500/15 px-3 text-[11px] font-black text-emerald-100 transition hover:bg-emerald-500/25 hover:shadow-[0_0_14px_rgba(16,185,129,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
-                              >
-                                تم التسليم
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!canUseDigitalInvoice || Boolean(invoicePdfAction)}
-                                onClick={() => previewDigitalInvoice(order)}
-                                className="h-9 rounded-xl border border-violet-300/35 bg-violet-500/15 px-3 text-[11px] font-black text-violet-100 transition hover:bg-violet-500/25 hover:shadow-[0_0_14px_rgba(139,92,246,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
-                              >
-                                {invoicePdfAction === 'preview'
-                                  ? 'جاري المعاينة...'
-                                  : 'معاينة PDF'}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!canSendDigitalInvoice || Boolean(invoicePdfAction)}
-                                onClick={() => sendDigitalInvoicePdf(order)}
-                                className="h-9 rounded-xl border border-teal-300/35 bg-teal-500/15 px-3 text-[11px] font-black text-teal-100 transition hover:bg-teal-500/25 hover:shadow-[0_0_14px_rgba(20,184,166,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
-                              >
-                                {invoicePdfAction === 'send'
-                                  ? 'جاري الإرسال...'
-                                  : hasSentDigitalInvoice
-                                    ? 'إعادة إرسال PDF'
-                                    : 'إرسال PDF'}
-                              </button>
-                              {canCancelOrders && (
-                              <button
-                                type="button"
-                                disabled={orderIsCancelled || isUpdating}
-                                onClick={() => setCancelModalOrder(order)}
-                                className="h-9 rounded-xl border border-rose-300/35 bg-rose-500/15 px-3 text-[11px] font-black text-rose-100 transition hover:bg-rose-500/25 hover:shadow-[0_0_14px_rgba(244,63,94,0.18)] disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500 disabled:hover:shadow-none"
-                              >
-                                إلغاء الطلب
-                              </button>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -2356,9 +2296,23 @@ export default function OrdersPage() {
                       <DetailItem
                         label="الحالة الحالية"
                         value={
-                          isCancelledOrder(detailsDrawerOrder)
-                            ? CANCELLED_ORDER_UI.label
-                            : ORDER_STATUS_UI[detailsDrawerOrder.status].label
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span>
+                              {isCancelledOrder(detailsDrawerOrder)
+                                ? CANCELLED_ORDER_UI.label
+                                : ORDER_STATUS_UI[detailsDrawerOrder.status].label}
+                            </span>
+                            {detailsDrawerOrder.status === 'closed' ? (
+                              <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-black text-emerald-100">
+                                مكتمل
+                              </span>
+                            ) : null}
+                            {isCancelledOrder(detailsDrawerOrder) ? (
+                              <span className="rounded-full border border-rose-300/30 bg-rose-400/10 px-2 py-0.5 text-[10px] font-black text-rose-100">
+                                ملغي
+                              </span>
+                            ) : null}
+                          </span>
                         }
                       />
                       <DetailItem label="الفرع" value={getOrderBranchLabel(detailsDrawerOrder)} />
@@ -2504,18 +2458,107 @@ export default function OrdersPage() {
                   <DrawerSection title="سجل حالة الطلب">
                     <div className="space-y-2">
                       {[
-                        ['Created', detailsDrawerOrder.created_at, true],
-                        ['Preparing', detailsDrawerOrder.created_at, detailsDrawerOrder.status === 'in_progress'],
-                        ['Ready', detailsDrawerOrder.status === 'ready' ? detailsDrawerOrder.updated_at || detailsDrawerOrder.created_at : '', detailsDrawerOrder.status === 'ready'],
-                        ['Delivered', detailsDrawerOrder.status === 'closed' ? detailsDrawerOrder.updated_at || detailsDrawerOrder.created_at : '', detailsDrawerOrder.status === 'closed'],
-                        ['Cancelled', isCancelledOrder(detailsDrawerOrder) ? detailsDrawerOrder.updated_at || detailsDrawerOrder.created_at : '', isCancelledOrder(detailsDrawerOrder)],
-                      ].map(([label, time, active]) => (
-                        <div key={String(label)} className="flex items-center gap-3 rounded-2xl border border-cyan-300/10 bg-[#091522]/75 px-3 py-2">
-                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${active ? 'bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.45)]' : 'bg-slate-600'}`} />
+                        {
+                          key: 'created',
+                          label: 'تم إنشاء الطلب',
+                          time: detailsDrawerOrder.created_at,
+                          reached: true,
+                          current: false,
+                          cancelled: false,
+                        },
+                        {
+                          key: 'in_progress',
+                          label: 'قيد التجهيز',
+                          time: detailsDrawerOrder.created_at,
+                          reached:
+                            !isCancelledOrder(detailsDrawerOrder) &&
+                            ['in_progress', 'ready', 'closed'].includes(
+                              detailsDrawerOrder.status
+                            ),
+                          current: detailsDrawerOrder.status === 'in_progress',
+                          cancelled: false,
+                        },
+                        {
+                          key: 'ready',
+                          label: 'جاهز',
+                          time:
+                            detailsDrawerOrder.status === 'ready'
+                              ? detailsDrawerOrder.updated_at ||
+                                detailsDrawerOrder.created_at
+                              : '',
+                          reached:
+                            !isCancelledOrder(detailsDrawerOrder) &&
+                            ['ready', 'closed'].includes(detailsDrawerOrder.status),
+                          current: detailsDrawerOrder.status === 'ready',
+                          cancelled: false,
+                        },
+                        {
+                          key: 'closed',
+                          label: 'تم التسليم',
+                          time:
+                            detailsDrawerOrder.status === 'closed'
+                              ? detailsDrawerOrder.updated_at ||
+                                detailsDrawerOrder.created_at
+                              : '',
+                          reached:
+                            !isCancelledOrder(detailsDrawerOrder) &&
+                            detailsDrawerOrder.status === 'closed',
+                          current: detailsDrawerOrder.status === 'closed',
+                          cancelled: false,
+                        },
+                        {
+                          key: 'cancelled',
+                          label: 'ملغي',
+                          time: isCancelledOrder(detailsDrawerOrder)
+                            ? detailsDrawerOrder.updated_at ||
+                              detailsDrawerOrder.created_at
+                            : '',
+                          reached: isCancelledOrder(detailsDrawerOrder),
+                          current: isCancelledOrder(detailsDrawerOrder),
+                          cancelled: true,
+                        },
+                      ].map((step) => (
+                        <div
+                          key={step.key}
+                          className={`flex items-center gap-3 rounded-2xl border px-3 py-2 transition ${
+                            step.current
+                              ? step.cancelled
+                                ? 'border-rose-300/30 bg-rose-500/10'
+                                : 'border-emerald-300/30 bg-emerald-400/10 shadow-[0_0_22px_rgba(16,185,129,0.12)]'
+                              : step.reached
+                                ? 'border-emerald-300/15 bg-[#091522]/85'
+                                : 'border-cyan-300/10 bg-[#091522]/55 opacity-60'
+                          }`}
+                        >
+                          <span
+                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                              step.reached
+                                ? step.cancelled
+                                  ? 'bg-rose-300 shadow-[0_0_18px_rgba(244,63,94,0.45)]'
+                                  : step.current
+                                    ? 'bg-emerald-300 shadow-[0_0_22px_rgba(16,185,129,0.6)]'
+                                    : 'bg-emerald-300'
+                                : 'bg-slate-600'
+                            }`}
+                          />
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-black text-white">{label}</p>
-                            <p className="text-[11px] font-bold text-slate-500">{formatDateTime(String(time || ''))}</p>
+                            <p className="text-xs font-black text-white">
+                              {step.label}
+                            </p>
+                            <p className="text-[11px] font-bold text-slate-500">
+                              {formatDateTime(step.time)}
+                            </p>
                           </div>
+                          {step.current && detailsDrawerOrder.status === 'closed' ? (
+                            <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-black text-emerald-100">
+                              مكتمل
+                            </span>
+                          ) : null}
+                          {step.current && step.cancelled ? (
+                            <span className="rounded-full border border-rose-300/30 bg-rose-400/10 px-2 py-1 text-[10px] font-black text-rose-100">
+                              ملغي
+                            </span>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -2557,12 +2600,17 @@ export default function OrdersPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      disabled={!canManageOrders || updatingId === detailsDrawerOrder.id}
+                      disabled={
+                        !canManageOrders ||
+                        isFinalOrderStatus(detailsDrawerOrder) ||
+                        updatingId === detailsDrawerOrder.id
+                      }
                       onClick={() => {
-                        const nextStatus =
-                          detailsDrawerOrder.status === 'unknown'
-                            ? 'in_progress'
-                            : detailsDrawerOrder.status
+                        const nextStatus = getNextAllowedStatus(detailsDrawerOrder)
+                        if (!nextStatus) {
+                          showError(INVALID_STATUS_SEQUENCE_MESSAGE)
+                          return
+                        }
                         setStatusModalOrder(detailsDrawerOrder)
                         setStatusModalValue(nextStatus)
                         setStatusModalOptionKey(
@@ -2598,7 +2646,9 @@ export default function OrdersPage() {
                     </button>
                     <button
                       type="button"
-                      disabled={!canCancelOrders || isCancelledOrder(detailsDrawerOrder)}
+                      disabled={
+                        !canCancelOrders || isFinalOrderStatus(detailsDrawerOrder)
+                      }
                       onClick={() => setCancelModalOrder(detailsDrawerOrder)}
                       className="h-10 rounded-xl border border-rose-300/25 bg-rose-500/15 px-3 text-xs font-black text-rose-100 transition hover:bg-rose-500/25 disabled:opacity-50"
                     >
@@ -2714,20 +2764,26 @@ export default function OrdersPage() {
                     >
                       {STATUS_EDIT_OPTIONS.map((option) => {
                         const isSelected = statusModalOptionKey === option.id
+                        const isOptionDisabled =
+                          option.disabled ||
+                          !isAllowedStatusTransition(
+                            statusModalOrder,
+                            option.value
+                          )
 
                         return (
                           <button
                             key={option.id}
                             type="button"
-                            disabled={option.disabled}
+                            disabled={isOptionDisabled}
                             onClick={() => {
-                              if (option.disabled) return
+                              if (isOptionDisabled) return
                               setStatusModalValue(option.value)
                               setStatusModalOptionKey(option.id)
                               setStatusDropdownOpen(false)
                             }}
                             className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-right text-sm font-black transition ${
-                              option.disabled
+                              isOptionDisabled
                                 ? 'cursor-not-allowed text-slate-500 opacity-55'
                                 : isSelected
                                   ? 'border border-cyan-300/25 bg-cyan-300/[0.12] text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.11)]'
@@ -2780,7 +2836,13 @@ export default function OrdersPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={updatingId === statusModalOrder.id}
+                    disabled={
+                      updatingId === statusModalOrder.id ||
+                      !isAllowedStatusTransition(
+                        statusModalOrder,
+                        statusModalValue
+                      )
+                    }
                     onClick={() => updateStatus(statusModalOrder, statusModalValue)}
                     className="h-11 rounded-2xl border border-cyan-300/30 bg-cyan-400/15 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/25 disabled:cursor-wait disabled:opacity-60"
                   >
