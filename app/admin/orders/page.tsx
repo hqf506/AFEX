@@ -49,18 +49,26 @@ type OrdersFilterKey = OrderFilter | 'new' | 'delivered' | 'cancelled'
 type AdminOrderStatus = 'in_progress' | 'ready' | 'closed' | 'cancelled'
 type StatusEditOptionKey = AdminOrderStatus | 'delivered_closed'
 type WhatsAppDeliveryStatus = 'sent' | 'failed' | 'not_sent' | 'pending'
+type NotificationChannel = 'whatsapp' | 'email' | 'sms' | 'push' | 'system'
 type InvoicePdfAction = 'preview' | 'send'
 type PageOrderRecord = OrderRecord & {
   status_raw: string
   created_by_employee_id: string
   updated_at: string
 }
-type WhatsAppHistoryRecord = {
+type NotificationHistoryRecord = {
   id: string
   created_at: string
   status: 'sent' | 'failed'
   messageType: string
+  channel: NotificationChannel
+  recipient: string
   error: string | undefined
+}
+type InvoicePreviewFrame = {
+  title: string
+  src?: string
+  srcDoc?: string
 }
 
 function filterOrders(
@@ -274,6 +282,15 @@ function formatMoney(value: number) {
   })} ر.س`
 }
 
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+}
+
 const CANCELLED_RECEIPT_WHATSAPP_UI = {
   label: 'تم إلغاء الإيصال',
   className: 'border-rose-300/35 bg-rose-500/[0.12] text-rose-100',
@@ -405,6 +422,60 @@ function getWhatsAppStatusUi(status: WhatsAppDeliveryStatus) {
   }
 }
 
+function getNotificationChannel(rawChannel: unknown): NotificationChannel {
+  return rawChannel === 'email' ||
+    rawChannel === 'sms' ||
+    rawChannel === 'push' ||
+    rawChannel === 'system'
+    ? rawChannel
+    : 'whatsapp'
+}
+
+function getNotificationChannelUi(channel: NotificationChannel) {
+  switch (channel) {
+    case 'email':
+      return {
+        label: 'Email',
+        icon: '🔵',
+        dotClassName: 'bg-sky-300',
+      }
+    case 'sms':
+      return {
+        label: 'SMS',
+        icon: '🟣',
+        dotClassName: 'bg-violet-300',
+      }
+    case 'push':
+      return {
+        label: 'Push',
+        icon: '🟠',
+        dotClassName: 'bg-orange-300',
+      }
+    case 'system':
+      return {
+        label: 'System',
+        icon: '🟠',
+        dotClassName: 'bg-orange-300',
+      }
+    default:
+      return {
+        label: 'WhatsApp',
+        icon: '🟢',
+        dotClassName: 'bg-emerald-300',
+      }
+  }
+}
+
+function getNotificationTypeLabel(messageType: string) {
+  if (messageType === 'invoice_pdf') return 'فاتورة PDF'
+  if (messageType === 'ready') return 'رسالة تم التجهيز'
+  if (messageType === 'closed' || messageType === 'delivered') {
+    return 'رسالة تم التسليم'
+  }
+  if (messageType === 'announcement') return 'Announcement'
+  return messageType ? fixArabic(messageType) : 'إشعار'
+}
+
 function applyReadyOrderWhatsAppTemplate(
   template: string,
   order: OrderRecord,
@@ -525,11 +596,16 @@ export default function OrdersPage() {
   const [detailsDrawerOrderId, setDetailsDrawerOrderId] = useState<string | null>(
     null
   )
-  const [whatsAppHistoryByOrderId, setWhatsAppHistoryByOrderId] = useState<
-    Record<string, WhatsAppHistoryRecord[]>
+  const [notificationHistoryByOrderId, setNotificationHistoryByOrderId] = useState<
+    Record<string, NotificationHistoryRecord[]>
   >({})
-  const [whatsAppHistoryLoadingId, setWhatsAppHistoryLoadingId] =
+  const [notificationHistoryLoadingId, setNotificationHistoryLoadingId] =
     useState<string | null>(null)
+  const [employeeNameById, setEmployeeNameById] = useState<Record<string, string>>(
+    {}
+  )
+  const [invoicePreviewFrame, setInvoicePreviewFrame] =
+    useState<InvoicePreviewFrame | null>(null)
 
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -872,6 +948,75 @@ export default function OrdersPage() {
     }
   }, [allowed, orders])
 
+  useEffect(() => {
+    if (!allowed || orders.length === 0) return
+
+    const employeeIds = Array.from(
+      new Set(
+        orders
+          .map((order) => order.created_by_employee_id)
+          .filter((id): id is string => Boolean(id && !employeeNameById[id]))
+      )
+    )
+
+    if (employeeIds.length === 0) return
+
+    let cancelled = false
+
+    async function fetchEmployeeNames(ids: string[]) {
+      const [profilesResult, posProfilesResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .in('id', ids),
+        supabase
+          .from('pos_profiles')
+          .select('id, full_name, username')
+          .in('id', ids),
+      ])
+
+      if (cancelled) return
+
+      const nextNames: Record<string, string> = {}
+
+      for (const row of [
+        ...((profilesResult.data || []) as Array<{
+          id?: string | null
+          full_name?: string | null
+          username?: string | null
+        }>),
+        ...((posProfilesResult.data || []) as Array<{
+          id?: string | null
+          full_name?: string | null
+          username?: string | null
+        }>),
+      ]) {
+        if (!row.id) continue
+        const displayName = row.full_name?.trim() || row.username?.trim()
+        if (displayName) {
+          nextNames[row.id] = fixArabic(displayName)
+        }
+      }
+
+      for (const id of ids) {
+        if (!nextNames[id]) {
+          nextNames[id] = 'غير معروف'
+        }
+      }
+
+      setEmployeeNameById((current) => ({
+        ...current,
+        ...nextNames,
+      }))
+    }
+
+    void fetchEmployeeNames(employeeIds)
+
+    return () => {
+      cancelled = true
+    }
+  }, [allowed, employeeNameById, orders])
+
   const todayOrders = useMemo(() => {
     return getTodayOrderRecords(orders)
   }, [orders])
@@ -934,50 +1079,83 @@ export default function OrdersPage() {
   }, [detailsDrawerOrder, orders])
 
   useEffect(() => {
-    if (!detailsDrawerOrderId || whatsAppHistoryByOrderId[detailsDrawerOrderId]) {
+    if (
+      !detailsDrawerOrderId ||
+      notificationHistoryByOrderId[detailsDrawerOrderId]
+    ) {
       return
     }
 
     let cancelled = false
 
-    async function fetchWhatsAppHistory(orderId: string) {
-      setWhatsAppHistoryLoadingId(orderId)
+    async function fetchNotificationHistory(orderId: string) {
+      setNotificationHistoryLoadingId(orderId)
 
       const { data, error } = await supabase
         .from('audit_logs')
-        .select('id, action, created_at, metadata')
-        .eq('entity_type', 'whatsapp_message')
+        .select('id, action, entity_type, entity_id, created_at, metadata')
+        .in('action', ['whatsapp.message_sent', 'whatsapp.message_failed'])
         .order('created_at', { ascending: false })
-        .limit(500)
+        .limit(1000)
 
       if (cancelled) return
 
       if (error || !Array.isArray(data)) {
-        setWhatsAppHistoryByOrderId((current) => ({
+        setNotificationHistoryByOrderId((current) => ({
           ...current,
           [orderId]: [],
         }))
-        setWhatsAppHistoryLoadingId(null)
+        setNotificationHistoryLoadingId(null)
         return
       }
 
+      const fallbackRecipient = detailsDrawerOrder?.customer_phone || EMPTY_DASH
       const history = data
         .map((log) => {
           const metadata =
             log && typeof log.metadata === 'object' && log.metadata
               ? (log.metadata as Record<string, unknown>)
               : null
+          const notification =
+            metadata?.notification &&
+            typeof metadata.notification === 'object' &&
+            !Array.isArray(metadata.notification)
+              ? (metadata.notification as Record<string, unknown>)
+              : null
           const logOrderId =
-            typeof metadata?.order_id === 'string' ? metadata.order_id : ''
+            typeof metadata?.order_id === 'string'
+              ? metadata.order_id
+              : typeof metadata?.orderId === 'string'
+                ? metadata.orderId
+                : typeof notification?.orderId === 'string'
+                  ? notification.orderId
+                  : typeof log.entity_id === 'string'
+                    ? log.entity_id
+                    : ''
 
           if (logOrderId !== orderId) return null
 
           const messageType =
-            typeof metadata?.order_status === 'string'
+            (typeof metadata?.order_status === 'string'
               ? metadata.order_status
-              : typeof metadata?.type === 'string'
-                ? metadata.type
-                : 'whatsapp'
+              : '') ||
+            (typeof metadata?.status === 'string' ? metadata.status : '') ||
+            (typeof notification?.status === 'string'
+              ? notification.status
+              : '') ||
+            (typeof metadata?.type === 'string' ? metadata.type : '') ||
+            (metadata?.has_file === true ? 'invoice_pdf' : 'whatsapp')
+          const recipient =
+            (typeof metadata?.recipient === 'string'
+              ? metadata.recipient
+              : '') ||
+            (typeof metadata?.recipient_masked === 'string'
+              ? metadata.recipient_masked
+              : '') ||
+            (typeof notification?.recipient === 'string'
+              ? notification.recipient
+              : '') ||
+            fallbackRecipient
 
           return {
             id: typeof log.id === 'string' ? log.id : `${orderId}-${log.created_at}`,
@@ -986,28 +1164,36 @@ export default function OrdersPage() {
             status:
               log.action === 'whatsapp.message_sent' ? 'sent' : 'failed',
             messageType,
+            channel: getNotificationChannel(
+              notification?.channel || metadata?.channel
+            ),
+            recipient,
             error:
               typeof metadata?.error === 'string' ? metadata.error : undefined,
-          } satisfies WhatsAppHistoryRecord
+          } satisfies NotificationHistoryRecord
         })
         .filter(
-          (item): item is WhatsAppHistoryRecord => item !== null
+          (item): item is NotificationHistoryRecord => item !== null
         )
-        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
 
-      setWhatsAppHistoryByOrderId((current) => ({
+      setNotificationHistoryByOrderId((current) => ({
         ...current,
         [orderId]: history,
       }))
-      setWhatsAppHistoryLoadingId(null)
+      setNotificationHistoryLoadingId(null)
     }
 
-    void fetchWhatsAppHistory(detailsDrawerOrderId)
+    void fetchNotificationHistory(detailsDrawerOrderId)
 
     return () => {
       cancelled = true
     }
-  }, [detailsDrawerOrderId, whatsAppHistoryByOrderId])
+  }, [
+    detailsDrawerOrder?.customer_phone,
+    detailsDrawerOrderId,
+    notificationHistoryByOrderId,
+  ])
 
   const selectedStatusOption = useMemo(() => {
     return (
@@ -1151,6 +1337,24 @@ export default function OrdersPage() {
         ...current,
         [order.id]: undefined,
       }))
+    }
+  }
+
+  const previewDigitalInvoiceInPage = (order: PageOrderRecord) => {
+    if (order.items.length === 0) {
+      showError('لا توجد عناصر في الفاتورة لمعاينة PDF')
+      return
+    }
+
+    try {
+      const payload = encodeInvoicePreviewPayload(order)
+      setInvoicePreviewFrame({
+        title: 'معاينة الفاتورة الرقمية',
+        src: `/api/invoices/pdf?format=html&payload=${payload}`,
+      })
+    } catch (error) {
+      console.error('Invoice preview error:', error)
+      showError('تعذر فتح معاينة الفاتورة الرقمية')
     }
   }
 
@@ -1592,6 +1796,106 @@ export default function OrdersPage() {
     printWindow.document.close()
   }
   void printThermalReceipt
+
+  const previewThermalInvoiceInPage = (order: PageOrderRecord) => {
+    const statusLabel = ORDER_STATUS_MAP[order.status]?.label || EMPTY_DASH
+    const itemsHtml =
+      order.items.length > 0
+        ? order.items
+            .map(
+              (item) => `
+                <div class="item">
+                  <div class="item-name">${escapeHtml(fixArabic(item.item_name))}</div>
+                  <div class="item-meta">
+                    <span>الكمية: ${escapeHtml(item.quantity)}</span>
+                    <span>الوحدة: ${escapeHtml(formatMoney(item.unit_price))}</span>
+                  </div>
+                  <div class="item-total">الإجمالي: ${escapeHtml(formatMoney(item.line_total))}</div>
+                </div>
+              `
+            )
+            .join('')
+        : `<div class="empty">لا توجد عناصر</div>`
+
+    setInvoicePreviewFrame({
+      title: 'معاينة الفاتورة الحرارية',
+      srcDoc: `
+        <html lang="ar" dir="rtl">
+          <head>
+            <meta charset="UTF-8" />
+            <style>
+              @page { size: 80mm auto; margin: 4mm; }
+              * { box-sizing: border-box; }
+              body {
+                margin: 0 auto;
+                padding: 0;
+                width: 80mm;
+                background: #fff;
+                color: #000;
+                font-family: Arial, sans-serif;
+                direction: rtl;
+              }
+              .receipt { width: 100%; padding: 6mm 4mm; }
+              .center { text-align: center; }
+              .title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+              .subtitle { font-size: 12px; margin-bottom: 12px; }
+              .line { border-top: 1px dashed #000; margin: 10px 0; }
+              .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 6px; }
+              .label { font-weight: 700; }
+              .value { text-align: left; word-break: break-word; }
+              .section-title { font-size: 13px; font-weight: 700; margin: 10px 0 6px; }
+              .item { border-bottom: 1px dashed #000; padding: 6px 0; }
+              .item-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+              .item-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; margin-bottom: 4px; }
+              .item-total { font-size: 12px; font-weight: 700; }
+              .total-box {
+                margin-top: 10px;
+                padding-top: 8px;
+                border-top: 2px solid #000;
+                font-size: 15px;
+                font-weight: 700;
+                display: flex;
+                justify-content: space-between;
+              }
+              .note { font-size: 11px; margin-top: 8px; white-space: pre-wrap; }
+              .footer { text-align: center; font-size: 11px; margin-top: 14px; }
+              .empty { font-size: 11px; color: #444; text-align: center; padding: 8px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="receipt">
+              <div class="center">
+                <div class="title">AFEX</div>
+                <div class="subtitle">فاتورة حرارية</div>
+              </div>
+              <div class="line"></div>
+              <div class="row"><span class="label">رقم الطلب</span><span class="value">${escapeHtml(order.order_number)}</span></div>
+              <div class="row"><span class="label">رقم الفاتورة</span><span class="value">${escapeHtml(order.invoice_number)}</span></div>
+              <div class="row"><span class="label">اسم العميل</span><span class="value">${escapeHtml(fixArabic(order.customer_name))}</span></div>
+              <div class="row"><span class="label">الجوال</span><span class="value">${escapeHtml(order.customer_phone)}</span></div>
+              <div class="row"><span class="label">الحالة</span><span class="value">${escapeHtml(fixArabic(statusLabel))}</span></div>
+              <div class="row"><span class="label">الدفع</span><span class="value">${escapeHtml(fixArabic(order.payment_method))}</span></div>
+              <div class="row"><span class="label">تاريخ الطلب</span><span class="value">${escapeHtml(formatDateTime(order.created_at))}</span></div>
+              <div class="line"></div>
+              <div class="section-title">العناصر</div>
+              ${itemsHtml}
+              <div class="total-box">
+                <span>الإجمالي</span>
+                <span>${escapeHtml(formatMoney(order.total))}</span>
+              </div>
+              ${
+                fixArabic(order.note) !== EMPTY_DASH
+                  ? `<div class="line"></div><div class="note"><strong>ملاحظة:</strong> ${escapeHtml(fixArabic(order.note))}</div>`
+                  : ''
+              }
+              <div class="line"></div>
+              <div class="footer">شكراً لتعاملكم معنا</div>
+            </div>
+          </body>
+        </html>
+      `,
+    })
+  }
 
   if (authLoading) {
     return (
@@ -2060,7 +2364,13 @@ export default function OrdersPage() {
                       <DetailItem label="الفرع" value={getOrderBranchLabel(detailsDrawerOrder)} />
                       <DetailItem
                         label="الموظف"
-                        value={detailsDrawerOrder.created_by_employee_id || 'غير محدد'}
+                        value={
+                          detailsDrawerOrder.created_by_employee_id
+                            ? employeeNameById[
+                                detailsDrawerOrder.created_by_employee_id
+                              ] || 'غير معروف'
+                            : 'غير معروف'
+                        }
                       />
                       <DetailItem
                         label="تاريخ الإنشاء"
@@ -2142,43 +2452,52 @@ export default function OrdersPage() {
                     )}
                   </DrawerSection>
 
-                  <DrawerSection title="سجل الواتساب">
-                    {whatsAppHistoryLoadingId === detailsDrawerOrder.id ? (
-                      <EmptyDrawerText>جاري تحميل سجل الإرسال...</EmptyDrawerText>
-                    ) : (whatsAppHistoryByOrderId[detailsDrawerOrder.id] || []).length > 0 ? (
-                      <div className="space-y-2">
-                        {(whatsAppHistoryByOrderId[detailsDrawerOrder.id] || []).map((entry) => {
+                  <DrawerSection title="سجل الإشعارات">
+                    {notificationHistoryLoadingId === detailsDrawerOrder.id ? (
+                      <EmptyDrawerText>جاري تحميل سجل الإشعارات...</EmptyDrawerText>
+                    ) : (notificationHistoryByOrderId[detailsDrawerOrder.id] || []).length > 0 ? (
+                      <div className="relative space-y-3 before:absolute before:bottom-3 before:right-3 before:top-3 before:w-px before:bg-cyan-300/15">
+                        {(notificationHistoryByOrderId[detailsDrawerOrder.id] || []).map((entry) => {
                           const entryUi = getWhatsAppStatusUi(entry.status)
+                          const channelUi = getNotificationChannelUi(entry.channel)
 
                           return (
-                            <div key={entry.id} className="rounded-2xl border border-cyan-300/10 bg-[#091522]/80 p-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${entryUi.className}`}>
-                                  <span className={`h-1.5 w-1.5 rounded-full ${entryUi.dotClassName}`} />
-                                  {entry.status === 'sent' ? '✓ تم الإرسال' : '✕ فشل الإرسال'}
-                                </span>
-                                <span className="text-[11px] font-bold text-slate-500">
-                                  {formatDateTime(entry.created_at)}
-                                </span>
+                            <div key={entry.id} className="relative flex gap-3 pr-8">
+                              <span className={`absolute right-2 top-5 h-2.5 w-2.5 rounded-full shadow-[0_0_18px_rgba(34,211,238,0.35)] ${entryUi.dotClassName}`} />
+                              <div className="min-w-0 flex-1 rounded-2xl border border-cyan-300/10 bg-[#091522]/80 p-3 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/25 hover:bg-[#0b1b2b]">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-black text-white">
+                                      {getNotificationTypeLabel(entry.messageType)}
+                                    </p>
+                                    <p className="mt-1 text-[11px] font-bold text-slate-400">
+                                      <span aria-hidden="true">{channelUi.icon}</span>{' '}
+                                      {channelUi.label}
+                                    </p>
+                                  </div>
+                                  <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${entryUi.className}`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${channelUi.dotClassName}`} />
+                                    {entry.status === 'sent' ? '✓ تم الإرسال' : '✕ فشل الإرسال'}
+                                  </span>
+                                </div>
+                                <div className="mt-3 grid gap-2 text-[11px] font-bold text-slate-400 sm:grid-cols-[1fr_auto]">
+                                  <span>المستلم: {entry.recipient}</span>
+                                  <span className="text-left text-slate-500">
+                                    {formatDateTime(entry.created_at)}
+                                  </span>
+                                </div>
+                                {entry.error ? (
+                                  <p className="mt-2 rounded-xl border border-rose-300/15 bg-rose-400/10 px-3 py-2 text-xs font-bold text-rose-200">
+                                    {entry.error}
+                                  </p>
+                                ) : null}
                               </div>
-                              <p className="mt-2 text-xs font-bold text-slate-300">
-                                {entry.messageType === 'invoice_pdf'
-                                  ? 'فاتورة PDF'
-                                  : entry.messageType === 'ready'
-                                    ? 'تم إرسال رسالة "جاهز"'
-                                    : entry.messageType === 'closed'
-                                      ? 'تم إرسال رسالة "تم التسليم"'
-                                      : entry.messageType}
-                              </p>
-                              {entry.error ? (
-                                <p className="mt-1 text-xs font-bold text-rose-200">{entry.error}</p>
-                              ) : null}
                             </div>
                           )
                         })}
                       </div>
                     ) : (
-                      <EmptyDrawerText>لا يوجد سجل إرسال.</EmptyDrawerText>
+                      <EmptyDrawerText>لا توجد إشعارات لهذا الطلب حتى الآن.</EmptyDrawerText>
                     )}
                   </DrawerSection>
 
@@ -2217,14 +2536,14 @@ export default function OrdersPage() {
                       <button
                         type="button"
                         disabled={detailsDrawerOrder.items.length === 0}
-                        onClick={() => previewDigitalInvoice(detailsDrawerOrder)}
+                        onClick={() => previewDigitalInvoiceInPage(detailsDrawerOrder)}
                         className="h-11 rounded-2xl border border-violet-300/30 bg-violet-500/15 px-4 text-xs font-black text-violet-100 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:border-slate-500/20 disabled:bg-slate-500/10 disabled:text-slate-500"
                       >
                         معاينة الفاتورة الرقمية
                       </button>
                       <button
                         type="button"
-                        onClick={() => printThermalReceipt(detailsDrawerOrder)}
+                        onClick={() => previewThermalInvoiceInPage(detailsDrawerOrder)}
                         className="h-11 rounded-2xl border border-cyan-300/30 bg-cyan-500/15 px-4 text-xs font-black text-cyan-100 transition hover:bg-cyan-500/25"
                       >
                         معاينة الفاتورة الحرارية
@@ -2288,6 +2607,40 @@ export default function OrdersPage() {
                   </div>
                 </div>
               </aside>
+            </div>
+          ) : null}
+          {invoicePreviewFrame ? (
+            <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
+              <div className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]">
+                <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
+                  <div className="text-right">
+                    <h3 className="text-lg font-black text-white">
+                      {invoicePreviewFrame.title}
+                    </h3>
+                    <p className="mt-1 text-xs font-bold text-cyan-100/70">
+                      معاينة داخل تفاصيل الطلب
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInvoicePreviewFrame(null)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-[#091522]/80 text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/10 hover:text-white hover:shadow-[0_0_24px_rgba(34,211,238,0.22)] focus:outline-none focus:ring-2 focus:ring-cyan-300/25"
+                    aria-label="إغلاق المعاينة"
+                    title="إغلاق"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 bg-[#020817] p-2 sm:p-3">
+                  <iframe
+                    key={invoicePreviewFrame.src || invoicePreviewFrame.srcDoc || ''}
+                    title={invoicePreviewFrame.title}
+                    src={invoicePreviewFrame.src}
+                    srcDoc={invoicePreviewFrame.srcDoc}
+                    className="h-full w-full rounded-[20px] border border-cyan-300/10 bg-white"
+                  />
+                </div>
+              </div>
             </div>
           ) : null}
           {statusModalOrder ? (
