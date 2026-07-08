@@ -429,7 +429,7 @@ export default function AdminSettingsPage() {
   }
 
   if (loading) {
-    return <PageState>جاري تحميل إعدادات النظام...</PageState>
+    return <PageState>جارٍ تحميل إعدادات النظام...</PageState>
   }
 
   return (
@@ -475,7 +475,7 @@ export default function AdminSettingsPage() {
                 disabled={saving}
                 className="h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-[#04131d] shadow-[0_0_30px_rgba(34,211,238,0.18)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
               </button>
             </div>
           </div>
@@ -1119,7 +1119,7 @@ export default function AdminSettingsPage() {
                   disabled={testSending}
                   className="h-12 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {testSending ? 'جاري الإرسال...' : 'إرسال رسالة اختبار'}
+                  {testSending ? 'جارٍ الإرسال...' : 'إرسال رسالة اختبار'}
                 </button>
               </div>
               {testSuccessMessage ? (
@@ -1175,7 +1175,7 @@ export default function AdminSettingsPage() {
               disabled={saving}
               className="h-14 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-sm font-black text-[#04131d] shadow-[0_0_32px_rgba(34,211,238,0.18)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
             </button>
             <button
               type="button"
@@ -1311,7 +1311,7 @@ function ThermalLogoUploadCard({
             disabled={uploading}
             className="h-10 rounded-2xl border border-cyan-300/35 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/20 hover:text-white hover:shadow-[0_0_22px_rgba(34,211,238,0.22)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {uploading ? 'جاري الرفع...' : hasLogo ? 'تغيير الصورة' : 'رفع الشعار'}
+            {uploading ? 'جارٍ الرفع...' : hasLogo ? 'تغيير الصورة' : 'رفع الشعار'}
           </button>
           {hasLogo ? (
             <button

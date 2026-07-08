@@ -2674,7 +2674,7 @@ export default function AdminCatalogPage() {
                         }}
                       />
                       {editingItemId && uploadingImageItemId === editingItemId
-                        ? 'جاري رفع الصورة...'
+                        ? 'جارٍ رفع الصورة...'
                         : 'رفع'}
                     </label>
                   ) : null}
@@ -2717,8 +2717,8 @@ export default function AdminCatalogPage() {
         >
           {saving
             ? editingItemId
-              ? 'جاري حفظ التعديل...'
-              : 'جاري إضافة العنصر...'
+              ? 'جارٍ حفظ التعديل...'
+              : 'جارٍ إضافة العنصر...'
             : 'حفظ'}
         </button>
         <button
@@ -3019,7 +3019,7 @@ export default function AdminCatalogPage() {
                   disabled={!importFile || importing}
                   className="inline-flex h-11 items-center rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {importing ? 'جاري الرفع...' : 'رفع'}
+                  {importing ? 'جارٍ الرفع...' : 'رفع'}
                 </button>
                 <button
                   type="button"
@@ -3060,7 +3060,7 @@ export default function AdminCatalogPage() {
                       disabled={saving || isBulkDeleting}
                       className="inline-flex h-11 items-center rounded-2xl border border-red-400/25 bg-red-500/10 px-4 text-sm font-bold text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {isBulkDeleting ? 'جاري الحذف...' : `حذف ${selectedItemIds.length}`}
+                      {isBulkDeleting ? 'جارٍ الحذف...' : `حذف ${selectedItemIds.length}`}
                     </button>
                   ) : null}
                 </div>
@@ -3256,7 +3256,7 @@ export default function AdminCatalogPage() {
               <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-3">
                 <div className="flex items-center justify-between gap-4 text-sm font-medium text-amber-100">
                   <span>
-                    جاري حذف العناصر... {bulkDeleteDone} من {bulkDeleteTotal}
+                    جارٍ حذف العناصر... {bulkDeleteDone} من {bulkDeleteTotal}
                   </span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-950/50">
@@ -3269,7 +3269,7 @@ export default function AdminCatalogPage() {
             ) : null}
             {loadingItems ? (
               <div className="px-4 py-14 text-center text-sm font-bold text-slate-400">
-                جاري تحميل العناصر...
+                جارٍ تحميل العناصر...
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center bg-[#07111f] px-4 py-16 text-center">

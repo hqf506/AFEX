@@ -1239,7 +1239,7 @@ export default function AdminUsersPage() {
                   disabled={!canSubmitCreate || creating}
                   className={`inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
                 >
-                  {creating ? 'جاري الإنشاء...' : 'إنشاء المستخدم'}
+                  {creating ? 'جارٍ الإنشاء...' : 'إنشاء المستخدم'}
                 </button>
               </div>
             </div>
@@ -1582,7 +1582,7 @@ export default function AdminUsersPage() {
                         }
                         className={`inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 ${BRANCH_PRIMARY_BUTTON_TYPOGRAPHY}`}
                       >
-                        {savingEdit ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                        {savingEdit ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
                       </button>
                     </div>
                   </div>
@@ -1673,7 +1673,7 @@ export default function AdminUsersPage() {
             <div className="bg-transparent">
               {loadingUsers ? (
                 <p className="rounded-2xl border border-cyan-300/12 bg-white/[0.045] p-4 text-sm text-slate-400 shadow-sm">
-                  جاري تحميل المستخدمين...
+                  جارٍ تحميل المستخدمين...
                 </p>
               ) : filteredUsers.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-cyan-300/20 bg-cyan-300/5 p-8 text-center">

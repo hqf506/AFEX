@@ -686,7 +686,7 @@ export default function InventoryMovementsPage() {
               className="flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0a1424] px-4 text-right text-sm font-bold text-white outline-none transition hover:border-cyan-300/25 hover:bg-white/[0.04] focus:border-cyan-300/40 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="min-w-0 truncate">
-                {loadingBranches ? 'جاري تحميل الفروع...' : selectedBranchLabel}
+                {loadingBranches ? 'جارٍ تحميل الفروع...' : selectedBranchLabel}
               </span>
               <ChevronIcon open={branchMenuOpen} />
             </button>

@@ -143,7 +143,7 @@ function DrawerActions({
         disabled={saving}
         className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+        {saving ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
       </button>
     </div>
   )
@@ -687,7 +687,7 @@ export default function AdminInventoryPage() {
                   className="flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-cyan-300/15 bg-white/[0.045] px-4 text-right text-sm font-bold text-white outline-none transition hover:border-cyan-300/30 hover:bg-white/[0.06] focus:border-cyan-300/55 focus:bg-white/[0.07] focus:ring-2 focus:ring-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="min-w-0 truncate">
-                    {loadingBranches ? 'جاري تحميل الفروع...' : selectedBranchLabel}
+                    {loadingBranches ? 'جارٍ تحميل الفروع...' : selectedBranchLabel}
                   </span>
                   <span
                     className={`text-cyan-200 transition ${
@@ -758,7 +758,7 @@ export default function AdminInventoryPage() {
             />
           ) : loadingInventory ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/15 bg-black/20 px-4 py-10 text-center text-sm font-bold text-slate-400">
-              جاري تحميل المخزون...
+              جارٍ تحميل المخزون...
             </div>
           ) : inventoryRows.length === 0 ? (
             <InventoryEmptyState

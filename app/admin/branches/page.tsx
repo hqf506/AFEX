@@ -540,7 +540,7 @@ export default function AdminBranchesPage() {
 
           {loadingBranches ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/15 bg-black/20 px-4 py-10 text-center text-sm font-bold text-slate-400">
-              جاري تحميل الفروع...
+              جارٍ تحميل الفروع...
             </div>
           ) : activeBranches.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/20 bg-black/20 px-4 py-12 text-center">
@@ -792,7 +792,7 @@ export default function AdminBranchesPage() {
                             disabled={isRestoring}
                             className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-2 text-xs font-black text-emerald-200 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {isRestoring ? 'جاري الاسترجاع...' : 'استرجاع'}
+                            {isRestoring ? 'جارٍ الاسترجاع...' : 'استرجاع'}
                           </button>
                         </td>
                       </tr>
@@ -834,7 +834,7 @@ export default function AdminBranchesPage() {
                 className="inline-flex h-11 items-center justify-center rounded-2xl border border-red-300/20 bg-red-500/10 px-5 text-sm font-black text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deletingBranchId === deleteModalBranch.id
-                  ? 'جاري الحذف...'
+                  ? 'جارٍ الحذف...'
                   : 'تأكيد الحذف'}
               </button>
             </div>
@@ -958,7 +958,7 @@ export default function AdminBranchesPage() {
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {creatingBranch
-                    ? 'جاري الحفظ...'
+                    ? 'جارٍ الحفظ...'
                     : editingBranch
                       ? 'حفظ التعديلات'
                       : 'حفظ الفرع'}

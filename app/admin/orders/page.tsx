@@ -2512,7 +2512,7 @@ export default function OrdersPage() {
 
                   <DrawerSection title="سجل الإشعارات">
                     {notificationHistoryLoadingId === detailsDrawerOrder.id ? (
-                      <EmptyDrawerText>جاري تحميل سجل الإشعارات...</EmptyDrawerText>
+                      <EmptyDrawerText>جارٍ تحميل سجل الإشعارات...</EmptyDrawerText>
                     ) : (notificationHistoryByOrderId[detailsDrawerOrder.id] || []).length > 0 ? (
                       <div className="relative space-y-3 before:absolute before:bottom-3 before:right-3 before:top-3 before:w-px before:bg-cyan-300/15">
                         {(notificationHistoryByOrderId[detailsDrawerOrder.id] || []).map((entry) => {
