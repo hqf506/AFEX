@@ -407,7 +407,7 @@ export async function POST(request: NextRequest) {
         auth.response,
         {
           success: false,
-          message: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©',
+          message: 'تعذر تحديد نطاق المنشأة',
         },
         400
       )

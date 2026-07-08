@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' }, 400)
+        jsonResponse({ error: 'تعذر تحديد نطاق المنشأة' }, 400)
       )
     }
 

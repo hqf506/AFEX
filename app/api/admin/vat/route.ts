@@ -156,7 +156,7 @@ async function upsertVatSetting(body: UpsertVatBody, tenantId: string) {
   }
 
   if (branchId && !(await branchBelongsToTenant(branchId, tenantId))) {
-    throw new Error('Ø§Ù„ÙØ±Ø¹ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯')
+    throw new Error('الفرع غير موجود')
   }
 
   let existingQuery = supabaseAdmin
@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        utf8JsonResponse({ error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' }, 400)
+        utf8JsonResponse({ error: 'تعذر تحديد نطاق المنشأة' }, 400)
       )
     }
 
@@ -344,7 +344,7 @@ export async function PATCH(request: NextRequest) {
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        utf8JsonResponse({ error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' }, 400)
+        utf8JsonResponse({ error: 'تعذر تحديد نطاق المنشأة' }, 400)
       )
     }
 

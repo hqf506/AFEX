@@ -389,10 +389,10 @@ export async function POST(
           auth.response,
           utf8JsonResponse(
             {
-              error: 'ØªØ¹Ø°Ø± Ø¥Ø±Ø¬Ø§Ø¹ Ø§Ù„Ù…Ø®Ø²ÙˆÙ† Ø¨Ø¹Ø¯ Ø¥Ù„ØºØ§Ø¡ Ø§Ù„ÙØ§ØªÙˆØ±Ø©',
+              error: 'تعذر إرجاع المخزون بعد إلغاء الفاتورة',
               ...safeErrorDetails(
                 restoreInventoryError,
-                'ØªØ¹Ø°Ø± Ø¥Ø±Ø¬Ø§Ø¹ Ø§Ù„Ù…Ø®Ø²ÙˆÙ† Ø¨Ø¹Ø¯ Ø¥Ù„ØºØ§Ø¡ Ø§Ù„ÙØ§ØªÙˆØ±Ø©'
+                'تعذر إرجاع المخزون بعد إلغاء الفاتورة'
               ),
               ...safeErrorCode(restoreInventoryError),
             },

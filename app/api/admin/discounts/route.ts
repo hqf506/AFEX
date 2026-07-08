@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        utf8JsonResponse({ error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' }, 400)
+        utf8JsonResponse({ error: 'تعذر تحديد نطاق المنشأة' }, 400)
       )
     }
 
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
     if (branchId && !(await branchBelongsToTenant(branchId, tenantId))) {
       return withAuthCookies(
         auth.response,
-        utf8JsonResponse({ error: 'Ø§Ù„ÙØ±Ø¹ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' }, 404)
+        utf8JsonResponse({ error: 'الفرع غير موجود' }, 404)
       )
     }
 
@@ -388,7 +388,7 @@ export async function PATCH(request: NextRequest) {
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        utf8JsonResponse({ error: 'Ø§Ù„Ø®ØµÙ… ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' }, 404)
+        utf8JsonResponse({ error: 'الخصم غير موجود' }, 404)
       )
     }
 
@@ -506,7 +506,7 @@ export async function DELETE(request: NextRequest) {
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        utf8JsonResponse({ error: 'Ø§Ù„Ø®ØµÙ… ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' }, 404)
+        utf8JsonResponse({ error: 'الخصم غير موجود' }, 404)
       )
     }
 

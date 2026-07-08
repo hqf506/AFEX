@@ -186,7 +186,7 @@ export async function PATCH(
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'Ø¹Ù†ØµØ± Ø§Ù„ÙƒØªØ§Ù„ÙˆØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' }, 404)
+        jsonResponse({ error: 'عنصر الكتالوج غير موجود' }, 404)
       )
     }
 
@@ -422,7 +422,7 @@ export async function DELETE(
           {
             success: false,
             error: 'CATALOG_ITEM_NOT_FOUND',
-            message: 'Ø§Ù„Ø¹Ù†ØµØ± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯ ÙÙŠ Ø§Ù„ÙƒØªØ§Ù„ÙˆØ¬',
+            message: 'العنصر غير موجود في الكتالوج',
           },
           404
         )

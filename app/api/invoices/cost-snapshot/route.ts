@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     if (!tenantId) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' }, 403)
+        jsonResponse({ error: 'تعذر تحديد نطاق المنشأة' }, 403)
       )
     }
 
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         auth.response,
         jsonResponse(
           {
-            error: 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„ÙØ§ØªÙˆØ±Ø©',
+            error: 'تعذر التحقق من الفاتورة',
             details: invoiceError.message,
           },
           500
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
     if (!invoice) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'Ø§Ù„ÙØ§ØªÙˆØ±Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©' }, 404)
+        jsonResponse({ error: 'الفاتورة غير موجودة' }, 404)
       )
     }
 

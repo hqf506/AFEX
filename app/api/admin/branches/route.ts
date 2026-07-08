@@ -91,8 +91,8 @@ export async function GET(request: NextRequest) {
     if (error) {
       const response = jsonResponse(
         {
-          error: 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø§Ù„ÙØ±ÙˆØ¹',
-          ...safeErrorDetails(error, 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø§Ù„ÙØ±ÙˆØ¹'),
+          error: 'تعذر تحميل الفروع',
+          ...safeErrorDetails(error, 'تعذر تحميل الفروع'),
         },
         500
       )
@@ -109,8 +109,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹',
-        ...safeErrorDetails(error, 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹'),
+        error: 'حدث خطأ غير متوقع',
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       },
       500
     )
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
   if (!isSystemScopedAdmin(auth.profile.scope_type)) {
     const response = jsonResponse(
       {
-        error: 'Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…ØªØ§Ø­Ø© Ù„Ù…Ø¯ÙŠØ± Ø§Ù„Ù†Ø¸Ø§Ù… ÙÙ‚Ø·',
+        error: 'هذه العملية متاحة لمدير النظام فقط',
       },
       403
     )
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
 
     if (!name) {
       const response = jsonResponse(
-        { error: 'Ø§Ø³Ù… Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' },
+        { error: 'اسم الفرع مطلوب' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -161,8 +161,8 @@ export async function POST(request: NextRequest) {
     if (!isValidAdminBranchCode(code)) {
       const response = jsonResponse(
         {
-          error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ ØºÙŠØ± ØµØ§Ù„Ø­',
-          details: 'Ø§Ø³ØªØ®Ø¯Ù… Ø£Ø­Ø±Ù Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠØ© ØµØºÙŠØ±Ø© Ø£Ùˆ Ø£Ø±Ù‚Ø§Ù… Ø£Ùˆ - ÙÙ‚Ø·ØŒ Ø¨ÙŠÙ† 2 Ùˆ32 Ø­Ø±ÙÙ‹Ø§',
+          error: 'كود الفرع غير صالح',
+          details: 'استخدم أحرف إنجليزية صغيرة أو أرقام أو - فقط، بين 2 و32 حرفًا',
         },
         400
       )
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'Ã˜ÂªÃ˜Â¹Ã˜Â°Ã˜Â± Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â¯ Ã™â€ Ã˜Â·Ã˜Â§Ã™â€š Ã˜Â§Ã™â€žÃ™â€¦Ã™â€ Ã˜Â´Ã˜Â£Ã˜Â©' },
+        { error: 'تعذر تحديد نطاق المنشأة' },
         400
       )
       return withAuthCookies(auth.response, response)
@@ -192,8 +192,8 @@ export async function POST(request: NextRequest) {
     if (existingBranchError) {
       const response = jsonResponse(
         {
-          error: 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹',
-          ...safeErrorDetails(existingBranchError, 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹'),
+          error: 'تعذر التحقق من كود الفرع',
+          ...safeErrorDetails(existingBranchError, 'تعذر التحقق من كود الفرع'),
         },
         500
       )
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
 
     if (existingBranch) {
       const response = jsonResponse(
-        { error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ø§Ù„ÙØ¹Ù„' },
+        { error: 'كود الفرع مستخدم بالفعل' },
         409
       )
       return withAuthCookies(auth.response, response)
@@ -232,8 +232,8 @@ export async function POST(request: NextRequest) {
     if (error || !data) {
       const response = jsonResponse(
         {
-          error: 'ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ±Ø¹',
-          ...safeErrorDetails(error, 'ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ±Ø¹'),
+          error: 'فشل إنشاء الفرع',
+          ...safeErrorDetails(error, 'فشل إنشاء الفرع'),
         },
         400
       )
@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
 
     const response = jsonResponse({
       success: true,
-      message: 'ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ÙØ±Ø¹ Ø¨Ù†Ø¬Ø§Ø­',
+      message: 'تم إنشاء الفرع بنجاح',
       branch: data,
     })
 
@@ -305,8 +305,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹',
-        ...safeErrorDetails(error, 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹'),
+        error: 'حدث خطأ غير متوقع',
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       },
       500
     )
@@ -325,7 +325,7 @@ export async function PATCH(request: NextRequest) {
   if (!isSystemScopedAdmin(auth.profile.scope_type)) {
     const response = jsonResponse(
       {
-        error: 'Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…ØªØ§Ø­Ø© Ù„Ù…Ø¯ÙŠØ± Ø§Ù„Ù†Ø¸Ø§Ù… ÙÙ‚Ø·',
+        error: 'هذه العملية متاحة لمدير النظام فقط',
       },
       403
     )
@@ -340,14 +340,14 @@ export async function PATCH(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        { error: 'تعذر تحديد نطاق المنشأة' },
         400
       )
       return withAuthCookies(auth.response, response)
     }
 
     if (!branchId) {
-      const response = jsonResponse({ error: 'Ù…Ø¹Ø±Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' }, 400)
+      const response = jsonResponse({ error: 'معرف الفرع مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -437,7 +437,7 @@ export async function PATCH(request: NextRequest) {
 
       const response = jsonResponse({
         success: true,
-        message: 'ØªÙ… Ø§Ø³ØªØ±Ø¬Ø§Ø¹ Ø§Ù„ÙØ±Ø¹ Ø¨Ù†Ø¬Ø§Ø­',
+        message: 'تم استرجاع الفرع بنجاح',
         branch: data,
       })
 
@@ -460,7 +460,7 @@ export async function PATCH(request: NextRequest) {
 
       if (!name) {
         const response = jsonResponse(
-          { error: 'Ø§Ø³Ù… Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' },
+          { error: 'اسم الفرع مطلوب' },
           400
         )
         return withAuthCookies(auth.response, response)
@@ -474,7 +474,7 @@ export async function PATCH(request: NextRequest) {
 
       if (!code) {
         const response = jsonResponse(
-          { error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' },
+          { error: 'كود الفرع مطلوب' },
           400
         )
         return withAuthCookies(auth.response, response)
@@ -483,8 +483,8 @@ export async function PATCH(request: NextRequest) {
       if (!isValidAdminBranchCode(code)) {
         const response = jsonResponse(
           {
-            error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ ØºÙŠØ± ØµØ§Ù„Ø­',
-            details: 'Ø§Ø³ØªØ®Ø¯Ù… Ø£Ø­Ø±Ù Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠØ© ØµØºÙŠØ±Ø© Ø£Ùˆ Ø£Ø±Ù‚Ø§Ù… Ø£Ùˆ - ÙÙ‚Ø·ØŒ Ø¨ÙŠÙ† 2 Ùˆ32 Ø­Ø±ÙÙ‹Ø§',
+            error: 'كود الفرع غير صالح',
+            details: 'استخدم أحرف إنجليزية صغيرة أو أرقام أو - فقط، بين 2 و32 حرفًا',
           },
           400
         )
@@ -505,8 +505,8 @@ export async function PATCH(request: NextRequest) {
       if (duplicateBranchError) {
         const response = jsonResponse(
           {
-            error: 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹',
-            ...safeErrorDetails(duplicateBranchError, 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹'),
+            error: 'تعذر التحقق من كود الفرع',
+            ...safeErrorDetails(duplicateBranchError, 'تعذر التحقق من كود الفرع'),
           },
           500
         )
@@ -515,7 +515,7 @@ export async function PATCH(request: NextRequest) {
 
       if (duplicateBranch) {
         const response = jsonResponse(
-          { error: 'ÙƒÙˆØ¯ Ø§Ù„ÙØ±Ø¹ Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ø§Ù„ÙØ¹Ù„' },
+          { error: 'كود الفرع مستخدم بالفعل' },
           409
         )
         return withAuthCookies(auth.response, response)
@@ -557,8 +557,8 @@ export async function PATCH(request: NextRequest) {
     if (error || !data) {
       const response = jsonResponse(
         {
-          error: 'ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø±Ø§Ø¨Ø· Ù…ÙˆÙ‚Ø¹ Ø§Ù„ÙØ±Ø¹',
-          ...safeErrorDetails(error, 'ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„ÙØ±Ø¹'),
+          error: 'فشل تحديث رابط موقع الفرع',
+          ...safeErrorDetails(error, 'فشل تحديث الفرع'),
         },
         400
       )
@@ -584,7 +584,7 @@ export async function PATCH(request: NextRequest) {
 
     const response = jsonResponse({
       success: true,
-      message: 'ØªÙ… Ø­ÙØ¸ Ø±Ø§Ø¨Ø· Ù…ÙˆÙ‚Ø¹ Ø§Ù„ÙØ±Ø¹ Ø¨Ù†Ø¬Ø§Ø­',
+      message: 'تم حفظ رابط موقع الفرع بنجاح',
       branch: data,
     })
 
@@ -592,8 +592,8 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹',
-        ...safeErrorDetails(error, 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹'),
+        error: 'حدث خطأ غير متوقع',
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       },
       500
     )
@@ -612,7 +612,7 @@ export async function DELETE(request: NextRequest) {
   if (!isSystemScopedAdmin(auth.profile.scope_type)) {
     const response = jsonResponse(
       {
-        error: 'Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…ØªØ§Ø­Ø© Ù„Ù…Ø¯ÙŠØ± Ø§Ù„Ù†Ø¸Ø§Ù… ÙÙ‚Ø·',
+        error: 'هذه العملية متاحة لمدير النظام فقط',
       },
       403
     )
@@ -627,14 +627,14 @@ export async function DELETE(request: NextRequest) {
 
     if (!tenantId) {
       const response = jsonResponse(
-        { error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©' },
+        { error: 'تعذر تحديد نطاق المنشأة' },
         400
       )
       return withAuthCookies(auth.response, response)
     }
 
     if (!branchId) {
-      const response = jsonResponse({ error: 'Ù…Ø¹Ø±Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø·Ù„ÙˆØ¨' }, 400)
+      const response = jsonResponse({ error: 'معرف الفرع مطلوب' }, 400)
       return withAuthCookies(auth.response, response)
     }
 
@@ -657,8 +657,8 @@ export async function DELETE(request: NextRequest) {
     if (error || !data) {
       const response = jsonResponse(
         {
-          error: 'ÙØ´Ù„ Ø­Ø°Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø¤Ù‚ØªÙ‹Ø§',
-          ...safeErrorDetails(error, 'ÙØ´Ù„ Ø­Ø°Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø¤Ù‚ØªÙ‹Ø§'),
+          error: 'فشل حذف الفرع مؤقتًا',
+          ...safeErrorDetails(error, 'فشل حذف الفرع مؤقتًا'),
         },
         400
       )
@@ -679,7 +679,7 @@ export async function DELETE(request: NextRequest) {
 
     const response = jsonResponse({
       success: true,
-      message: 'ØªÙ… Ø­Ø°Ù Ø§Ù„ÙØ±Ø¹ Ù…Ø¤Ù‚ØªÙ‹Ø§ Ù„Ù…Ø¯Ø© 30 ÙŠÙˆÙ…',
+      message: 'تم حذف الفرع مؤقتًا لمدة 30 يوم',
       branch: data,
     })
 
@@ -687,8 +687,8 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹',
-        ...safeErrorDetails(error, 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹'),
+        error: 'حدث خطأ غير متوقع',
+        ...safeErrorDetails(error, 'حدث خطأ غير متوقع'),
       },
       500
     )

@@ -167,7 +167,7 @@ async function saveBranchWhatsAppConfig(request: NextRequest) {
         auth.response,
         jsonResponse(
           {
-            error: 'ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø©',
+            error: 'تعذر تحديد نطاق المنشأة',
           },
           400
         )
