@@ -1,6 +1,7 @@
 'use client'
 
 import { type FormEvent, useEffect, useState } from 'react'
+import { AdminAlert, AdminGlassSection, AdminLoadingState } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { notifyAdminBranchOptionsChanged } from '@/lib/admin/branch-filter'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
@@ -368,7 +369,7 @@ export default function AdminBranchesPage() {
   if (accessLoading) {
     return (
       <div className="min-h-screen bg-[#030714] p-4 text-white md:p-6">
-        <div className="mx-auto h-32 max-w-7xl animate-pulse rounded-[28px] border border-cyan-300/10 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.28)]" />
+        <AdminLoadingState />
       </div>
     )
   }
@@ -430,18 +431,18 @@ export default function AdminBranchesPage() {
         </header>
 
         {successMessage ? (
-          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 shadow-[0_12px_40px_rgba(16,185,129,0.12)]">
+          <AdminAlert tone="success" className="shadow-[0_12px_40px_rgba(16,185,129,0.12)]">
             {successMessage}
-          </div>
+          </AdminAlert>
         ) : null}
 
         {errorMessage ? (
-          <div className="whitespace-pre-wrap rounded-2xl border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 shadow-[0_12px_40px_rgba(239,68,68,0.12)]">
+          <AdminAlert tone="error" className="shadow-[0_12px_40px_rgba(239,68,68,0.12)]">
             {errorMessage}
-          </div>
+          </AdminAlert>
         ) : null}
 
-        <section className="rounded-[28px] border border-cyan-300/15 bg-white/[0.055] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+        <AdminGlassSection>
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="text-right">
               <span className="text-xs font-black uppercase tracking-[0.24em] text-cyan-200/80">
@@ -694,7 +695,7 @@ export default function AdminBranchesPage() {
               </table>
             </div>
           )}
-        </section>
+        </AdminGlassSection>
 
         {filteredDeletedBranches.length > 0 ? (
           <section className="rounded-[28px] border border-cyan-300/35 bg-white/[0.045] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">

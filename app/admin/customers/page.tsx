@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { AdminAlert, AdminEmptyState, AdminGlassSection } from '@/components/admin-ui'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 type CustomerRow = {
@@ -533,30 +534,24 @@ export default async function AdminCustomersPage({
         </header>
 
         {saved === '1' ? (
-          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 shadow-[0_18px_50px_rgba(0,0,0,0.2)]">
-            تم حفظ بيانات العميل بنجاح
-          </div>
+          <AdminAlert tone="success">تم حفظ بيانات العميل بنجاح</AdminAlert>
         ) : null}
 
         {saveError ? (
-          <div className="rounded-2xl border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 shadow-[0_18px_50px_rgba(0,0,0,0.2)]">
-            تعذر حفظ بيانات العميل
-          </div>
+          <AdminAlert tone="error">تعذر حفظ بيانات العميل</AdminAlert>
         ) : null}
 
         {customerId && !selectedCustomer && !errorMessage ? (
-          <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100 shadow-[0_18px_50px_rgba(0,0,0,0.2)]">
+          <AdminAlert tone="warning">
             لم يتم العثور على العميل أو لا يتبع هذه المنشأة
-          </div>
+          </AdminAlert>
         ) : null}
 
         {errorMessage ? (
-          <div className="whitespace-pre-wrap rounded-2xl border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 shadow-[0_18px_50px_rgba(0,0,0,0.2)]">
-            {errorMessage}
-          </div>
+          <AdminAlert tone="error">{errorMessage}</AdminAlert>
         ) : null}
 
-        <section className="rounded-[28px] border border-cyan-300/15 bg-white/[0.055] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+        <AdminGlassSection>
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="text-right">
               <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
@@ -576,12 +571,10 @@ export default async function AdminCustomersPage({
           </div>
 
           {customers.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-cyan-300/20 bg-cyan-300/5 p-8 text-center">
-              <h3 className="text-lg font-black text-white">لا يوجد عملاء حتى الآن.</h3>
-              <p className="mt-2 text-sm text-slate-400">
-                سيظهر العملاء هنا بعد إنشاء طلبات مرتبطة ببيانات عميل.
-              </p>
-            </div>
+            <AdminEmptyState
+              title="لا يوجد عملاء حتى الآن."
+              description="سيظهر العملاء هنا بعد إنشاء طلبات مرتبطة ببيانات عميل."
+            />
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
               <table className="w-full min-w-[1120px] table-fixed text-right">
@@ -680,7 +673,7 @@ export default async function AdminCustomersPage({
               </table>
             </div>
           )}
-        </section>
+        </AdminGlassSection>
       </div>
 
       {drawerOpen && selectedCustomer ? (

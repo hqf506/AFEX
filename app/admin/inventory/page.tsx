@@ -9,6 +9,12 @@ import {
   useState,
 } from 'react'
 import { useAuthState } from '@/components/auth-state-provider'
+import {
+  AdminAlert,
+  AdminEmptyState,
+  AdminGlassSection,
+  AdminLoadingState,
+} from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
 import {
@@ -83,24 +89,6 @@ function InventoryIcon({ className = '' }: { className?: string }) {
       <path d="M4 12l8 4.5 8-4.5" />
       <path d="M4 16.5 12 21l8-4.5" />
     </svg>
-  )
-}
-
-function InventoryEmptyState({
-  title,
-  description,
-}: {
-  title: string
-  description: string
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-cyan-300/20 bg-black/20 px-4 py-12 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
-        <InventoryIcon className="h-7 w-7" />
-      </div>
-      <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
-      <p className="mt-2 text-sm text-slate-400">{description}</p>
-    </div>
   )
 }
 
@@ -582,7 +570,7 @@ export default function AdminInventoryPage() {
   if (accessLoading) {
     return (
       <div className="min-h-screen bg-[#030714] p-4 text-white md:p-6">
-        <div className="mx-auto h-32 max-w-7xl animate-pulse rounded-[28px] border border-cyan-300/10 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.28)]" />
+        <AdminLoadingState />
       </div>
     )
   }
@@ -638,18 +626,18 @@ export default function AdminInventoryPage() {
         </header>
 
         {successMessage ? (
-          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 shadow-[0_12px_40px_rgba(16,185,129,0.12)]">
+          <AdminAlert tone="success" className="shadow-[0_12px_40px_rgba(16,185,129,0.12)]">
             {successMessage}
-          </div>
+          </AdminAlert>
         ) : null}
 
         {errorMessage ? (
-          <div className="whitespace-pre-wrap rounded-2xl border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 shadow-[0_12px_40px_rgba(239,68,68,0.12)]">
+          <AdminAlert tone="error" className="shadow-[0_12px_40px_rgba(239,68,68,0.12)]">
             {errorMessage}
-          </div>
+          </AdminAlert>
         ) : null}
 
-        <section className="rounded-[28px] border border-cyan-300/15 bg-white/[0.055] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+        <AdminGlassSection>
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="text-right">
               <span className="text-xs font-black uppercase tracking-[0.24em] text-cyan-200/80">
@@ -752,18 +740,22 @@ export default function AdminInventoryPage() {
           </div>
 
           {!selectedBranchId ? (
-            <InventoryEmptyState
+            <AdminEmptyState
               title="اختر فرعًا لعرض المخزون"
               description="يتم عرض كميات المخزون حسب الفرع المحدد فقط."
+              className="rounded-2xl bg-black/20 px-4 py-12"
+              icon={<InventoryIcon className="h-7 w-7" />}
             />
           ) : loadingInventory ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/15 bg-black/20 px-4 py-10 text-center text-sm font-bold text-slate-400">
               جارٍ تحميل المخزون...
             </div>
           ) : inventoryRows.length === 0 ? (
-            <InventoryEmptyState
+            <AdminEmptyState
               title="لا توجد عناصر مخزون حتى الآن."
               description="لا توجد عناصر مفعلة لتتبع المخزون داخل هذا الفرع."
+              className="rounded-2xl bg-black/20 px-4 py-12"
+              icon={<InventoryIcon className="h-7 w-7" />}
             />
           ) : (
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#06111f]/65">
@@ -859,7 +851,7 @@ export default function AdminInventoryPage() {
               </table>
             </div>
           )}
-        </section>
+        </AdminGlassSection>
 
         <section className="rounded-[28px] border border-cyan-300/15 bg-white/[0.055] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
           <div className="mb-5 flex flex-col gap-2 text-right">

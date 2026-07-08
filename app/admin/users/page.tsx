@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput } from '@/components/admin-input'
+import { AdminAlert, AdminGlassSection, AdminLoadingState } from '@/components/admin-ui'
 import { FeatureDisabledState } from '@/components/feature-disabled-state'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import {
@@ -835,7 +836,7 @@ export default function AdminUsersPage() {
   if (accessLoading) {
     return (
       <div className="min-h-full bg-[#030714] p-4 text-white md:p-6">
-        <div className="mx-auto h-32 max-w-7xl animate-pulse rounded-3xl border border-cyan-300/10 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.28)]" />
+        <AdminLoadingState className="rounded-3xl" />
       </div>
     )
   }
@@ -918,15 +919,11 @@ export default function AdminUsersPage() {
         </header>
 
         {successMessage ? (
-          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 shadow-[0_18px_50px_rgba(0,0,0,0.2)]">
-            {successMessage}
-          </div>
+          <AdminAlert tone="success">{successMessage}</AdminAlert>
         ) : null}
 
         {errorMessage ? (
-          <div className="whitespace-pre-wrap rounded-2xl border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 shadow-[0_18px_50px_rgba(0,0,0,0.2)]">
-            {errorMessage}
-          </div>
+          <AdminAlert tone="error">{errorMessage}</AdminAlert>
         ) : null}
 
         <div className="space-y-4">
@@ -1607,7 +1604,7 @@ export default function AdminUsersPage() {
             </div>
           ) : null}
 
-          <section className="rounded-[28px] border border-cyan-300/15 bg-white/[0.055] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+          <AdminGlassSection>
             <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div className="text-right">
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
@@ -1852,7 +1849,7 @@ export default function AdminUsersPage() {
                 </div>
               )}
             </div>
-          </section>
+          </AdminGlassSection>
 
         </div>
       </div>
