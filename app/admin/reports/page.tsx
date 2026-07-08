@@ -87,17 +87,23 @@ const rangeOptions: Array<{ value: ReportRange; label: string }> = [
 ]
 
 function resolveReportStatusLabel(status: ReportOrderRecord['status']) {
-  if (status === 'in_progress') return 'قيد التنفيذ'
+  if (status === 'in_progress') return 'قيد التجهيز'
   if (status === 'ready') return 'جاهز'
-  if (status === 'closed') return 'مكتمل'
+  if (status === 'closed') return 'تم التسليم'
   return 'غير محدد'
 }
 
 function resolveReportStatusClassName(status: ReportOrderRecord['status']) {
-  if (status === 'in_progress') return 'bg-amber-300/10 text-amber-200'
-  if (status === 'ready') return 'bg-cyan-300/10 text-cyan-200'
-  if (status === 'closed') return 'bg-emerald-300/10 text-emerald-200'
-  return 'bg-slate-300/10 text-slate-300'
+  if (status === 'in_progress') {
+    return 'border-sky-400/35 bg-sky-500/10 text-sky-200'
+  }
+  if (status === 'ready') {
+    return 'border-amber-300/35 bg-amber-400/10 text-amber-100'
+  }
+  if (status === 'closed') {
+    return 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+  }
+  return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
 }
 
 function ReportIcon({ type }: { type: string }) {
@@ -1130,7 +1136,7 @@ export default function ReportsPage() {
                           تكلفة {formatCurrency(costTotal)} · ربح {formatCurrency(profitTotal)}
                         </p>
                         <span
-                          className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ${resolveReportStatusClassName(order.status)}`}
+                          className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${resolveReportStatusClassName(order.status)}`}
                         >
                           {resolveReportStatusLabel(order.status)}
                         </span>

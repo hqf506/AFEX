@@ -395,17 +395,17 @@ function AdminBranchCatalogPageContent() {
                               <span className="text-base font-black text-slate-900">
                                 {item.name}
                               </span>
-                              <span className="badge badge-slate">
+                              <span className="inline-flex rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">
                                 {item.item_type === 'service' ? 'خدمة' : 'منتج'}
                               </span>
                               <span
                                 className={
                                   item.branch_is_active
-                                    ? 'badge badge-green'
-                                    : 'badge badge-slate'
+                                    ? 'inline-flex rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100'
+                                    : 'inline-flex rounded-full border border-rose-300/25 bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-100'
                                 }
                               >
-                                {item.branch_is_active ? 'مفعل في الفرع' : 'معطل في الفرع'}
+                                {item.branch_is_active ? 'نشط' : 'غير نشط'}
                               </span>
                             </div>
 
@@ -415,11 +415,14 @@ function AdminBranchCatalogPageContent() {
                             </p>
 
                             <div className="flex flex-wrap justify-end gap-2 text-xs">
-                              <span className="badge badge-slate" dir="ltr">
+                              <span
+                                className="inline-flex rounded-full border border-slate-400/20 bg-slate-400/10 px-3 py-1 text-xs font-black text-slate-300"
+                                dir="ltr"
+                              >
                                 {item.code}
                               </span>
                               {item.display_order !== null ? (
-                                <span className="badge badge-slate">
+                                <span className="inline-flex rounded-full border border-slate-400/20 bg-slate-400/10 px-3 py-1 text-xs font-black text-slate-300">
                                   الترتيب الحالي: {item.display_order}
                                 </span>
                               ) : null}

@@ -3669,18 +3669,18 @@ export default function AdminCatalogPage() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
                           <span
-                            className={`inline-flex min-w-[74px] items-center justify-center gap-2 rounded-full px-3 py-1.5 text-xs font-black leading-tight ${
+                            className={`inline-flex min-w-[74px] items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black leading-tight ${
                               item.is_active
-                                ? 'bg-emerald-500/10 text-emerald-200'
-                                : 'bg-red-500/10 text-red-200'
+                                ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+                                : 'border-rose-300/25 bg-rose-500/10 text-rose-100'
                             }`}
                           >
                             <span
                               className={`h-1.5 w-1.5 rounded-full ${
-                                item.is_active ? 'bg-emerald-300' : 'bg-red-300'
+                                item.is_active ? 'bg-emerald-300' : 'bg-rose-300'
                               }`}
                             />
-                            {item.is_active ? 'نشط' : 'معطل'}
+                            {item.is_active ? 'نشط' : 'غير نشط'}
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-3 py-3 text-center align-middle">

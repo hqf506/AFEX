@@ -148,6 +148,43 @@ function getInvoiceRemainingAmount(invoice: InvoiceStatsRow) {
   return Math.max(readNumber(invoice.remaining_from_customer), 0)
 }
 
+function getPaymentStatusUi(value: string | null | undefined) {
+  const status = `${value || ''}`.toLowerCase()
+
+  if (status === 'paid') {
+    return {
+      label: 'مدفوع',
+      className: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
+    }
+  }
+
+  if (status === 'partial' || status === 'partially_paid') {
+    return {
+      label: 'جزئي',
+      className: 'border-amber-300/25 bg-amber-400/10 text-amber-100',
+    }
+  }
+
+  if (status === 'cancelled' || status === 'canceled') {
+    return {
+      label: 'ملغي',
+      className: 'border-rose-300/25 bg-rose-500/10 text-rose-100',
+    }
+  }
+
+  if (status === 'unpaid' || status === 'pending') {
+    return {
+      label: 'غير مدفوع',
+      className: 'border-rose-300/25 bg-rose-500/10 text-rose-100',
+    }
+  }
+
+  return {
+    label: value || EMPTY_VALUE,
+    className: 'border-slate-400/20 bg-slate-400/10 text-slate-300',
+  }
+}
+
 function buildCustomerStatsMap(invoices: InvoiceStatsRow[]) {
   const statsByCustomerId = new Map<string, CustomerStats>()
 
@@ -761,6 +798,9 @@ export default async function AdminCustomersPage({
                       const orderNumber = purchase.order_number || EMPTY_VALUE
                       const paidAmount = getInvoicePaidAmount(purchase)
                       const remainingAmount = getInvoiceRemainingAmount(purchase)
+                      const paymentStatusUi = getPaymentStatusUi(
+                        purchase.payment_status
+                      )
 
                       return (
                         <div
@@ -789,10 +829,7 @@ export default async function AdminCustomersPage({
                           <div className="mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
                             {[
                               ['التاريخ', formatDate(purchase.created_at)],
-                              [
-                                'الحالة',
-                                purchase.payment_status || EMPTY_VALUE,
-                              ],
+                              ['الحالة', paymentStatusUi.label],
                               [
                                 'طريقة الدفع',
                                 purchase.payment_method || EMPTY_VALUE,
@@ -805,9 +842,17 @@ export default async function AdminCustomersPage({
                                 <p className="font-black text-slate-500">
                                   {label}
                                 </p>
-                                <p className="mt-1 truncate font-black text-slate-200">
-                                  {value}
-                                </p>
+                                {label === 'الحالة' ? (
+                                  <span
+                                    className={`mt-1 inline-flex rounded-full border px-2.5 py-1 font-black ${paymentStatusUi.className}`}
+                                  >
+                                    {value}
+                                  </span>
+                                ) : (
+                                  <p className="mt-1 truncate font-black text-slate-200">
+                                    {value}
+                                  </p>
+                                )}
                               </div>
                             ))}
                           </div>

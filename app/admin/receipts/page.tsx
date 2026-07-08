@@ -929,12 +929,12 @@ export default function AdminReceiptsPage() {
                         onClick={() => setSelectedReceiptId(receipt.id)}
                         className={`cursor-pointer border-b transition ${
                           isCancelledReceipt
-                            ? 'border-red-500/25 bg-red-500/[0.07] hover:bg-red-500/10'
+                            ? 'border-rose-500/25 bg-rose-500/[0.07] hover:bg-rose-500/10'
                             : 'border-cyan-500/10 hover:bg-cyan-500/5'
                         } ${
                           selectedReceiptId === receipt.id
                             ? isCancelledReceipt
-                              ? 'outline outline-1 outline-red-400/70'
+                              ? 'outline outline-1 outline-rose-400/70'
                               : 'bg-cyan-500/10 outline outline-1 outline-cyan-400/60'
                             : ''
                         }`}
@@ -953,11 +953,11 @@ export default function AdminReceiptsPage() {
                         <td className="px-5 py-4 text-sm font-black text-cyan-200">{formatSar(receipt.netTotal)}</td>
                         <td className="px-5 py-4">
                           {isCancelledReceipt ? (
-                            <span className="inline-flex rounded-full border border-red-500/35 bg-red-500/10 px-3 py-1 text-xs font-black text-red-200">
+                            <span className="inline-flex rounded-full border border-rose-400/35 bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-200">
                               ملغي
                             </span>
                           ) : (
-                            <span className="inline-flex rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-black text-emerald-200">
+                            <span className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">
                               مكتمل
                             </span>
                           )}

@@ -67,17 +67,33 @@ function getBranchName(
 }
 
 const ROLE_DISPLAY_LABELS: Partial<Record<AppRole, string>> = {
-  admin: 'المدير',
-  manager: 'المدير',
-  employee: 'الإداري',
-  cashier: 'أمين الصندوق',
+  admin: 'مدير',
+  manager: 'مدير',
+  employee: 'موظف',
+  cashier: 'كاشير',
 }
 
 const EMAIL_LOGIN_ROLES = new Set<AppRole>(['admin', 'manager', 'employee'])
 const USER_FORM_ROLE_VALUES: AppRole[] = ['admin', 'employee', 'cashier']
 
 function getRoleDisplayLabel(role: AppRole | string) {
-  return ROLE_DISPLAY_LABELS[role as AppRole] || role
+  return ROLE_DISPLAY_LABELS[role as AppRole] || 'غير معروف'
+}
+
+function getRoleBadgeClassName(role: AppRole | string) {
+  if (role === 'admin' || role === 'manager') {
+    return 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100 shadow-[0_0_18px_rgba(16,185,129,0.1)]'
+  }
+
+  if (role === 'employee') {
+    return 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.1)]'
+  }
+
+  if (role === 'cashier') {
+    return 'border-amber-300/25 bg-amber-400/10 text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.1)]'
+  }
+
+  return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
 }
 
 function isEmailLoginRole(role: AppRole | '') {
@@ -1778,7 +1794,9 @@ export default function AdminUsersPage() {
                             </td>
 
                             <td className="px-3 py-4">
-                              <span className="block truncate text-sm font-bold text-slate-200">
+                              <span
+                                className={`inline-flex max-w-full rounded-full border px-3 py-1 text-xs font-black ${getRoleBadgeClassName(user.role)}`}
+                              >
                                 {getRoleDisplayLabel(user.role)}
                               </span>
                             </td>
@@ -1793,11 +1811,11 @@ export default function AdminUsersPage() {
                               <span
                                 className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
                                   user.is_active
-                                    ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
-                                    : 'border-red-300/20 bg-red-500/10 text-red-100'
+                                    ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+                                    : 'border-rose-300/25 bg-rose-500/10 text-rose-100'
                                 }`}
                               >
-                                {user.is_active ? 'نشط' : 'معطل'}
+                                {user.is_active ? 'نشط' : 'غير نشط'}
                               </span>
                             </td>
 

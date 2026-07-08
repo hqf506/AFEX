@@ -238,14 +238,30 @@ function buildEmployeeOrders(rows: OrderSourceRow[]): EmployeeReportOrder[] {
 function getRoleLabel(role: string | null): string {
   switch (role) {
     case 'admin':
-      return 'المدير'
+      return 'مدير'
     case 'employee':
-      return 'الإداري'
-    case 'cashier':
-      return 'أمين الصندوق'
-    default:
       return 'موظف'
+    case 'cashier':
+      return 'كاشير'
+    default:
+      return 'غير معروف'
   }
+}
+
+function getRoleBadgeClassName(role: string | null): string {
+  if (role === 'admin') {
+    return 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+  }
+
+  if (role === 'employee') {
+    return 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100'
+  }
+
+  if (role === 'cashier') {
+    return 'border-amber-300/25 bg-amber-400/10 text-amber-100'
+  }
+
+  return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
 }
 
 function getPerformanceLabel(row: SalesByEmployeeRow): string {
@@ -769,7 +785,9 @@ export default function SalesByEmployeeReportPage() {
                           <div className="min-w-0">
                             <p className="truncate text-sm font-black text-white">{row.employeeName}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <span className="rounded-full border border-cyan-500/15 bg-white/[0.03] px-2 py-0.5 text-[11px] font-bold text-slate-300">
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${getRoleBadgeClassName(row.role)}`}
+                              >
                                 {getRoleLabel(row.role)}
                               </span>
                               <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-300">

@@ -212,9 +212,9 @@ function getStockStatus(
 ) {
   if (row.quantity_on_hand <= 0) {
     return {
-      label: 'انتهى المخزون',
-      tone: 'border-red-300/20 bg-red-500/10 text-red-200',
-      cardTone: 'border-red-300/18 bg-red-500/[0.08]',
+      label: 'نفد',
+      tone: 'border-rose-300/25 bg-rose-500/10 text-rose-100',
+      cardTone: 'border-rose-300/18 bg-rose-500/[0.08]',
     }
   }
 
@@ -230,8 +230,8 @@ function getStockStatus(
   }
 
   return {
-    label: 'طبيعي',
-    tone: 'border-emerald-300/20 bg-emerald-400/10 text-emerald-200',
+    label: 'متوفر',
+    tone: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
     cardTone: 'border-emerald-300/20 bg-emerald-400/[0.08]',
   }
 }

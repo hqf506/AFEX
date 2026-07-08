@@ -628,8 +628,8 @@ export default function AdminBranchesPage() {
                           <span
                             className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
                               branch.is_active
-                                ? 'border-emerald-300/20 bg-emerald-400/10 text-emerald-200'
-                                : 'border-red-300/20 bg-red-500/10 text-red-200'
+                                ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+                                : 'border-rose-300/25 bg-rose-500/10 text-rose-100'
                             }`}
                           >
                             {branch.is_active ? 'نشط' : 'غير نشط'}
@@ -671,7 +671,7 @@ export default function AdminBranchesPage() {
                               disabled={isBusy}
                               className={`inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border px-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                 branch.is_active
-                                  ? 'border-red-300/20 bg-red-500/10 text-red-200 hover:bg-red-500/15'
+                                  ? 'border-rose-300/25 bg-rose-500/10 text-rose-100 hover:bg-rose-500/15'
                                   : 'border-cyan-300/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15'
                               }`}
                             >
