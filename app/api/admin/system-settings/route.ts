@@ -8,6 +8,7 @@ import {
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { safeErrorDetails } from '@/lib/security/redaction'
+import { isFullAdmin } from '@/lib/permissions'
 
 type OrganizationInfo = {
   storeName: string | null
@@ -66,6 +67,22 @@ function sanitizeSystemSettings(settings: unknown) {
   }
 
   return sanitized
+}
+
+function minimizeOrganizationInfoForRole(
+  organizationInfo: OrganizationInfo,
+  role: string | null | undefined
+): OrganizationInfo {
+  if (isFullAdmin(role)) {
+    return organizationInfo
+  }
+
+  return {
+    ...organizationInfo,
+    // Runtime roles need display/settings context, not owner personal contacts.
+    ownerPhone: null,
+    ownerEmail: null,
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -211,7 +228,10 @@ export async function GET(request: NextRequest) {
     const response = jsonResponse({
       success: true,
       settings: sanitizeSystemSettings(data),
-      organizationInfo,
+      organizationInfo: minimizeOrganizationInfoForRole(
+        organizationInfo,
+        auth.profile.role
+      ),
       vatSetting,
     })
 
