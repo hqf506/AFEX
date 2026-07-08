@@ -450,7 +450,7 @@ export default function AdminSettingsPage() {
               </div>
               <div>
                 <div className="mb-2 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-200">
-                  AFEX Settings
+                  إعدادات AFEX
                 </div>
                 <h1 className="text-3xl font-black tracking-tight md:text-4xl">
                   إعدادات النظام

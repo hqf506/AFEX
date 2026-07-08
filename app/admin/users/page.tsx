@@ -895,7 +895,7 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
-                  AFEX USERS
+                  مستخدمو AFEX
                 </p>
                 <h1 className="mt-2 text-3xl font-black text-white">
                   إدارة المستخدمين
@@ -938,7 +938,7 @@ export default function AdminUsersPage() {
             <div className="mb-8 flex items-start justify-between gap-4">
                 <div className="pt-3">
                   <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">
-                    NEW USER
+                    مستخدم جديد
                   </span>
                   <h2 className="mt-4 text-3xl font-black text-white">
                     إنشاء مستخدم جديد
@@ -1272,7 +1272,7 @@ export default function AdminUsersPage() {
                   <div className="mb-8 flex items-start justify-between gap-4">
                     <div className="pt-3">
                       <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">
-                        EDIT USER
+                        تعديل المستخدم
                       </span>
                       <h2 className="mt-4 text-3xl font-black text-white">
                         تعديل المستخدم
@@ -1608,7 +1608,7 @@ export default function AdminUsersPage() {
             <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div className="text-right">
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
-                  USERS LIST
+                  قائمة المستخدمين
                 </p>
                 <h2 className="mt-2 text-2xl font-black text-white">
                   المستخدمون الحاليون

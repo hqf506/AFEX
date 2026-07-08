@@ -833,7 +833,7 @@ export default function ReportsPage() {
           <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="text-right">
               <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">
-                AFEX Analytics
+                تحليلات AFEX
               </span>
               <h1 className="mt-4 text-3xl font-black text-white">التقارير</h1>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-400">

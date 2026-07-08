@@ -608,7 +608,7 @@ export default function AdminInventoryPage() {
               </div>
               <div>
                 <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.2em] text-cyan-200">
-                  AFEX INVENTORY
+                  مخزون AFEX
                 </span>
                 <h1 className="mt-3 text-3xl font-black text-white md:text-4xl">
                   إدارة المخزون
@@ -641,7 +641,7 @@ export default function AdminInventoryPage() {
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="text-right">
               <span className="text-xs font-black uppercase tracking-[0.24em] text-cyan-200/80">
-                Inventory List
+                قائمة المخزون
               </span>
               <h2 className="mt-2 text-2xl font-black text-white">مخزون الفرع</h2>
               <p className="mt-1 text-sm text-slate-400">

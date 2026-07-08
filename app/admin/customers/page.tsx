@@ -523,7 +523,7 @@ export default async function AdminCustomersPage({
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
-                AFEX CUSTOMERS
+                عملاء AFEX
               </p>
               <h1 className="mt-2 text-3xl font-black text-white">العملاء</h1>
               <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-300">
@@ -555,7 +555,7 @@ export default async function AdminCustomersPage({
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="text-right">
               <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300/80">
-                CUSTOMERS LIST
+                قائمة العملاء
               </p>
               <h2 className="mt-2 text-2xl font-black text-white">
                 العملاء الحاليون
@@ -746,10 +746,10 @@ export default async function AdminCustomersPage({
                 <div className="pt-3">
                   <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">
                     {drawerEditMode
-                      ? 'EDIT CUSTOMER'
+                      ? 'تعديل العميل'
                       : drawerPurchasesMode
-                        ? 'CUSTOMER PURCHASES'
-                        : 'CUSTOMER DETAILS'}
+                        ? 'مشتريات العميل'
+                        : 'تفاصيل العميل'}
                   </span>
                   <h2 className="mt-4 text-3xl font-black text-white">
                     {drawerEditMode
@@ -787,7 +787,7 @@ export default async function AdminCustomersPage({
                   ) : (
                     selectedCustomerPurchases.map((purchase) => {
                       const invoiceNumber =
-                        purchase.invoice_number || purchase.id || EMPTY_VALUE
+                        purchase.invoice_number || EMPTY_VALUE
                       const orderNumber = purchase.order_number || EMPTY_VALUE
                       const paidAmount = getInvoicePaidAmount(purchase)
                       const remainingAmount = getInvoiceRemainingAmount(purchase)

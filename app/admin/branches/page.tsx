@@ -407,7 +407,7 @@ export default function AdminBranchesPage() {
               </div>
               <div>
                 <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.2em] text-cyan-200">
-                  AFEX BRANCHES
+                  فروع AFEX
                 </span>
                 <h1 className="mt-3 text-3xl font-black text-white md:text-4xl">
                   إدارة الفروع
@@ -853,7 +853,7 @@ export default function AdminBranchesPage() {
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
                   <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">
-                    {editingBranch ? 'EDIT BRANCH' : 'NEW BRANCH'}
+                    {editingBranch ? 'تعديل الفرع' : 'فرع جديد'}
                   </span>
                   <h2 className="mt-3 text-2xl font-black text-white">
                     {editingBranch ? 'تعديل الفرع' : 'إضافة فرع جديد'}

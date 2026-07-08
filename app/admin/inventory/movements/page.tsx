@@ -641,7 +641,7 @@ export default function InventoryMovementsPage() {
             </div>
             <div>
               <p className="mb-2 text-[11px] font-black uppercase tracking-[0.28em] text-cyan-300">
-                INVENTORY MOVEMENTS
+                حركات المخزون
               </p>
               <h1 className="text-2xl font-black text-white md:text-3xl">
                 حركات المخزون
