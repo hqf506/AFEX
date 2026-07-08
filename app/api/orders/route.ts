@@ -1036,6 +1036,30 @@ async function sendCreatedInvoicePdfOverWhatsApp({
         providerStatus: result.providerStatus || null,
         errorMessage: result.errorMessage || null,
       })
+      await writeAuditLog({
+        auth,
+        request,
+        action: 'whatsapp.message_failed',
+        entityType: 'whatsapp_message',
+        entityId: orderId || null,
+        branchId,
+        metadata: {
+          channel: 'whatsapp',
+          mode: 'file',
+          type: 'invoice_pdf',
+          status: 'failed',
+          has_text: false,
+          has_file: true,
+          order_id: orderId,
+          order_status: 'invoice_pdf',
+          invoice_id: invoice.id || null,
+          invoice_number: invoiceNumber || null,
+          recipient_masked: maskPhone(customerPhone),
+          provider_status: result.providerStatus || null,
+          provider_key: result.providerKey || null,
+          error: result.errorMessage || 'تعذر إرسال رسالة واتساب',
+        },
+      })
       return
     }
 

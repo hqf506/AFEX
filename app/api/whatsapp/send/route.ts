@@ -233,6 +233,22 @@ type SuccessfulWhatsAppAuditInput = {
   orderStatus?: string
 }
 
+type FailedWhatsAppAuditInput = {
+  auth: Extract<Awaited<ReturnType<typeof requireApiAuth>>, { ok: true }>
+  request: NextRequest
+  branchId: string
+  mode: 'text' | 'test'
+  type: 'text' | 'file'
+  to: string
+  hasText: boolean
+  hasFile: boolean
+  errorMessage?: string | null
+  providerStatus?: string | null
+  providerKey?: string | null
+  orderId?: string
+  orderStatus?: string
+}
+
 async function writeSuccessfulWhatsAppAudit({
   auth,
   request,
@@ -263,6 +279,47 @@ async function writeSuccessfulWhatsAppAudit({
       order_status: orderStatus || null,
       recipient_masked: maskPhone(to),
       provider_status: result.providerStatus || null,
+    },
+  })
+}
+
+async function writeFailedWhatsAppAudit({
+  auth,
+  request,
+  branchId,
+  mode,
+  type,
+  to,
+  hasText,
+  hasFile,
+  errorMessage,
+  providerStatus,
+  providerKey,
+  orderId,
+  orderStatus,
+}: FailedWhatsAppAuditInput) {
+  if (!orderId) return
+
+  await writeAuditLog({
+    auth,
+    request,
+    action: 'whatsapp.message_failed',
+    entityType: 'whatsapp_message',
+    entityId: orderId,
+    branchId,
+    metadata: {
+      channel: 'whatsapp',
+      mode: type === 'file' ? 'file' : mode,
+      type: orderStatus || type,
+      status: 'failed',
+      has_text: hasText,
+      has_file: hasFile,
+      order_id: orderId,
+      order_status: orderStatus || null,
+      recipient_masked: maskPhone(to),
+      provider_status: providerStatus || null,
+      provider_key: providerKey || null,
+      error: errorMessage || 'تعذر إرسال رسالة واتساب',
     },
   })
 }
@@ -484,6 +541,21 @@ export async function POST(req: NextRequest) {
             providerStatus: result.providerStatus,
             errorMessage: result.errorMessage || null,
           })
+          await writeFailedWhatsAppAudit({
+            auth,
+            request: req,
+            branchId,
+            mode,
+            type,
+            to,
+            hasText: Boolean(text),
+            hasFile: type === 'file' && Boolean(fileUrl),
+            errorMessage: result.errorMessage,
+            providerStatus: result.providerStatus,
+            providerKey: result.providerKey,
+            orderId: notificationOrderId,
+            orderStatus: notificationStatus,
+          })
           return whatsAppFailureResponse()
         }
 
@@ -507,6 +579,22 @@ export async function POST(req: NextRequest) {
         })
 
         return whatsAppSuccessResponse(result)
+      } catch (error) {
+        await writeFailedWhatsAppAudit({
+          auth,
+          request: req,
+          branchId,
+          mode,
+          type,
+          to,
+          hasText: Boolean(text),
+          hasFile: type === 'file' && Boolean(fileUrl),
+          errorMessage:
+            error instanceof Error ? error.message : 'تعذر إرسال رسالة واتساب',
+          orderId: notificationOrderId,
+          orderStatus: notificationStatus,
+        })
+        throw error
       } finally {
         await releaseWhatsAppOrderStatusNotificationLock(notificationKey)
       }
