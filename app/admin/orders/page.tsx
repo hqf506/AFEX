@@ -1,6 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import {
@@ -241,14 +250,14 @@ const ORDER_STATUS_UI: Record<
   ready: {
     label: 'جاهز',
     badgeClassName:
-      'border-emerald-400/35 bg-emerald-500/10 text-emerald-200 shadow-[0_0_18px_rgba(16,185,129,0.12)]',
-    dotClassName: 'bg-emerald-300',
+      'border-amber-300/40 bg-amber-400/10 text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.12)]',
+    dotClassName: 'bg-amber-300',
   },
   closed: {
     label: 'تم التسليم',
     badgeClassName:
-      'border-slate-400/25 bg-slate-500/10 text-slate-200 shadow-[0_0_18px_rgba(148,163,184,0.08)]',
-    dotClassName: 'bg-slate-300',
+      'border-emerald-400/35 bg-emerald-500/10 text-emerald-200 shadow-[0_0_18px_rgba(16,185,129,0.12)]',
+    dotClassName: 'bg-emerald-300',
   },
   unknown: {
     label: 'غير معروف',
@@ -332,6 +341,29 @@ function getNextAllowedStatus(order: OrderRecord): AdminOrderStatus | null {
   if (order.status === 'in_progress' && !isFinalOrderStatus(order)) return 'ready'
   if (order.status === 'ready' && !isFinalOrderStatus(order)) return 'closed'
   return null
+}
+
+function getOrderStatusUi(order: OrderRecord) {
+  return isCancelledOrder(order) ? CANCELLED_ORDER_UI : ORDER_STATUS_UI[order.status]
+}
+
+function isInteractiveOrderRowTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement
+    ? Boolean(target.closest('button, a, input, select, textarea, [role="button"]'))
+    : false
+}
+
+function OrderStatusBadge({ order }: { order: OrderRecord }) {
+  const statusUi = getOrderStatusUi(order)
+
+  return (
+    <span
+      className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-black ${statusUi.badgeClassName}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${statusUi.dotClassName}`} />
+      {statusUi.label}
+    </span>
+  )
 }
 
 function DrawerSection({
@@ -2181,9 +2213,6 @@ export default function OrdersPage() {
                   <tbody>
                     {filteredOrders.map((order) => {
                       const orderIsCancelled = isCancelledOrder(order)
-                      const statusUi = orderIsCancelled
-                        ? CANCELLED_ORDER_UI
-                        : ORDER_STATUS_UI[order.status]
                       const whatsAppStatusUi = getWhatsAppStatusUi(
                         whatsappStatusByOrderId[order.id] || 'not_sent'
                       )
@@ -2194,11 +2223,32 @@ export default function OrdersPage() {
                       return (
                         <tr
                           key={order.id}
-                          className="border-b border-cyan-300/10 bg-[#07111d]/60 transition hover:bg-cyan-400/[0.055]"
+                          tabIndex={0}
+                          onClick={(event: MouseEvent<HTMLTableRowElement>) => {
+                            if (isInteractiveOrderRowTarget(event.target)) return
+                            setDetailsDrawerOrderId(order.id)
+                          }}
+                          onKeyDown={(event: KeyboardEvent<HTMLTableRowElement>) => {
+                            if (
+                              isInteractiveOrderRowTarget(event.target) ||
+                              (event.key !== 'Enter' && event.key !== ' ')
+                            ) {
+                              return
+                            }
+                            event.preventDefault()
+                            setDetailsDrawerOrderId(order.id)
+                          }}
+                          className="cursor-pointer border-b border-cyan-300/10 bg-[#07111d]/60 transition hover:bg-cyan-400/[0.055] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-300/25"
                         >
                           <td className="px-4 py-4 align-middle">
                             <div className="space-y-1">
-                              <p className="text-sm font-black text-white">{order.invoice_number || order.order_number}</p>
+                              <button
+                                type="button"
+                                onClick={() => setDetailsDrawerOrderId(order.id)}
+                                className="text-sm font-black text-white transition hover:text-cyan-100 hover:underline hover:decoration-cyan-300/80 hover:underline-offset-4 hover:drop-shadow-[0_0_10px_rgba(34,211,238,0.35)] focus:outline-none focus:text-cyan-100 focus:underline"
+                              >
+                                {order.invoice_number || order.order_number}
+                              </button>
                               <p className="text-[11px] font-bold text-slate-500">{order.order_number}</p>
                               <p className="text-[11px] font-bold text-cyan-100/65">
                                 {order.created_at
@@ -2221,10 +2271,7 @@ export default function OrdersPage() {
                           </td>
                           <td className="px-4 py-4 align-middle">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-black ${statusUi.badgeClassName}`}>
-                                <span className={`h-1.5 w-1.5 rounded-full ${statusUi.dotClassName}`} />
-                                {statusUi.label}
-                              </span>
+                              <OrderStatusBadge order={order} />
                               <span className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-black ${deliveryStatusUi.className}`}>
                                 <span className={`h-1.5 w-1.5 rounded-full ${deliveryStatusUi.dotClassName}`} />
                                 {deliveryStatusUi.label}
@@ -2266,16 +2313,32 @@ export default function OrdersPage() {
               >
                 <div className="sticky top-0 z-10 border-b border-cyan-300/15 bg-[#07111d]/95 p-5 backdrop-blur-xl">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-200/70">
                         AFEX Order
                       </p>
-                      <h2 className="mt-2 text-2xl font-black text-white">
-                        تفاصيل الطلب
-                      </h2>
-                      <p className="mt-1 text-xs font-bold text-slate-400">
-                        {detailsDrawerOrder.order_number}
-                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <h2 className="text-2xl font-black text-white">
+                          #{detailsDrawerOrder.invoice_number || detailsDrawerOrder.order_number}
+                        </h2>
+                        <OrderStatusBadge order={detailsDrawerOrder} />
+                        {detailsDrawerOrder.status === 'closed' ? (
+                          <span className="inline-flex h-8 items-center rounded-full border border-emerald-300/30 bg-emerald-400/10 px-2.5 text-[11px] font-black text-emerald-100">
+                            مكتمل
+                          </span>
+                        ) : null}
+                        {isCancelledOrder(detailsDrawerOrder) ? (
+                          <span className="inline-flex h-8 items-center rounded-full border border-rose-300/30 bg-rose-400/10 px-2.5 text-[11px] font-black text-rose-100">
+                            ملغي
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-slate-400">
+                        <span className="truncate text-slate-200">
+                          {fixArabic(detailsDrawerOrder.customer_name)}
+                        </span>
+                        <span>{formatDateTime(detailsDrawerOrder.created_at)}</span>
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -2289,6 +2352,51 @@ export default function OrdersPage() {
                 </div>
 
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-cyan-300/15 bg-[#091522]/85 px-3 py-3">
+                      <p className="text-[11px] font-bold text-slate-500">
+                        الإجمالي
+                      </p>
+                      <p className="mt-1 text-base font-black text-white">
+                        {formatMoney(detailsDrawerOrder.total)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-300/15 bg-emerald-400/10 px-3 py-3">
+                      <p className="text-[11px] font-bold text-emerald-100/70">
+                        المدفوع
+                      </p>
+                      <p className="mt-1 text-base font-black text-emerald-100">
+                        {formatMoney(detailsDrawerOrder.cash_received)}
+                      </p>
+                    </div>
+                    <div
+                      className={`rounded-2xl border px-3 py-3 ${
+                        detailsDrawerOrder.remaining_from_customer > 0
+                          ? 'border-amber-300/25 bg-amber-400/10'
+                          : 'border-emerald-300/15 bg-emerald-400/10'
+                      }`}
+                    >
+                      <p
+                        className={`text-[11px] font-bold ${
+                          detailsDrawerOrder.remaining_from_customer > 0
+                            ? 'text-amber-100/75'
+                            : 'text-emerald-100/70'
+                        }`}
+                      >
+                        المتبقي
+                      </p>
+                      <p
+                        className={`mt-1 text-base font-black ${
+                          detailsDrawerOrder.remaining_from_customer > 0
+                            ? 'text-amber-100'
+                            : 'text-emerald-100'
+                        }`}
+                      >
+                        {formatMoney(detailsDrawerOrder.remaining_from_customer)}
+                      </p>
+                    </div>
+                  </div>
+
                   <DrawerSection title="معلومات الطلب">
                     <DetailGrid>
                       <DetailItem label="رقم الطلب" value={detailsDrawerOrder.order_number} />
@@ -2297,11 +2405,7 @@ export default function OrdersPage() {
                         label="الحالة الحالية"
                         value={
                           <span className="flex flex-wrap items-center gap-2">
-                            <span>
-                              {isCancelledOrder(detailsDrawerOrder)
-                                ? CANCELLED_ORDER_UI.label
-                                : ORDER_STATUS_UI[detailsDrawerOrder.status].label}
-                            </span>
+                            <OrderStatusBadge order={detailsDrawerOrder} />
                             {detailsDrawerOrder.status === 'closed' ? (
                               <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-black text-emerald-100">
                                 مكتمل
@@ -2456,7 +2560,7 @@ export default function OrdersPage() {
                   </DrawerSection>
 
                   <DrawerSection title="سجل حالة الطلب">
-                    <div className="space-y-2">
+                    <div className="relative space-y-2 before:absolute before:bottom-4 before:right-3 before:top-4 before:w-px before:bg-cyan-300/15">
                       {[
                         {
                           key: 'created',
@@ -2520,7 +2624,7 @@ export default function OrdersPage() {
                       ].map((step) => (
                         <div
                           key={step.key}
-                          className={`flex items-center gap-3 rounded-2xl border px-3 py-2 transition ${
+                          className={`relative flex items-center gap-3 rounded-2xl border py-2 pl-3 pr-8 transition ${
                             step.current
                               ? step.cancelled
                                 ? 'border-rose-300/30 bg-rose-500/10'
@@ -2531,7 +2635,7 @@ export default function OrdersPage() {
                           }`}
                         >
                           <span
-                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                            className={`absolute right-2.5 top-1/2 h-2.5 w-2.5 shrink-0 -translate-y-1/2 rounded-full ${
                               step.reached
                                 ? step.cancelled
                                   ? 'bg-rose-300 shadow-[0_0_18px_rgba(244,63,94,0.45)]'
