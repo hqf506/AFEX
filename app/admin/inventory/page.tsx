@@ -762,7 +762,7 @@ export default function AdminInventoryPage() {
             </div>
           ) : inventoryRows.length === 0 ? (
             <InventoryEmptyState
-              title="لا توجد عناصر مخزون"
+              title="لا توجد عناصر مخزون حتى الآن."
               description="لا توجد عناصر مفعلة لتتبع المخزون داخل هذا الفرع."
             />
           ) : (
@@ -776,7 +776,7 @@ export default function AdminInventoryPage() {
                   <col className="w-[12%]" />
                   <col className="w-[22%]" />
                 </colgroup>
-                <thead className="bg-white/[0.035]">
+                <thead className="bg-[#091424]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-3 py-4">العنصر</th>
                     <th className="px-3 py-4">النوع</th>

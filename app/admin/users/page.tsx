@@ -915,7 +915,7 @@ export default function AdminUsersPage() {
 
         <div className="space-y-4">
           {showCreateForm ? (
-          <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
+          <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
             <div className="absolute inset-y-0 right-0 flex w-full justify-end">
           <form
             id="create-user-form"
@@ -1249,7 +1249,7 @@ export default function AdminUsersPage() {
           ) : null}
 
           {editDrawer.open && editDrawer.user ? (
-            <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
+            <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
               <div className="absolute inset-y-0 right-0 flex w-full justify-end">
                 <form
                   id="edit-user-form"
@@ -1696,7 +1696,7 @@ export default function AdminUsersPage() {
                   </div>
                   <h3 className="mt-4 text-lg font-black text-white">
                     {users.length === 0
-                      ? 'لا يوجد مستخدمون'
+                      ? 'لا يوجد مستخدمون حتى الآن.'
                       : 'لا توجد نتائج مطابقة'}
                   </h3>
                   <p className="mt-1 text-sm text-slate-400">
@@ -1725,7 +1725,7 @@ export default function AdminUsersPage() {
                       <col className="w-[10%]" />
                       <col className="w-[14%]" />
                     </colgroup>
-                    <thead className="bg-white/[0.035]">
+                    <thead className="bg-[#091424]">
                       <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                         <th className="px-3 py-4">الاسم</th>
                         <th className="px-3 py-4">اسم المستخدم</th>
@@ -1840,7 +1840,7 @@ export default function AdminUsersPage() {
       </div>
 
       {resetModal.open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
             <div className="mb-5 text-right">
               <h3 className="text-2xl font-black text-white">إعادة تعيين كلمة المرور</h3>
@@ -1857,7 +1857,7 @@ export default function AdminUsersPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="6 أحرف أو أكثر"
-                  className="h-14 border-slate-300 text-right focus:border-slate-500"
+                  className="h-14 !border-cyan-300/15 !bg-white/[0.045] text-right text-sm font-bold !text-white !shadow-none placeholder:!text-slate-500 focus:!border-cyan-300/55 focus:!bg-white/[0.07] focus:!ring-2 focus:!ring-cyan-300/15"
                   autoComplete="new-password"
                 />
               </div>
@@ -1871,7 +1871,7 @@ export default function AdminUsersPage() {
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   placeholder="أعد كتابة كلمة المرور"
-                  className="h-14 border-slate-300 text-right focus:border-slate-500"
+                  className="h-14 !border-cyan-300/15 !bg-white/[0.045] text-right text-sm font-bold !text-white !shadow-none placeholder:!text-slate-500 focus:!border-cyan-300/55 focus:!bg-white/[0.07] focus:!ring-2 focus:!ring-cyan-300/15"
                   autoComplete="new-password"
                 />
               </div>
@@ -1900,13 +1900,13 @@ export default function AdminUsersPage() {
       ) : null}
 
       {deleteModal.open && deleteModal.user ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
           <div
             dir="rtl"
-            className="w-full max-w-md rounded-[28px] border border-red-300/20 bg-[#07111f] p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]"
+            className="w-full max-w-md rounded-[28px] border border-rose-300/20 bg-[#07111f] p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]"
           >
             <div className="mb-5">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-red-300/20 bg-red-500/10 text-red-100">
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-300/20 bg-rose-500/10 text-rose-100">
                 حذف
               </div>
               <h3 className="text-2xl font-black text-white">تأكيد حذف المستخدم</h3>
@@ -1933,7 +1933,7 @@ export default function AdminUsersPage() {
                 type="button"
                 onClick={handleConfirmDeleteUser}
                 disabled={updatingUserId === deleteModal.user.id}
-                className="h-12 rounded-2xl border border-red-300/25 bg-red-500/15 px-5 text-sm font-black text-red-100 shadow-[0_0_28px_rgba(248,113,113,0.16)] transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-12 rounded-2xl border border-rose-300/25 bg-rose-500/15 px-5 text-sm font-black text-rose-100 shadow-[0_0_28px_rgba(244,63,94,0.16)] transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 تأكيد الحذف
               </button>

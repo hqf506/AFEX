@@ -737,7 +737,7 @@ export default function SalesByEmployeeReportPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-right">
-              <thead className="sticky top-0 z-10 bg-[#081320]">
+              <thead className="sticky top-0 z-10 bg-[#091424]">
                 <tr className="border-b border-cyan-500/10 text-xs font-bold text-slate-300">
                   <th className="w-[230px] px-5 py-4">الاسم</th>
                   <th className="w-[150px] px-5 py-4">إجمالي المبيعات</th>

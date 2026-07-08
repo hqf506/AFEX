@@ -548,7 +548,7 @@ export default function AdminBranchesPage() {
                 <BranchIcon className="h-7 w-7" />
               </div>
               <h3 className="mt-4 text-lg font-black text-white">
-                لا توجد فروع حالياً
+                لا توجد فروع حتى الآن.
               </h3>
               <p className="mt-2 text-sm text-slate-400">
                 أضف أول فرع لبدء تنظيم المستخدمين والمبيعات.
@@ -578,7 +578,7 @@ export default function AdminBranchesPage() {
                   <col className="w-[20%]" />
                   <col className="w-[20%]" />
                 </colgroup>
-                <thead className="bg-white/[0.035]">
+                <thead className="bg-[#091424]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-3 py-4">الاسم</th>
                     <th className="px-3 py-4">الكود</th>
@@ -725,7 +725,7 @@ export default function AdminBranchesPage() {
                   <col className="w-[15%]" />
                   <col className="w-[15%]" />
                 </colgroup>
-                <thead className="bg-white/[0.035]">
+                <thead className="bg-[#091424]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-3 py-4">الاسم</th>
                     <th className="px-3 py-4">الكود</th>
@@ -806,9 +806,9 @@ export default function AdminBranchesPage() {
       </div>
 
       {deleteModalBranch ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] border border-red-300/20 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]">
-            <div className="mb-4 inline-flex rounded-full border border-red-300/20 bg-red-500/10 px-3 py-1 text-xs font-black text-red-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]">
+            <div className="mb-4 inline-flex rounded-full border border-rose-300/20 bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-200">
               حذف مؤقت لمدة 30 يوم
             </div>
             <h2 className="text-2xl font-black text-white">تأكيد حذف الفرع</h2>
@@ -831,7 +831,7 @@ export default function AdminBranchesPage() {
                 type="button"
                 onClick={() => void handleSoftDeleteBranch(deleteModalBranch)}
                 disabled={deletingBranchId === deleteModalBranch.id}
-                className="inline-flex h-11 items-center justify-center rounded-2xl border border-red-300/20 bg-red-500/10 px-5 text-sm font-black text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-rose-300/20 bg-rose-500/10 px-5 text-sm font-black text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deletingBranchId === deleteModalBranch.id
                   ? 'جارٍ الحذف...'
@@ -843,7 +843,7 @@ export default function AdminBranchesPage() {
       ) : null}
 
       {isCreateDrawerOpen ? (
-        <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
           <div className="absolute inset-y-0 right-0 flex w-full justify-end">
             <form
               onSubmit={handleSaveBranch}

@@ -898,7 +898,7 @@ export default function AdminReceiptsPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px] text-right">
-              <thead className="bg-[#081320]">
+              <thead className="bg-[#091424]">
                 <tr className="border-b border-cyan-500/10 text-xs font-bold text-slate-300">
                   <th className="w-[150px] px-5 py-4">رقم الإيصال</th>
                   <th className="w-[180px] px-5 py-4">التاريخ</th>
@@ -1126,7 +1126,7 @@ function ReceiptDrawer({
       <div
         aria-hidden="true"
         onClick={handleCloseDrawer}
-        className={`fixed inset-0 z-[80] bg-black/45 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[80] bg-slate-950/60 backdrop-blur-[2px] transition-opacity duration-200 ${
           receipt ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
         }`}
       />
@@ -1154,9 +1154,9 @@ function ReceiptDrawer({
                     setCancelFeedback(null)
                     setShowCancelConfirm(true)
                   }}
-                  className="inline-flex h-10 shrink-0 appearance-none items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-3 text-xs font-black text-red-300 shadow-none transition hover:bg-red-500/20 hover:shadow-[0_0_24px_rgba(248,113,113,0.18)]"
+                  className="inline-flex h-10 shrink-0 appearance-none items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 text-xs font-black text-rose-300 shadow-none transition hover:bg-rose-500/20 hover:shadow-[0_0_24px_rgba(244,63,94,0.18)]"
                 >
-                  <UndoIcon className="h-4 w-4 text-red-300" />
+                  <UndoIcon className="h-4 w-4 text-rose-300" />
                   إلغاء الإيصال
                 </button>
               ) : null}
@@ -1251,13 +1251,13 @@ function ReceiptDrawer({
       ) : null}
 
       {receipt && showCancelConfirm ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
           <div
             dir="rtl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="cancel-receipt-title"
-            className="w-full max-w-md rounded-2xl border border-red-500/30 bg-[#07111d]/95 p-6 text-right shadow-[0_0_55px_rgba(248,113,113,0.14)] backdrop-blur-2xl"
+            className="w-full max-w-md rounded-2xl border border-rose-300/25 bg-[#07111d]/95 p-6 text-right shadow-[0_0_55px_rgba(244,63,94,0.14)] backdrop-blur-2xl"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -1268,7 +1268,7 @@ function ReceiptDrawer({
                   هل أنت متأكد من إلغاء هذا الإيصال؟
                 </p>
               </div>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 text-red-300">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-rose-300/25 bg-rose-500/10 text-rose-300">
                 <UndoIcon className="h-5 w-5" />
               </div>
             </div>
@@ -1285,7 +1285,7 @@ function ReceiptDrawer({
                 type="button"
                 onClick={handleConfirmCancelReceipt}
                 disabled={canceling}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-500/40 bg-red-500/10 text-sm font-black text-red-200 transition hover:bg-red-500/20 hover:shadow-[0_0_24px_rgba(248,113,113,0.18)] disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/40 bg-rose-500/10 text-sm font-black text-rose-200 transition hover:bg-rose-500/20 hover:shadow-[0_0_24px_rgba(244,63,94,0.18)] disabled:cursor-wait disabled:opacity-60"
               >
                 <UndoIcon className="h-4 w-4" />
                 {canceling ? 'جارٍ الإلغاء...' : 'تأكيد الإلغاء'}

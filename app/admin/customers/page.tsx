@@ -540,7 +540,7 @@ export default async function AdminCustomersPage({
 
           {customers.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-cyan-300/20 bg-cyan-300/5 p-8 text-center">
-              <h3 className="text-lg font-black text-white">لا يوجد عملاء</h3>
+              <h3 className="text-lg font-black text-white">لا يوجد عملاء حتى الآن.</h3>
               <p className="mt-2 text-sm text-slate-400">
                 سيظهر العملاء هنا بعد إنشاء طلبات مرتبطة ببيانات عميل.
               </p>
@@ -557,7 +557,7 @@ export default async function AdminCustomersPage({
                   <col className="w-[14%]" />
                   <col className="w-[12%]" />
                 </colgroup>
-                <thead className="bg-white/[0.035]">
+                <thead className="bg-[#091424]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-3 py-4">العميل</th>
                     <th className="px-3 py-4">جهات الاتصال</th>
@@ -647,7 +647,7 @@ export default async function AdminCustomersPage({
       </div>
 
       {drawerOpen && selectedCustomer ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px]">
           <Link
             href="/admin/customers"
             className="absolute inset-0"

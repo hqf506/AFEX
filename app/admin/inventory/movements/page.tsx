@@ -838,8 +838,8 @@ export default function InventoryMovementsPage() {
 
         <div className="overflow-x-auto px-5 py-5 md:px-7">
           <table className="w-full min-w-[900px] border-separate border-spacing-y-2 text-right">
-            <thead>
-              <tr className="text-xs font-black text-slate-500">
+            <thead className="bg-[#091424]">
+              <tr className="text-xs font-black text-slate-300">
                 <th className="px-3 py-2">التاريخ</th>
                 <th className="px-3 py-2">العنصر</th>
                 <th className="px-3 py-2">الفرع</th>
@@ -865,7 +865,7 @@ export default function InventoryMovementsPage() {
                     colSpan={7}
                     className="rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-10 text-center text-sm font-bold text-slate-400"
                   >
-                    لا توجد حركات مخزون
+                    لا توجد حركات مخزون حتى الآن.
                   </td>
                 </tr>
               ) : (

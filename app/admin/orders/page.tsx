@@ -2200,7 +2200,7 @@ export default function OrdersPage() {
                     <col className="w-[190px]" />
                     <col className="w-[190px]" />
                   </colgroup>
-                  <thead className="bg-[#0b1626]/90">
+                  <thead className="bg-[#091424]">
                     <tr className="border-b border-cyan-300/10 text-[11px] font-black text-slate-300">
                       <th className="px-4 py-3">رقم الفاتورة / الطلب</th>
                       <th className="px-4 py-3">العميل</th>
