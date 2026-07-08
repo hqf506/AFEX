@@ -3,6 +3,10 @@ import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
 import {
+  disabledFeatureResponse,
+  ORDERS_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
+import {
   maskId,
   redactSensitive,
   safeErrorDetails,
@@ -215,6 +219,17 @@ export async function POST(
         auth.response,
         utf8JsonResponse({ error: 'تعذر تحديد نطاق المنشأة' }, 400),
       )
+    }
+
+    const ordersDisabledResponse = await disabledFeatureResponse(
+      auth.response,
+      tenantId,
+      'enable_orders',
+      ORDERS_FEATURE_DISABLED_MESSAGE
+    )
+
+    if (ordersDisabledResponse) {
+      return ordersDisabledResponse
     }
 
     const params = await context.params

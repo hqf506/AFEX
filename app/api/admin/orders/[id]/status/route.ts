@@ -2,6 +2,10 @@ import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
+import {
+  disabledFeatureResponse,
+  ORDERS_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
 import { isFullAdmin } from '@/lib/permissions'
 import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -66,6 +70,17 @@ export async function PATCH(
         400
       )
       return withAuthCookies(auth.response, response)
+    }
+
+    const ordersDisabledResponse = await disabledFeatureResponse(
+      auth.response,
+      tenantId,
+      'enable_orders',
+      ORDERS_FEATURE_DISABLED_MESSAGE
+    )
+
+    if (ordersDisabledResponse) {
+      return ordersDisabledResponse
     }
 
     const body = (await request.json()) as UpdateOrderStatusBody

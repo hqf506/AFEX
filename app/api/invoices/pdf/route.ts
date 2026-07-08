@@ -10,6 +10,10 @@ import {
   resolveDigitalInvoiceTemplateSettings,
   type SystemSettings,
 } from '@/lib/admin/settings'
+import {
+  disabledFeatureResponse,
+  INVOICES_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -224,6 +228,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    if (auth.profile.tenant_id) {
+      const invoicesDisabledResponse = await disabledFeatureResponse(
+        auth.response,
+        auth.profile.tenant_id,
+        'enable_invoices',
+        INVOICES_FEATURE_DISABLED_MESSAGE
+      )
+
+      if (invoicesDisabledResponse) {
+        return invoicesDisabledResponse
+      }
+    }
+
     const format = request.nextUrl.searchParams.get('format')
     const encodedPayload = request.nextUrl.searchParams.get('payload')
     logInvoicePdfInfo(requestId, 'html-preview-request', {
@@ -322,6 +339,19 @@ export async function POST(request: NextRequest) {
       hasTenantId: Boolean(auth.profile.tenant_id),
       role: auth.profile.role || null,
     })
+
+    if (auth.profile.tenant_id) {
+      const invoicesDisabledResponse = await disabledFeatureResponse(
+        auth.response,
+        auth.profile.tenant_id,
+        'enable_invoices',
+        INVOICES_FEATURE_DISABLED_MESSAGE
+      )
+
+      if (invoicesDisabledResponse) {
+        return invoicesDisabledResponse
+      }
+    }
 
     let body: CreateInvoicePdfBody
     try {

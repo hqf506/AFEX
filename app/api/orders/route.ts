@@ -16,6 +16,10 @@ import {
   generateInvoicePdfFile,
   type InvoicePdfPayload,
 } from '@/lib/invoices/pdf'
+import {
+  disabledFeatureResponse,
+  ORDERS_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
 import type { OrderStatus } from '@/lib/orders/normalize'
 import { maskId, maskPhone } from '@/lib/security/redaction'
 import { applyTenantFilter } from '@/lib/tenant-filter'
@@ -407,6 +411,17 @@ export async function POST(request: NextRequest) {
         },
         400
       )
+    }
+
+    const ordersDisabledResponse = await disabledFeatureResponse(
+      auth.response,
+      profileTenantId,
+      'enable_orders',
+      ORDERS_FEATURE_DISABLED_MESSAGE
+    )
+
+    if (ordersDisabledResponse) {
+      return ordersDisabledResponse
     }
 
     const profileBranchId = normalizeUuidString(auth.profile.branch_id)

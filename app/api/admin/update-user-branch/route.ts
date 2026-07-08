@@ -3,6 +3,10 @@ import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
 import {
+  disabledFeatureResponse,
+  USERS_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
+import {
   canManageBranchScopedTarget,
   isSystemScopedAdmin,
   normalizeAdminBranchId,
@@ -45,6 +49,17 @@ export async function POST(request: NextRequest) {
         400
       )
       return withAuthCookies(auth.response, response)
+    }
+
+    const usersDisabledResponse = await disabledFeatureResponse(
+      auth.response,
+      tenantId,
+      'enable_users',
+      USERS_FEATURE_DISABLED_MESSAGE
+    )
+
+    if (usersDisabledResponse) {
+      return usersDisabledResponse
     }
 
     const body = (await request.json()) as UpdateUserBranchBody
