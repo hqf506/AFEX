@@ -374,18 +374,18 @@ function CatalogRichTextEditor({
   return (
     <div
       ref={wrapperRef}
-      className={`description-editor rounded-2xl border border-slate-200 bg-white transition focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-100 ${
+      className={`description-editor rounded-2xl border border-cyan-300/15 bg-[#07111f]/80 text-slate-100 transition focus-within:border-cyan-300/45 focus-within:ring-2 focus-within:ring-cyan-300/15 ${
         isFocused ? 'focused' : ''
       }`}
       onFocus={handleFocus}
       onBlur={handleBlur}
     >
       {showLinkDialog ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 text-right shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-900">{'\u0625\u0636\u0627\u0641\u0629 \u0631\u0627\u0628\u0637'}</h2>
-              <label className="block text-sm font-medium text-slate-700">
+              <h2 className="text-xl font-bold text-white">{'\u0625\u0636\u0627\u0641\u0629 \u0631\u0627\u0628\u0637'}</h2>
+              <label className="block text-sm font-medium text-slate-300">
                 {'\u0627\u0644\u0631\u0627\u0628\u0637'}
               </label>
               <AdminInput
@@ -401,14 +401,14 @@ function CatalogRichTextEditor({
               <button
                 type="button"
                 onClick={applyLink}
-                className="inline-flex h-11 items-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="inline-flex h-11 items-center rounded-xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 transition hover:shadow-[0_0_24px_rgba(34,211,238,0.22)]"
               >
                 {'\u0625\u0636\u0627\u0641\u0629'}
               </button>
               <button
                 type="button"
                 onClick={closeLinkDialog}
-                className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex h-11 items-center rounded-xl border border-white/10 bg-white/[0.045] px-5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
               >
                 {'\u0625\u0644\u063a\u0627\u0621'}
               </button>
@@ -418,10 +418,10 @@ function CatalogRichTextEditor({
       ) : null}
 
       {isFocused ? (
-        <div className="description-toolbar flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="description-toolbar flex flex-wrap items-center gap-1 border-b border-cyan-300/10 bg-white/[0.035] px-3 py-2">
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] text-sm font-bold text-slate-200 transition hover:bg-cyan-300/10 hover:text-cyan-100"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => runCommand('bold')}
           >
@@ -429,7 +429,7 @@ function CatalogRichTextEditor({
           </button>
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm italic text-slate-700 transition hover:bg-slate-100"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] text-sm italic text-slate-200 transition hover:bg-cyan-300/10 hover:text-cyan-100"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => runCommand('italic')}
           >
@@ -437,7 +437,7 @@ function CatalogRichTextEditor({
           </button>
           <button
             type="button"
-            className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+            className="inline-flex h-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] px-3 text-xs font-semibold text-slate-200 transition hover:bg-cyan-300/10 hover:text-cyan-100"
             onMouseDown={(event) => event.preventDefault()}
             onClick={openLinkDialog}
           >
@@ -451,7 +451,7 @@ function CatalogRichTextEditor({
         dir="rtl"
         suppressContentEditableWarning
         data-placeholder={placeholder}
-        className="description-editor__input min-h-[80px] px-3 py-2.5 text-right text-sm text-slate-700 outline-none"
+        className="description-editor__input min-h-[80px] px-3 py-2.5 text-right text-sm text-slate-100 outline-none"
         onInput={handleInput}
         onFocus={saveSelection}
         onKeyUp={saveSelection}
@@ -525,7 +525,7 @@ function ToggleRow({
 }) {
   return (
     <label
-      className={`flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 ${
+      className={`flex items-center justify-between rounded-xl border border-cyan-300/15 bg-white/[0.035] px-4 py-3 ${
         disabled ? 'cursor-not-allowed opacity-60' : ''
       }`}
     >
@@ -535,7 +535,7 @@ function ToggleRow({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={`relative h-6 w-11 rounded-full transition ${
-          checked ? 'bg-emerald-500' : 'bg-slate-200'
+          checked ? 'bg-emerald-400' : 'bg-slate-600'
         }`}
       >
         <span
@@ -544,7 +544,7 @@ function ToggleRow({
           }`}
         />
       </button>
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-sm font-medium text-slate-200">{label}</span>
     </label>
   )
 }
@@ -2258,10 +2258,10 @@ export default function AdminCatalogPage() {
   }
 
   const removeImageDialog = showRemoveImageDialog ? (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 text-right shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-3xl border border-rose-300/25 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-slate-900">إزالة الصورة؟</h2>
+          <h2 className="text-xl font-bold text-white">إزالة الصورة؟</h2>
           <p className="text-sm text-slate-500">
             هل أنت متأكد من إزالة صورة هذا العنصر؟
           </p>
@@ -2271,14 +2271,14 @@ export default function AdminCatalogPage() {
           <button
             type="button"
             onClick={handleConfirmRemoveImage}
-            className="inline-flex h-11 items-center rounded-xl bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700"
+            className="inline-flex h-11 items-center rounded-xl border border-rose-300/30 bg-rose-500/15 px-5 text-sm font-black text-rose-100 transition hover:bg-rose-500/25"
           >
             إزالة الصورة
           </button>
           <button
             type="button"
             onClick={() => setShowRemoveImageDialog(false)}
-            className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex h-11 items-center rounded-xl border border-white/10 bg-white/[0.045] px-5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
           >
             إلغاء
           </button>
@@ -2289,7 +2289,7 @@ export default function AdminCatalogPage() {
 
   const catalogFormContent = (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <section className="overflow-visible rounded-3xl border border-slate-100 bg-white p-6 shadow-sm md:p-8">
+      <section className="overflow-visible rounded-3xl border border-cyan-300/15 bg-[#07111f]/90 p-6 shadow-[0_24px_90px_rgba(0,0,0,0.24)] md:p-8">
         <div className="space-y-6">
           <input type="hidden" value={form.category} readOnly />
 
@@ -2305,13 +2305,13 @@ export default function AdminCatalogPage() {
                   setForm((prev) => ({ ...prev, name: e.target.value }))
                 }
                 placeholder="الاسم"
-                className="w-full appearance-none bg-transparent border-0 border-b border-slate-300 rounded-none px-0 py-2 text-right text-xl font-semibold shadow-none outline-none ring-0 focus:border-black focus:ring-0"
+                className="w-full appearance-none rounded-none border-0 border-b border-cyan-300/20 bg-transparent px-0 py-2 text-right text-xl font-semibold text-white shadow-none outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-300/60 focus:ring-0"
                 autoComplete="off"
               />
             </div>
 
             <div className="flex w-full min-h-[56px] flex-col justify-end gap-2">
-              <label className="text-sm text-gray-500">الفئة</label>
+              <label className="text-sm text-slate-400">الفئة</label>
               <div
                 ref={itemTypeDropdownRef}
                 className="relative overflow-visible"
@@ -2324,7 +2324,7 @@ export default function AdminCatalogPage() {
                       current === 'itemType' ? null : 'itemType'
                     )
                   }}
-                  className="min-h-[40px] w-full border-0 border-b border-gray-300 bg-transparent py-2 pr-0 pl-6 text-right text-base font-medium text-slate-700 focus:border-black focus:outline-none"
+                  className="min-h-[40px] w-full border-0 border-b border-cyan-300/20 bg-transparent py-2 pr-0 pl-6 text-right text-base font-medium text-slate-200 focus:border-cyan-300/60 focus:outline-none"
                 >
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                     {'\u25BE'}
@@ -2333,7 +2333,7 @@ export default function AdminCatalogPage() {
                 </button>
                 {openFilterMenu === 'itemType' ? (
                   <div
-                    className="absolute right-0 top-full z-50 mt-2 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-md"
+                    className="absolute right-0 top-full z-50 mt-2 max-h-56 w-full overflow-y-auto rounded-xl border border-cyan-300/20 bg-[#07111f]/95 p-1 shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl"
                     onClick={(event) => event.stopPropagation()}
                   >
                     {categoryDropdownOptions.map((option) => (
@@ -2346,8 +2346,8 @@ export default function AdminCatalogPage() {
                         }}
                         className={`block w-full cursor-pointer rounded-lg px-3 py-2 text-right text-sm transition-colors duration-150 ${
                           selectedCategoryValue === option.value
-                            ? 'font-semibold text-slate-900'
-                            : 'text-slate-700 hover:bg-slate-100'
+                            ? 'bg-cyan-300/12 font-semibold text-cyan-100'
+                            : 'text-slate-300 hover:bg-cyan-300/10 hover:text-cyan-100'
                         }`}
                       >
                         {option.label}
@@ -2380,8 +2380,8 @@ export default function AdminCatalogPage() {
                 onClick={() => setSellBy('unit')}
                 className={`inline-flex h-11 items-center rounded-full border px-5 text-sm font-semibold transition ${
                   sellBy === 'unit'
-                    ? 'border-black bg-black text-white'
-                    : 'border-slate-200 bg-white text-slate-700'
+                    ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
+                    : 'border-white/10 bg-white/[0.045] text-slate-200 hover:bg-white/[0.08]'
                 }`}
               >
                 الوحدة
@@ -2391,8 +2391,8 @@ export default function AdminCatalogPage() {
                 onClick={() => setSellBy('weight')}
                 className={`inline-flex h-11 items-center rounded-full border px-5 text-sm font-semibold transition ${
                   sellBy === 'weight'
-                    ? 'border-black bg-black text-white'
-                    : 'border-slate-200 bg-white text-slate-700'
+                    ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
+                    : 'border-white/10 bg-white/[0.045] text-slate-200 hover:bg-white/[0.08]'
                 }`}
               >
                 الوزن أو الحجم
@@ -2414,7 +2414,7 @@ export default function AdminCatalogPage() {
                     defaultPrice: e.target.value,
                   }))
                 }
-                className="h-12 rounded-none border-0 border-b border-slate-200 bg-transparent px-0 text-sm text-right shadow-none transition focus:border-slate-900"
+                className="h-12 rounded-none border-0 border-b border-cyan-300/20 bg-transparent px-0 text-right text-sm text-white shadow-none transition focus:border-cyan-300/60"
                 min="0"
                 step="0.01"
               />
@@ -2433,7 +2433,7 @@ export default function AdminCatalogPage() {
                     costPrice: e.target.value,
                   }))
                 }
-                className="h-12 rounded-none border-0 border-b border-slate-200 bg-transparent px-0 text-sm text-right shadow-none transition focus:border-slate-900"
+                className="h-12 rounded-none border-0 border-b border-cyan-300/20 bg-transparent px-0 text-right text-sm text-white shadow-none transition focus:border-cyan-300/60"
                 min="0"
                 step="0.01"
               />
@@ -2450,7 +2450,7 @@ export default function AdminCatalogPage() {
                 value={resolvedForm.code}
                 readOnly
                 disabled
-                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-left text-slate-600"
+                className="h-11 rounded-xl border border-white/10 bg-white/[0.045] px-3 text-left text-sm text-slate-300"
                 dir="ltr"
               />
             </div>
@@ -2464,7 +2464,7 @@ export default function AdminCatalogPage() {
                 value={resolvedForm.code}
                 readOnly
                 disabled
-                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-left text-slate-600"
+                className="h-11 rounded-xl border border-white/10 bg-white/[0.045] px-3 text-left text-sm text-slate-300"
                 dir="ltr"
               />
             </div>
@@ -2472,7 +2472,7 @@ export default function AdminCatalogPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-cyan-300/15 bg-[#07111f]/90 p-6 shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
         <div className="space-y-3">
           <h2 className="text-base font-bold text-slate-900">المخزون</h2>
           <ToggleRow
@@ -2489,11 +2489,11 @@ export default function AdminCatalogPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-cyan-300/15 bg-[#07111f]/90 p-6 shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
         <div className="flex items-center justify-between">
           <button
             type="button"
-            className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex h-10 items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/15"
           >
             إضافة متغيرات
           </button>
@@ -2501,11 +2501,11 @@ export default function AdminCatalogPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-cyan-300/15 bg-[#07111f]/90 p-6 shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
         <div className="space-y-4">
           <h2 className="text-base font-bold text-slate-900">المتاجر / الفروع</h2>
 
-          <label className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
+          <label className="flex items-center justify-between rounded-xl border border-cyan-300/15 bg-white/[0.035] px-4 py-3">
             <input
               type="checkbox"
               checked={availableInAllBranches}
@@ -2521,7 +2521,7 @@ export default function AdminCatalogPage() {
             {branchOptions.map((branch) => (
               <div
                 key={branch.id}
-                className="rounded-xl border border-slate-200 px-4 py-3"
+                className="rounded-xl border border-cyan-300/10 bg-white/[0.035] px-4 py-3"
               >
                 <div className="flex items-center justify-between gap-3">
                   <AdminInput
@@ -2534,7 +2534,7 @@ export default function AdminCatalogPage() {
                       }))
                     }
                     placeholder="السعر"
-                    className="h-10 max-w-[160px] rounded-xl border border-slate-200 px-3 text-sm text-right"
+                    className="h-10 max-w-[160px] rounded-xl border border-cyan-300/15 bg-white/[0.045] px-3 text-right text-sm text-white"
                     min="0"
                     step="0.01"
                   />
@@ -2554,7 +2554,7 @@ export default function AdminCatalogPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-cyan-300/15 bg-[#07111f]/90 p-6 shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
         <div className="space-y-3">
           <h2 className="text-base font-bold text-slate-900">الضرائب</h2>
           <AdminDarkSelect
@@ -2569,7 +2569,7 @@ export default function AdminCatalogPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-cyan-300/15 bg-[#07111f]/90 p-6 shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
         <div className="space-y-4">
           <h2 className="text-base font-bold text-slate-900">
             العرض في نقطة البيع POS
@@ -2585,8 +2585,8 @@ export default function AdminCatalogPage() {
                 onClick={() => setPosDisplayMode('style')}
                 className={`inline-flex h-10 items-center rounded-xl border px-4 text-sm font-semibold transition ${
                   posDisplayMode === 'style'
-                    ? 'border-black bg-black text-white'
-                    : 'border-slate-200 bg-white text-slate-700'
+                    ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
+                    : 'border-white/10 bg-white/[0.045] text-slate-200 hover:bg-white/[0.08]'
                 }`}
               >
                 اللون والشكل
@@ -2596,8 +2596,8 @@ export default function AdminCatalogPage() {
                 onClick={() => setPosDisplayMode('image')}
                 className={`inline-flex h-10 items-center rounded-xl border px-4 text-sm font-semibold transition ${
                   posDisplayMode === 'image'
-                    ? 'border-black bg-black text-white'
-                    : 'border-slate-200 bg-white text-slate-700'
+                    ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
+                    : 'border-white/10 bg-white/[0.045] text-slate-200 hover:bg-white/[0.08]'
                 }`}
               >
                 صورة
@@ -2619,8 +2619,8 @@ export default function AdminCatalogPage() {
                       onClick={() => setPosColor(color)}
                       className={`h-9 w-9 rounded-full border-2 transition ${
                         posColor === color
-                          ? 'border-black scale-105'
-                          : 'border-white ring-1 ring-slate-200'
+                          ? 'scale-105 border-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.28)]'
+                          : 'border-white/50 ring-1 ring-white/10'
                       }`}
                       style={{ backgroundColor: color }}
                       aria-label={color}
@@ -2641,8 +2641,8 @@ export default function AdminCatalogPage() {
                       onClick={() => setPosShape(shape.value)}
                       className={`inline-flex h-10 items-center rounded-xl border px-4 text-sm font-semibold transition ${
                         posShape === shape.value
-                          ? 'border-black bg-black text-white'
-                          : 'border-slate-200 bg-white text-slate-700'
+                          ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
+                          : 'border-white/10 bg-white/[0.045] text-slate-200 hover:bg-white/[0.08]'
                       }`}
                     >
                       {shape.label}
@@ -2661,7 +2661,7 @@ export default function AdminCatalogPage() {
               {true ? (
                 <div className="flex flex-wrap items-start gap-3">
                   {!posImagePreviewUrl ? (
-                    <label className="flex h-11 cursor-pointer items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 text-sm text-slate-600 transition hover:bg-slate-100">
+                    <label className="flex h-11 cursor-pointer items-center justify-center rounded-xl border border-dashed border-cyan-300/20 bg-cyan-300/[0.035] px-3 text-sm text-slate-300 transition hover:bg-cyan-300/[0.055]">
                       <input
                         type="file"
                         accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
@@ -2680,7 +2680,7 @@ export default function AdminCatalogPage() {
                   ) : null}
                   {posImagePreviewUrl ? (
                     <div className="w-[140px] shrink-0">
-                      <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                      <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border border-cyan-300/15 bg-white/[0.045]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={posImagePreviewUrl ?? undefined}
@@ -2700,7 +2700,7 @@ export default function AdminCatalogPage() {
                   ) : null}
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-right text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-cyan-300/20 bg-cyan-300/[0.035] px-4 py-4 text-right text-sm text-slate-400">
                   اختر طريقة العرض أولًا ثم ارفع الصورة.
                 </div>
               )}
@@ -2724,7 +2724,7 @@ export default function AdminCatalogPage() {
         <button
           type="button"
           onClick={isEditModalOpen ? requestCloseEditModal : resetForm}
-          className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          className="inline-flex h-11 items-center rounded-xl border border-white/10 bg-white/[0.045] px-5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
         >
           إلغاء
         </button>
@@ -2801,7 +2801,7 @@ export default function AdminCatalogPage() {
   }
 
   return (
-    <div className="min-h-full w-full max-w-full overflow-x-hidden">
+    <div className="min-h-full w-full max-w-full overflow-x-hidden text-white [&_.border-slate-100]:border-white/10 [&_.border-slate-200]:border-white/10 [&_.border-slate-300]:border-white/15 [&_.bg-slate-50]:bg-white/[0.045] [&_.bg-white]:bg-[#07111f]/90 [&_.text-slate-900]:text-white [&_.text-slate-700]:text-slate-200 [&_.text-slate-600]:text-slate-300 [&_.text-slate-500]:text-slate-400">
       {isEditModalOpen ? (
         <>
           <div
@@ -2844,9 +2844,9 @@ export default function AdminCatalogPage() {
         </>
       ) : null}
       {showUnsavedModal ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-xl">
-            <h2 className="mb-2 text-lg font-semibold text-slate-900">تغييرات غير محفوظة</h2>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-center shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
+            <h2 className="mb-2 text-lg font-semibold text-white">تغييرات غير محفوظة</h2>
             <p className="mb-6 text-sm text-slate-500">
               هل أنت متأكد أنك تريد مغادرة هذه الصفحة وتجاهل التغييرات؟
             </p>
@@ -2937,10 +2937,10 @@ export default function AdminCatalogPage() {
         ) : null}
 
         {showRemoveImageDialog ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
-            <div className="w-full max-w-md rounded-3xl bg-white p-6 text-right shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl border border-rose-300/25 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">إزالة الصورة؟</h2>
+                <h2 className="text-xl font-bold text-white">إزالة الصورة؟</h2>
                 <p className="text-sm text-slate-500">
                   هل أنت متأكد من إزالة صورة هذا العنصر؟
                 </p>
@@ -2950,14 +2950,14 @@ export default function AdminCatalogPage() {
                 <button
                   type="button"
                   onClick={handleConfirmRemoveImage}
-                  className="inline-flex h-11 items-center rounded-xl bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700"
+                  className="inline-flex h-11 items-center rounded-xl border border-rose-300/30 bg-rose-500/15 px-5 text-sm font-black text-rose-100 transition hover:bg-rose-500/25"
                 >
                   إزالة الصورة
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowRemoveImageDialog(false)}
-                  className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex h-11 items-center rounded-xl border border-white/10 bg-white/[0.045] px-5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
                 >
                   إلغاء
                 </button>
@@ -2967,8 +2967,8 @@ export default function AdminCatalogPage() {
         ) : null}
 
         {showImportPanel ? (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/30 px-4">
-            <div className="w-full max-w-xl rounded-3xl bg-white p-6 text-right shadow-2xl">
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-xl rounded-3xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
               <div className="flex items-start justify-between gap-4">
                 <button
                   type="button"
@@ -2976,12 +2976,12 @@ export default function AdminCatalogPage() {
                     setShowImportPanel(false)
                     setImportFile(null)
                   }}
-                  className="hidden h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="hidden h-10 items-center rounded-xl border border-white/10 bg-white/[0.045] px-4 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
                 >
                   إلغاء
                 </button>
                 <div className="space-y-1">
-                  <h2 className="text-xl font-bold text-slate-900">إدخال العناصر</h2>
+                  <h2 className="text-xl font-bold text-white">إدخال العناصر</h2>
                 </div>
               </div>
 
@@ -2989,12 +2989,12 @@ export default function AdminCatalogPage() {
                 <button
                   type="button"
                   onClick={handleDownloadTemplate}
-                  className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="inline-flex h-10 items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/15"
                 >
                   تحميل الملف النموذجي
                 </button>
 
-                <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500 transition hover:bg-slate-100">
+                <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-cyan-300/20 bg-cyan-300/[0.035] px-4 py-6 text-center text-sm text-slate-400 transition hover:bg-cyan-300/[0.055]">
                   <input
                     type="file"
                     accept=".csv,text/csv"
@@ -3017,7 +3017,7 @@ export default function AdminCatalogPage() {
                   type="button"
                   onClick={handleImportSubmit}
                   disabled={!importFile || importing}
-                  className="inline-flex h-11 items-center rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-11 items-center rounded-xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 transition hover:shadow-[0_0_24px_rgba(34,211,238,0.22)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {importing ? 'جارٍ الرفع...' : 'رفع'}
                 </button>
@@ -3027,7 +3027,7 @@ export default function AdminCatalogPage() {
                     setShowImportPanel(false)
                     setImportFile(null)
                   }}
-                  className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex h-11 items-center rounded-xl border border-white/10 bg-white/[0.045] px-5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
                 >
                   إلغاء
                 </button>

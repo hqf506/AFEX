@@ -82,7 +82,17 @@ function AdminBranchCatalogPageContent() {
 
   useEffect(() => {
     if (!accessLoading && allowed) {
-      void loadBranchCatalog(requestedBranchId || undefined)
+      let isActive = true
+
+      queueMicrotask(() => {
+        if (isActive) {
+          void loadBranchCatalog(requestedBranchId || undefined)
+        }
+      })
+
+      return () => {
+        isActive = false
+      }
     }
   }, [accessLoading, allowed, requestedBranchId])
 
@@ -199,7 +209,7 @@ function AdminBranchCatalogPageContent() {
 
   if (accessLoading) {
     return (
-      <div>
+      <div className="min-h-full bg-[#030714] text-white">
         <div className="mx-auto max-w-7xl" />
       </div>
     )
@@ -207,24 +217,24 @@ function AdminBranchCatalogPageContent() {
 
   if (!allowed || !isSystemAdmin) {
     return (
-      <div>
+      <div className="min-h-full bg-[#030714] text-white">
         <div className="mx-auto max-w-7xl">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 text-right shadow-sm">
-            <h1 className="text-2xl font-black text-slate-900">غير مصرح لك</h1>
-            <p className="mt-2 text-slate-600">
+          <div className="rounded-3xl border border-cyan-300/15 bg-[#07111f]/90 p-6 text-right shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+            <h1 className="text-2xl font-black text-white">غير مصرح لك</h1>
+            <p className="mt-2 text-slate-400">
               هذه الصفحة متاحة لمدير النظام فقط.
             </p>
 
             <div className="mt-4 flex flex-wrap justify-end gap-3">
               <Link
                 href="/admin/catalog"
-                className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-slate-900"
+                className="inline-flex items-center rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2 text-slate-200 transition hover:bg-white/[0.08]"
               >
                 العودة إلى الكتالوج
               </Link>
               <Link
                 href="/"
-                className="inline-flex items-center rounded-2xl bg-slate-950 px-4 py-2 text-white"
+                className="inline-flex items-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-4 py-2 font-black text-slate-950"
               >
                 العودة إلى القائمة الرئيسية
               </Link>
@@ -236,7 +246,7 @@ function AdminBranchCatalogPageContent() {
   }
 
   return (
-    <div>
+    <div className="min-h-full bg-[#030714] text-white [&_.border-slate-200]:border-white/10 [&_.border-slate-300]:border-white/15 [&_.bg-slate-50]:bg-white/[0.045] [&_.bg-white]:bg-[#07111f]/90 [&_.text-slate-900]:text-white [&_.text-slate-700]:text-slate-300 [&_.text-slate-600]:text-slate-400 [&_.text-slate-500]:text-slate-400">
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           title="كتالوج الفروع"
@@ -245,13 +255,13 @@ function AdminBranchCatalogPageContent() {
             <>
               <Link
                 href="/admin/catalog"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+                className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]"
               >
                 العودة إلى الكتالوج
               </Link>
               <Link
                 href="/"
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
+                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.18)]"
               >
                 العودة إلى القائمة الرئيسية
               </Link>
@@ -260,19 +270,19 @@ function AdminBranchCatalogPageContent() {
         />
 
         {successMessage ? (
-          <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200">
             {successMessage}
           </div>
         ) : null}
 
         {errorMessage ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 whitespace-pre-wrap">
+          <div className="whitespace-pre-wrap rounded-2xl border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-200">
             {errorMessage}
           </div>
         ) : null}
 
         {focusedItem ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-right">
+          <div className="rounded-2xl border border-cyan-300/15 bg-white/[0.045] px-4 py-4 text-right">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold text-slate-500">إدارة مركزة للصنف</p>
@@ -286,7 +296,7 @@ function AdminBranchCatalogPageContent() {
 
               <Link
                 href="/admin/branch-catalog"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900"
+                className="inline-flex items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm font-bold text-cyan-100 transition hover:bg-cyan-300/15"
               >
                 عرض جميع العناصر
               </Link>
@@ -294,7 +304,7 @@ function AdminBranchCatalogPageContent() {
           </div>
         ) : null}
 
-        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+        <section className="rounded-[28px] border border-cyan-300/15 bg-[#07111f]/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-7">
           <div className="grid gap-5 xl:grid-cols-[320px_1fr]">
             <div className="space-y-4">
               <div>
@@ -321,23 +331,23 @@ function AdminBranchCatalogPageContent() {
                 </AdminSelect>
               </div>
 
-              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-[24px] border border-cyan-300/10 bg-[#06111f]/80 p-4">
                 <div className="space-y-3">
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-2xl border border-cyan-300/10 bg-white/[0.045] px-4 py-3">
                     <p className="text-sm text-slate-500">الفرع الحالي</p>
                     <p className="mt-1 text-sm font-bold text-slate-900">
                       {selectedBranch?.name || '—'}
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-2xl border border-cyan-300/10 bg-white/[0.045] px-4 py-3">
                     <p className="text-sm text-slate-500">العناصر النشطة</p>
                     <p className="mt-1 text-sm font-bold text-slate-900">
                       {activeOverridesCount}
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-2xl border border-cyan-300/10 bg-white/[0.045] px-4 py-3">
                     <p className="text-sm text-slate-500">أسعار خاصة بالفرع</p>
                     <p className="mt-1 text-sm font-bold text-slate-900">
                       {branchSpecificPriceCount}
@@ -358,11 +368,11 @@ function AdminBranchCatalogPageContent() {
               </div>
 
               {loadingData ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                  جاري تحميل إعدادات كتالوج الفروع...
+                <div className="rounded-2xl border border-dashed border-cyan-300/15 bg-black/20 px-4 py-8 text-center text-sm font-bold text-slate-400">
+                  جارٍ تحميل إعدادات كتالوج الفروع...
                 </div>
               ) : items.length === 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                <div className="rounded-2xl border border-dashed border-cyan-300/15 bg-black/20 px-4 py-8 text-center text-sm font-bold text-slate-400">
                   لا توجد عناصر كتالوج متاحة.
                 </div>
               ) : (
@@ -375,8 +385,8 @@ function AdminBranchCatalogPageContent() {
                         key={item.id}
                         className={`rounded-[24px] border p-4 ${
                           item.id === focusedItemId
-                            ? 'border-slate-900 bg-white shadow-sm'
-                            : 'border-slate-200 bg-slate-50'
+                            ? 'border-cyan-300/45 bg-cyan-300/10 shadow-[0_0_30px_rgba(34,211,238,0.12)]'
+                            : 'border-white/10 bg-white/[0.045]'
                         }`}
                       >
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
