@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
+import { AdminAlert } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
 import { supabase } from '@/lib/supabase/client'
@@ -665,9 +666,7 @@ export default function InventoryMovementsPage() {
       </section>
 
       {errorMessage ? (
-        <div className="rounded-2xl border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm font-black text-red-100">
-          {errorMessage}
-        </div>
+        <AdminAlert tone="error">{errorMessage}</AdminAlert>
       ) : null}
 
       <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#07111f]/90 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">

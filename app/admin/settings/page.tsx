@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { AdminAlert } from '@/components/admin-ui'
 import {
   useCallback,
   useEffect,
@@ -486,8 +487,8 @@ export default function AdminSettingsPage() {
           </div>
         </section>
 
-        {successMessage ? <Alert tone="success">{successMessage}</Alert> : null}
-        {errorMessage ? <Alert tone="error">{errorMessage}</Alert> : null}
+        {successMessage ? <AdminAlert tone="success">{successMessage}</AdminAlert> : null}
+        {errorMessage ? <AdminAlert tone="error">{errorMessage}</AdminAlert> : null}
 
         <nav className="flex gap-2 overflow-x-auto rounded-[24px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl">
           {tabs.map((tab) => {
@@ -1235,19 +1236,6 @@ function PageState({ children }: { children: ReactNode }) {
           <p className="text-center text-sm font-black text-slate-100">{children}</p>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Alert({ children, tone }: { children: ReactNode; tone: 'success' | 'error' }) {
-  const className =
-    tone === 'success'
-      ? 'border-emerald-300/20 bg-emerald-400/10 text-emerald-200'
-      : 'border-red-300/20 bg-red-400/10 text-red-200'
-
-  return (
-    <div className={`rounded-2xl border px-4 py-3 text-sm font-black ${className}`}>
-      {children}
     </div>
   )
 }

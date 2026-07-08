@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
+import { AdminAlert, AdminEmptyState } from '@/components/admin-ui'
 import { useAuthState } from '@/components/auth-state-provider'
 import { getRoleLabel } from '@/lib/app-roles'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
@@ -824,9 +825,7 @@ export default function ReportsPage() {
     <div className="min-h-full">
       <div className="w-full space-y-6">
         {errorMessage ? (
-          <div className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-200">
-            {errorMessage}
-          </div>
+          <AdminAlert tone="error">{errorMessage}</AdminAlert>
         ) : null}
 
         <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.24)] backdrop-blur">
@@ -1091,8 +1090,11 @@ export default function ReportsPage() {
             </div>
 
             {orders.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-cyan-300/20 bg-cyan-300/[0.035] px-4 py-14 text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-300/10 text-cyan-200">
+              <AdminEmptyState
+                title="لا توجد بيانات في هذه الفترة"
+                description="غيّر الفترة أو الفرع لعرض النتائج."
+                className="bg-cyan-300/[0.035] px-4 py-14"
+                icon={
                   <svg
                     viewBox="0 0 24 24"
                     className="h-8 w-8"
@@ -1105,12 +1107,8 @@ export default function ReportsPage() {
                   >
                     <ReportIcon type="orders" />
                   </svg>
-                </div>
-                <p className="text-base font-black text-white">لا توجد بيانات في هذه الفترة</p>
-                <p className="mt-2 text-sm text-slate-500">
-                  غيّر الفترة أو الفرع لعرض النتائج.
-                </p>
-              </div>
+                }
+              />
             ) : (
               <div className="space-y-3">
                 {visibleOrders.map((order) => {

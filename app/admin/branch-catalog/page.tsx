@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { AdminButton } from '@/components/admin-button'
 import { AdminInput } from '@/components/admin-input'
 import { AdminSelect } from '@/components/admin-select'
+import { AdminAlert, AdminGlassSection } from '@/components/admin-ui'
 import { PageHeader } from '@/components/page-header'
 import {
   canSubmitBranchCatalogDraft,
@@ -270,15 +271,11 @@ function AdminBranchCatalogPageContent() {
         />
 
         {successMessage ? (
-          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200">
-            {successMessage}
-          </div>
+          <AdminAlert tone="success">{successMessage}</AdminAlert>
         ) : null}
 
         {errorMessage ? (
-          <div className="whitespace-pre-wrap rounded-2xl border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-200">
-            {errorMessage}
-          </div>
+          <AdminAlert tone="error">{errorMessage}</AdminAlert>
         ) : null}
 
         {focusedItem ? (
@@ -304,7 +301,7 @@ function AdminBranchCatalogPageContent() {
           </div>
         ) : null}
 
-        <section className="rounded-[28px] border border-cyan-300/15 bg-[#07111f]/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-7">
+        <AdminGlassSection className="bg-[#07111f]/90 md:p-7">
           <div className="grid gap-5 xl:grid-cols-[320px_1fr]">
             <div className="space-y-4">
               <div>
@@ -519,7 +516,7 @@ function AdminBranchCatalogPageContent() {
               )}
             </div>
           </div>
-        </section>
+        </AdminGlassSection>
       </div>
     </div>
   )

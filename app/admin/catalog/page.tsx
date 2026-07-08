@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput } from '@/components/admin-input'
+import { AdminAlert } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
 import {
   canSubmitCatalogForm,
@@ -2783,15 +2784,11 @@ export default function AdminCatalogPage() {
           </div>
 
           {successMessage ? (
-            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200">
-              {successMessage}
-            </div>
+            <AdminAlert tone="success">{successMessage}</AdminAlert>
           ) : null}
 
           {errorMessage ? (
-            <div className="whitespace-pre-wrap rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200">
-              {errorMessage}
-            </div>
+            <AdminAlert tone="error">{errorMessage}</AdminAlert>
           ) : null}
 
           {catalogFormContent}
@@ -2827,15 +2824,15 @@ export default function AdminCatalogPage() {
               </div>
 
               {successMessage ? (
-                <div className="mb-4 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200">
+                <AdminAlert tone="success" className="mb-4">
                   {successMessage}
-                </div>
+                </AdminAlert>
               ) : null}
 
               {errorMessage ? (
-                <div className="mb-4 whitespace-pre-wrap rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200">
+                <AdminAlert tone="error" className="mb-4">
                   {errorMessage}
-                </div>
+                </AdminAlert>
               ) : null}
 
               {catalogFormContent}
@@ -2925,15 +2922,11 @@ export default function AdminCatalogPage() {
         </header>
 
         {successMessage ? (
-          <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200">
-            {successMessage}
-          </div>
+          <AdminAlert tone="success">{successMessage}</AdminAlert>
         ) : null}
 
         {errorMessage ? (
-          <div className="whitespace-pre-wrap rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200">
-            {errorMessage}
-          </div>
+          <AdminAlert tone="error">{errorMessage}</AdminAlert>
         ) : null}
 
         {showRemoveImageDialog ? (
