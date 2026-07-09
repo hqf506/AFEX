@@ -437,6 +437,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (auth.profile.scope_type !== 'system' && !profileBranchId) {
+      return jsonWithAuthCookies(
+        auth.response,
+        {
+          success: false,
+          message: 'تعذر تحديد فرع الحساب',
+        },
+        403
+      )
+    }
+
     if (
       auth.profile.scope_type !== 'system' &&
       profileBranchId &&

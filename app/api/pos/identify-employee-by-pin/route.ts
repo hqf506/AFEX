@@ -183,7 +183,15 @@ export async function POST(request: NextRequest) {
 
     let branchId: string | null = null
 
-    if (requestedBranchId) {
+    if (!authIsFullAdmin && !profileBranchId) {
+      const response = jsonResponse(
+        { error: MISSING_POS_CONTEXT_MESSAGE },
+        400
+      )
+      return withFixedPinDelay(withAuthCookies(auth.response, response))
+    }
+
+    if (authIsFullAdmin && requestedBranchId) {
       const branchBelongsToTenant = await isTenantBranch(
         tenantId,
         requestedBranchId

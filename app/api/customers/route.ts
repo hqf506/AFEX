@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
+import { isFullAdmin } from '@/lib/permissions'
 import {
   buildCustomerSearchFilter,
   normalizeCustomerSearchTerm,
@@ -92,6 +93,14 @@ export async function GET(request: NextRequest) {
   const searchFilter = buildCustomerSearchFilter(search)
   const profileBranchId =
     typeof auth.profile.branch_id === 'string' ? auth.profile.branch_id : null
+  const isSystemScoped = isFullAdmin(auth.profile.role)
+
+  if (!isSystemScoped && !profileBranchId) {
+    return jsonWithAuthCookies(auth.response, {
+      success: true,
+      customers: [],
+    })
+  }
 
   let tenantSearchCountQuery = auth.supabase
     .from('customers')
@@ -103,6 +112,13 @@ export async function GET(request: NextRequest) {
 
   if (searchFilter) {
     tenantSearchCountQuery = tenantSearchCountQuery.or(searchFilter)
+  }
+
+  if (!isSystemScoped && profileBranchId) {
+    tenantSearchCountQuery = tenantSearchCountQuery.eq(
+      'branch_id',
+      profileBranchId
+    )
   }
 
   const { count: tenantSearchCount, error: tenantSearchCountError } =
@@ -118,6 +134,10 @@ export async function GET(request: NextRequest) {
     branchDebugQuery = branchDebugQuery.or(searchFilter)
   }
 
+  if (!isSystemScoped && profileBranchId) {
+    branchDebugQuery = branchDebugQuery.eq('branch_id', profileBranchId)
+  }
+
   const { data: branchDebugRows, error: branchDebugError } =
     await branchDebugQuery
 
@@ -131,6 +151,10 @@ export async function GET(request: NextRequest) {
 
   if (searchFilter) {
     query = query.or(searchFilter)
+  }
+
+  if (!isSystemScoped && profileBranchId) {
+    query = query.eq('branch_id', profileBranchId)
   }
 
   const { data, error } = await query
@@ -170,6 +194,10 @@ export async function GET(request: NextRequest) {
       .limit(1000)
 
     activityQuery = applyTenantFilter(activityQuery, auth.profile.tenant_id)
+
+    if (!isSystemScoped && profileBranchId) {
+      activityQuery = activityQuery.eq('branch_id', profileBranchId)
+    }
 
     const { data: activityData, error: activityError } = await activityQuery
 
@@ -285,7 +313,7 @@ export async function GET(request: NextRequest) {
     account_type: 'profile',
     search_query: search,
     search_filter: searchFilter,
-    customer_scope: 'tenant',
+    customer_scope: isSystemScoped ? 'tenant' : 'branch',
     tenant_search_count: tenantSearchCount ?? null,
     result_count: customersWithActivity.length,
     recent_requested: recentRequested,
@@ -330,7 +358,10 @@ export async function POST(request: NextRequest) {
   const requestedBranchId = normalizeCustomerText(body?.branchId)
   const profileBranchId =
     typeof auth.profile.branch_id === 'string' ? auth.profile.branch_id : ''
-  const branchId = requestedBranchId || profileBranchId || null
+  const isSystemScoped = isFullAdmin(auth.profile.role)
+  const branchId = isSystemScoped
+    ? requestedBranchId || profileBranchId || null
+    : profileBranchId || null
 
   if (!name) {
     return jsonWithAuthCookies(
@@ -351,6 +382,17 @@ export async function POST(request: NextRequest) {
         error: 'رقم الجوال مطلوب',
       },
       400
+    )
+  }
+
+  if (!isSystemScoped && !branchId) {
+    return jsonWithAuthCookies(
+      auth.response,
+      {
+        success: false,
+        error: 'تعذر تحديد فرع الحساب',
+      },
+      403
     )
   }
 

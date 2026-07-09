@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AdminAlert, AdminEmptyState, AdminGlassSection } from '@/components/admin-ui'
+import { isFullAdmin } from '@/lib/permissions'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 type CustomerRow = {
@@ -273,15 +274,20 @@ async function getCurrentTenantContext() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('tenant_id')
+    .select('tenant_id, role')
     .eq('id', user.id)
     .maybeSingle()
 
   const tenantId =
     typeof profile?.tenant_id === 'string' ? profile.tenant_id : ''
+  const role = typeof profile?.role === 'string' ? profile.role : ''
 
   if (error) {
     return { supabase, tenantId: '', error: 'تعذر تحميل بيانات المنشأة' }
+  }
+
+  if (!isFullAdmin(role)) {
+    return { supabase, tenantId: '', error: 'غير مصرح لك بالوصول' }
   }
 
   if (!tenantId) {
@@ -298,7 +304,7 @@ async function updateCustomer(formData: FormData) {
   const { supabase, tenantId, error } = await getCurrentTenantContext()
 
   if (error || !tenantId || !customerId) {
-    redirect('/admin/customers?error=save')
+    redirect(error === 'غير مصرح لك بالوصول' ? '/' : '/admin/customers?error=save')
   }
 
   const name = normalizeFormValue(formData.get('name'))
@@ -352,6 +358,10 @@ export default async function AdminCustomersPage({
     saved,
   } = await searchParams
   const { supabase, tenantId, error } = await getCurrentTenantContext()
+
+  if (error === 'غير مصرح لك بالوصول') {
+    redirect('/')
+  }
 
   let customers: CustomerRow[] = []
   let selectedCustomer: CustomerRow | null = null
