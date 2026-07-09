@@ -3,6 +3,7 @@ import { jsonResponse } from '@/lib/api/responses'
 import { getTrimmedString } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api-auth'
 import { writeAuditLog } from '@/lib/audit-log'
+import { isFullAdmin } from '@/lib/permissions'
 import { maskId, maskPhone, redactSensitive } from '@/lib/security/redaction'
 import { logWhatsAppSend } from '@/lib/whatsapp/logging'
 import {
@@ -45,6 +46,14 @@ const WHATSAPP_RATE_LIMIT_MAX_MESSAGES = 20
 const WHATSAPP_RATE_LIMIT_WINDOW_MS = 60 * 1000
 const WHATSAPP_FEATURE_DISABLED_MESSAGE =
   'ميزة الواتساب غير مفعلة من إعدادات النظام.'
+const GENERIC_WHATSAPP_FORBIDDEN_MESSAGE =
+  'غير مصرح لك بإرسال رسائل واتساب عامة.'
+const BRANCH_NOTIFICATION_STATUSES = new Set([
+  'invoice_pdf',
+  'ready',
+  'closed',
+  'delivered',
+])
 const whatsappRateLimitStore = new Map<string, WhatsAppRateLimitEntry>()
 
 function createWhatsAppRequestId() {
@@ -195,6 +204,32 @@ async function isWhatsAppFeatureEnabled(tenantId: string) {
   }
 
   return data?.enable_whatsapp !== false
+}
+
+async function canSendBranchOrderNotification({
+  tenantId,
+  orderId,
+  branchId,
+}: {
+  tenantId: string
+  orderId: string
+  branchId: string
+}) {
+  let query = supabaseAdmin
+    .from('orders')
+    .select('id, branch_id')
+    .eq('id', orderId)
+    .limit(1)
+
+  query = applyTenantFilter(query, tenantId)
+
+  const { data, error } = await query.maybeSingle()
+
+  if (error || !data) {
+    return false
+  }
+
+  return data.branch_id === branchId
 }
 
 function whatsAppSuccessResponse(result: WhatsAppServiceResult) {
@@ -348,6 +383,7 @@ export async function POST(req: NextRequest) {
     const caption = getTrimmedString(body.caption)
     const tenantId = auth.profile.tenant_id
     const requestedBranchId = getTrimmedString(body.branchId)
+    const isFullAdminRole = isFullAdmin(auth.profile.role)
     const roleScopeType = resolveRoleScopeType(auth.profile.role)
     const branchId = resolveRequestBranchId(
       requestedBranchId,
@@ -440,6 +476,30 @@ export async function POST(req: NextRequest) {
         },
         400
       )
+    }
+
+    if (!isFullAdminRole) {
+      const allowedNotification =
+        notificationKey &&
+        BRANCH_NOTIFICATION_STATUSES.has(notificationStatus) &&
+        (type !== 'file' || notificationStatus === 'invoice_pdf')
+
+      if (
+        !allowedNotification ||
+        !(await canSendBranchOrderNotification({
+          tenantId,
+          orderId: notificationOrderId,
+          branchId,
+        }))
+      ) {
+        return jsonResponse(
+          {
+            success: false,
+            error: GENERIC_WHATSAPP_FORBIDDEN_MESSAGE,
+          },
+          403
+        )
+      }
     }
 
     if (notificationKey) {
