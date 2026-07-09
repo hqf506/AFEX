@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { after, NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
@@ -797,13 +797,29 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    await sendCreatedInvoicePdfOverWhatsApp({
-      auth,
-      request,
-      supabase: serviceSupabase,
-      tenantId: profileTenantId,
-      branchId,
-      orderId,
+    after(async () => {
+      try {
+        await sendCreatedInvoicePdfOverWhatsApp({
+          auth,
+          request,
+          supabase: serviceSupabase,
+          tenantId: profileTenantId,
+          branchId,
+          orderId,
+        })
+      } catch (error) {
+        console.error('[api/orders] background invoice PDF WhatsApp task failed', {
+          orderId: maskId(orderId),
+          error:
+            error instanceof Error
+              ? {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack,
+                }
+              : String(error),
+        })
+      }
     })
 
     return jsonWithAuthCookies(auth.response, {
