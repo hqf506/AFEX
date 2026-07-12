@@ -36,6 +36,12 @@ type BranchRecord = {
   name: string
 }
 
+type ReceiptListQuery = {
+  eq(column: string, value: string): ReceiptListQuery
+  gte(column: string, value: string): ReceiptListQuery
+  lte(column: string, value: string): ReceiptListQuery
+}
+
 type ReceiptRecord = {
   id: string
   receiptNumber: string
@@ -315,6 +321,100 @@ function canShowCancelReceiptAction(status: string) {
   return !isCancelledReceiptStatus(status)
 }
 
+function applyReceiptListFilters<QueryType extends ReceiptListQuery>(
+  query: QueryType,
+  {
+    tenantId,
+    branchId,
+    employeeId,
+    dateRange,
+  }: {
+    tenantId: string
+    branchId: string | null
+    employeeId: string
+    dateRange: { from: string; to: string }
+  },
+) {
+  let nextQuery = applyTenantFilter(query, tenantId)
+    .gte('created_at', dateRange.from)
+    .lte('created_at', dateRange.to)
+
+  if (branchId) {
+    nextQuery = nextQuery.eq('branch_id', branchId)
+  }
+
+  if (employeeId !== ALL_EMPLOYEES) {
+    nextQuery = nextQuery.eq('created_by_employee_id', employeeId)
+  }
+
+  return nextQuery
+}
+
+async function resolveMatchingReceiptOrderIds({
+  tenantId,
+  branchId,
+  employeeId,
+  dateRange,
+  searchTerm,
+}: {
+  tenantId: string
+  branchId: string | null
+  employeeId: string
+  dateRange: { from: string; to: string }
+  searchTerm: string
+}) {
+  const normalizedSearch = searchTerm.trim()
+
+  if (!normalizedSearch) {
+    return null
+  }
+
+  const searchPattern = `%${normalizedSearch}%`
+  const filterContext = { tenantId, branchId, employeeId, dateRange }
+
+  let orderNumberQuery = supabase.from('orders').select('id')
+  orderNumberQuery = applyReceiptListFilters(orderNumberQuery, filterContext)
+  orderNumberQuery = orderNumberQuery.ilike('order_number', searchPattern)
+
+  let customerQuery = supabase
+    .from('orders')
+    .select('id, customers!inner(name, phone)')
+  customerQuery = applyReceiptListFilters(customerQuery, filterContext)
+  customerQuery = customerQuery.or(
+    `name.ilike.${searchPattern},phone.ilike.${searchPattern}`,
+    { foreignTable: 'customers' },
+  )
+
+  let invoiceQuery = supabase
+    .from('orders')
+    .select('id, invoices!inner(invoice_number)')
+  invoiceQuery = applyReceiptListFilters(invoiceQuery, filterContext)
+  invoiceQuery = invoiceQuery.or(`invoice_number.ilike.${searchPattern}`, {
+    foreignTable: 'invoices',
+  })
+
+  const [orderNumberResult, customerResult, invoiceResult] = await Promise.all([
+    orderNumberQuery,
+    customerQuery,
+    invoiceQuery,
+  ])
+  const combinedIds = new Set<string>()
+
+  for (const result of [orderNumberResult, customerResult, invoiceResult]) {
+    if (result.error) {
+      throw result.error
+    }
+
+    for (const row of Array.isArray(result.data) ? result.data : []) {
+      if (row && typeof row.id === 'string' && row.id.trim()) {
+        combinedIds.add(row.id)
+      }
+    }
+  }
+
+  return [...combinedIds]
+}
+
 function buildReceiptRecords(
   rows: OrderSourceRow[],
   employees: EmployeeProfile[],
@@ -447,6 +547,10 @@ export default function AdminReceiptsPage() {
   const [employeeId, setEmployeeId] = useState(ALL_EMPLOYEES)
   const [searchTerm, setSearchTerm] = useState('')
   const [receipts, setReceipts] = useState<ReceiptRecord[]>([])
+  const [totalReceipts, setTotalReceipts] = useState(0)
+  const [employeeOptionsSource, setEmployeeOptionsSource] = useState<EmployeeProfile[]>([])
+  const [receiptDetailsById, setReceiptDetailsById] = useState<Record<string, ReceiptRecord>>({})
+  const [receiptDetailsLoadingId, setReceiptDetailsLoadingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null)
@@ -466,6 +570,54 @@ export default function AdminReceiptsPage() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [selectedReceiptId])
+
+  useEffect(() => {
+    let mounted = true
+
+    if (!access.allowed || access.loading || !tenantId) {
+      return () => {
+        mounted = false
+      }
+    }
+
+    async function fetchEmployeeOptions() {
+      let employeesQuery = supabase
+        .from('profiles')
+        .select('id, full_name, username')
+      employeesQuery = applyTenantFilter(employeesQuery, tenantId)
+
+      let posEmployeesQuery = supabase
+        .from('pos_profiles')
+        .select('id, full_name, username')
+      posEmployeesQuery = applyTenantFilter(posEmployeesQuery, tenantId)
+
+      const [employeesResult, posEmployeesResult] = await Promise.all([
+        employeesQuery,
+        posEmployeesQuery,
+      ])
+
+      if (!mounted) return
+
+      if (employeesResult.error || posEmployeesResult.error) {
+        console.error('[admin-receipts] failed to fetch employee options', {
+          employeesError: employeesResult.error,
+          posEmployeesError: posEmployeesResult.error,
+        })
+        return
+      }
+
+      setEmployeeOptionsSource([
+        ...((employeesResult.data ?? []) as EmployeeProfile[]),
+        ...((posEmployeesResult.data ?? []) as EmployeeProfile[]),
+      ])
+    }
+
+    void fetchEmployeeOptions()
+
+    return () => {
+      mounted = false
+    }
+  }, [access.allowed, access.loading, tenantId])
 
   useEffect(() => {
     let mounted = true
@@ -501,6 +653,7 @@ export default function AdminReceiptsPage() {
 
       if (!tenantId) {
         setReceipts([])
+        setTotalReceipts(0)
         setError('تعذر تحديد نطاق المنشأة.')
         setLoading(false)
         return
@@ -508,6 +661,38 @@ export default function AdminReceiptsPage() {
 
       setLoading(true)
       setError('')
+
+      const from = (currentPage - 1) * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+      let matchingOrderIds: string[] | null = null
+
+      try {
+        matchingOrderIds = await resolveMatchingReceiptOrderIds({
+          tenantId,
+          branchId: effectiveBranchId,
+          employeeId,
+          dateRange,
+          searchTerm,
+        })
+      } catch (searchError) {
+        if (!mounted) return
+
+        console.error('[admin-receipts] failed to search receipts', searchError)
+        setReceipts([])
+        setTotalReceipts(0)
+        setError('تعذر تحميل الإيصالات.')
+        setLoading(false)
+        return
+      }
+
+      if (matchingOrderIds && matchingOrderIds.length === 0) {
+        if (!mounted) return
+
+        setReceipts([])
+        setTotalReceipts(0)
+        setLoading(false)
+        return
+      }
 
       let query = supabase
         .from('orders')
@@ -534,36 +719,33 @@ export default function AdminReceiptsPage() {
             cash_received,
             remaining_from_customer,
             cash_change,
-            note,
-            invoice_items (
-              item_name_snapshot,
-              item_type_snapshot,
-              item_category_snapshot,
-              quantity,
-              unit_price,
-              line_total,
-              cost_price
-            )
+            note
           )
         `,
+          { count: 'exact' },
         )
-        .gte('created_at', dateRange.from)
-        .lte('created_at', dateRange.to)
         .order('created_at', { ascending: false })
+        .range(from, to)
 
-      query = applyTenantFilter(query, tenantId)
+      query = applyReceiptListFilters(query, {
+        tenantId,
+        branchId: effectiveBranchId,
+        employeeId,
+        dateRange,
+      })
 
-      if (effectiveBranchId) {
-        query = query.eq('branch_id', effectiveBranchId)
+      if (matchingOrderIds) {
+        query = query.in('id', matchingOrderIds)
       }
 
-      const { data, error: ordersError } = await query
+      const { data, error: ordersError, count } = await query
 
       if (!mounted) return
 
       if (ordersError) {
         console.error('[admin-receipts] failed to fetch receipts', ordersError)
         setReceipts([])
+        setTotalReceipts(0)
         setError('تعذر تحميل الإيصالات.')
         setLoading(false)
         return
@@ -636,6 +818,7 @@ export default function AdminReceiptsPage() {
       if (!mounted) return
 
       setReceipts(buildReceiptRecords(sourceRows, employees, branches))
+      setTotalReceipts(count ?? 0)
       setLoading(false)
     }
 
@@ -645,37 +828,153 @@ export default function AdminReceiptsPage() {
     return () => {
       mounted = false
     }
-  }, [access.allowed, access.loading, dateRange.from, dateRange.to, effectiveBranchId, tenantId])
+  }, [
+    access.allowed,
+    access.loading,
+    currentPage,
+    dateRange,
+    effectiveBranchId,
+    employeeId,
+    searchTerm,
+    tenantId,
+  ])
 
   const employees = useMemo(() => {
     const map = new Map<string, string>()
-    receipts.forEach((receipt) => {
-      if (receipt.employeeId) {
-        map.set(receipt.employeeId, receipt.employeeName)
-      }
+    employeeOptionsSource.forEach((employee) => {
+      map.set(employee.id, employee.full_name?.trim() || employee.username?.trim() || employee.id)
     })
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
-  }, [receipts])
+  }, [employeeOptionsSource])
 
-  const filteredReceipts = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase()
-
-    return receipts.filter((receipt) => {
-      const matchesEmployee = employeeId === ALL_EMPLOYEES || receipt.employeeId === employeeId
-      const matchesSearch =
-        !normalizedSearch ||
-        receipt.receiptNumber.toLowerCase().includes(normalizedSearch) ||
-        receipt.customerName.toLowerCase().includes(normalizedSearch) ||
-        receipt.customerPhone.toLowerCase().includes(normalizedSearch)
-
-      return matchesEmployee && matchesSearch
-    })
-  }, [employeeId, receipts, searchTerm])
-
-  const selectedReceipt = useMemo(
+  const selectedReceiptSummary = useMemo(
     () => receipts.find((receipt) => receipt.id === selectedReceiptId) ?? null,
     [receipts, selectedReceiptId],
   )
+
+  const selectedReceipt = useMemo(
+    () =>
+      selectedReceiptId
+        ? receiptDetailsById[selectedReceiptId] ??
+          selectedReceiptSummary ??
+          null
+        : null,
+    [receiptDetailsById, selectedReceiptId, selectedReceiptSummary],
+  )
+
+  const selectedReceiptDetailsLoading = Boolean(
+    selectedReceiptId &&
+      receiptDetailsLoadingId === selectedReceiptId &&
+      !receiptDetailsById[selectedReceiptId],
+  )
+
+  useEffect(() => {
+    let mounted = true
+
+    if (!selectedReceiptId || receiptDetailsById[selectedReceiptId] || !selectedReceiptSummary || !tenantId) {
+      return () => {
+        mounted = false
+      }
+    }
+
+    async function fetchReceiptDetails() {
+      if (!selectedReceiptId || !selectedReceiptSummary || !tenantId) return
+
+      setReceiptDetailsLoadingId(selectedReceiptId)
+
+      let query = supabase
+        .from('orders')
+        .select(
+          `
+          id,
+          order_number,
+          status,
+          created_at,
+          branch_id,
+          created_by_employee_id,
+          customers (
+            name,
+            phone
+          ),
+          invoices (
+            invoice_number,
+            payment_method,
+            payment_status,
+            subtotal,
+            discount,
+            tax,
+            total,
+            cash_received,
+            remaining_from_customer,
+            cash_change,
+            note,
+            invoice_items (
+              item_name_snapshot,
+              item_type_snapshot,
+              item_category_snapshot,
+              quantity,
+              unit_price,
+              line_total,
+              cost_price
+            )
+          )
+        `,
+        )
+
+      query = applyTenantFilter(query, tenantId)
+
+      if (effectiveBranchId) {
+        query = query.eq('branch_id', effectiveBranchId)
+      }
+
+      const { data, error: detailsError } = await query
+        .eq('id', selectedReceiptId)
+        .maybeSingle()
+
+      if (!mounted) return
+
+      if (detailsError || !data) {
+        console.error('[admin-receipts] failed to fetch receipt details', detailsError)
+        setReceiptDetailsLoadingId((current) => (current === selectedReceiptId ? null : current))
+        return
+      }
+
+      const details = buildReceiptRecords(
+        [data as OrderSourceRow],
+        selectedReceiptSummary.employeeId
+          ? [
+              {
+                id: selectedReceiptSummary.employeeId,
+                full_name: selectedReceiptSummary.employeeName,
+              },
+            ]
+          : [],
+        selectedReceiptSummary.branchId
+          ? [
+              {
+                id: selectedReceiptSummary.branchId,
+                name: selectedReceiptSummary.branchName,
+              },
+            ]
+          : [],
+      )[0]
+
+      setReceiptDetailsById((current) => ({ ...current, [selectedReceiptId]: details }))
+      setReceiptDetailsLoadingId((current) => (current === selectedReceiptId ? null : current))
+    }
+
+    void fetchReceiptDetails()
+
+    return () => {
+      mounted = false
+    }
+  }, [
+    effectiveBranchId,
+    receiptDetailsById,
+    selectedReceiptId,
+    selectedReceiptSummary,
+    tenantId,
+  ])
 
   const handleReceiptCanceled = (receiptId: string) => {
     setReceipts((currentReceipts) =>
@@ -683,11 +982,23 @@ export default function AdminReceiptsPage() {
         receipt.id === receiptId ? { ...receipt, status: 'cancelled', paymentStatus: 'cancelled' } : receipt,
       ),
     )
+    setReceiptDetailsById((currentDetails) => {
+      const receipt = currentDetails[receiptId]
+
+      if (!receipt) {
+        return currentDetails
+      }
+
+      return {
+        ...currentDetails,
+        [receiptId]: { ...receipt, status: 'cancelled', paymentStatus: 'cancelled' },
+      }
+    })
   }
 
   const summary = useMemo(
     () =>
-      filteredReceipts.reduce(
+      receipts.reduce(
         (acc, receipt) => ({
           receipts: acc.receipts + 1,
           sales: acc.sales + receipt.netTotal,
@@ -696,11 +1007,11 @@ export default function AdminReceiptsPage() {
         }),
         { receipts: 0, sales: 0, refunds: 0, cancelled: 0 },
       ),
-    [filteredReceipts],
+    [receipts],
   )
 
-  const totalPages = Math.max(1, Math.ceil(filteredReceipts.length / PAGE_SIZE))
-  const pageReceipts = filteredReceipts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(totalReceipts / PAGE_SIZE))
+  const pageReceipts = receipts
 
   const branchOptions = useMemo(
     () => [
@@ -747,7 +1058,7 @@ export default function AdminReceiptsPage() {
     event.preventDefault()
 
     const headers = ['رقم الإيصال', 'التاريخ', 'الموظف', 'العميل', 'النوع', 'الإجمالي']
-    const rows = filteredReceipts.map((receipt) => [
+    const rows = receipts.map((receipt) => [
       receipt.receiptNumber,
       `${formatDate(receipt.createdAt)} ${formatTime(receipt.createdAt)}`,
       receipt.employeeName,
@@ -810,7 +1121,7 @@ export default function AdminReceiptsPage() {
         </header>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard title="كافة الإيصالات" value={summary.receipts.toLocaleString('ar-SA')} icon={<ReceiptIcon className="h-6 w-6" />} />
+          <SummaryCard title="كافة الإيصالات" value={totalReceipts.toLocaleString('ar-SA')} icon={<ReceiptIcon className="h-6 w-6" />} />
           <SummaryCard title="الإيصالات الملغية" value={summary.cancelled.toLocaleString('ar-SA')} icon={<UndoIcon className="h-6 w-6" />} accent="rose" />
           <SummaryCard title="المبيعات" value={formatSar(summary.sales)} icon={<CalendarIcon className="h-6 w-6" />} />
           <SummaryCard title="المبالغ المستردة" value={formatSar(summary.refunds)} icon={<ReceiptIcon className="h-6 w-6" />} accent="rose" />
@@ -892,7 +1203,7 @@ export default function AdminReceiptsPage() {
               <p className="mt-1 text-sm text-slate-400">اضغط على أي إيصال لعرض التفاصيل في الدرج الجانبي</p>
             </div>
             <p className="text-left text-sm font-bold text-slate-400">
-              عرض {pageReceipts.length.toLocaleString('ar-SA')} من {filteredReceipts.length.toLocaleString('ar-SA')} إيصال
+              عرض {pageReceipts.length.toLocaleString('ar-SA')} من {totalReceipts.toLocaleString('ar-SA')} إيصال
             </p>
           </div>
 
@@ -1022,6 +1333,7 @@ export default function AdminReceiptsPage() {
 
       <ReceiptDrawer
         receipt={selectedReceipt}
+        detailsLoading={selectedReceiptDetailsLoading}
         thermalSettings={thermalSettings}
         onClose={() => setSelectedReceiptId(null)}
         onCanceled={handleReceiptCanceled}
@@ -1063,11 +1375,13 @@ function SummaryCard({
 
 function ReceiptDrawer({
   receipt,
+  detailsLoading,
   thermalSettings,
   onClose,
   onCanceled,
 }: {
   receipt: ReceiptRecord | null
+  detailsLoading: boolean
   thermalSettings: ThermalTemplateSettings | null
   onClose: () => void
   onCanceled: (receiptId: string) => void
@@ -1178,6 +1492,11 @@ function ReceiptDrawer({
                     ملغي
                   </div>
                 ) : null}
+                {detailsLoading ? (
+                  <div className="mb-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-center text-sm font-black text-cyan-100">
+                    جارٍ تحميل تفاصيل الإيصال...
+                  </div>
+                ) : null}
                 <div className="mx-auto w-fit rounded-md bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
                   <iframe
                     title={`إيصال ${receipt.receiptNumber}`}
@@ -1193,10 +1512,10 @@ function ReceiptDrawer({
               <button
                 type="button"
                 onClick={() => {
-                  if (!printingEnabled) return
+                  if (!printingEnabled || detailsLoading) return
                   printThermalReceipt(receipt, thermalSettings)
                 }}
-                disabled={!printingEnabled}
+                disabled={!printingEnabled || detailsLoading}
                 title={
                   printingEnabled
                     ? undefined
