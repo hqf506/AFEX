@@ -201,8 +201,10 @@ const ORDERS_SELECT = `
 
 const ORDERS_META_SELECT = `
   id,
+  order_number,
   status,
   created_at,
+  updated_at,
   invoices (
     invoice_number,
     total
@@ -1566,6 +1568,7 @@ function buildOrdersComparisonSignature(items: unknown[]) {
         id?: string
         status?: string
         created_at?: string
+        updated_at?: string
         invoices?: unknown
       }
       const invoice = normalizeInvoiceRecord(row.invoices)
@@ -1574,6 +1577,7 @@ function buildOrdersComparisonSignature(items: unknown[]) {
         row.id || '',
         row.status || '',
         row.created_at || '',
+        row.updated_at || '',
         Number(invoice?.total) || 0,
         invoice?.invoice_number || '',
       ].join('|')

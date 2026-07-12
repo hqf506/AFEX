@@ -146,11 +146,16 @@ function buildOrderComparisonSignature(orders: PageOrderRecord[]) {
         order.id,
         order.status,
         order.created_at,
+        order.updated_at,
         order.total,
         order.invoice_number,
       ].join('|')
     )
     .join('||')
+}
+
+function buildPostgrestStringInList(values: string[]) {
+  return `(${values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(',')})`
 }
 
 const ORDER_STATUS_ACTIONS: Array<{
@@ -671,6 +676,7 @@ export default function OrdersPage() {
 
   const initializedRef = useRef(false)
   const isFetchInFlightRef = useRef(false)
+  const isMetaFetchInFlightRef = useRef(false)
   const ordersSignatureRef = useRef('')
   const previousOrderIdsRef = useRef<Set<string>>(new Set())
 
@@ -792,6 +798,7 @@ export default function OrdersPage() {
           created_by_employee_id,
           status,
           created_at,
+          updated_at,
           customers (
             name,
             phone
@@ -906,6 +913,59 @@ export default function OrdersPage() {
     ]
   )
 
+  const checkOrdersMetaAndReload = useCallback(async () => {
+    if (isMetaFetchInFlightRef.current || isFetchInFlightRef.current) return
+
+    if (!tenantId || isBranchScopedWithoutBranchId(scopeType, branchId)) {
+      return
+    }
+
+    isMetaFetchInFlightRef.current = true
+
+    try {
+      const params = new URLSearchParams({
+        mode: 'meta',
+        page: '1',
+        pageSize: String(ORDERS_FETCH_LIMIT),
+      })
+
+      const branchFilter = shouldFilterByBranch(scopeType, branchId)
+        ? branchId
+        : effectiveBranchId
+
+      if (branchFilter) {
+        params.set('branchId', branchFilter)
+      }
+
+      const response = await fetch(`/api/orders?${params.toString()}`, {
+        method: 'GET',
+        credentials: 'include',
+      })
+      const result = (await response.json().catch(() => null)) as
+        | {
+            success?: boolean
+            comparisonSignature?: string
+          }
+        | null
+
+      if (!response.ok || !result?.success) {
+        return
+      }
+
+      const nextSignature = result.comparisonSignature || ''
+
+      if (nextSignature !== ordersSignatureRef.current) {
+        await fetchOrders(true)
+      } else {
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
+      }
+    } catch (error) {
+      console.error('[admin/orders] lightweight metadata poll failed', error)
+    } finally {
+      isMetaFetchInFlightRef.current = false
+    }
+  }, [branchId, effectiveBranchId, fetchOrders, scopeType, tenantId])
+
   useEffect(() => {
     localStorage.setItem(
       'orders_sound_enabled',
@@ -933,18 +993,18 @@ export default function OrdersPage() {
 
     const interval = setInterval(() => {
       if (document.hidden) return
-      fetchOrders(true)
+      void checkOrdersMetaAndReload()
     }, 15000)
 
     return () => clearInterval(interval)
-  }, [allowed, fetchOrders])
+  }, [allowed, checkOrdersMetaAndReload])
 
   useEffect(() => {
     if (!allowed) return
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        void fetchOrders(true)
+        void checkOrdersMetaAndReload()
       }
     }
 
@@ -953,7 +1013,7 @@ export default function OrdersPage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [allowed, fetchOrders])
+  }, [allowed, checkOrdersMetaAndReload])
 
   useEffect(() => {
     if (!allowed || orders.length === 0) return
@@ -962,13 +1022,15 @@ export default function OrdersPage() {
     let cancelled = false
 
     async function fetchWhatsAppDeliveryStatus() {
+      const orderIdList = buildPostgrestStringInList([...orderIds])
       const { data, error } = await supabase
         .from('audit_logs')
         .select('created_at, metadata')
         .eq('action', 'whatsapp.message_sent')
         .eq('entity_type', 'whatsapp_message')
+        .filter('metadata->>order_id', 'in', orderIdList)
         .order('created_at', { ascending: false })
-        .limit(500)
+        .limit(orderIds.size)
 
       if (cancelled || error || !Array.isArray(data)) {
         return
@@ -1149,8 +1211,9 @@ export default function OrdersPage() {
         .from('audit_logs')
         .select('id, action, entity_type, entity_id, created_at, metadata')
         .in('action', ['whatsapp.message_sent', 'whatsapp.message_failed'])
+        .filter('metadata->>order_id', 'eq', orderId)
         .order('created_at', { ascending: false })
-        .limit(1000)
+        .limit(100)
 
       if (cancelled) return
 
