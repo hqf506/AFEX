@@ -71,10 +71,6 @@ export async function GET(request: NextRequest) {
   const search = normalizeCustomerSearchTerm(
     request.nextUrl.searchParams.get('q')
   )
-  const requestedBranchId =
-    request.nextUrl.searchParams.get('branchId') ||
-    request.nextUrl.searchParams.get('branch_id') ||
-    null
   const recentRequested =
     request.nextUrl.searchParams.get('recent') === '1' ||
     request.nextUrl.searchParams.get('recent') === 'true'
@@ -101,45 +97,6 @@ export async function GET(request: NextRequest) {
       customers: [],
     })
   }
-
-  let tenantSearchCountQuery = auth.supabase
-    .from('customers')
-    .select('id', { count: 'exact', head: true })
-  tenantSearchCountQuery = applyTenantFilter(
-    tenantSearchCountQuery,
-    auth.profile.tenant_id
-  )
-
-  if (searchFilter) {
-    tenantSearchCountQuery = tenantSearchCountQuery.or(searchFilter)
-  }
-
-  if (!isSystemScoped && profileBranchId) {
-    tenantSearchCountQuery = tenantSearchCountQuery.eq(
-      'branch_id',
-      profileBranchId
-    )
-  }
-
-  const { count: tenantSearchCount, error: tenantSearchCountError } =
-    await tenantSearchCountQuery
-
-  let branchDebugQuery = auth.supabase
-    .from('customers')
-    .select('id, branch_id, phone')
-    .limit(50)
-  branchDebugQuery = applyTenantFilter(branchDebugQuery, auth.profile.tenant_id)
-
-  if (searchFilter) {
-    branchDebugQuery = branchDebugQuery.or(searchFilter)
-  }
-
-  if (!isSystemScoped && profileBranchId) {
-    branchDebugQuery = branchDebugQuery.eq('branch_id', profileBranchId)
-  }
-
-  const { data: branchDebugRows, error: branchDebugError } =
-    await branchDebugQuery
 
   let query = auth.supabase
     .from('customers')
@@ -293,38 +250,6 @@ export async function GET(request: NextRequest) {
       return rightTime - leftTime
     })
   }
-
-  const branchDebugItems = Array.isArray(branchDebugRows) ? branchDebugRows : []
-  const nullBranchCount = branchDebugItems.filter(
-    (customer) => !customer.branch_id
-  ).length
-  const differentBranchCount = requestedBranchId
-    ? branchDebugItems.filter(
-        (customer) =>
-          customer.branch_id && customer.branch_id !== requestedBranchId
-      ).length
-    : 0
-
-  console.info('[api/customers] customer search debug', {
-    tenant_id: auth.profile.tenant_id,
-    requested_branch_id: requestedBranchId,
-    profile_branch_id: profileBranchId,
-    role: auth.profile.role,
-    account_type: 'profile',
-    search_query: search,
-    search_filter: searchFilter,
-    customer_scope: isSystemScoped ? 'tenant' : 'branch',
-    tenant_search_count: tenantSearchCount ?? null,
-    result_count: customersWithActivity.length,
-    recent_requested: recentRequested,
-    branch_debug: {
-      branch_id_null_count_in_sample: nullBranchCount,
-      branch_id_different_count_in_sample: differentBranchCount,
-      sample_size: branchDebugItems.length,
-      tenant_count_error: tenantSearchCountError?.message ?? null,
-      branch_debug_error: branchDebugError?.message ?? null,
-    },
-  })
 
   return jsonWithAuthCookies(auth.response, {
     success: true,

@@ -60,7 +60,6 @@ type AdminCustomersPageProps = {
 }
 
 const EMPTY_VALUE = '—'
-const BASIC_CUSTOMER_SELECT = 'id, name, phone, branch_id'
 const CUSTOMER_SELECT =
   'id, name, email, phone, address, city, district, postal_code, country, customer_code, tax_number, notes, branch_id'
 
@@ -372,7 +371,7 @@ export default async function AdminCustomersPage({
   if (tenantId) {
     const { data, error: customersError } = await supabase
       .from('customers')
-      .select(BASIC_CUSTOMER_SELECT)
+      .select(CUSTOMER_SELECT)
       .eq('tenant_id', tenantId)
       .order('name', { ascending: true, nullsFirst: false })
       .limit(200)
@@ -381,17 +380,6 @@ export default async function AdminCustomersPage({
       errorMessage = 'تعذر تحميل العملاء'
     } else {
       customers = normalizeCustomerRows(data)
-
-      const { data: profileData, error: profileError } = await supabase
-        .from('customers')
-        .select(CUSTOMER_SELECT)
-        .eq('tenant_id', tenantId)
-        .order('name', { ascending: true, nullsFirst: false })
-        .limit(200)
-
-      if (!profileError) {
-        customers = normalizeCustomerRows(profileData)
-      }
     }
 
     const customerIds = customers.map((customer) => customer.id).filter(Boolean)
@@ -420,27 +408,13 @@ export default async function AdminCustomersPage({
     if (customerId) {
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
-        .select(BASIC_CUSTOMER_SELECT)
+        .select(CUSTOMER_SELECT)
         .eq('id', customerId)
         .eq('tenant_id', tenantId)
         .maybeSingle()
 
       if (!customerError && customerData) {
         selectedCustomer = normalizeCustomerRow(customerData as Partial<CustomerRow>)
-
-        const { data: profileCustomerData, error: profileCustomerError } =
-          await supabase
-            .from('customers')
-            .select(CUSTOMER_SELECT)
-            .eq('id', customerId)
-            .eq('tenant_id', tenantId)
-            .maybeSingle()
-
-        if (!profileCustomerError && profileCustomerData) {
-          selectedCustomer = normalizeCustomerRow(
-            profileCustomerData as Partial<CustomerRow>
-          )
-        }
 
         if (selectedCustomer) {
           const { data: purchasesData, error: purchasesError } = await supabase
