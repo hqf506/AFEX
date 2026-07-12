@@ -27,7 +27,8 @@ import { isSendableWhatsAppPhone } from '@/lib/whatsapp/messages'
 import { sendWhatsAppFile } from '@/lib/whatsapp/service'
 
 type OrdersApiQuery = {
-  mode: 'full' | 'meta'
+  mode: 'full' | 'meta' | 'details'
+  id: string | null
   page: number
   pageSize: number
   branchId: string | null
@@ -39,7 +40,7 @@ type OrdersApiQuery = {
 
 type OrdersApiPayload = {
   success: true
-  mode: 'full' | 'meta'
+  mode: 'full' | 'meta' | 'details'
   items: unknown[]
   totalCount: number
   page: number
@@ -170,8 +171,38 @@ const VALID_ORDER_STATUSES = new Set<OrderStatus>([
 const ORDERS_SELECT = `
   id,
   order_number,
+  branch_id,
+  created_by_employee_id,
   status,
   created_at,
+  updated_at,
+  customers (
+    name,
+    phone
+  ),
+  invoices (
+    invoice_number,
+    payment_method,
+    payment_status,
+    note,
+    total,
+    subtotal,
+    discount,
+    tax,
+    cash_received,
+    remaining_from_customer,
+    cash_change
+  )
+`
+
+const ORDERS_DETAILS_SELECT = `
+  id,
+  order_number,
+  branch_id,
+  created_by_employee_id,
+  status,
+  created_at,
+  updated_at,
   customers (
     name,
     phone
@@ -250,6 +281,61 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    if (query.mode === 'details') {
+      if (!query.id) {
+        return jsonWithAuthCookies(
+          auth.response,
+          {
+            success: false,
+            message: 'Order id is required',
+          },
+          400
+        )
+      }
+
+      let detailsQuery = auth.supabase
+        .from('orders')
+        .select(ORDERS_DETAILS_SELECT)
+        .eq('id', query.id)
+
+      detailsQuery = applyTenantFilter(detailsQuery, auth.profile.tenant_id)
+
+      if (
+        shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)
+      ) {
+        detailsQuery = detailsQuery.eq(
+          'branch_id',
+          auth.profile.branch_id as string
+        )
+      }
+
+      const { data, error } = await detailsQuery.maybeSingle()
+
+      if (error) {
+        return jsonWithAuthCookies(
+          auth.response,
+          {
+            success: false,
+            message: 'تعذر تحميل تفاصيل الطلب',
+          },
+          500
+        )
+      }
+
+      return jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
+        success: true,
+        mode: query.mode,
+        items: data ? [data] : [],
+        totalCount: data ? 1 : 0,
+        page: 1,
+        pageSize: 1,
+        hasMore: false,
+        comparisonSignature: data
+          ? buildOrdersComparisonSignature([data])
+          : '',
+      })
+    }
+
     const matchingOrderIds =
       query.search.length > 0
         ? await resolveMatchingOrderIds(auth.supabase, auth.profile, query)
@@ -1212,7 +1298,13 @@ function parseOrdersQuery(request: NextRequest): OrdersApiQuery {
       : 'all'
 
   return {
-    mode: rawMode === 'meta' ? 'meta' : 'full',
+    mode:
+      rawMode === 'meta'
+        ? 'meta'
+        : rawMode === 'details'
+          ? 'details'
+          : 'full',
+    id: normalizeUuidString(params.get('id')),
     page,
     pageSize,
     branchId,
@@ -1566,6 +1658,7 @@ function buildOrdersComparisonSignature(items: unknown[]) {
     .map((item) => {
       const row = item as {
         id?: string
+        order_number?: string
         status?: string
         created_at?: string
         updated_at?: string
@@ -1575,6 +1668,7 @@ function buildOrdersComparisonSignature(items: unknown[]) {
 
       return [
         row.id || '',
+        row.order_number || '',
         row.status || '',
         row.created_at || '',
         row.updated_at || '',

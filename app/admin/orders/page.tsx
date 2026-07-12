@@ -144,6 +144,7 @@ function buildOrderComparisonSignature(orders: PageOrderRecord[]) {
     .map((order) =>
       [
         order.id,
+        order.order_number,
         order.status,
         order.created_at,
         order.updated_at,
@@ -152,6 +153,19 @@ function buildOrderComparisonSignature(orders: PageOrderRecord[]) {
       ].join('|')
     )
     .join('||')
+}
+
+function mapOrderSourceRowToPageOrder(row: OrderSourceRow, index: number): PageOrderRecord {
+  return {
+    ...mapOrderSummaryToOrderRecord(normalizeOrderRecord(row, index)),
+    status_raw: typeof row.status === 'string' ? row.status : '',
+    created_by_employee_id:
+      typeof row.created_by_employee_id === 'string'
+        ? row.created_by_employee_id
+        : '',
+    updated_at:
+      typeof row.updated_at === 'string' ? row.updated_at : '',
+  }
 }
 
 function buildPostgrestStringInList(values: string[]) {
@@ -655,6 +669,16 @@ export default function OrdersPage() {
   const [detailsDrawerOrderId, setDetailsDrawerOrderId] = useState<string | null>(
     null
   )
+  const [orderDetailsById, setOrderDetailsById] = useState<
+    Record<string, PageOrderRecord>
+  >({})
+  const [orderDetailsLoadingId, setOrderDetailsLoadingId] = useState<
+    string | null
+  >(null)
+  const [orderDetailsErrorById, setOrderDetailsErrorById] = useState<
+    Record<string, string | undefined>
+  >({})
+  const [orderDetailsRetryKey, setOrderDetailsRetryKey] = useState(0)
   const [notificationHistoryByOrderId, setNotificationHistoryByOrderId] = useState<
     Record<string, NotificationHistoryRecord[]>
   >({})
@@ -677,6 +701,7 @@ export default function OrdersPage() {
   const initializedRef = useRef(false)
   const isFetchInFlightRef = useRef(false)
   const isMetaFetchInFlightRef = useRef(false)
+  const orderDetailsInFlightRef = useRef<Set<string>>(new Set())
   const ordersSignatureRef = useRef('')
   const previousOrderIdsRef = useRef<Set<string>>(new Set())
 
@@ -814,14 +839,7 @@ export default function OrdersPage() {
             tax,
             cash_received,
             remaining_from_customer,
-            cash_change,
-            invoice_items (
-              item_name_snapshot,
-              item_type_snapshot,
-              quantity,
-              unit_price,
-              line_total
-            )
+            cash_change
           )
         `)
           .eq('tenant_id', tenantId)
@@ -857,17 +875,7 @@ export default function OrdersPage() {
         tenantId: maskDebugId(tenantId),
         ordersCount: rows.length,
       })
-      const normalized = rows
-        .map((row, index) => ({
-          ...mapOrderSummaryToOrderRecord(normalizeOrderRecord(row, index)),
-          status_raw: typeof row.status === 'string' ? row.status : '',
-          created_by_employee_id:
-            typeof row.created_by_employee_id === 'string'
-              ? row.created_by_employee_id
-              : '',
-          updated_at:
-            typeof row.updated_at === 'string' ? row.updated_at : '',
-        }))
+      const normalized = rows.map(mapOrderSourceRowToPageOrder)
       const nextIds = new Set(normalized.map((order) => order.id))
 
       if (!initializedRef.current) {
@@ -893,6 +901,8 @@ export default function OrdersPage() {
       if (ordersSignatureRef.current !== nextSignature) {
         ordersSignatureRef.current = nextSignature
         setOrders(normalized)
+        setOrderDetailsById({})
+        setOrderDetailsErrorById({})
       }
 
       setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
@@ -1161,10 +1171,106 @@ export default function OrdersPage() {
     ).length
   }, [orders])
 
-  const detailsDrawerOrder = useMemo(() => {
+  const detailsDrawerSummaryOrder = useMemo(() => {
     if (!detailsDrawerOrderId) return null
     return orders.find((order) => order.id === detailsDrawerOrderId) || null
   }, [detailsDrawerOrderId, orders])
+
+  const detailsDrawerOrder = useMemo(() => {
+    if (!detailsDrawerOrderId) return null
+    return (
+      orderDetailsById[detailsDrawerOrderId] ||
+      detailsDrawerSummaryOrder ||
+      null
+    )
+  }, [detailsDrawerOrderId, detailsDrawerSummaryOrder, orderDetailsById])
+
+  const detailsDrawerIsLoading = Boolean(
+    detailsDrawerOrderId &&
+      orderDetailsLoadingId === detailsDrawerOrderId &&
+      !orderDetailsById[detailsDrawerOrderId]
+  )
+  const detailsDrawerError = detailsDrawerOrderId
+    ? orderDetailsErrorById[detailsDrawerOrderId] || ''
+    : ''
+  const detailsDrawerHasFullDetails = Boolean(
+    detailsDrawerOrderId && orderDetailsById[detailsDrawerOrderId]
+  )
+  const detailsDrawerActionsDisabled =
+    detailsDrawerIsLoading || Boolean(detailsDrawerError) || !detailsDrawerHasFullDetails
+
+  useEffect(() => {
+    if (
+      !detailsDrawerOrderId ||
+      orderDetailsById[detailsDrawerOrderId] ||
+      orderDetailsInFlightRef.current.has(detailsDrawerOrderId)
+    ) {
+      return
+    }
+
+    let cancelled = false
+    const orderId = detailsDrawerOrderId
+
+    async function fetchOrderDetails() {
+      orderDetailsInFlightRef.current.add(orderId)
+      setOrderDetailsLoadingId(orderId)
+      setOrderDetailsErrorById((current) => {
+        const nextErrors = { ...current }
+        delete nextErrors[orderId]
+        return nextErrors
+      })
+
+      try {
+        const params = new URLSearchParams({
+          mode: 'details',
+          id: orderId,
+        })
+        const response = await fetch(`/api/orders?${params.toString()}`, {
+          method: 'GET',
+          credentials: 'include',
+        })
+        const result = (await response.json().catch(() => null)) as
+          | {
+              success?: boolean
+              items?: unknown[]
+            }
+          | null
+
+        if (cancelled) return
+
+        if (!response.ok || !result?.success || !Array.isArray(result.items) || result.items.length === 0) {
+          throw new Error('تعذر تحميل تفاصيل الطلب. يرجى المحاولة مرة أخرى.')
+        }
+
+        const detail = mapOrderSourceRowToPageOrder(
+          result.items[0] as OrderSourceRow,
+          0
+        )
+
+        setOrderDetailsById((current) => ({ ...current, [orderId]: detail }))
+      } catch (error) {
+        if (cancelled) return
+
+        console.error('[admin/orders] failed to fetch order details', error)
+        setOrderDetailsErrorById((current) => ({
+          ...current,
+          [orderId]: 'تعذر تحميل تفاصيل الطلب. يرجى المحاولة مرة أخرى.',
+        }))
+      } finally {
+        orderDetailsInFlightRef.current.delete(orderId)
+
+        if (!cancelled) {
+          setOrderDetailsLoadingId((current) => (current === orderId ? null : current))
+        }
+      }
+    }
+
+    void fetchOrderDetails()
+
+    return () => {
+      cancelled = true
+    }
+  }, [detailsDrawerOrderId, orderDetailsById, orderDetailsRetryKey])
 
   const drawerCustomerSummary = useMemo(() => {
     if (!detailsDrawerOrder) {
@@ -1627,6 +1733,16 @@ export default function OrdersPage() {
       ordersSignatureRef.current = buildOrderComparisonSignature(nextOrders)
       return nextOrders
     })
+    setOrderDetailsById((current) => {
+      const nextDetails = { ...current }
+      delete nextDetails[order.id]
+      return nextDetails
+    })
+    setOrderDetailsErrorById((current) => {
+      const nextErrors = { ...current }
+      delete nextErrors[order.id]
+      return nextErrors
+    })
 
     const shouldSendReadyNotification =
       order.status !== status &&
@@ -1772,6 +1888,16 @@ export default function OrdersPage() {
         )
         ordersSignatureRef.current = buildOrderComparisonSignature(nextOrders)
         return nextOrders
+      })
+      setOrderDetailsById((current) => {
+        const nextDetails = { ...current }
+        delete nextDetails[order.id]
+        return nextDetails
+      })
+      setOrderDetailsErrorById((current) => {
+        const nextErrors = { ...current }
+        delete nextErrors[order.id]
+        return nextErrors
       })
 
       setWhatsappStatusByOrderId((current) => ({
@@ -2460,6 +2586,33 @@ export default function OrdersPage() {
                     </div>
                   </div>
 
+                  {detailsDrawerIsLoading ? (
+                    <div className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-sm font-black text-cyan-100">
+                      جارٍ تحميل تفاصيل الطلب...
+                    </div>
+                  ) : null}
+
+                  {detailsDrawerError ? (
+                    <div className="rounded-2xl border border-rose-300/25 bg-rose-500/10 p-4 text-sm font-bold text-rose-100">
+                      <p>{detailsDrawerError}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!detailsDrawerOrderId) return
+                          setOrderDetailsErrorById((current) => {
+                            const nextErrors = { ...current }
+                            delete nextErrors[detailsDrawerOrderId]
+                            return nextErrors
+                          })
+                          setOrderDetailsRetryKey((key) => key + 1)
+                        }}
+                        className="mt-3 h-10 rounded-xl border border-rose-200/35 bg-rose-300/10 px-4 text-xs font-black text-rose-50 transition hover:bg-rose-300/20"
+                      >
+                        إعادة المحاولة
+                      </button>
+                    </div>
+                  ) : null}
+
                   <DrawerSection title="معلومات الطلب">
                     <DetailGrid>
                       <DetailItem label="رقم الطلب" value={detailsDrawerOrder.order_number} />
@@ -2544,7 +2697,11 @@ export default function OrdersPage() {
                   </DrawerSection>
 
                   <DrawerSection title="المنتجات">
-                    {detailsDrawerOrder.items.length > 0 ? (
+                    {detailsDrawerIsLoading ? (
+                      <EmptyDrawerText>جارٍ تحميل المنتجات...</EmptyDrawerText>
+                    ) : detailsDrawerError ? (
+                      <EmptyDrawerText>تعذر تحميل المنتجات.</EmptyDrawerText>
+                    ) : detailsDrawerOrder.items.length > 0 ? (
                       <div className="space-y-2">
                         {detailsDrawerOrder.items.map((item, index) => (
                           <div
@@ -2745,7 +2902,7 @@ export default function OrdersPage() {
                     <div className="grid gap-2 sm:grid-cols-2">
                       <button
                         type="button"
-                        disabled={detailsDrawerOrder.items.length === 0}
+                        disabled={detailsDrawerActionsDisabled || detailsDrawerOrder.items.length === 0}
                         onClick={() => previewDigitalInvoiceInPage(detailsDrawerOrder)}
                         className="h-11 rounded-2xl border border-violet-300/30 bg-violet-500/15 px-4 text-xs font-black text-violet-100 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:border-slate-500/20 disabled:bg-slate-500/10 disabled:text-slate-500"
                       >
@@ -2753,8 +2910,9 @@ export default function OrdersPage() {
                       </button>
                       <button
                         type="button"
+                        disabled={detailsDrawerActionsDisabled}
                         onClick={() => previewThermalInvoiceInPage(detailsDrawerOrder)}
-                        className="h-11 rounded-2xl border border-cyan-300/30 bg-cyan-500/15 px-4 text-xs font-black text-cyan-100 transition hover:bg-cyan-500/25"
+                        className="h-11 rounded-2xl border border-cyan-300/30 bg-cyan-500/15 px-4 text-xs font-black text-cyan-100 transition hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:border-slate-500/20 disabled:bg-slate-500/10 disabled:text-slate-500"
                       >
                         معاينة الفاتورة الحرارية
                       </button>
@@ -2794,6 +2952,7 @@ export default function OrdersPage() {
                       disabled={
                         !canManageOrders ||
                         !whatsappFeatureEnabled ||
+                        detailsDrawerActionsDisabled ||
                         detailsDrawerOrder.items.length === 0 ||
                         Boolean(invoicePdfActionByOrderId[detailsDrawerOrder.id])
                       }
@@ -2806,8 +2965,9 @@ export default function OrdersPage() {
                     </button>
                     <button
                       type="button"
+                      disabled={detailsDrawerActionsDisabled}
                       onClick={() => printThermalReceipt(detailsDrawerOrder)}
-                      className="h-10 rounded-xl border border-slate-300/20 bg-slate-400/10 px-3 text-xs font-black text-slate-100 transition hover:bg-slate-400/15"
+                      className="h-10 rounded-xl border border-slate-300/20 bg-slate-400/10 px-3 text-xs font-black text-slate-100 transition hover:bg-slate-400/15 disabled:opacity-50"
                     >
                       طباعة
                     </button>
