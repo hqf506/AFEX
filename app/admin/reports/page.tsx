@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminAlert, AdminEmptyState } from '@/components/admin-ui'
@@ -14,20 +14,14 @@ import {
 } from '@/lib/branch-access'
 import {
   buildReportDateRange,
-  buildReportOrderSummary,
-  enrichOrdersWithCatalogFinancials,
   escapeCsvValue,
-  getReportTopServices,
-  mapOrderSourceRowToReportOrderRecord,
   sanitizeExportValue,
-  type CatalogFinancialSource,
   type ReportOrderRecord,
+  type ReportOrderSummary,
+  type ReportTopService,
   type ReportRange,
 } from '@/lib/reports/core'
-import { supabase } from '@/lib/supabase/client'
-import { applyTenantFilter } from '@/lib/tenant-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
-import { type OrderSourceRow } from '@/lib/orders/normalize'
 import { canViewReportRange } from '@/lib/permissions'
 import {
   formatCurrency,
@@ -57,27 +51,6 @@ function ReportsShellPlaceholder() {
       </div>
     </div>
   )
-}
-
-async function fetchCatalogFinancials(tenantId: string | null | undefined) {
-  if (!tenantId) {
-    return [] as CatalogFinancialSource[]
-  }
-
-  let query = supabase
-    .from('catalog_items')
-    .select('name, item_type, category, default_price, cost_price')
-
-  query = applyTenantFilter(query, tenantId)
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Load catalog financials error:', error)
-    return [] as CatalogFinancialSource[]
-  }
-
-  return (data || []) as CatalogFinancialSource[]
 }
 
 const rangeOptions: Array<{ value: ReportRange; label: string }> = [
@@ -142,6 +115,46 @@ type ReportKpiCardProps = {
   icon: string
 }
 
+type ReportOrderSummaryRow = Omit<ReportOrderRecord, 'items'> & {
+  cost_total: number
+  profit_total: number
+}
+
+type SalesTrendRow = {
+  key: string
+  label: string
+  total: number
+}
+
+type ReportsSummaryPayload = {
+  summary: ReportOrderSummary
+  topServices: ReportTopService[]
+  salesTrend: SalesTrendRow[]
+  orders: ReportOrderSummaryRow[]
+}
+
+const emptyReportSummary: ReportOrderSummary = {
+  totalOrders: 0,
+  totalSales: 0,
+  totalCost: 0,
+  totalProfit: 0,
+  profitMarginPercent: 0,
+  totalSubtotal: 0,
+  totalDiscount: 0,
+  totalTax: 0,
+  cashTotal: 0,
+  cardTotal: 0,
+  transferTotal: 0,
+  cashReceived: 0,
+  outstandingFromCustomers: 0,
+  changeForCustomers: 0,
+  newCount: 0,
+  inProgressCount: 0,
+  readyCount: 0,
+  deliveredCount: 0,
+  closedCount: 0,
+}
+
 function ReportKpiCard({ title, value, hint, icon }: ReportKpiCardProps) {
   return (
     <div className="rounded-[24px] border border-cyan-300/15 bg-white/[0.045] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.18)] backdrop-blur">
@@ -199,7 +212,10 @@ export default function ReportsPage() {
 
   const todayString = getDateInputValue(new Date())
 
-  const [orders, setOrders] = useState<ReportOrderRecord[]>([])
+  const [orders, setOrders] = useState<ReportOrderSummaryRow[]>([])
+  const [stats, setStats] = useState<ReportOrderSummary>(emptyReportSummary)
+  const [topServices, setTopServices] = useState<ReportTopService[]>([])
+  const [salesTrend, setSalesTrend] = useState<SalesTrendRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -209,19 +225,27 @@ export default function ReportsPage() {
   const [dateTo, setDateTo] = useState(todayString)
   const [showAllOrders, setShowAllOrders] = useState(false)
   const [showAllServices, setShowAllServices] = useState(false)
+  const reportsRequestSeqRef = useRef(0)
+
+  const resetReportData = () => {
+    setOrders([])
+    setStats(emptyReportSummary)
+    setTopServices([])
+    setSalesTrend([])
+  }
 
   const fetchReportsData = useCallback(
     async (silent = false) => {
       if (!dateFrom) {
-        setOrders([])
+        resetReportData()
         setLoading(false)
         setRefreshing(false)
         return
       }
 
       if (range === 'custom' && dateTo && dateTo < dateFrom) {
-        setErrorMessage('تاريخ "إلى" يجب أن يكون بعد أو مساويًا لتاريخ "من"')
-        setOrders([])
+        setErrorMessage('تاريخ "إلى" يجب أن يكون بعد أو مساوياً لتاريخ "من"')
+        resetReportData()
         setLoading(false)
         setRefreshing(false)
         return
@@ -236,14 +260,14 @@ export default function ReportsPage() {
 
       if (!canViewReportRange(access.userRole, fromIso, toIso)) {
         setErrorMessage('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
-        setOrders([])
+        resetReportData()
         setLoading(false)
         setRefreshing(false)
         return
       }
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
-        setOrders([])
+        resetReportData()
         setLastUpdated(new Date().toLocaleTimeString('en-GB'))
         setLoading(false)
         setRefreshing(false)
@@ -251,84 +275,63 @@ export default function ReportsPage() {
       }
 
       if (!tenantId) {
-        setOrders([])
+        resetReportData()
         setLastUpdated(new Date().toLocaleTimeString('en-GB'))
         setLoading(false)
         setRefreshing(false)
         return
       }
 
-      let query = supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          created_at,
-          customers (
-            name,
-            phone
-          ),
-          invoices (
-            invoice_number,
-            payment_method,
-            payment_status,
-            subtotal,
-            discount,
-            tax,
-            total,
-            note,
-            cash_received,
-            remaining_from_customer,
-            cash_change,
-            invoice_items (
-              item_name_snapshot,
-              item_type_snapshot,
-              item_category_snapshot,
-              quantity,
-              unit_price,
-              line_total,
-              cost_price
-            )
-          )
-        `)
-        .gte('created_at', fromIso)
-        .lte('created_at', toIso)
-        .order('created_at', { ascending: false })
+      const params = new URLSearchParams({
+        range,
+        dateFrom,
+        dateTo,
+      })
 
-      query = applyTenantFilter(query, tenantId)
-
-      if (shouldFilterByBranch(scopeType, branchId)) {
-        query = query.eq('branch_id', branchId as string)
-      } else if (effectiveBranchId) {
-        query = query.eq('branch_id', effectiveBranchId)
+      if (!shouldFilterByBranch(scopeType, branchId) && effectiveBranchId) {
+        params.set('branchId', effectiveBranchId)
       }
 
-      const [{ data, error }, catalogFinancials] = await Promise.all([
-        query,
-        fetchCatalogFinancials(tenantId),
-      ])
-
-      if (error) {
-        setErrorMessage(`فشل تحميل التقارير: ${error.message}`)
-        setOrders([])
-        setLoading(false)
-        setRefreshing(false)
-        return
-      }
+      const requestSeq = reportsRequestSeqRef.current + 1
+      reportsRequestSeqRef.current = requestSeq
 
       try {
-        const normalized = Array.isArray(data)
-          ? data.map((row, index) =>
-              mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index)
-            )
-          : []
+        const response = await fetch(
+          `/api/admin/reports/summary?${params.toString()}`,
+          {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'no-store',
+          }
+        )
+        const result = (await response.json().catch(() => null)) as
+          | ({ success?: boolean; message?: string } & Partial<ReportsSummaryPayload>)
+          | null
 
-        setOrders(enrichOrdersWithCatalogFinancials(normalized, catalogFinancials))
+        if (!response.ok || !result?.success) {
+          throw new Error(result?.message || 'فشل تحميل التقارير')
+        }
+
+        if (reportsRequestSeqRef.current !== requestSeq) {
+          return
+        }
+
+        setStats(result.summary || emptyReportSummary)
+        setTopServices(result.topServices || [])
+        setSalesTrend(result.salesTrend || [])
+        setOrders(result.orders || [])
       } catch (reportError) {
-        console.error('Reports page data normalization error:', reportError)
-        setErrorMessage('تعذر تهيئة بيانات التقارير لهذه الفترة')
-        setOrders([])
+        if (reportsRequestSeqRef.current !== requestSeq) {
+          return
+        }
+
+        console.error('Reports page data fetch error:', reportError)
+        setErrorMessage(
+          reportError instanceof Error
+            ? reportError.message
+            : 'تعذر تحميل بيانات التقارير لهذه الفترة'
+        )
+        resetReportData()
       }
 
       setLastUpdated(new Date().toLocaleTimeString('en-GB'))
@@ -346,7 +349,6 @@ export default function ReportsPage() {
       tenantId,
     ]
   )
-
   useEffect(() => {
     if (!allowed) return
 
@@ -401,10 +403,6 @@ export default function ReportsPage() {
     )
   }, [branchOptions, effectiveBranchId, selectedBranchId])
 
-  const stats = useMemo(() => buildReportOrderSummary(orders), [orders])
-
-  const topServices = useMemo(() => getReportTopServices(orders), [orders])
-
   const visibleTopServices = useMemo(
     () => (showAllServices ? topServices : topServices.slice(0, 5)),
     [showAllServices, topServices]
@@ -457,37 +455,6 @@ export default function ReportsPage() {
       stats.totalSales,
     ]
   )
-
-  const salesTrend = useMemo(() => {
-    const grouped = orders.reduce<Record<string, { key: string; label: string; total: number }>>(
-      (acc, order) => {
-        const createdAt = new Date(order.created_at)
-        const key = Number.isNaN(createdAt.getTime())
-          ? 'unknown'
-          : createdAt.toISOString().slice(0, 10)
-        const label = Number.isNaN(createdAt.getTime())
-          ? 'غير محدد'
-          : createdAt.toLocaleDateString('ar-SA', {
-              day: 'numeric',
-              month: 'short',
-            })
-
-        return {
-          ...acc,
-          [key]: {
-            key,
-            label,
-            total: (acc[key]?.total ?? 0) + order.total,
-          },
-        }
-      },
-      {}
-    )
-
-    return Object.values(grouped)
-      .sort((first, second) => first.key.localeCompare(second.key))
-      .slice(-8)
-  }, [orders])
 
   const salesTrendPoints = useMemo(() => {
     if (salesTrend.length === 0) return ''
@@ -567,9 +534,6 @@ export default function ReportsPage() {
     ]
 
     const rows = orders.map((order) => {
-      const costTotal = order.items.reduce((sum, item) => sum + item.cost_total, 0)
-      const profitTotal = order.items.reduce((sum, item) => sum + item.profit, 0)
-
       return [
         order.order_number,
         order.invoice_number,
@@ -579,8 +543,8 @@ export default function ReportsPage() {
         formatPaymentMethod(order.payment_method),
         order.payment_status,
         order.total,
-        costTotal,
-        profitTotal,
+        order.cost_total,
+        order.profit_total,
         order.subtotal,
         order.discount,
         order.tax,
@@ -617,15 +581,6 @@ export default function ReportsPage() {
         ? `<tr><td colspan="9" style="text-align:center;padding:16px;">لا توجد بيانات</td></tr>`
         : orders
             .map((order) => {
-              const costTotal = order.items.reduce(
-                (sum, item) => sum + item.cost_total,
-                0
-              )
-              const profitTotal = order.items.reduce(
-                (sum, item) => sum + item.profit,
-                0
-              )
-
               return `
                 <tr>
                   <td>${sanitizeExportValue(order.order_number)}</td>
@@ -633,8 +588,8 @@ export default function ReportsPage() {
                   <td>${sanitizeExportValue(order.customer_name)}</td>
                   <td>${sanitizeExportValue(formatPaymentMethod(order.payment_method))}</td>
                   <td>${order.total.toFixed(2)} ر.س</td>
-                  <td>${costTotal.toFixed(2)} ر.س</td>
-                  <td>${profitTotal.toFixed(2)} ر.س</td>
+                  <td>${order.cost_total.toFixed(2)} ر.س</td>
+                  <td>${order.profit_total.toFixed(2)} ر.س</td>
                   <td>${sanitizeExportValue(order.status)}</td>
                   <td>${sanitizeExportValue(formatDateTime(order.created_at, 'en-GB'))}</td>
                 </tr>
@@ -1112,15 +1067,6 @@ export default function ReportsPage() {
             ) : (
               <div className="space-y-3">
                 {visibleOrders.map((order) => {
-                  const costTotal = order.items.reduce(
-                    (sum, item) => sum + item.cost_total,
-                    0
-                  )
-                  const profitTotal = order.items.reduce(
-                    (sum, item) => sum + item.profit,
-                    0
-                  )
-
                   return (
                     <div
                       key={order.id}
@@ -1131,7 +1077,7 @@ export default function ReportsPage() {
                           {formatCurrency(order.total)}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          تكلفة {formatCurrency(costTotal)} · ربح {formatCurrency(profitTotal)}
+                          تكلفة {formatCurrency(order.cost_total)} · ربح {formatCurrency(order.profit_total)}
                         </p>
                         <span
                           className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${resolveReportStatusClassName(order.status)}`}
