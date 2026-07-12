@@ -34,6 +34,77 @@ type BranchCatalogRow = {
   display_order: number | null
 }
 
+type CatalogFilterQuery<T> = {
+  or: (filter: string) => T
+  eq: (column: string, value: unknown) => T
+}
+
+const BRANCH_CATALOG_ITEM_SELECT =
+  'id, code, name, category, item_type, default_price, cost_price, image_url, pos_display_mode, pos_color, pos_shape, is_composite, track_inventory, inventory_enabled_at, is_active, created_at, updated_at'
+const DEFAULT_PAGE_SIZE = 10
+const MAX_PAGE_SIZE = 100
+const EXPORT_PAGE_SIZE = 5000
+
+function normalizePositiveInteger(value: string | null, fallback: number) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function normalizeListText(value: string | null) {
+  return (value || '').trim()
+}
+
+function buildCatalogSearchFilter(search: string) {
+  const normalized = search.replace(/,/g, ' ')
+  if (!normalized) return null
+
+  return `name.ilike.%${normalized}%,code.ilike.%${normalized}%,category.ilike.%${normalized}%`
+}
+
+function applyCatalogFilters<T extends CatalogFilterQuery<T>>(
+  query: T,
+  search: string,
+  category: string,
+  status: string
+) {
+  const searchFilter = buildCatalogSearchFilter(search)
+  let nextQuery = query
+
+  if (searchFilter) {
+    nextQuery = nextQuery.or(searchFilter)
+  }
+
+  if (category && category !== 'all') {
+    nextQuery = nextQuery.eq('category', category)
+  }
+
+  if (status === 'active') {
+    nextQuery = nextQuery.eq('is_active', true)
+  } else if (status === 'inactive') {
+    nextQuery = nextQuery.eq('is_active', false)
+  }
+
+  return nextQuery
+}
+
+function resolveCatalogSort(sort: string, order: string) {
+  const field =
+    sort === 'name'
+      ? 'created_at'
+      : sort === 'category'
+        ? 'category'
+        : sort === 'default_price'
+          ? 'default_price'
+          : sort === 'cost_price'
+            ? 'cost_price'
+            : 'created_at'
+
+  return {
+    field,
+    ascending: order === 'asc',
+  }
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin'])
 
@@ -52,6 +123,32 @@ export async function GET(request: NextRequest) {
     const requestedBranchId = normalizeBranchCatalogBranchId(
       request.nextUrl.searchParams.get('branchId')
     )
+    const page = normalizePositiveInteger(
+      request.nextUrl.searchParams.get('page'),
+      1
+    )
+    const mode = request.nextUrl.searchParams.get('mode') || 'list'
+    const requestedPageSize = normalizePositiveInteger(
+      request.nextUrl.searchParams.get('pageSize'),
+      DEFAULT_PAGE_SIZE
+    )
+    const pageSize =
+      mode === 'export'
+        ? EXPORT_PAGE_SIZE
+        : Math.min(requestedPageSize, MAX_PAGE_SIZE)
+    const search = normalizeListText(request.nextUrl.searchParams.get('search'))
+    const category =
+      normalizeListText(request.nextUrl.searchParams.get('category')) ||
+      normalizeListText(request.nextUrl.searchParams.get('categoryId'))
+    const status = normalizeListText(request.nextUrl.searchParams.get('status'))
+    const sort = normalizeListText(request.nextUrl.searchParams.get('sort'))
+    const order = normalizeListText(request.nextUrl.searchParams.get('order'))
+    const assignedActiveOnly =
+      request.nextUrl.searchParams.get('assignedActive') === '1' ||
+      request.nextUrl.searchParams.get('assignedActive') === 'true'
+    const resolvedSort = resolveCatalogSort(sort, order)
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
     const tenantId = auth.profile.tenant_id
 
     if (!tenantId) {
@@ -95,16 +192,89 @@ export async function GET(request: NextRequest) {
       ''
     const selectedBranchId = requestedBranchId || fallbackBranchId
 
+    if (
+      requestedBranchId &&
+      !branchList.some((branch) => branch.id === requestedBranchId)
+    ) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse({ error: 'Ø§Ù„ÙØ±Ø¹ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' }, 404)
+      )
+    }
+
+    let assignedCatalogItemIds: string[] | null = null
+
+    if (assignedActiveOnly && selectedBranchId) {
+      let assignedQuery = supabaseAdmin
+        .from('branch_catalog_items')
+        .select('catalog_item_id')
+        .eq('branch_id', selectedBranchId)
+        .eq('is_active', true)
+
+      assignedQuery = applyTenantFilter(assignedQuery, tenantId)
+
+      const { data: assignedRows, error: assignedError } = await assignedQuery
+
+      if (assignedError) {
+        return withAuthCookies(
+          auth.response,
+          jsonResponse(
+            {
+              error: 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„ÙƒØªØ§Ù„ÙˆØ¬ Ø§Ù„Ø®Ø§ØµØ© Ø¨Ø§Ù„ÙØ±Ø¹',
+              details: assignedError.message,
+            },
+            500
+          )
+        )
+      }
+
+      assignedCatalogItemIds = (assignedRows || [])
+        .map((row) =>
+          typeof row.catalog_item_id === 'string' ? row.catalog_item_id : ''
+        )
+        .filter(Boolean)
+
+      if (assignedCatalogItemIds.length === 0) {
+        return withAuthCookies(
+          auth.response,
+          jsonResponse({
+            success: true,
+            branches: branchList,
+            selectedBranchId,
+            items: [],
+            total: 0,
+            page,
+            pageSize,
+          })
+        )
+      }
+    }
+
     let catalogItemsQuery = supabaseAdmin
       .from('catalog_items')
-      .select(
-        'id, code, name, category, item_type, default_price, is_active, created_at, updated_at'
-      )
-      .order('created_at', { ascending: true })
+      .select(BRANCH_CATALOG_ITEM_SELECT, { count: 'exact' })
+      .order(resolvedSort.field, { ascending: resolvedSort.ascending })
 
     catalogItemsQuery = applyTenantFilter(catalogItemsQuery, tenantId)
+    catalogItemsQuery = applyCatalogFilters(
+      catalogItemsQuery,
+      search,
+      category,
+      status
+    )
 
-    const { data: catalogItems, error: catalogError } = await catalogItemsQuery
+    if (assignedCatalogItemIds) {
+      catalogItemsQuery = catalogItemsQuery.in('id', assignedCatalogItemIds)
+    }
+
+    const {
+      data: catalogItems,
+      error: catalogError,
+      count,
+    } =
+      mode === 'export'
+        ? await catalogItemsQuery.limit(EXPORT_PAGE_SIZE)
+        : await catalogItemsQuery.range(from, to)
 
     if (catalogError) {
       return withAuthCookies(
@@ -120,12 +290,16 @@ export async function GET(request: NextRequest) {
     }
 
     let branchOverrides: BranchCatalogRow[] = []
+    const catalogItemIds = ((catalogItems || []) as AdminCatalogItemRecord[]).map(
+      (item) => item.id
+    )
 
-    if (selectedBranchId) {
+    if (selectedBranchId && catalogItemIds.length > 0) {
       let branchOverridesQuery = supabaseAdmin
         .from('branch_catalog_items')
         .select('id, branch_id, catalog_item_id, price, is_active, display_order')
         .eq('branch_id', selectedBranchId)
+        .in('catalog_item_id', catalogItemIds)
 
       branchOverridesQuery = applyTenantFilter(branchOverridesQuery, tenantId)
 
@@ -170,6 +344,9 @@ export async function GET(request: NextRequest) {
         branches: branchList,
         selectedBranchId,
         items,
+        total: count || 0,
+        page,
+        pageSize,
       })
     )
   } catch (error) {

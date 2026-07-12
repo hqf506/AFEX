@@ -23,6 +23,26 @@ export type SystemSettings = {
   ultramsg_api_url: string | null
   whatsapp_order_ready_message_template: string | null
   whatsapp_order_delivered_message_template: string | null
+  thermal_invoice_brand_name?: string | null
+  thermal_invoice_branch_name?: string | null
+  thermal_invoice_paper_width?: string | null
+  thermal_invoice_show_customer_phone?: boolean | null
+  thermal_invoice_show_payment_method?: boolean | null
+  thermal_invoice_show_note?: boolean | null
+  thermal_invoice_note?: string | null
+  thermal_invoice_footer_message?: string | null
+  thermal_invoice_show_whatsapp?: boolean | null
+  thermal_invoice_show_instagram?: boolean | null
+  thermal_invoice_show_tiktok?: boolean | null
+  thermal_invoice_show_google_review?: boolean | null
+  thermal_invoice_show_map?: boolean | null
+  digital_invoice_address_line_1?: string | null
+  digital_invoice_address_line_2?: string | null
+  digital_invoice_whatsapp_number?: string | null
+  digital_invoice_map_link?: string | null
+  digital_invoice_instagram_link?: string | null
+  digital_invoice_tiktok_link?: string | null
+  digital_invoice_google_review_link?: string | null
   enable_whatsapp: boolean
   enable_printing: boolean
   enable_pos: boolean

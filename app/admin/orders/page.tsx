@@ -34,6 +34,10 @@ import {
   buildReadyOrderStatusWhatsAppMessage,
   isSendableWhatsAppPhone,
 } from '@/lib/whatsapp/messages'
+import {
+  renderThermalInvoiceHtml,
+  type ThermalPaperWidth,
+} from '@/lib/invoices/thermal-template'
 
 function fixArabic(text: string) {
   try {

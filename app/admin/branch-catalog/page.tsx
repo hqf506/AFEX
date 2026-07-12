@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminButton } from '@/components/admin-button'
 import { AdminInput } from '@/components/admin-input'
 import { AdminSelect } from '@/components/admin-select'
@@ -19,6 +19,8 @@ import {
 import type { AdminBranchRecord } from '@/lib/admin/branches'
 import { formatCurrency } from '@/lib/orders/format'
 import { usePageAccess } from '@/hooks/use-page-access'
+
+const BRANCH_CATALOG_PAGE_SIZE = 10
 
 function AdminBranchCatalogPageContent() {
   const searchParams = useSearchParams()
@@ -37,13 +39,27 @@ function AdminBranchCatalogPageContent() {
   const [savingItemId, setSavingItemId] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const branchCatalogRequestIdRef = useRef(0)
 
-  async function loadBranchCatalog(branchId?: string) {
+  async function loadBranchCatalog(branchId?: string, page = currentPage) {
     try {
+      const requestId = branchCatalogRequestIdRef.current + 1
+      branchCatalogRequestIdRef.current = requestId
       setLoadingData(true)
       setErrorMessage('')
 
-      const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(BRANCH_CATALOG_PAGE_SIZE),
+      })
+
+      if (branchId) {
+        params.set('branchId', branchId)
+      }
+
+      const query = `?${params.toString()}`
       const response = await fetch(`/api/admin/branch-catalog${query}`, {
         method: 'GET',
         cache: 'no-store',
@@ -60,9 +76,15 @@ function AdminBranchCatalogPageContent() {
       }
 
       const nextItems = (result.items || []) as AdminBranchCatalogItemRecord[]
+
+      if (branchCatalogRequestIdRef.current !== requestId) {
+        return
+      }
+
       setBranches(result.branches || [])
       setSelectedBranchId(result.selectedBranchId || '')
       setItems(nextItems)
+      setTotalItems(Number(result.total) || 0)
       setDrafts(
         nextItems.reduce<Record<string, BranchCatalogDraft>>((acc, item) => {
           acc[item.id] = createBranchCatalogDraft(item)
@@ -87,7 +109,7 @@ function AdminBranchCatalogPageContent() {
 
       queueMicrotask(() => {
         if (isActive) {
-          void loadBranchCatalog(requestedBranchId || undefined)
+          void loadBranchCatalog(requestedBranchId || undefined, currentPage)
         }
       })
 
@@ -95,7 +117,7 @@ function AdminBranchCatalogPageContent() {
         isActive = false
       }
     }
-  }, [accessLoading, allowed, requestedBranchId])
+  }, [accessLoading, allowed, requestedBranchId, currentPage])
 
   const selectedBranch = useMemo(
     () => resolveSelectedBranch(branches, selectedBranchId),
@@ -133,11 +155,16 @@ function AdminBranchCatalogPageContent() {
       ...items.filter((item) => item.id !== focusedItemId),
     ]
   }, [items, focusedItemId])
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalItems / BRANCH_CATALOG_PAGE_SIZE)
+  )
 
   async function handleBranchChange(nextBranchId: string) {
     setSuccessMessage('')
     setErrorMessage('')
-    await loadBranchCatalog(nextBranchId)
+    setCurrentPage(1)
+    await loadBranchCatalog(nextBranchId, 1)
   }
 
   function updateDraft(
@@ -195,7 +222,7 @@ function AdminBranchCatalogPageContent() {
       setSuccessMessage(
         result?.message || 'تم حفظ إعدادات العنصر الخاصة بالفرع بنجاح'
       )
-      await loadBranchCatalog(selectedBranchId)
+      await loadBranchCatalog(selectedBranchId, currentPage)
     } catch (error) {
       console.error('Save branch catalog item error:', error)
       setErrorMessage(
@@ -512,6 +539,31 @@ function AdminBranchCatalogPageContent() {
                       </article>
                     )
                   })}
+                  {totalPages > 1 ? (
+                    <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-cyan-300/10 bg-black/20 px-4 py-4 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                        disabled={currentPage === 1 || loadingData}
+                        className="inline-flex h-10 items-center rounded-xl border border-white/10 bg-white/[0.045] px-4 font-semibold text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        السابق
+                      </button>
+                      <span className="font-black text-slate-300">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentPage((page) => Math.min(totalPages, page + 1))
+                        }
+                        disabled={currentPage === totalPages || loadingData}
+                        className="inline-flex h-10 items-center rounded-xl border border-white/10 bg-white/[0.045] px-4 font-semibold text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        التالي
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>

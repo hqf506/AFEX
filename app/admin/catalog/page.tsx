@@ -52,7 +52,6 @@ const ITEMS_PER_PAGE = 10
 const UNCATEGORIZED_LABEL = 'دون فئة'
 const ADMIN_BRANCHES_CACHE_KEY = 'admin-branches'
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
-const ADMIN_CATALOG_CACHE_KEY = 'admin-catalog'
 const ADMIN_SHARED_CACHE_TTL_MS = 60_000
 
 const BRANCH_OPTIONS_FALLBACK = [
@@ -627,9 +626,7 @@ export default function AdminCatalogPage() {
   const isSystemAdmin =
     scopeType !== null && isSystemScopedCatalogAdmin(scopeType)
 
-  const [items, setItems] = useState<AdminCatalogItemRecord[]>(
-    () => peekClientResource<AdminCatalogItemRecord[]>(ADMIN_CATALOG_CACHE_KEY) || []
-  )
+  const [items, setItems] = useState<AdminCatalogItemRecord[]>([])
   const [categories, setCategories] = useState<CategoryRecord[]>(
     () => peekClientResource<CategoryRecord[]>(ADMIN_CATEGORIES_CACHE_KEY) || []
   )
@@ -648,9 +645,7 @@ export default function AdminCatalogPage() {
   const [hasChanges, setHasChanges] = useState(false)
   const [showUnsavedModal, setShowUnsavedModal] = useState(false)
   const [showFormView, setShowFormView] = useState(false)
-  const [loadingItems, setLoadingItems] = useState(
-    !(peekClientResource<AdminCatalogItemRecord[]>(ADMIN_CATALOG_CACHE_KEY) || []).length
-  )
+  const [loadingItems, setLoadingItems] = useState(true)
   const [saving, setSaving] = useState(false)
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
   const [uploadingImageItemId, setUploadingImageItemId] = useState<string | null>(
@@ -672,6 +667,7 @@ export default function AdminCatalogPage() {
   const [costPriceSort, setCostPriceSort] = useState<'none' | 'desc' | 'asc'>('none')
   const [profitSort, setProfitSort] = useState<'none' | 'desc' | 'asc'>('none')
   const [currentPage, setCurrentPage] = useState(1)
+  const [catalogTotalCount, setCatalogTotalCount] = useState(0)
   const [branchFilterMessage, setBranchFilterMessage] = useState('')
   const [showImportPanel, setShowImportPanel] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
@@ -708,6 +704,7 @@ export default function AdminCatalogPage() {
   const itemTypeDropdownRef = useRef<HTMLDivElement | null>(null)
   const tableCategoryDropdownRef = useRef<HTMLDivElement | null>(null)
   const initialEditSnapshotRef = useRef<string | null>(null)
+  const catalogRequestIdRef = useRef(0)
 
   async function loadBranches(force = false) {
     const cachedBranches =
@@ -779,22 +776,59 @@ export default function AdminCatalogPage() {
 
   async function loadItems(force = false) {
     try {
-      const cachedItems =
-        peekClientResource<AdminCatalogItemRecord[]>(ADMIN_CATALOG_CACHE_KEY) || []
-
-      if (cachedItems.length > 0) {
-        setItems(cachedItems)
-        setLoadingItems(false)
-      } else {
-        setLoadingItems(true)
-      }
-
+      const requestId = catalogRequestIdRef.current + 1
+      catalogRequestIdRef.current = requestId
+      setLoadingItems(true)
       setErrorMessage('')
 
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        pageSize: String(ITEMS_PER_PAGE),
+      })
+      const normalizedSearch = searchQuery.trim()
+
+      if (normalizedSearch) {
+        params.set('search', normalizedSearch)
+      }
+
+      if (categoryFilter !== 'all') {
+        params.set('category', categoryFilter)
+      }
+
+      if (statusFilter !== 'all') {
+        params.set('status', statusFilter)
+      }
+
+      const activeSort =
+        profitSort !== 'none'
+          ? null
+          : salePriceSort !== 'none'
+            ? { sort: 'default_price', order: salePriceSort }
+            : costPriceSort !== 'none'
+              ? { sort: 'cost_price', order: costPriceSort }
+              : categorySort !== 'none'
+                ? { sort: 'category', order: categorySort }
+                : nameSort !== 'none'
+                  ? { sort: 'name', order: nameSort }
+                  : null
+
+      if (activeSort) {
+        params.set('sort', activeSort.sort)
+        params.set('order', activeSort.order)
+      }
+
+      let endpoint = `/api/admin/catalog?${params.toString()}`
+
+      if (branchFilter !== 'all') {
+        params.set('branchId', branchFilter)
+        params.set('assignedActive', '1')
+        endpoint = `/api/admin/branch-catalog?${params.toString()}`
+      }
+
       const nextItems = await loadClientResource(
-        ADMIN_CATALOG_CACHE_KEY,
+        `admin-catalog:${endpoint}`,
         async () => {
-          const response = await fetch('/api/admin/catalog', {
+          const response = await fetch(endpoint, {
             method: 'GET',
             cache: 'no-store',
           })
@@ -805,7 +839,10 @@ export default function AdminCatalogPage() {
             throw new Error(result?.details || result?.error || 'تعذر تحميل العناصر')
           }
 
-          return result.items || []
+          return {
+            items: result.items || [],
+            total: Number(result.total) || 0,
+          }
         },
         {
           ttlMs: ADMIN_SHARED_CACHE_TTL_MS,
@@ -814,7 +851,18 @@ export default function AdminCatalogPage() {
         }
       )
 
-      setItems(nextItems)
+      if (catalogRequestIdRef.current !== requestId) {
+        return
+      }
+
+      setItems(nextItems.items)
+      setCatalogTotalCount(nextItems.total)
+      setBranchScopedItems(null)
+      setBranchFilterMessage(
+        branchFilter !== 'all' && nextItems.total === 0
+          ? 'لا توجد إعدادات فروع مرتبطة بالعناصر بعد'
+          : ''
+      )
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'تعذر تحميل العناصر'
@@ -897,16 +945,29 @@ export default function AdminCatalogPage() {
   useEffect(() => {
     if (!accessLoading && allowed) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      void Promise.all([loadItems(), loadBranches(), loadCategories()])
+      void Promise.all([loadBranches(), loadCategories()])
     }
   }, [accessLoading, allowed])
 
   useEffect(() => {
     if (!accessLoading && allowed) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      void loadBranchScopedItems()
+      void loadItems()
     }
-  }, [accessLoading, allowed, loadBranchScopedItems])
+  }, [
+    accessLoading,
+    allowed,
+    currentPage,
+    searchQuery,
+    statusFilter,
+    categoryFilter,
+    branchFilter,
+    nameSort,
+    categorySort,
+    salePriceSort,
+    costPriceSort,
+    profitSort,
+  ])
 
   useEffect(() => {
     function handleWindowClick() {
@@ -995,7 +1056,7 @@ export default function AdminCatalogPage() {
     () => [
       {
         title: 'إجمالي العناصر',
-        value: items.length.toString(),
+        value: catalogTotalCount.toString(),
         hint: 'عنصر وخدمة',
         icon: 'items',
       },
@@ -1018,16 +1079,23 @@ export default function AdminCatalogPage() {
         icon: 'value',
       },
     ],
-    [activeItemsCount, items.length, totalCatalogValue]
+    [activeItemsCount, catalogTotalCount, totalCatalogValue]
   )
   const categoryOptions = useMemo(
-    () => Array.from(new Set(items.map((item) => item.category).filter(Boolean))),
-    [items]
+    () =>
+      Array.from(
+        new Set(
+          categories
+            .map((category) => normalizeBrokenCategoryLabel(category.name))
+            .filter(Boolean)
+        )
+      ),
+    [categories]
   )
 
   const filteredItems = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase()
-    const sourceItems = branchFilter === 'all' ? items : branchScopedItems || []
+    const sourceItems = items
 
     return sourceItems.filter((item) => {
       const matchesSearch =
@@ -1047,7 +1115,7 @@ export default function AdminCatalogPage() {
 
       return matchesSearch && matchesStatus && matchesCategory && matchesBranch
     })
-  }, [branchFilter, branchScopedItems, categoryFilter, items, searchQuery, statusFilter])
+  }, [categoryFilter, items, searchQuery, statusFilter])
 
   const sortedItems = useMemo(() => {
     const nextItems = [...filteredItems]
@@ -1173,14 +1241,10 @@ export default function AdminCatalogPage() {
     })
   }, [])
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE))
+  const totalPages = Math.max(1, Math.ceil(catalogTotalCount / ITEMS_PER_PAGE))
   const paginatedItems = useMemo(
-    () =>
-      sortedItems.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-      ),
-    [currentPage, sortedItems]
+    () => sortedItems,
+    [sortedItems]
   )
   const visiblePageNumbers = useMemo(() => {
     if (totalPages <= 5) {
@@ -1811,9 +1875,6 @@ export default function AdminCatalogPage() {
       if (options?.shouldReload !== false) {
         await loadItems(true)
       }
-      if (branchFilter !== 'all') {
-        await loadBranchScopedItems(branchFilter, true)
-      }
 
       setSuccessMessage(
         failedCount > 0
@@ -1884,9 +1945,6 @@ export default function AdminCatalogPage() {
 
       setSelectedItemIds([])
       await loadItems(true)
-      if (branchFilter !== 'all') {
-        await loadBranchScopedItems(branchFilter, true)
-      }
 
       if (failedCount > 0 && deletedCount === 0) {
         setErrorMessage(`فشل حذف ${failedCount} عنصر. يرجى المحاولة مرة أخرى.`)
@@ -2076,9 +2134,6 @@ export default function AdminCatalogPage() {
       setInlinePriceEdit(null)
       setSuccessMessage(result?.message || 'تم تحديث السعر بنجاح')
       await loadItems(true)
-      if (branchFilter !== 'all') {
-        await loadBranchScopedItems(branchFilter, true)
-      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'تعذر تحديث السعر')
     } finally {
@@ -2086,7 +2141,7 @@ export default function AdminCatalogPage() {
     }
   }
 
-  function handleExportCsv() {
+  async function handleExportCsv() {
     const header = [
       'name',
       'code',
@@ -2101,7 +2156,46 @@ export default function AdminCatalogPage() {
       'image_url',
     ]
 
-    const rows = filteredItems.map((item) =>
+    const params = new URLSearchParams({
+      mode: 'export',
+      pageSize: '5000',
+    })
+
+    if (searchQuery.trim()) {
+      params.set('search', searchQuery.trim())
+    }
+
+    if (categoryFilter !== 'all') {
+      params.set('category', categoryFilter)
+    }
+
+    if (statusFilter !== 'all') {
+      params.set('status', statusFilter)
+    }
+
+    if (branchFilter !== 'all') {
+      params.set('branchId', branchFilter)
+      params.set('assignedActive', '1')
+    }
+
+    const response = await fetch(
+      branchFilter === 'all'
+        ? `/api/admin/catalog?${params.toString()}`
+        : `/api/admin/branch-catalog?${params.toString()}`,
+      {
+        method: 'GET',
+        cache: 'no-store',
+      }
+    )
+    const result = await response.json()
+
+    if (!response.ok) {
+      setErrorMessage(result?.details || result?.error || 'تعذر تصدير العناصر')
+      return
+    }
+
+    const exportItems = (result.items || []) as AdminCatalogItemRecord[]
+    const rows = exportItems.map((item) =>
       [
         item.name,
         item.code,
@@ -3219,7 +3313,7 @@ export default function AdminCatalogPage() {
                 />
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <span className="rounded-full border border-cyan-500/15 bg-cyan-300/5 px-3 py-1.5 text-xs font-semibold text-cyan-100">
-                    الكل {items.length}
+                    الكل {catalogTotalCount}
                   </span>
                   <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200">
                     نشط {activeItemsCount}
@@ -3240,7 +3334,7 @@ export default function AdminCatalogPage() {
               </p>
             </div>
             <p className="text-left text-sm font-bold text-slate-500">
-              عرض {filteredItems.length} من {items.length} عنصر
+              عرض {filteredItems.length} من {catalogTotalCount} عنصر
             </p>
           </div>
 

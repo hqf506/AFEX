@@ -34,6 +34,77 @@ type ImportCatalogItemsBody = {
   items?: CreateCatalogItemBody[]
 }
 
+type CatalogFilterQuery<T> = {
+  or: (filter: string) => T
+  eq: (column: string, value: unknown) => T
+}
+
+const CATALOG_LIST_SELECT =
+  'id, code, name, category, item_type, default_price, cost_price, image_url, pos_display_mode, pos_color, pos_shape, is_composite, track_inventory, inventory_enabled_at, is_active, created_at, updated_at'
+const DEFAULT_PAGE_SIZE = 10
+const MAX_PAGE_SIZE = 100
+const EXPORT_PAGE_SIZE = 5000
+
+function normalizePositiveInteger(value: string | null, fallback: number) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function normalizeListText(value: string | null) {
+  return (value || '').trim()
+}
+
+function buildCatalogSearchFilter(search: string) {
+  const normalized = search.replace(/,/g, ' ')
+  if (!normalized) return null
+
+  return `name.ilike.%${normalized}%,code.ilike.%${normalized}%,category.ilike.%${normalized}%`
+}
+
+function applyCatalogListFilters<T extends CatalogFilterQuery<T>>(
+  query: T,
+  search: string,
+  category: string,
+  status: string
+) {
+  const searchFilter = buildCatalogSearchFilter(search)
+  let nextQuery = query
+
+  if (searchFilter) {
+    nextQuery = nextQuery.or(searchFilter)
+  }
+
+  if (category && category !== 'all') {
+    nextQuery = nextQuery.eq('category', category)
+  }
+
+  if (status === 'active') {
+    nextQuery = nextQuery.eq('is_active', true)
+  } else if (status === 'inactive') {
+    nextQuery = nextQuery.eq('is_active', false)
+  }
+
+  return nextQuery
+}
+
+function resolveCatalogSort(sort: string, order: string) {
+  const field =
+    sort === 'name'
+      ? 'created_at'
+      : sort === 'category'
+        ? 'category'
+        : sort === 'default_price'
+          ? 'default_price'
+          : sort === 'cost_price'
+            ? 'cost_price'
+            : 'created_at'
+
+  return {
+    field,
+    ascending: order === 'asc',
+  }
+}
+
 function normalizePosDisplayMode(value: unknown): 'style' | 'image' {
   return value === 'image' ? 'image' : 'style'
 }
@@ -141,16 +212,45 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const mode = request.nextUrl.searchParams.get('mode') || 'list'
+    const page = normalizePositiveInteger(
+      request.nextUrl.searchParams.get('page'),
+      1
+    )
+    const requestedPageSize = normalizePositiveInteger(
+      request.nextUrl.searchParams.get('pageSize'),
+      DEFAULT_PAGE_SIZE
+    )
+    const pageSize =
+      mode === 'export'
+        ? EXPORT_PAGE_SIZE
+        : Math.min(requestedPageSize, MAX_PAGE_SIZE)
+    const search = normalizeListText(request.nextUrl.searchParams.get('search'))
+    const category =
+      normalizeListText(request.nextUrl.searchParams.get('category')) ||
+      normalizeListText(request.nextUrl.searchParams.get('categoryId'))
+    const status = normalizeListText(request.nextUrl.searchParams.get('status'))
+    const sort = normalizeListText(request.nextUrl.searchParams.get('sort'))
+    const order = normalizeListText(request.nextUrl.searchParams.get('order'))
+    const resolvedSort = resolveCatalogSort(sort, order)
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
     let query = supabaseAdmin
       .from('catalog_items')
-      .select(
-        'id, code, name, category, item_type, default_price, cost_price, image_url, pos_display_mode, pos_color, pos_shape, is_composite, track_inventory, inventory_enabled_at, is_active, created_at, updated_at'
-      )
-      .order('created_at', { ascending: true })
+      .select(CATALOG_LIST_SELECT, { count: 'exact' })
+      .order(resolvedSort.field, { ascending: resolvedSort.ascending })
 
     query = applyTenantFilter(query, tenantId)
+    query = applyCatalogListFilters(query, search, category, status)
 
-    const { data, error } = await query
+    if (mode !== 'export') {
+      query = query.range(from, to)
+    } else {
+      query = query.limit(EXPORT_PAGE_SIZE)
+    }
+
+    const { data, error, count } = await query
 
     if (error) {
       return withAuthCookies(
@@ -167,11 +267,14 @@ export async function GET(request: NextRequest) {
 
     return withAuthCookies(
       auth.response,
-      utf8JsonResponse({
-        success: true,
-        items: data || [],
-      })
-    )
+        utf8JsonResponse({
+          success: true,
+          items: data || [],
+          total: count || 0,
+          page,
+          pageSize,
+        })
+      )
   } catch (error) {
     return withAuthCookies(
       auth.response,
