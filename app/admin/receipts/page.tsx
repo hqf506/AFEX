@@ -1392,11 +1392,15 @@ function ReceiptDrawer({
     message: string
   } | null>(null)
   const [canceling, setCanceling] = useState(false)
+  const [thermalPreviewHeight, setThermalPreviewHeight] = useState(360)
   const { settings: systemSettings } = useSystemSettings(Boolean(receipt))
   const printingEnabled = systemSettings?.enable_printing !== false
   const thermalReceiptHtml = receipt
     ? buildThermalReceiptHtml(receipt, thermalSettings)
     : ''
+  const thermalPreviewPaperWidth =
+    thermalSettings?.paperWidth === '58mm' ? '58mm' : '80mm'
+  const thermalPreviewWidthPx = thermalPreviewPaperWidth === '58mm' ? 219 : 302
   const receiptCancelled = receipt ? isCancelledReceiptStatus(receipt.paymentStatus) : false
   const cancelActionVisible = receipt ? canShowCancelReceiptAction(receipt.paymentStatus) : false
 
@@ -1501,8 +1505,23 @@ function ReceiptDrawer({
                   <iframe
                     title={`إيصال ${receipt.receiptNumber}`}
                     srcDoc={thermalReceiptHtml}
-                    className="block h-[760px] w-[302px] rounded-sm bg-white"
-                    sandbox=""
+                    onLoad={(event) => {
+                      const frameDocument = event.currentTarget.contentDocument
+                      const measuredHeight = Math.max(
+                        frameDocument?.documentElement.scrollHeight || 0,
+                        frameDocument?.body.scrollHeight || 0
+                      )
+
+                      if (measuredHeight > 0) {
+                        setThermalPreviewHeight(Math.ceil(measuredHeight) + 2)
+                      }
+                    }}
+                    className="block rounded-sm border-0 bg-white"
+                    style={{
+                      width: thermalPreviewWidthPx,
+                      height: thermalPreviewHeight,
+                    }}
+                    sandbox="allow-same-origin"
                   />
                 </div>
               </section>

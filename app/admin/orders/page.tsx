@@ -82,6 +82,7 @@ type InvoicePreviewFrame = {
   title: string
   src?: string
   srcDoc?: string
+  paperWidth?: ThermalPaperWidth
 }
 
 function filterOrders(
@@ -683,6 +684,7 @@ export default function OrdersPage() {
   )
   const [invoicePreviewFrame, setInvoicePreviewFrame] =
     useState<InvoicePreviewFrame | null>(null)
+  const [thermalPreviewHeight, setThermalPreviewHeight] = useState(360)
 
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -1999,9 +2001,14 @@ export default function OrdersPage() {
   void printThermalReceipt
 
   const previewThermalInvoiceInPage = (order: PageOrderRecord) => {
+    setThermalPreviewHeight(360)
     setInvoicePreviewFrame({
       title: 'معاينة الفاتورة الحرارية',
       srcDoc: buildThermalInvoiceHtmlForOrder(order),
+      paperWidth:
+        systemSettings?.thermal_invoice_paper_width === '58mm'
+          ? '58mm'
+          : '80mm',
     })
   }
 
@@ -2850,7 +2857,9 @@ export default function OrdersPage() {
           ) : null}
           {invoicePreviewFrame ? (
             <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-              <div className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]">
+              <div className={`flex max-h-[88vh] w-full flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] ${
+                invoicePreviewFrame.srcDoc ? 'max-w-[520px]' : 'max-w-[1180px]'
+              }`}>
                 <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
                   <div className="text-right">
                     <h3 className="text-lg font-black text-white">
@@ -2870,14 +2879,42 @@ export default function OrdersPage() {
                     ×
                   </button>
                 </div>
-                <div className="min-h-0 flex-1 bg-[#020817] p-2 sm:p-3">
-                  <iframe
-                    key={invoicePreviewFrame.src || invoicePreviewFrame.srcDoc || ''}
-                    title={invoicePreviewFrame.title}
-                    src={invoicePreviewFrame.src}
-                    srcDoc={invoicePreviewFrame.srcDoc}
-                    className="h-full w-full rounded-[20px] border border-cyan-300/10 bg-white"
-                  />
+                <div className="min-h-0 flex-1 overflow-y-auto bg-[#020817] p-4 sm:p-6">
+                  {invoicePreviewFrame.srcDoc ? (
+                    <div className="flex justify-center">
+                      <iframe
+                        key={invoicePreviewFrame.srcDoc}
+                        title={invoicePreviewFrame.title}
+                        srcDoc={invoicePreviewFrame.srcDoc}
+                        onLoad={(event) => {
+                          const frameDocument = event.currentTarget.contentDocument
+                          const measuredHeight = Math.max(
+                            frameDocument?.documentElement.scrollHeight || 0,
+                            frameDocument?.body.scrollHeight || 0
+                          )
+
+                          if (measuredHeight > 0) {
+                            setThermalPreviewHeight(Math.ceil(measuredHeight) + 2)
+                          }
+                        }}
+                        className="block rounded-sm border-0 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
+                        style={{
+                          width:
+                            invoicePreviewFrame.paperWidth === '58mm'
+                              ? 219
+                              : 302,
+                          height: thermalPreviewHeight,
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <iframe
+                      key={invoicePreviewFrame.src || ''}
+                      title={invoicePreviewFrame.title}
+                      src={invoicePreviewFrame.src}
+                      className="h-[78vh] w-full rounded-[20px] border border-cyan-300/10 bg-white"
+                    />
+                  )}
                 </div>
               </div>
             </div>

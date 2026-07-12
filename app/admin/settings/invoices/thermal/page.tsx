@@ -285,12 +285,14 @@ export default function AdminThermalInvoiceSettingsPage() {
       : 'identity'
   )
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [thermalPreviewHeight, setThermalPreviewHeight] = useState(360)
 
   const livePreviewHtml = useMemo(
     () => buildSampleThermalPreviewHtml(form, settings),
     [form, settings]
   )
   const isNarrowPaper = form.thermal_invoice_paper_width === '58mm'
+  const thermalPreviewWidthPx = isNarrowPaper ? 220 : 280
 
   const fetchSettings = useCallback(async () => {
     setLoading(true)
@@ -717,11 +719,22 @@ export default function AdminThermalInvoiceSettingsPage() {
                     <iframe
                       title="معاينة الفاتورة الحرارية"
                       srcDoc={livePreviewHtml}
+                      onLoad={(event) => {
+                        const frameDocument = event.currentTarget.contentDocument
+                        const measuredHeight = Math.max(
+                          frameDocument?.documentElement.scrollHeight || 0,
+                          frameDocument?.body.scrollHeight || 0
+                        )
+
+                        if (measuredHeight > 0) {
+                          setThermalPreviewHeight(Math.ceil(measuredHeight) + 2)
+                        }
+                      }}
                       className="block w-full bg-white"
                       sandbox="allow-same-origin"
                       style={{
                         border: 0,
-                        height: isNarrowPaper ? '720px' : '760px',
+                        height: thermalPreviewHeight,
                       }}
                     />
                   </div>
@@ -787,11 +800,26 @@ export default function AdminThermalInvoiceSettingsPage() {
                 ×
               </button>
             </div>
-            <div className="min-h-0 flex-1 bg-[#020817] p-2 sm:p-3">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[#020817] p-4 sm:p-6">
               <iframe
                 title="معاينة الفاتورة"
                 srcDoc={livePreviewHtml}
-                className="h-full w-full rounded-[20px] border border-cyan-300/10 bg-white"
+                onLoad={(event) => {
+                  const frameDocument = event.currentTarget.contentDocument
+                  const measuredHeight = Math.max(
+                    frameDocument?.documentElement.scrollHeight || 0,
+                    frameDocument?.body.scrollHeight || 0
+                  )
+
+                  if (measuredHeight > 0) {
+                    setThermalPreviewHeight(Math.ceil(measuredHeight) + 2)
+                  }
+                }}
+                className="mx-auto block rounded-sm border-0 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
+                style={{
+                  width: thermalPreviewWidthPx,
+                  height: thermalPreviewHeight,
+                }}
               />
             </div>
           </div>

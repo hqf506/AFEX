@@ -91,6 +91,7 @@ export default function ThermalInvoicePreviewPage() {
   const [form, setForm] = useState<ThermalInvoiceSettingsPayload>(() =>
     createThermalInvoiceSettingsPayload(null)
   )
+  const [thermalPreviewHeight, setThermalPreviewHeight] = useState(360)
 
   const fetchSettings = useCallback(async () => {
     setLoading(true)
@@ -125,6 +126,8 @@ export default function ThermalInvoicePreviewPage() {
     () => buildSampleThermalPreviewHtml(form, settings),
     [form, settings]
   )
+  const thermalPreviewWidthPx =
+    form.thermal_invoice_paper_width === '58mm' ? 220 : 280
 
   if (access.loading || loading) {
     return (
@@ -147,7 +150,22 @@ export default function ThermalInvoicePreviewPage() {
       <iframe
         title="معاينة الفاتورة الحرارية"
         srcDoc={previewHtml}
-        className="h-[820px] w-[320px] border-0 bg-white"
+        onLoad={(event) => {
+          const frameDocument = event.currentTarget.contentDocument
+          const measuredHeight = Math.max(
+            frameDocument?.documentElement.scrollHeight || 0,
+            frameDocument?.body.scrollHeight || 0
+          )
+
+          if (measuredHeight > 0) {
+            setThermalPreviewHeight(Math.ceil(measuredHeight) + 2)
+          }
+        }}
+        className="border-0 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
+        style={{
+          width: thermalPreviewWidthPx,
+          height: thermalPreviewHeight,
+        }}
       />
     </main>
   )
