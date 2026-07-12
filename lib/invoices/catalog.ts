@@ -81,8 +81,20 @@ type LoadBranchInvoiceCatalogResponse = {
       name?: string
     }
   >
+  categories?: string[]
+  total?: number
+  page?: number
+  pageSize?: number
   error?: string
   details?: string
+}
+
+export type PosInvoiceCatalogPage = {
+  products: PosInvoiceCatalogProduct[]
+  categories: string[]
+  total: number
+  page: number
+  pageSize: number
 }
 
 const INVOICE_CATALOG_CACHE_TTL_MS = 60_000
@@ -91,17 +103,37 @@ function getInvoiceCatalogCacheKey(branchId: string | null) {
   return `invoice-catalog:${branchId || 'none'}`
 }
 
+function getInvoiceCatalogPageCacheKey(params: {
+  branchId: string | null
+  page: number
+  pageSize: number
+  search?: string
+  category?: string
+}) {
+  return [
+    'invoice-catalog-page',
+    params.branchId || 'none',
+    params.page,
+    params.pageSize,
+    params.search || '',
+    params.category || '',
+  ].join(':')
+}
+
 export function clearBranchInvoiceCatalogCache(branchId: string | null) {
   if (!branchId) {
     clearClientResourcesByPrefix('invoice-catalog:')
+    clearClientResourcesByPrefix('invoice-catalog-page:')
     return
   }
 
   clearClientResource(getInvoiceCatalogCacheKey(branchId))
+  clearClientResourcesByPrefix(`invoice-catalog-page:${branchId}:`)
 }
 
 export function clearAllInvoiceCatalogCache() {
   clearClientResourcesByPrefix('invoice-catalog:')
+  clearClientResourcesByPrefix('invoice-catalog-page:')
 }
 
 function normalizeCatalogProductId(value: unknown) {
@@ -319,6 +351,72 @@ async function fetchBranchInvoiceCatalog(
   return normalizeLoadedInvoiceCatalogProducts(result.products)
 }
 
+async function fetchBranchInvoiceCatalogPage(
+  branchId: string,
+  options: {
+    page: number
+    pageSize: number
+    search?: string
+    category?: string
+    cacheBust?: boolean
+  }
+) {
+  const searchParams = new URLSearchParams({
+    branchId,
+    page: String(options.page),
+    pageSize: String(options.pageSize),
+  })
+
+  if (options.search?.trim()) {
+    searchParams.set('search', options.search.trim())
+  }
+
+  if (options.category?.trim()) {
+    searchParams.set('category', options.category.trim())
+  }
+
+  if (options.cacheBust) {
+    searchParams.set('t', String(Date.now()))
+  }
+
+  const response = await fetch(`/api/invoice/catalog?${searchParams.toString()}`, {
+    method: 'GET',
+    cache: 'no-store',
+  })
+
+  if (response.status === 401) {
+    markProtectedResourcesUnauthorized()
+    throw createProtectedResourceAuthError()
+  }
+
+  const result = (await response.json().catch(() => null)) as
+    | LoadBranchInvoiceCatalogResponse
+    | null
+
+  if (!response.ok || !result?.success || !Array.isArray(result.products)) {
+    throw new Error(
+      result?.details || result?.error || 'Failed to load branch catalog'
+    )
+  }
+
+  const page = Number(result.page)
+  const pageSize = Number(result.pageSize)
+  const total = Number(result.total)
+
+  return {
+    products: normalizeLoadedInvoiceCatalogProducts(result.products),
+    categories: Array.isArray(result.categories)
+      ? result.categories.filter(
+          (category): category is string => typeof category === 'string'
+        )
+      : [],
+    total: Number.isFinite(total) ? total : 0,
+    page: Number.isFinite(page) && page > 0 ? page : options.page,
+    pageSize:
+      Number.isFinite(pageSize) && pageSize > 0 ? pageSize : options.pageSize,
+  } satisfies PosInvoiceCatalogPage
+}
+
 export async function loadBranchInvoiceCatalog(
   branchId: string | null,
   options: { force?: boolean } = {}
@@ -343,6 +441,53 @@ export async function loadBranchInvoiceCatalog(
   )
 }
 
+export async function loadBranchInvoiceCatalogPage(
+  branchId: string | null,
+  options: {
+    page: number
+    pageSize: number
+    search?: string
+    category?: string
+    force?: boolean
+  }
+) {
+  if (!branchId) {
+    return {
+      products: [],
+      categories: [],
+      total: 0,
+      page: options.page,
+      pageSize: options.pageSize,
+    } satisfies PosInvoiceCatalogPage
+  }
+
+  const cacheKey = getInvoiceCatalogPageCacheKey({
+    branchId,
+    page: options.page,
+    pageSize: options.pageSize,
+    search: options.search,
+    category: options.category,
+  })
+
+  if (options.force === true) {
+    clearClientResource(cacheKey)
+    return fetchBranchInvoiceCatalogPage(branchId, {
+      ...options,
+      cacheBust: true,
+    })
+  }
+
+  return loadClientResource(
+    cacheKey,
+    () => fetchBranchInvoiceCatalogPage(branchId, options),
+    {
+      ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
+      logLabel: `fetch catalog page (${branchId})`,
+      protectedResource: true,
+    }
+  )
+}
+
 export function peekBranchInvoiceCatalog(branchId: string | null) {
   if (!branchId) {
     return []
@@ -361,11 +506,21 @@ export function prefetchBranchInvoiceCatalog(branchId: string | null) {
   }
 
   return prefetchClientResource(
-    getInvoiceCatalogCacheKey(branchId),
-    () => fetchBranchInvoiceCatalog(branchId),
+    getInvoiceCatalogPageCacheKey({
+      branchId,
+      page: 1,
+      pageSize: 10,
+      search: '',
+      category: '',
+    }),
+    () =>
+      fetchBranchInvoiceCatalogPage(branchId, {
+        page: 1,
+        pageSize: 10,
+      }),
     {
       ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
-      logLabel: `fetch catalog (${branchId})`,
+      logLabel: `fetch catalog page (${branchId})`,
       protectedResource: true,
     }
   )

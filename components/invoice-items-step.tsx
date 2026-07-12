@@ -34,7 +34,7 @@ import {
 } from '@/lib/client-resource-cache'
 import {
   clearBranchInvoiceCatalogCache,
-  loadBranchInvoiceCatalog,
+  loadBranchInvoiceCatalogPage,
   peekBranchInvoiceCatalog,
   type PosInvoiceCatalogProduct,
 } from '@/lib/invoices/catalog'
@@ -72,6 +72,7 @@ const ADMIN_SYSTEM_SETTINGS_CACHE_KEY = 'admin-system-settings'
 const ADMIN_SYSTEM_SETTINGS_CACHE_TTL_MS = 60_000
 const ADMIN_DISCOUNTS_CACHE_TTL_MS = 30_000
 const ADMIN_VAT_CACHE_TTL_MS = 30_000
+const CATALOG_ITEMS_PER_PAGE = 10
 type PosFeedbackKind = 'add' | 'remove' | 'error'
 const SOUND_ENABLED = true
 let posFeedbackAudioContext: AudioContext | null = null
@@ -427,6 +428,10 @@ export function InvoiceItemsStep({
   const [activeFilter, setActiveFilter] = useState(INVOICE_ALL_FILTER)
   const [invoiceItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([])
   const [catalogProducts, setCatalogProducts] = useState<PosInvoiceCatalogProduct[]>([])
+  const [catalogProductById, setCatalogProductById] = useState<
+    Record<string, PosInvoiceCatalogProduct>
+  >({})
+  const [catalogTotal, setCatalogTotal] = useState(0)
   const [catalogCategoryFilters, setCatalogCategoryFilters] = useState<string[]>(() => {
     const cachedCategories =
       peekClientResource<CategoryApiRecord[]>(ADMIN_CATEGORIES_CACHE_KEY) || []
@@ -443,6 +448,27 @@ export function InvoiceItemsStep({
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [catalogRefreshing, setCatalogRefreshing] = useState(false)
   const [catalogError, setCatalogError] = useState(false)
+  const [currentCatalogPage, setCurrentCatalogPage] = useState(1)
+  const deferredSearch = useDeferredValue(search)
+  const rememberCatalogProducts = useCallback(
+    (products: PosInvoiceCatalogProduct[]) => {
+      if (products.length === 0) return
+
+      setCatalogProductById((current) => {
+        const next = { ...current }
+
+        for (const product of products) {
+          const normalizedCatalogItemId = getNormalizedCatalogItemId(product)
+          if (normalizedCatalogItemId) {
+            next[normalizedCatalogItemId] = product
+          }
+        }
+
+        return next
+      })
+    },
+    []
+  )
   const forceReloadCatalog = useCallback(
     async (options: { showRefreshing?: boolean } = {}) => {
       if (!invoiceBranchId) return
@@ -454,11 +480,26 @@ export function InvoiceItemsStep({
       }
 
       try {
-        const nextProducts = await loadBranchInvoiceCatalog(invoiceBranchId, {
+        const nextCatalogPage = await loadBranchInvoiceCatalogPage(invoiceBranchId, {
+          page: currentCatalogPage,
+          pageSize: CATALOG_ITEMS_PER_PAGE,
+          search: deferredSearch,
+          category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
           force: true,
         })
 
-        setCatalogProducts(nextProducts)
+        setCatalogProducts(nextCatalogPage.products)
+        rememberCatalogProducts(nextCatalogPage.products)
+        setCatalogTotal(nextCatalogPage.total)
+
+        if (nextCatalogPage.categories.length > 0) {
+          setCatalogCategoryFilters(
+            nextCatalogPage.categories.filter(
+              (categoryName) => !POS_HIDDEN_CATEGORY_FILTERS.has(categoryName)
+            )
+          )
+        }
+
         setCatalogError(false)
       } catch (error) {
         if (isProtectedResourceAuthError(error)) {
@@ -473,17 +514,21 @@ export function InvoiceItemsStep({
         setCatalogRefreshing(false)
       }
     },
-    [invoiceBranchId]
+    [
+      activeFilter,
+      currentCatalogPage,
+      deferredSearch,
+      invoiceBranchId,
+      rememberCatalogProducts,
+    ]
   )
   const [showItemsModal, setShowItemsModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [hydratedSaleDraft, setHydratedSaleDraft] = useState(false)
-  const [currentCatalogPage, setCurrentCatalogPage] = useState(1)
   const [vatSetting, setVatSetting] = useState<CheckoutVatSetting | null>(null)
   const [recentlyAddedItemId, setRecentlyAddedItemId] = useState<string | null>(null)
   const [pressedItemId, setPressedItemId] = useState<string | null>(null)
   const [stockErrorMessage, setStockErrorMessage] = useState('')
-  const deferredSearch = useDeferredValue(search)
 
   useEffect(() => {
     if (!allowed) return
@@ -606,10 +651,13 @@ export function InvoiceItemsStep({
     const loadCatalog = async () => {
       try {
         const cachedProducts =
-          variant === 'pos' ? [] : peekBranchInvoiceCatalog(invoiceBranchId)
+          variant === 'pos' || activeFilter !== INVOICE_ALL_FILTER || deferredSearch.trim()
+            ? []
+            : peekBranchInvoiceCatalog(invoiceBranchId)
 
         if (!cancelled && cachedProducts.length > 0) {
           setCatalogProducts(cachedProducts)
+          rememberCatalogProducts(cachedProducts)
           setCatalogError(false)
           setCatalogLoading(false)
           setCatalogRefreshing(true)
@@ -620,12 +668,27 @@ export function InvoiceItemsStep({
           setCatalogError(false)
         }
 
-        const nextProducts = await loadBranchInvoiceCatalog(invoiceBranchId, {
+        const nextCatalogPage = await loadBranchInvoiceCatalogPage(invoiceBranchId, {
+          page: currentCatalogPage,
+          pageSize: CATALOG_ITEMS_PER_PAGE,
+          search: deferredSearch,
+          category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
           force: true,
         })
 
         if (!cancelled) {
-          setCatalogProducts(nextProducts)
+          setCatalogProducts(nextCatalogPage.products)
+          rememberCatalogProducts(nextCatalogPage.products)
+          setCatalogTotal(nextCatalogPage.total)
+
+          if (nextCatalogPage.categories.length > 0) {
+            setCatalogCategoryFilters(
+              nextCatalogPage.categories.filter(
+                (categoryName) => !POS_HIDDEN_CATEGORY_FILTERS.has(categoryName)
+              )
+            )
+          }
+
           setCatalogError(false)
           setCatalogLoading(false)
           setCatalogRefreshing(false)
@@ -639,6 +702,7 @@ export function InvoiceItemsStep({
         if (!cancelled) {
           setCatalogError(true)
           setCatalogProducts([])
+          setCatalogTotal(0)
           setCatalogLoading(false)
           setCatalogRefreshing(false)
           triggerPosFeedback('error')
@@ -657,6 +721,10 @@ export function InvoiceItemsStep({
     invoiceBranchId,
     hasUnavailablePosBranchContext,
     variant,
+    currentCatalogPage,
+    activeFilter,
+    deferredSearch,
+    rememberCatalogProducts,
   ])
 
   useEffect(() => {
@@ -753,43 +821,13 @@ export function InvoiceItemsStep({
     }
   }, [activeFilter, invoiceFilters])
 
-  const filteredProducts = useMemo(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.time('filter invoice items')
-    }
-
-    const normalizedSearch = deferredSearch.trim()
-
-    const nextFilteredProducts = visibleCatalogProducts.filter((product) => {
-      const matchesFilter =
-        activeFilter === INVOICE_ALL_FILTER ||
-        product.category === activeFilter
-
-      const matchesSearch =
-        normalizedSearch === '' ||
-        product.name.includes(normalizedSearch) ||
-        product.category.includes(normalizedSearch)
-
-      return matchesFilter && matchesSearch
-    })
-
-    if (process.env.NODE_ENV === 'development') {
-      console.timeEnd('filter invoice items')
-    }
-
-    return nextFilteredProducts
-  }, [visibleCatalogProducts, activeFilter, deferredSearch])
-
-  const catalogItemsPerPage = 10
+  const filteredProducts = visibleCatalogProducts
   const totalCatalogPages = Math.max(
     1,
-    Math.ceil(filteredProducts.length / catalogItemsPerPage)
+    Math.ceil(catalogTotal / CATALOG_ITEMS_PER_PAGE)
   )
   const effectiveCatalogPage = Math.min(currentCatalogPage, totalCatalogPages)
-  const paginatedProducts = useMemo(() => {
-    const startIndex = (effectiveCatalogPage - 1) * catalogItemsPerPage
-    return filteredProducts.slice(startIndex, startIndex + catalogItemsPerPage)
-  }, [effectiveCatalogPage, filteredProducts])
+  const paginatedProducts = filteredProducts
   const visibleCatalogPages = useMemo(() => {
     if (totalCatalogPages <= 6) {
       return Array.from({ length: totalCatalogPages }, (_, index) => index + 1)
@@ -806,37 +844,6 @@ export function InvoiceItemsStep({
   }, [effectiveCatalogPage, totalCatalogPages])
 
   const canRenderCatalogImmediately = visibleCatalogProducts.length > 0
-
-  useEffect(() => {
-    if (!ready || !hydratedSaleDraft) return
-    if (catalogLoading) return
-    if (hasUnavailablePosBranchContext) return
-
-    const validCatalogItemIds = new Set(
-      catalogProducts
-        .map((item) => (typeof item.id === 'string' ? item.id.trim() : ''))
-        .filter(Boolean)
-    )
-
-    const timeoutId = window.setTimeout(() => {
-      setInvoiceLineItems((prev) =>
-        prev.filter(
-          (item) =>
-            typeof item.item_id === 'string' &&
-            item.item_id.trim() !== '' &&
-            validCatalogItemIds.has(item.item_id.trim())
-        )
-      )
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [
-    ready,
-    hydratedSaleDraft,
-    catalogLoading,
-    hasUnavailablePosBranchContext,
-    catalogProducts,
-  ])
 
   const subtotal = useMemo(() => {
     return invoiceItems.reduce(
@@ -1148,14 +1155,16 @@ export function InvoiceItemsStep({
   }
 
   const increaseQty = (item: InvoiceLineItem) => {
-    const product = catalogProducts.find((catalogProduct) => {
-      const catalogItemId = getNormalizedCatalogItemId(catalogProduct)
+    const product =
+      (item.item_id ? catalogProductById[item.item_id] : undefined) ||
+      catalogProducts.find((catalogProduct) => {
+        const catalogItemId = getNormalizedCatalogItemId(catalogProduct)
 
-      return (
-        (item.item_id && catalogItemId === item.item_id) ||
-        catalogProduct.name === item.item_name
-      )
-    })
+        return (
+          (item.item_id && catalogItemId === item.item_id) ||
+          catalogProduct.name === item.item_name
+        )
+      })
 
     if (product && isStockTrackedProduct(product)) {
       const { normalizedQuantity } = getInventoryTrackingState(product)
