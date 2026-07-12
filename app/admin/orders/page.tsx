@@ -17,8 +17,6 @@ import {
   shouldFilterByBranch,
 } from '@/lib/branch-access'
 import {
-  buildOrdersPageSummary,
-  getTodayOrderRecords,
   mapOrderSummaryToOrderRecord,
   type OrderRecord,
   type OrderFilter,
@@ -53,7 +51,7 @@ function maskDebugId(id: string | null | undefined) {
 
 const EMPTY_DASH = '-'
 
-const ORDERS_FETCH_LIMIT = 200
+const ORDERS_PAGE_SIZE = 25
 const WHATSAPP_FEATURE_DISABLED_MESSAGE =
   'ميزة الواتساب غير مفعلة من إعدادات النظام.'
 const INVALID_STATUS_SEQUENCE_MESSAGE = 'لا يمكن تغيير الحالة بهذا التسلسل.'
@@ -83,64 +81,6 @@ type InvoicePreviewFrame = {
   src?: string
   srcDoc?: string
   paperWidth?: ThermalPaperWidth
-}
-
-function filterOrders(
-  orders: PageOrderRecord[],
-  search: string,
-  filter: OrdersFilterKey
-) {
-  const normalizedSearch = search.trim().toLowerCase()
-
-  return orders.filter((order) => {
-    const isCancelled = isCancelledOrder(order)
-
-    if (filter === 'today') {
-      const today = new Date().toISOString().slice(0, 10)
-      if (!order.created_at.startsWith(today)) {
-        return false
-      }
-    } else if (filter === 'cancelled') {
-      if (!isCancelled) {
-        return false
-      }
-    } else if (filter === 'delivered') {
-      if (
-        isCancelled ||
-        (order.status !== 'closed' &&
-          !['delivered', 'completed'].includes(order.status_raw))
-      ) {
-        return false
-      }
-    } else if (filter === 'new') {
-      return false
-    } else if (filter === 'all') {
-      if (order.status === 'closed') {
-        return false
-      }
-    } else {
-      if (isCancelled || order.status !== filter) {
-        return false
-      }
-    }
-
-    if (!normalizedSearch) {
-      return true
-    }
-
-    const haystack = [
-      order.order_number,
-      order.invoice_number,
-      order.customer_phone,
-      fixArabic(order.customer_name),
-      fixArabic(order.payment_method),
-      fixArabic(order.payment_status),
-    ]
-      .join(' ')
-      .toLowerCase()
-
-    return haystack.includes(normalizedSearch)
-  })
 }
 
 function buildOrderComparisonSignature(orders: PageOrderRecord[]) {
@@ -646,6 +586,15 @@ export default function OrdersPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<OrdersFilterKey>('all')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalOrders, setTotalOrders] = useState(0)
+  const [summaryCounts, setSummaryCounts] = useState({
+    in_progress: 0,
+    ready: 0,
+    delivered: 0,
+    cancelled: 0,
+  })
   const [statusModalOrder, setStatusModalOrder] =
     useState<PageOrderRecord | null>(null)
   const [cancelModalOrder, setCancelModalOrder] =
@@ -700,6 +649,7 @@ export default function OrdersPage() {
   const orderDetailsInFlightRef = useRef<Set<string>>(new Set())
   const ordersSignatureRef = useRef('')
   const previousOrderIdsRef = useRef<Set<string>>(new Set())
+  const listAbortControllerRef = useRef<AbortController | null>(null)
 
   const roleValue = role ? String(role) : ''
   const canManageOrders =
@@ -709,6 +659,14 @@ export default function OrdersPage() {
   const { settings: systemSettings, loading: settingsLoading } =
     useSystemSettings(allowed && !authLoading)
   const whatsappFeatureEnabled = systemSettings?.enable_whatsapp !== false
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setCurrentPage(1)
+    }, 300)
+    return () => window.clearTimeout(timeoutId)
+  }, [search])
 
   const showSuccess = (message: string) => {
     setSuccessMessage(message)
@@ -776,7 +734,6 @@ export default function OrdersPage() {
 
   const fetchOrders = useCallback(
     async (silent = false) => {
-      if (isFetchInFlightRef.current) return
       isFetchInFlightRef.current = true
 
       if (silent) {
@@ -810,67 +767,50 @@ export default function OrdersPage() {
           return
         }
 
-        let query = supabase
-          .from('orders')
-          .select(`
-          id,
-          order_number,
-          branch_id,
-          created_by_employee_id,
-          status,
-          created_at,
-          updated_at,
-          customers (
-            name,
-            phone
-          ),
-          invoices (
-            invoice_number,
-            payment_method,
-            payment_status,
-            note,
-            total,
-            subtotal,
-            discount,
-            tax,
-            cash_received,
-            remaining_from_customer,
-            cash_change
-          )
-        `)
-          .eq('tenant_id', tenantId)
-          .order('created_at', { ascending: false })
-          .limit(ORDERS_FETCH_LIMIT)
-
-        if (shouldFilterByBranch(scopeType, branchId)) {
-          query = query.eq('branch_id', branchId as string)
-        } else if (effectiveBranchId) {
-          query = query.eq('branch_id', effectiveBranchId)
+        listAbortControllerRef.current?.abort()
+        const controller = new AbortController()
+        listAbortControllerRef.current = controller
+        const params = new URLSearchParams({
+          page: String(currentPage),
+          pageSize: String(ORDERS_PAGE_SIZE),
+          listFilter: filter,
+        })
+        if (debouncedSearch) params.set('search', debouncedSearch)
+        if (effectiveBranchId) params.set('branchId', effectiveBranchId)
+        if (filter === 'today') {
+          const today = new Date().toISOString().slice(0, 10)
+          params.set('dateFrom', today)
+          params.set('dateTo', today)
         }
 
-        const {
-          data: {
-            user,
-          },
-        } = await supabase.auth.getUser()
-        const { data, error } = await query
+        const response = await fetch(`/api/orders?${params}`, {
+          credentials: 'include',
+          signal: controller.signal,
+        })
+        const result = await response.json().catch(() => null)
+        if (!response.ok || !result?.success) {
+          throw new Error(result?.message || 'فشل تحميل الطلبات')
+        }
 
-      if (error) {
-        console.error('Supabase orders fetch error:', error)
-          showError(`فشل تحميل الطلبات: ${error.message}`)
-        setOrders([])
-        ordersSignatureRef.current = ''
-        setLoading(false)
-        setRefreshing(false)
-        return
-      }
-
-      const rows = Array.isArray(data) ? (data as OrderSourceRow[]) : []
-      console.info('[admin/orders] tenant-scoped fetch', {
-        userId: maskDebugId(user?.id),
-        tenantId: maskDebugId(tenantId),
-        ordersCount: rows.length,
-      })
+        const rows = Array.isArray(result.items) ? (result.items as OrderSourceRow[]) : []
+        const nextTotalOrders = Number(result.totalCount) || 0
+        setTotalOrders(nextTotalOrders)
+        const nextTotalPages = Math.max(1, Math.ceil(nextTotalOrders / ORDERS_PAGE_SIZE))
+        if (currentPage > nextTotalPages) {
+          setCurrentPage(nextTotalPages)
+          return
+        }
+        if (result.summary) {
+          setSummaryCounts({
+            in_progress: Number(result.summary.in_progress) || 0,
+            ready: Number(result.summary.ready) || 0,
+            delivered: Number(result.summary.delivered) || 0,
+            cancelled: Number(result.summary.cancelled) || 0,
+          })
+        }
+        if (result.employeeNames) {
+          setEmployeeNameById((current) => ({ ...current, ...result.employeeNames }))
+        }
       const normalized = rows.map(mapOrderSourceRowToPageOrder)
       const nextIds = new Set(normalized.map((order) => order.id))
 
@@ -904,6 +844,9 @@ export default function OrdersPage() {
       setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        showError(error instanceof Error ? error.message : 'فشل تحميل الطلبات')
       } finally {
         isFetchInFlightRef.current = false
       }
@@ -916,6 +859,9 @@ export default function OrdersPage() {
       branchId,
       effectiveBranchId,
       tenantId,
+      currentPage,
+      debouncedSearch,
+      filter,
     ]
   )
 
@@ -931,9 +877,17 @@ export default function OrdersPage() {
     try {
       const params = new URLSearchParams({
         mode: 'meta',
-        page: '1',
-        pageSize: String(ORDERS_FETCH_LIMIT),
+        page: String(currentPage),
+        pageSize: String(ORDERS_PAGE_SIZE),
+        listFilter: filter,
       })
+
+      if (debouncedSearch) params.set('search', debouncedSearch)
+      if (filter === 'today') {
+        const today = new Date().toISOString().slice(0, 10)
+        params.set('dateFrom', today)
+        params.set('dateTo', today)
+      }
 
       const branchFilter = shouldFilterByBranch(scopeType, branchId)
         ? branchId
@@ -970,7 +924,7 @@ export default function OrdersPage() {
     } finally {
       isMetaFetchInFlightRef.current = false
     }
-  }, [branchId, effectiveBranchId, fetchOrders, scopeType, tenantId])
+  }, [branchId, currentPage, debouncedSearch, effectiveBranchId, fetchOrders, filter, scopeType, tenantId])
 
   useEffect(() => {
     localStorage.setItem(
@@ -1070,102 +1024,13 @@ export default function OrdersPage() {
     }
   }, [allowed, orders])
 
-  useEffect(() => {
-    if (!allowed || orders.length === 0) return
-
-    const employeeIds = Array.from(
-      new Set(
-        orders
-          .map((order) => order.created_by_employee_id)
-          .filter((id): id is string => Boolean(id && !employeeNameById[id]))
-      )
-    )
-
-    if (employeeIds.length === 0) return
-
-    let cancelled = false
-
-    async function fetchEmployeeNames(ids: string[]) {
-      const [profilesResult, posProfilesResult] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, full_name, username')
-          .in('id', ids),
-        supabase
-          .from('pos_profiles')
-          .select('id, full_name, username')
-          .in('id', ids),
-      ])
-
-      if (cancelled) return
-
-      const nextNames: Record<string, string> = {}
-
-      for (const row of [
-        ...((profilesResult.data || []) as Array<{
-          id?: string | null
-          full_name?: string | null
-          username?: string | null
-        }>),
-        ...((posProfilesResult.data || []) as Array<{
-          id?: string | null
-          full_name?: string | null
-          username?: string | null
-        }>),
-      ]) {
-        if (!row.id) continue
-        const displayName = row.full_name?.trim() || row.username?.trim()
-        if (displayName) {
-          nextNames[row.id] = fixArabic(displayName)
-        }
-      }
-
-      for (const id of ids) {
-        if (!nextNames[id]) {
-          nextNames[id] = 'غير معروف'
-        }
-      }
-
-      setEmployeeNameById((current) => ({
-        ...current,
-        ...nextNames,
-      }))
-    }
-
-    void fetchEmployeeNames(employeeIds)
-
-    return () => {
-      cancelled = true
-    }
-  }, [allowed, employeeNameById, orders])
-
-  const todayOrders = useMemo(() => {
-    return getTodayOrderRecords(orders)
-  }, [orders])
-
-  const filteredOrders = useMemo(() => {
-    return filterOrders(orders, search, filter)
-  }, [orders, search, filter])
-
-  const stats = useMemo(() => {
-    return buildOrdersPageSummary(
-      orders.filter((order) => !isCancelledOrder(order)),
-      todayOrders
-    )
-  }, [orders, todayOrders])
-
-  const cancelledOrdersCount = useMemo(() => {
-    return orders.filter(isCancelledOrder).length
-  }, [orders])
-
-  const deliveredOrdersCount = useMemo(() => {
-    return orders.filter(
-      (order) =>
-        !isCancelledOrder(order) &&
-        (order.status === 'closed' ||
-          ['delivered', 'completed'].includes(order.status_raw))
-    ).length
-  }, [orders])
+  const filteredOrders = orders
+  const stats = {
+    inProgressCount: summaryCounts.in_progress,
+    readyCount: summaryCounts.ready,
+  }
+  const cancelledOrdersCount = summaryCounts.cancelled
+  const deliveredOrdersCount = summaryCounts.delivered
 
   const detailsDrawerSummaryOrder = useMemo(() => {
     if (!detailsDrawerOrderId) return null
@@ -2133,7 +1998,10 @@ export default function OrdersPage() {
               <button
                 type="button"
                 key={card.label}
-                onClick={() => setFilter(card.filterKey)}
+                onClick={() => {
+                  setFilter(card.filterKey)
+                  setCurrentPage(1)
+                }}
                 aria-pressed={isActive}
                 className={`min-h-[76px] cursor-pointer rounded-2xl border bg-gradient-to-br ${card.tone} p-3 text-right shadow-[0_0_28px_rgba(0,0,0,0.16)] transition-all duration-150 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:shadow-[0_0_26px_rgba(34,211,238,0.12)] active:scale-[0.98] ${
                   isActive
@@ -2186,7 +2054,10 @@ export default function OrdersPage() {
                     <button
                       key={item.key}
                       type="button"
-                      onClick={() => setFilter(item.key)}
+                      onClick={() => {
+                        setFilter(item.key)
+                        setCurrentPage(1)
+                      }}
                       className={`h-9 rounded-xl px-3 text-xs font-black transition ${
                         filter === item.key
                           ? 'bg-cyan-300 text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.25)]'
@@ -2205,7 +2076,10 @@ export default function OrdersPage() {
                     branches={branches}
                     selectedBranchId={selectedBranchId}
                     loading={loadingBranches}
-                    onChange={setSelectedBranchId}
+                    onChange={(value) => {
+                      setSelectedBranchId(value)
+                      setCurrentPage(1)
+                    }}
                     className="min-w-0"
                   />
                 ) : (
@@ -2221,7 +2095,7 @@ export default function OrdersPage() {
               </div>
 
               <div className="flex h-10 items-center justify-end whitespace-nowrap text-xs font-bold text-slate-400">
-                عرض {filteredOrders.length} من {orders.length} طلب
+                عرض {filteredOrders.length} من {totalOrders} طلب
               </div>
             </div>
           </div>
@@ -2232,7 +2106,7 @@ export default function OrdersPage() {
                 <h2 className="text-2xl font-black text-white">جدول الطلبات</h2>
                 <p className="mt-1 text-sm text-slate-400">أزرار الحالة تستخدم نفس منطق تحديث الطلب الحالي.</p>
               </div>
-              <p className="text-left text-sm font-bold text-cyan-100">{filteredOrders.length} طلب</p>
+              <p className="text-left text-sm font-bold text-cyan-100">{totalOrders} طلب</p>
             </div>
 
             {loading ? (
@@ -2359,6 +2233,29 @@ export default function OrdersPage() {
               </div>
             )}
           </div>
+          {totalOrders > ORDERS_PAGE_SIZE ? (
+            <div className="flex items-center justify-center gap-3 py-4" dir="rtl">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                className="h-10 rounded-xl border border-cyan-300/15 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                السابق
+              </button>
+              <span className="text-xs font-black text-slate-300">
+                صفحة {currentPage} من {Math.ceil(totalOrders / ORDERS_PAGE_SIZE)}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= Math.ceil(totalOrders / ORDERS_PAGE_SIZE)}
+                onClick={() => setCurrentPage((page) => page + 1)}
+                className="h-10 rounded-xl border border-cyan-300/15 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                التالي
+              </button>
+            </div>
+          ) : null}
           {detailsDrawerOrder ? (
             <div
               className="fixed inset-0 z-[110] flex justify-end bg-slate-950/70 backdrop-blur-sm"

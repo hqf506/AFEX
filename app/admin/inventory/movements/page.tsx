@@ -5,7 +5,6 @@ import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminAlert } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
-import { supabase } from '@/lib/supabase/client'
 
 type MovementType =
   | 'purchase_receive'
@@ -358,10 +357,6 @@ function normalizeDateFilterValue(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(trimmedValue) ? trimmedValue : ''
 }
 
-function escapeLikePattern(value: string) {
-  return value.replace(/[\\%_]/g, (character) => `\\${character}`)
-}
-
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
@@ -478,46 +473,30 @@ export default function InventoryMovementsPage() {
       const normalizedDateFrom = normalizeDateFilterValue(dateFrom)
       const normalizedDateTo = normalizeDateFilterValue(dateTo)
       const normalizedSearch = search.trim()
-      const from = (currentPage - 1) * PAGE_SIZE
-      const to = from + PAGE_SIZE - 1
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        pageSize: String(PAGE_SIZE),
+      })
+      if (branchFilter) params.set('branchId', branchFilter)
+      if (movementTypeFilter) params.set('movementType', movementTypeFilter)
+      if (normalizedDateFrom) params.set('dateFrom', normalizedDateFrom)
+      if (normalizedDateTo) params.set('dateTo', normalizedDateTo)
+      if (normalizedSearch) params.set('search', normalizedSearch)
 
-      let query = supabase
-        .from('inventory_movements_view')
-        .select('*', { count: 'exact' })
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false })
-        .range(from, to)
+      const response = await fetch(`/api/admin/inventory-movements?${params}`, {
+        method: 'GET',
+        cache: 'no-store',
+      })
+      const result = await response.json().catch(() => null)
 
-      if (branchFilter) {
-        query = query.eq('branch_id', branchFilter)
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || 'تعذر تحميل حركات المخزون')
       }
 
-      if (movementTypeFilter) {
-        query = query.eq('movement_type', movementTypeFilter)
-      }
-
-      if (normalizedDateFrom) {
-        query = query.gte('created_at', `${normalizedDateFrom}T00:00:00`)
-      }
-
-      if (normalizedDateTo) {
-        query = query.lte('created_at', `${normalizedDateTo}T23:59:59.999`)
-      }
-
-      if (normalizedSearch) {
-        query = query.ilike('item_name', `%${escapeLikePattern(normalizedSearch)}%`)
-      }
-
-      const { data, error, count } = await query
-
-      if (error) {
-        throw new Error(error.message || 'تعذر تحميل حركات المخزون')
-      }
-
-      const baseMovements = Array.isArray(data)
-        ? data.map((row) => normalizeMovementRow(row as Record<string, unknown>))
+      const baseMovements = Array.isArray(result.rows)
+        ? result.rows.map((row: Record<string, unknown>) => normalizeMovementRow(row))
         : []
-      const nextTotalMovements = count || 0
+      const nextTotalMovements = Number(result.total) || 0
       const nextTotalPages = Math.max(
         1,
         Math.ceil(nextTotalMovements / PAGE_SIZE)
@@ -528,70 +507,8 @@ export default function InventoryMovementsPage() {
         return
       }
 
-      const catalogItemIds = Array.from(
-        new Set(
-          baseMovements
-            .map((movement) => movement.catalog_item_id)
-            .filter(Boolean)
-        )
-      )
-      const branchIds = Array.from(
-        new Set(baseMovements.map((movement) => movement.branch_id).filter(Boolean))
-      )
-      const itemNamesById = new Map<string, string>()
-      const branchNamesById = new Map<string, string>()
-
-      if (catalogItemIds.length > 0) {
-        const { data: catalogRows, error: catalogError } = await supabase
-          .from('catalog_items')
-          .select('id, name')
-          .eq('tenant_id', tenantId)
-          .in('id', catalogItemIds)
-
-        if (catalogError) {
-          throw new Error(
-            catalogError.message || 'تعذر تحميل أسماء عناصر المخزون'
-          )
-        }
-
-        if (Array.isArray(catalogRows)) {
-          catalogRows.forEach((item) => {
-            if (typeof item.id === 'string') {
-              itemNamesById.set(item.id, item.name || '')
-            }
-          })
-        }
-      }
-
-      if (branchIds.length > 0) {
-        const { data: branchRows, error: branchError } = await supabase
-          .from('branches')
-          .select('id, name')
-          .eq('tenant_id', tenantId)
-          .in('id', branchIds)
-
-        if (branchError) {
-          throw new Error(branchError.message || 'تعذر تحميل أسماء الفروع')
-        }
-
-        if (Array.isArray(branchRows)) {
-          branchRows.forEach((branch) => {
-            if (typeof branch.id === 'string') {
-              branchNamesById.set(branch.id, branch.name || '')
-            }
-          })
-        }
-      }
-
-      const nextMovements = baseMovements.map((movement) => ({
-        ...movement,
-        item_name:
-          movement.item_name || itemNamesById.get(movement.catalog_item_id) || '-',
-        branch_name:
-          movement.branch_name || branchNamesById.get(movement.branch_id) || '-',
-      }))
       setTotalMovements(nextTotalMovements)
-      setMovements(nextMovements)
+      setMovements(baseMovements)
     } catch (error) {
       setMovements([])
       setTotalMovements(0)

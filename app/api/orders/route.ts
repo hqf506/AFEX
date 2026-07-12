@@ -36,6 +36,7 @@ type OrdersApiQuery = {
   search: string
   dateFrom: string | null
   dateTo: string | null
+  listFilter: string | null
 }
 
 type OrdersApiPayload = {
@@ -47,6 +48,8 @@ type OrdersApiPayload = {
   pageSize: number
   hasMore: boolean
   comparisonSignature: string
+  summary?: Record<string, number>
+  employeeNames?: Record<string, string>
 }
 
 type CreateOrderItemInput = {
@@ -113,6 +116,9 @@ interface OrdersFilterQuery {
   eq(column: string, value: string): this
   gte(column: string, value: string): this
   lte(column: string, value: string): this
+  neq(column: string, value: string): this
+  in(column: string, values: string[]): this
+  not(column: string, operator: string, value: string): this
 }
 
 type SupabaseServerClient = ReturnType<typeof createServerClient>
@@ -366,6 +372,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     ordersQuery = applyOrdersFilters(ordersQuery, auth.profile, query)
+    ordersQuery = applyOrdersListFilter(ordersQuery, query.listFilter)
 
     if (matchingOrderIds) {
       ordersQuery = ordersQuery.in('id', matchingOrderIds)
@@ -384,9 +391,44 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const items = Array.isArray(data) ? data : []
+    const items = Array.isArray(data)
+      ? (data as unknown as Array<Record<string, unknown>>)
+      : []
     const totalCount = Number(count) || 0
     const comparisonSignature = buildOrdersComparisonSignature(items)
+    let summary: Record<string, number> | undefined
+    let employeeNames: Record<string, string> | undefined
+
+    if (query.mode === 'full') {
+      let summaryQuery = auth.supabase.from('orders').select('status')
+      summaryQuery = applyOrdersFilters(summaryQuery, auth.profile, query)
+      if (matchingOrderIds) summaryQuery = summaryQuery.in('id', matchingOrderIds)
+      const { data: summaryRows, error: summaryError } = await summaryQuery
+      if (summaryError) throw summaryError
+
+      summary = { in_progress: 0, ready: 0, delivered: 0, cancelled: 0 }
+      for (const row of summaryRows || []) {
+        const status = typeof row.status === 'string' ? row.status : ''
+        if (status === 'in_progress') summary.in_progress += 1
+        else if (status === 'ready') summary.ready += 1
+        else if (['closed', 'delivered', 'completed'].includes(status)) summary.delivered += 1
+        else if (['cancelled', 'canceled'].includes(status)) summary.cancelled += 1
+      }
+
+      const employeeIds = [...new Set(items.map((row) => row.created_by_employee_id).filter((id): id is string => typeof id === 'string' && Boolean(id)))]
+      employeeNames = {}
+      if (employeeIds.length > 0) {
+        const [profiles, posProfiles] = await Promise.all([
+          auth.supabase.from('profiles').select('id, full_name, username').in('id', employeeIds),
+          auth.supabase.from('pos_profiles').select('id, full_name, username').in('id', employeeIds),
+        ])
+        if (profiles.error || posProfiles.error) throw profiles.error || posProfiles.error
+        for (const row of [...(profiles.data || []), ...(posProfiles.data || [])]) {
+          const name = row.full_name?.trim() || row.username?.trim()
+          if (row.id && name && !employeeNames[row.id]) employeeNames[row.id] = name
+        }
+      }
+    }
 
     return jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
       success: true,
@@ -397,6 +439,8 @@ export async function GET(request: NextRequest) {
       pageSize: query.pageSize,
       hasMore: rangeFrom + items.length < totalCount,
       comparisonSignature,
+      summary,
+      employeeNames,
     })
   } catch {
     return jsonWithAuthCookies(
@@ -1312,6 +1356,7 @@ function parseOrdersQuery(request: NextRequest): OrdersApiQuery {
     search: normalizeOrdersSearch(params.get('search')),
     dateFrom: normalizeOptionalString(params.get('dateFrom')),
     dateTo: normalizeOptionalString(params.get('dateTo')),
+    listFilter: normalizeOptionalString(params.get('listFilter')),
   }
 }
 
@@ -1600,6 +1645,14 @@ function applyOrdersFilters<T extends OrdersFilterQuery>(
   }
 
   return nextQuery
+}
+
+function applyOrdersListFilter<T extends OrdersFilterQuery>(query: T, filter: string | null) {
+  if (filter === 'in_progress' || filter === 'ready') return query.eq('status', filter)
+  if (filter === 'delivered') return query.in('status', ['closed', 'delivered', 'completed'])
+  if (filter === 'cancelled') return query.in('status', ['cancelled', 'canceled'])
+  if (filter === 'all') return query.not('status', 'in', '(closed,delivered,completed)')
+  return query
 }
 
 async function resolveMatchingOrderIds(

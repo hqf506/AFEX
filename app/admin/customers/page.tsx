@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { AdminAlert, AdminEmptyState, AdminGlassSection } from '@/components/admin-ui'
 import { isFullAdmin } from '@/lib/permissions'
@@ -18,6 +19,10 @@ type CustomerRow = {
   tax_number: string | null
   notes: string | null
   branch_id: string | null
+  firstVisitAt?: string | null
+  lastActivityAt?: string | null
+  visitsCount?: number
+  totalSpent?: number
 }
 
 type CustomerStats = {
@@ -56,8 +61,11 @@ type AdminCustomersPageProps = {
     error?: string
     mode?: string
     saved?: string
+    page?: string
   }>
 }
+
+const CUSTOMER_PAGE_SIZE = 25
 
 const EMPTY_VALUE = '—'
 const CUSTOMER_SELECT =
@@ -355,6 +363,7 @@ export default async function AdminCustomersPage({
     error: saveError,
     mode = '',
     saved,
+    page: rawPage,
   } = await searchParams
   const { supabase, tenantId, error } = await getCurrentTenantContext()
 
@@ -367,43 +376,51 @@ export default async function AdminCustomersPage({
   let selectedCustomerPurchases: CustomerPurchaseRow[] = []
   let customerStatsById = new Map<string, CustomerStats>()
   let errorMessage = error
+  const requestedPage = Math.max(1, Math.floor(Number(rawPage) || 1))
+  let currentPage = requestedPage
+  let totalCustomers = 0
 
   if (tenantId) {
-    const { data, error: customersError } = await supabase
-      .from('customers')
-      .select(CUSTOMER_SELECT)
-      .eq('tenant_id', tenantId)
-      .order('name', { ascending: true, nullsFirst: false })
-      .limit(200)
+    const requestHeaders = await headers()
+    const host = requestHeaders.get('x-forwarded-host') || requestHeaders.get('host')
+    const protocol = requestHeaders.get('x-forwarded-proto') || 'http'
+    const params = new URLSearchParams({
+      page: String(requestedPage),
+      pageSize: String(CUSTOMER_PAGE_SIZE),
+      view: 'admin',
+    })
+    const customersResponse = host
+      ? await fetch(`${protocol}://${host}/api/customers?${params}`, {
+          headers: { cookie: requestHeaders.get('cookie') || '' },
+          cache: 'no-store',
+        })
+      : null
+    const customersResult = customersResponse
+      ? await customersResponse.json().catch(() => null)
+      : null
 
-    if (customersError) {
+    if (!customersResponse?.ok || !customersResult?.success) {
       errorMessage = 'تعذر تحميل العملاء'
     } else {
-      customers = normalizeCustomerRows(data)
-    }
-
-    const customerIds = customers.map((customer) => customer.id).filter(Boolean)
-
-    if (customerIds.length > 0) {
-      const { data: invoiceStatsData, error: invoiceStatsError } =
-        await supabase
-          .from('invoices')
-          .select(
-            'id, customer_id, created_at, total, payment_status, cash_received, remaining_from_customer'
-          )
-          .eq('tenant_id', tenantId)
-          .in('customer_id', customerIds)
-
-      if (invoiceStatsError) {
-        errorMessage = errorMessage || 'تعذر تحميل إحصاءات العملاء'
-      } else {
-        customerStatsById = buildCustomerStatsMap(
-          Array.isArray(invoiceStatsData)
-            ? (invoiceStatsData as InvoiceStatsRow[])
-            : []
-        )
+      customers = normalizeCustomerRows(customersResult.customers).map((customer, index) => ({
+        ...customer,
+        ...(customersResult.customers[index] || {}),
+      }))
+      totalCustomers = Number(customersResult.total) || 0
+      currentPage = Number(customersResult.page) || requestedPage
+      customerStatsById = new Map(
+        customers.map((customer) => [
+          customer.id,
+          {
+            firstVisit: customer.firstVisitAt || null,
+            lastVisit: customer.lastActivityAt || null,
+            visitsCount: Number(customer.visitsCount) || 0,
+            totalSpent: Number(customer.totalSpent) || 0,
+            points: 0,
+          },
+        ])
+      )
       }
-    }
 
     if (customerId) {
       const { data: customerData, error: customerError } = await supabase
@@ -464,6 +481,11 @@ export default async function AdminCustomersPage({
                   ? orderNumberById.get(purchase.order_id) || null
                   : null,
             }))
+            customerStatsById.set(
+              selectedCustomer.id,
+              buildCustomerStatsMap(purchases).get(selectedCustomer.id) ||
+                createEmptyCustomerStats()
+            )
           }
         }
       }
@@ -550,7 +572,7 @@ export default async function AdminCustomersPage({
             </div>
 
             <span className="inline-flex h-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-sm font-black text-cyan-100">
-              {customers.length} عميل
+              {totalCustomers} عميل
             </span>
           </div>
 
@@ -657,6 +679,27 @@ export default async function AdminCustomersPage({
               </table>
             </div>
           )}
+          {totalCustomers > CUSTOMER_PAGE_SIZE ? (
+            <div className="mt-5 flex items-center justify-center gap-3" dir="rtl">
+              <Link
+                href={`/admin/customers?page=${Math.max(1, currentPage - 1)}`}
+                aria-disabled={currentPage <= 1}
+                className={`inline-flex h-10 items-center rounded-xl border border-cyan-300/15 px-4 text-xs font-black ${currentPage <= 1 ? 'pointer-events-none opacity-40' : 'bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15'}`}
+              >
+                السابق
+              </Link>
+              <span className="text-xs font-black text-slate-300">
+                صفحة {currentPage} من {Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE)}
+              </span>
+              <Link
+                href={`/admin/customers?page=${Math.min(Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE), currentPage + 1)}`}
+                aria-disabled={currentPage >= Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE)}
+                className={`inline-flex h-10 items-center rounded-xl border border-cyan-300/15 px-4 text-xs font-black ${currentPage >= Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE) ? 'pointer-events-none opacity-40' : 'bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15'}`}
+              >
+                التالي
+              </Link>
+            </div>
+          ) : null}
         </AdminGlassSection>
       </div>
 

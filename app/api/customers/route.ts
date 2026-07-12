@@ -12,6 +12,12 @@ type CustomerListRow = {
   id: string | null
   name: string | null
   phone: string | null
+  [key: string]: unknown
+}
+
+function positiveInteger(value: string | null, fallback: number) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : fallback
 }
 
 type InvoiceCustomerActivityRow = {
@@ -74,6 +80,12 @@ export async function GET(request: NextRequest) {
   const recentRequested =
     request.nextUrl.searchParams.get('recent') === '1' ||
     request.nextUrl.searchParams.get('recent') === 'true'
+  const paginated = request.nextUrl.searchParams.has('page')
+  const page = positiveInteger(request.nextUrl.searchParams.get('page'), 1)
+  const pageSize = Math.min(
+    positiveInteger(request.nextUrl.searchParams.get('pageSize'), paginated ? 25 : 50),
+    100
+  )
 
   if (!auth.profile.tenant_id) {
     return jsonWithAuthCookies(
@@ -95,14 +107,18 @@ export async function GET(request: NextRequest) {
     return jsonWithAuthCookies(auth.response, {
       success: true,
       customers: [],
+      total: 0,
+      page,
+      pageSize,
     })
   }
 
   let query = auth.supabase
     .from('customers')
-    .select('id, name, phone')
+    .select('id, name, phone', {
+      count: paginated ? 'exact' : undefined,
+    })
     .order('name', { ascending: true })
-    .limit(50)
 
   query = applyTenantFilter(query, auth.profile.tenant_id)
 
@@ -114,7 +130,11 @@ export async function GET(request: NextRequest) {
     query = query.eq('branch_id', profileBranchId)
   }
 
-  const { data, error } = await query
+  query = paginated
+    ? query.range((page - 1) * pageSize, page * pageSize - 1)
+    : query.limit(pageSize)
+
+  const { data, error, count } = await query
 
   if (error) {
     return jsonWithAuthCookies(
@@ -148,7 +168,6 @@ export async function GET(request: NextRequest) {
       .select('customer_id, created_at, total, payment_status, cash_received, remaining_from_customer')
       .in('customer_id', customerIds)
       .order('created_at', { ascending: false })
-      .limit(1000)
 
     activityQuery = applyTenantFilter(activityQuery, auth.profile.tenant_id)
 
@@ -254,6 +273,9 @@ export async function GET(request: NextRequest) {
   return jsonWithAuthCookies(auth.response, {
     success: true,
     customers: customersWithActivity,
+    total: paginated ? count || 0 : customersWithActivity.length,
+    page,
+    pageSize,
   })
 }
 

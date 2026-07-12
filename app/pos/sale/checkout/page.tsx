@@ -62,15 +62,19 @@ const DEFAULT_THERMAL_RECEIPT_SETTINGS: ThermalReceiptSettings = {
   taxNumber: '',
 }
 
-const ADMIN_DISCOUNTS_CACHE_TTL_MS = 30_000
-const ADMIN_VAT_CACHE_TTL_MS = 30_000
+const POS_RUNTIME_CACHE_TTL_MS = 30_000
+
+type PosRuntime = {
+  discounts: CheckoutDiscountOption[]
+  vat: CheckoutVatSetting | null
+}
 
 function getDiscountsCacheKey(branchId: string | null) {
-  return `admin-discounts:${branchId || 'all'}`
+  return `pos-runtime:${branchId || 'all'}`
 }
 
 function getVatCacheKey(branchId: string | null) {
-  return `admin-vat:${branchId || 'all'}`
+  return `pos-runtime:${branchId || 'all'}`
 }
 
 function formatDiscountOptionLabel(option: CheckoutDiscountOption) {
@@ -234,8 +238,8 @@ export default function PosSaleCheckoutPage() {
     async function loadDiscounts() {
       try {
         const discountsCacheKey = getDiscountsCacheKey(checkoutBranchId)
-        const cachedDiscounts =
-          peekClientResource<CheckoutDiscountOption[]>(discountsCacheKey) || []
+        const cachedRuntime = peekClientResource<PosRuntime>(discountsCacheKey)
+        const cachedDiscounts = cachedRuntime?.discounts || []
 
         if (!cancelled && cachedDiscounts.length > 0) {
           setAvailableDiscounts(cachedDiscounts)
@@ -249,11 +253,11 @@ export default function PosSaleCheckoutPage() {
           searchParams.set('branchId', checkoutBranchId)
         }
 
-        const nextDiscounts = await loadClientResource(
+        const runtime = await loadClientResource<PosRuntime>(
           discountsCacheKey,
           async () => {
             const response = await fetch(
-              `/api/admin/discounts${
+              `/api/pos/runtime${
                 searchParams.toString() ? `?${searchParams.toString()}` : ''
               }`,
               {
@@ -270,16 +274,21 @@ export default function PosSaleCheckoutPage() {
               )
             }
 
-            return Array.isArray(result.discounts) ? result.discounts : []
+            return {
+              discounts: Array.isArray(result.runtime?.discounts)
+                ? result.runtime.discounts
+                : [],
+              vat: (result.runtime?.vat as CheckoutVatSetting | null) || null,
+            }
           },
           {
-            ttlMs: ADMIN_DISCOUNTS_CACHE_TTL_MS,
-            logLabel: `fetch discounts (${checkoutBranchId || 'all'})`,
+            ttlMs: POS_RUNTIME_CACHE_TTL_MS,
+            logLabel: `fetch POS runtime (${checkoutBranchId || 'all'})`,
           }
         )
 
         if (!cancelled) {
-          setAvailableDiscounts(nextDiscounts)
+          setAvailableDiscounts(runtime.discounts)
         }
       } catch {
         if (!cancelled) {
@@ -307,8 +316,8 @@ export default function PosSaleCheckoutPage() {
     async function loadVatSetting() {
       try {
         const vatCacheKey = getVatCacheKey(checkoutBranchId)
-        const cachedSetting =
-          peekClientResource<CheckoutVatSetting | null>(vatCacheKey) || null
+        const cachedRuntime = peekClientResource<PosRuntime>(vatCacheKey)
+        const cachedSetting = cachedRuntime?.vat || null
 
         if (!cancelled && cachedSetting) {
           setAvailableVatSetting(cachedSetting)
@@ -322,11 +331,11 @@ export default function PosSaleCheckoutPage() {
           searchParams.set('branchId', checkoutBranchId)
         }
 
-        const nextSetting = await loadClientResource(
+        const runtime = await loadClientResource<PosRuntime>(
           vatCacheKey,
           async () => {
             const response = await fetch(
-              `/api/admin/vat${
+              `/api/pos/runtime${
                 searchParams.toString() ? `?${searchParams.toString()}` : ''
               }`,
               {
@@ -343,16 +352,21 @@ export default function PosSaleCheckoutPage() {
               )
             }
 
-            return (result.setting as CheckoutVatSetting | null) || null
+            return {
+              discounts: Array.isArray(result.runtime?.discounts)
+                ? result.runtime.discounts
+                : [],
+              vat: (result.runtime?.vat as CheckoutVatSetting | null) || null,
+            }
           },
           {
-            ttlMs: ADMIN_VAT_CACHE_TTL_MS,
-            logLabel: `fetch vat (${checkoutBranchId || 'all'})`,
+            ttlMs: POS_RUNTIME_CACHE_TTL_MS,
+            logLabel: `fetch POS runtime (${checkoutBranchId || 'all'})`,
           }
         )
 
         if (!cancelled) {
-          setAvailableVatSetting(nextSetting)
+          setAvailableVatSetting(runtime.vat)
         }
       } catch {
         if (!cancelled) {
