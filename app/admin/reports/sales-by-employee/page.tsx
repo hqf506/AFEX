@@ -10,20 +10,9 @@ import { usePageAccess } from '@/hooks/use-page-access'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
 import { getDateInputValue } from '@/lib/orders/format'
-import { type OrderSourceRow } from '@/lib/orders/normalize'
-import { supabase } from '@/lib/supabase/client'
-import { applyTenantFilter } from '@/lib/tenant-filter'
 import { canViewReportRange } from '@/lib/permissions'
-import {
-  escapeCsvValue,
-  mapOrderSourceRowToReportOrderRecord,
-} from '@/lib/reports/core'
-import {
-  buildSalesByEmployeeRows,
-  type EmployeeProfileSource,
-  type EmployeeReportOrder,
-  type SalesByEmployeeRow,
-} from '@/lib/reports/sales-by-employee'
+import { escapeCsvValue } from '@/lib/reports/core'
+import { type SalesByEmployeeRow } from '@/lib/reports/sales-by-employee'
 
 const ALL_BRANCHES = ADMIN_BRANCH_FILTER_ALL
 const ALL_EMPLOYEES = '__all__'
@@ -223,18 +212,6 @@ function buildPresetDateRange(period: PeriodOption) {
   }
 }
 
-function getEmployeeId(row: OrderSourceRow): string | null {
-  const value = row.created_by_employee_id
-  return typeof value === 'string' && value.trim() ? value : null
-}
-
-function buildEmployeeOrders(rows: OrderSourceRow[]): EmployeeReportOrder[] {
-  return rows.map((row, index) => ({
-    ...mapOrderSourceRowToReportOrderRecord(row, index),
-    employeeId: getEmployeeId(row),
-  }))
-}
-
 function getRoleLabel(role: string | null): string {
   switch (role) {
     case 'admin':
@@ -292,8 +269,7 @@ export default function SalesByEmployeeReportPage() {
     tenantId
   )
 
-  const [orders, setOrders] = useState<EmployeeReportOrder[]>([])
-  const [employeeProfiles, setEmployeeProfiles] = useState<EmployeeProfileSource[]>([])
+  const [serverEmployeeRows, setServerEmployeeRows] = useState<SalesByEmployeeRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [period, setPeriod] = useState<PeriodOption>('today')
@@ -307,8 +283,7 @@ export default function SalesByEmployeeReportPage() {
 
     async function fetchReportData() {
       if (!tenantId) {
-        setOrders([])
-        setEmployeeProfiles([])
+        setServerEmployeeRows([])
         setLoading(false)
         setError('تعذر تحديد نطاق المنشأة لهذا التقرير.')
         return
@@ -318,117 +293,50 @@ export default function SalesByEmployeeReportPage() {
       setError(null)
 
       if (!canViewReportRange(access.userRole, dateRange.from, dateRange.to)) {
-        setOrders([])
-        setEmployeeProfiles([])
+        setServerEmployeeRows([])
         setLoading(false)
         setError('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
         return
       }
 
-      let query = supabase
-        .from('orders')
-        .select(
-          `
-          id,
-          order_number,
-          status,
-          created_at,
-          created_by_employee_id,
-          customers (
-            name,
-            phone
-          ),
-          invoices (
-            id,
-            invoice_number,
-            payment_method,
-            payment_status,
-            subtotal,
-            discount,
-            tax,
-            total,
-            cash_received,
-            remaining_from_customer,
-            cash_change,
-            note
-          )
-        `,
-        )
-        .gte('created_at', dateRange.from)
-        .lte('created_at', dateRange.to)
-        .order('created_at', { ascending: false })
-
-      query = applyTenantFilter(query, tenantId)
+      const params = new URLSearchParams({
+        type: 'employee',
+        range: 'custom',
+        dateFrom: dateRange.from.slice(0, 10),
+        dateTo: dateRange.to.slice(0, 10),
+      })
 
       if (effectiveBranchId) {
-        query = query.eq('branch_id', effectiveBranchId)
+        params.set('branchId', effectiveBranchId)
       }
 
-      const { data, error: ordersError } = await query
+      const response = await fetch(
+        `/api/admin/reports/sales-performance?${params.toString()}`,
+        { cache: 'no-store' }
+      )
+      const result = (await response.json().catch(() => ({}))) as {
+        success?: boolean
+        message?: string
+        error?: string
+        employeeRows?: SalesByEmployeeRow[]
+      }
 
       if (!mounted) {
         return
       }
 
-      if (ordersError) {
-        console.error('[sales-by-employee] failed to fetch orders', ordersError)
-        setOrders([])
-        setEmployeeProfiles([])
-        setError('تعذر تحميل تقرير المبيعات حسب الموظف.')
+      if (!response.ok || result.success === false) {
+        setServerEmployeeRows([])
+        setError(
+          result.message ||
+            result.error ||
+            'تعذر تحميل تقرير المبيعات حسب الموظف.'
+        )
         setLoading(false)
         return
       }
 
-      const sourceRows = (data ?? []) as OrderSourceRow[]
-      const employeeOrders = buildEmployeeOrders(sourceRows)
-      const employeeIds = Array.from(
-        new Set(employeeOrders.map((order) => order.employeeId).filter((id): id is string => Boolean(id))),
-      )
-
-      let profiles: EmployeeProfileSource[] = []
-
-      if (employeeIds.length > 0) {
-        let profilesQuery = supabase
-          .from('profiles')
-          .select('id, username, full_name, role')
-          .in('id', employeeIds)
-
-        profilesQuery = applyTenantFilter(profilesQuery, tenantId)
-
-        const { data: profileData, error: profilesError } = await profilesQuery
-
-        if (!mounted) {
-          return
-        }
-
-        if (profilesError) {
-          console.error('[sales-by-employee] failed to fetch employee profiles', profilesError)
-        } else {
-          profiles = (profileData ?? []) as EmployeeProfileSource[]
-        }
-
-        let posProfilesQuery = supabase
-          .from('pos_profiles')
-          .select('id, username, full_name, role')
-          .in('id', employeeIds)
-
-        posProfilesQuery = applyTenantFilter(posProfilesQuery, tenantId)
-
-        const { data: posProfileData, error: posProfilesError } =
-          await posProfilesQuery
-
-        if (posProfilesError) {
-          console.error('[sales-by-employee] failed to fetch POS profiles', posProfilesError)
-        } else {
-          profiles = [
-            ...profiles,
-            ...((posProfileData ?? []) as EmployeeProfileSource[]),
-          ]
-        }
-      }
-
-      setOrders(employeeOrders)
-      setEmployeeProfiles(profiles)
+      setServerEmployeeRows(Array.isArray(result.employeeRows) ? result.employeeRows : [])
       setLastUpdatedAt(new Date())
       setLoading(false)
     }
@@ -449,11 +357,7 @@ export default function SalesByEmployeeReportPage() {
     effectiveBranchId,
     tenantId,
   ])
-
-  const employeeRows = useMemo(
-    () => buildSalesByEmployeeRows(orders, employeeProfiles),
-    [employeeProfiles, orders],
-  )
+  const employeeRows = serverEmployeeRows
 
   const filteredRows = useMemo(() => {
     if (employeeId === ALL_EMPLOYEES) {

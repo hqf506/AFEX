@@ -20,9 +20,9 @@ import {
   mapOrderSourceRowToReportOrderRecord,
   type CatalogFinancialSource,
   type ReportOrderRecord,
+  type SalesByCustomerRow,
   type ReportRange,
 } from '@/lib/reports/core'
-import { buildSalesByCustomerRows } from '@/lib/reports/sales-by-customer'
 import { canViewReportRange } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
@@ -309,7 +309,8 @@ export default function SalesByCustomerPage() {
   const [range, setRange] = useState<ReportRange>(initialPeriod.range)
   const [dateFrom, setDateFrom] = useState(initialPeriod.dateFrom)
   const [dateTo, setDateTo] = useState(initialPeriod.dateTo)
-  const [orders, setOrders] = useState<ReportOrderRecord[]>([])
+  const [, setOrders] = useState<ReportOrderRecord[]>([])
+  const [serverCustomerRows, setServerCustomerRows] = useState<SalesByCustomerRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -348,6 +349,44 @@ export default function SalesByCustomerPage() {
         setRefreshing(false)
         return
       }
+
+      const params = new URLSearchParams({
+        type: 'customer',
+        range,
+        dateFrom,
+        dateTo,
+      })
+
+      if (effectiveBranchId) {
+        params.set('branchId', effectiveBranchId)
+      }
+
+      const response = await fetch(
+        `/api/admin/reports/sales-performance?${params.toString()}`,
+        { cache: 'no-store' }
+      )
+      const result = (await response.json().catch(() => ({}))) as {
+        success?: boolean
+        message?: string
+        error?: string
+        customerRows?: SalesByCustomerRow[]
+      }
+
+      if (!response.ok || result.success === false) {
+        setErrorMessage(
+          result.message ||
+            result.error ||
+            'تعذر تحميل تقرير المبيعات حسب العميل'
+        )
+        setServerCustomerRows([])
+      } else {
+        setServerCustomerRows(Array.isArray(result.customerRows) ? result.customerRows : [])
+      }
+
+      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+      setLoading(false)
+      setRefreshing(false)
+      return
 
       const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
 
@@ -420,7 +459,7 @@ export default function SalesByCustomerPage() {
 
       try {
         const normalized = Array.isArray(data)
-          ? data.map((row, index) =>
+          ? data.map((row: unknown, index: number) =>
               mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index)
             )
           : []
@@ -459,7 +498,7 @@ export default function SalesByCustomerPage() {
     return () => window.clearTimeout(timeoutId)
   }, [allowed, fetchData])
 
-  const customerRows = useMemo(() => buildSalesByCustomerRows(orders), [orders])
+  const customerRows = serverCustomerRows
 
   const sortedCustomerRows = useMemo(() => {
     const directionFactor = sortDirection === 'asc' ? 1 : -1
