@@ -20,7 +20,6 @@ import {
   buildOrdersPageSummary,
   getTodayOrderRecords,
   mapOrderSummaryToOrderRecord,
-  ORDER_STATUS_MAP,
   type OrderRecord,
   type OrderFilter,
 } from '@/lib/orders/orders-page'
@@ -313,15 +312,6 @@ function formatMoney(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} ر.س`
-}
-
-function escapeHtml(value: unknown) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;')
 }
 
 const CANCELLED_RECEIPT_WHATSAPP_UI = {
@@ -1530,6 +1520,77 @@ export default function OrdersPage() {
     }
   }
 
+  const buildThermalInvoiceHtmlForOrder = (order: OrderRecord) =>
+    renderThermalInvoiceHtml({
+      thermalLogoUrl: systemSettings?.logo_url || undefined,
+      thermalBrandName:
+        systemSettings?.thermal_invoice_brand_name ||
+        systemSettings?.store_name ||
+        undefined,
+      thermalBranchName:
+        systemSettings?.thermal_invoice_branch_name ||
+        getOrderBranchLabel(order),
+      addressLine1: systemSettings?.digital_invoice_address_line_1 || undefined,
+      addressLine2: systemSettings?.digital_invoice_address_line_2 || undefined,
+      thermalPaperWidth:
+        systemSettings?.thermal_invoice_paper_width === '58mm'
+          ? ('58mm' as ThermalPaperWidth)
+          : ('80mm' as ThermalPaperWidth),
+      thermalShowCustomerPhone:
+        systemSettings?.thermal_invoice_show_customer_phone ?? true,
+      thermalShowPaymentMethod:
+        systemSettings?.thermal_invoice_show_payment_method ?? true,
+      thermalShowNote: systemSettings?.thermal_invoice_show_note ?? true,
+      thermalNote:
+        systemSettings?.thermal_invoice_note ||
+        (order.note === EMPTY_DASH ? '' : fixArabic(order.note)),
+      thermalFooterMessage:
+        systemSettings?.thermal_invoice_footer_message || undefined,
+      thermalShowWhatsapp:
+        systemSettings?.thermal_invoice_show_whatsapp ?? true,
+      thermalShowInstagram:
+        systemSettings?.thermal_invoice_show_instagram ?? false,
+      thermalShowTiktok:
+        systemSettings?.thermal_invoice_show_tiktok ?? false,
+      thermalShowGoogleReview:
+        systemSettings?.thermal_invoice_show_google_review ?? true,
+      thermalShowMap: systemSettings?.thermal_invoice_show_map ?? true,
+      whatsappNumber:
+        systemSettings?.digital_invoice_whatsapp_number || undefined,
+      instagramLink:
+        systemSettings?.digital_invoice_instagram_link || undefined,
+      tiktokLink: systemSettings?.digital_invoice_tiktok_link || undefined,
+      googleReviewLink:
+        systemSettings?.digital_invoice_google_review_link || undefined,
+      mapLink:
+        systemSettings?.digital_invoice_map_link ||
+        getOrderBranchMapUrl(order) ||
+        undefined,
+      customerName: fixArabic(order.customer_name),
+      customerPhone: order.customer_phone,
+      invoiceNumber: order.invoice_number,
+      orderNumber: order.order_number,
+      issuedAt: order.created_at,
+      paymentMethod: order.payment_method_key || order.payment_method,
+      invoiceItems: order.items.map((item) => ({
+        item_name: fixArabic(item.item_name),
+        name: fixArabic(item.item_name),
+        item_type: item.item_type === 'product' ? 'product' : 'service',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        price: item.unit_price,
+        line_total: item.line_total,
+      })),
+      subtotal: order.subtotal || order.total,
+      taxAmount: order.tax,
+      finalTotal: order.total,
+      total: order.total,
+      numericCashReceived: order.cash_received,
+      remainingFromCustomer: order.remaining_from_customer,
+      cashChange: order.cash_change,
+      note: order.note === EMPTY_DASH ? '' : fixArabic(order.note),
+    })
+
   const encodeInvoicePreviewPayload = (order: PageOrderRecord) => {
     const json = JSON.stringify(buildInvoicePdfPayload(order))
     const bytes = new TextEncoder().encode(json)
@@ -1927,223 +1988,20 @@ export default function OrdersPage() {
       return
     }
 
-    const itemsHtml =
-      order.items.length > 0
-        ? order.items
-            .map(
-              (item) => `
-                <div class="item">
-                  <div class="item-name">${item.item_name}</div>
-                  <div class="item-meta">
-                    <span>الكمية: ${item.quantity}</span>
-                    <span>الوحدة: ${item.unit_price} ر.س</span>
-                  </div>
-                  <div class="item-total">الإجمالي: ${item.line_total} ر.س</div>
-                </div>
-              `
-            )
-            .join('')
-        : `<div class="empty">لا توجد عناصر</div>`
-
-    const statusLabel = ORDER_STATUS_MAP[order.status]?.label || EMPTY_DASH
-    const printedAt = new Date().toLocaleString('ar-SA')
-
-    printWindow.document.write(`
-      <html lang="ar" dir="rtl">
-        <head>
-          <title>طباعة حرارية - ${order.order_number}</title>
-          <style>
-            @page { size: 80mm auto; margin: 4mm; }
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: Arial, sans-serif;
-              color: #000;
-              background: #fff;
-              width: 72mm;
-              direction: rtl;
-            }
-            .receipt { width: 100%; padding: 4mm 2mm; box-sizing: border-box; }
-            .center { text-align: center; }
-            .title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-            .subtitle { font-size: 12px; margin-bottom: 12px; }
-            .line { border-top: 1px dashed #000; margin: 10px 0; }
-            .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 6px; }
-            .label { font-weight: 700; }
-            .value { text-align: left; word-break: break-word; }
-            .section-title { font-size: 13px; font-weight: 700; margin: 10px 0 6px; }
-            .item { border-bottom: 1px dashed #000; padding: 6px 0; }
-            .item-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-            .item-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; margin-bottom: 4px; }
-            .item-total { font-size: 12px; font-weight: 700; }
-            .total-box {
-              margin-top: 10px;
-              padding-top: 8px;
-              border-top: 2px solid #000;
-              font-size: 15px;
-              font-weight: 700;
-              display: flex;
-              justify-content: space-between;
-            }
-            .note { font-size: 11px; margin-top: 8px; white-space: pre-wrap; }
-            .footer { text-align: center; font-size: 11px; margin-top: 14px; }
-            .empty { font-size: 11px; color: #444; text-align: center; padding: 8px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="receipt">
-            <div class="center">
-              <div class="title">AFEX</div>
-              <div class="subtitle">فاتورة طباعة حرارية</div>
-            </div>
-
-            <div class="line"></div>
-
-            <div class="row"><span class="label">رقم الطلب</span><span class="value">${order.order_number}</span></div>
-            <div class="row"><span class="label">رقم الفاتورة</span><span class="value">${order.invoice_number}</span></div>
-            <div class="row"><span class="label">اسم العميل</span><span class="value">${fixArabic(order.customer_name)}</span></div>
-            <div class="row"><span class="label">الجوال</span><span class="value">${order.customer_phone}</span></div>
-            <div class="row"><span class="label">الحالة</span><span class="value">${fixArabic(statusLabel)}</span></div>
-            <div class="row"><span class="label">الدفع</span><span class="value">${fixArabic(order.payment_method)}</span></div>
-            <div class="row"><span class="label">تاريخ الطلب</span><span class="value">${
-              order.created_at
-                ? new Date(order.created_at).toLocaleString('ar-SA')
-                : EMPTY_DASH
-            }</span></div>
-
-            <div class="line"></div>
-            <div class="section-title">العناصر</div>
-            ${itemsHtml}
-
-            <div class="total-box">
-              <span>الإجمالي</span>
-              <span>${order.total} ر.س</span>
-            </div>
-
-            ${
-              fixArabic(order.note) !== EMPTY_DASH
-                ? `<div class="line"></div><div class="note"><strong>ملاحظة:</strong> ${fixArabic(order.note)}</div>`
-                : ''
-            }
-
-            <div class="line"></div>
-
-            <div class="footer">
-              <div>وقت الطباعة: ${printedAt}</div>
-              <div style="margin-top:6px;">شكراً لتعاملكم معنا</div>
-            </div>
-          </div>
-
-          <script>
-            window.onload = function () {
-              window.print();
-            };
-          </script>
-        </body>
-      </html>
-    `)
-
+    printWindow.document.write(
+      buildThermalInvoiceHtmlForOrder(order).replace(
+        '</body>',
+        '<script>window.onload = function () { window.print(); };</script></body>'
+      )
+    )
     printWindow.document.close()
   }
   void printThermalReceipt
 
   const previewThermalInvoiceInPage = (order: PageOrderRecord) => {
-    const statusLabel = ORDER_STATUS_MAP[order.status]?.label || EMPTY_DASH
-    const itemsHtml =
-      order.items.length > 0
-        ? order.items
-            .map(
-              (item) => `
-                <div class="item">
-                  <div class="item-name">${escapeHtml(fixArabic(item.item_name))}</div>
-                  <div class="item-meta">
-                    <span>الكمية: ${escapeHtml(item.quantity)}</span>
-                    <span>الوحدة: ${escapeHtml(formatMoney(item.unit_price))}</span>
-                  </div>
-                  <div class="item-total">الإجمالي: ${escapeHtml(formatMoney(item.line_total))}</div>
-                </div>
-              `
-            )
-            .join('')
-        : `<div class="empty">لا توجد عناصر</div>`
-
     setInvoicePreviewFrame({
       title: 'معاينة الفاتورة الحرارية',
-      srcDoc: `
-        <html lang="ar" dir="rtl">
-          <head>
-            <meta charset="UTF-8" />
-            <style>
-              @page { size: 80mm auto; margin: 4mm; }
-              * { box-sizing: border-box; }
-              body {
-                margin: 0 auto;
-                padding: 0;
-                width: 80mm;
-                background: #fff;
-                color: #000;
-                font-family: Arial, sans-serif;
-                direction: rtl;
-              }
-              .receipt { width: 100%; padding: 6mm 4mm; }
-              .center { text-align: center; }
-              .title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-              .subtitle { font-size: 12px; margin-bottom: 12px; }
-              .line { border-top: 1px dashed #000; margin: 10px 0; }
-              .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 6px; }
-              .label { font-weight: 700; }
-              .value { text-align: left; word-break: break-word; }
-              .section-title { font-size: 13px; font-weight: 700; margin: 10px 0 6px; }
-              .item { border-bottom: 1px dashed #000; padding: 6px 0; }
-              .item-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-              .item-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; margin-bottom: 4px; }
-              .item-total { font-size: 12px; font-weight: 700; }
-              .total-box {
-                margin-top: 10px;
-                padding-top: 8px;
-                border-top: 2px solid #000;
-                font-size: 15px;
-                font-weight: 700;
-                display: flex;
-                justify-content: space-between;
-              }
-              .note { font-size: 11px; margin-top: 8px; white-space: pre-wrap; }
-              .footer { text-align: center; font-size: 11px; margin-top: 14px; }
-              .empty { font-size: 11px; color: #444; text-align: center; padding: 8px 0; }
-            </style>
-          </head>
-          <body>
-            <div class="receipt">
-              <div class="center">
-                <div class="title">AFEX</div>
-                <div class="subtitle">فاتورة حرارية</div>
-              </div>
-              <div class="line"></div>
-              <div class="row"><span class="label">رقم الطلب</span><span class="value">${escapeHtml(order.order_number)}</span></div>
-              <div class="row"><span class="label">رقم الفاتورة</span><span class="value">${escapeHtml(order.invoice_number)}</span></div>
-              <div class="row"><span class="label">اسم العميل</span><span class="value">${escapeHtml(fixArabic(order.customer_name))}</span></div>
-              <div class="row"><span class="label">الجوال</span><span class="value">${escapeHtml(order.customer_phone)}</span></div>
-              <div class="row"><span class="label">الحالة</span><span class="value">${escapeHtml(fixArabic(statusLabel))}</span></div>
-              <div class="row"><span class="label">الدفع</span><span class="value">${escapeHtml(fixArabic(order.payment_method))}</span></div>
-              <div class="row"><span class="label">تاريخ الطلب</span><span class="value">${escapeHtml(formatDateTime(order.created_at))}</span></div>
-              <div class="line"></div>
-              <div class="section-title">العناصر</div>
-              ${itemsHtml}
-              <div class="total-box">
-                <span>الإجمالي</span>
-                <span>${escapeHtml(formatMoney(order.total))}</span>
-              </div>
-              ${
-                fixArabic(order.note) !== EMPTY_DASH
-                  ? `<div class="line"></div><div class="note"><strong>ملاحظة:</strong> ${escapeHtml(fixArabic(order.note))}</div>`
-                  : ''
-              }
-              <div class="line"></div>
-              <div class="footer">شكراً لتعاملكم معنا</div>
-            </div>
-          </body>
-        </html>
-      `,
+      srcDoc: buildThermalInvoiceHtmlForOrder(order),
     })
   }
 
