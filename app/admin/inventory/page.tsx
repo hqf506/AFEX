@@ -59,6 +59,8 @@ const emptyThresholdForm: ThresholdFormState = {
   lowStockThreshold: '',
 }
 
+const INVENTORY_PAGE_SIZE = 25
+
 const movementTypeOptions: Array<{
   value: AdjustFormState['movementType']
   label: string
@@ -178,23 +180,6 @@ function StockNumber({
   )
 }
 
-function normalizeInventoryRow(
-  row: Partial<InventoryRow>,
-  branch: Pick<AdminBranchRecord, 'id' | 'name'>
-) {
-  return {
-    branch_id: branch.id,
-    branch_name: branch.name,
-    catalog_item_id: String(row.catalog_item_id || ''),
-    item_name: String(row.item_name || ''),
-    item_type: row.item_type || 'product',
-    category_id: row.category_id || null,
-    quantity_on_hand: Number(row.quantity_on_hand) || 0,
-    low_stock_threshold: Number(row.low_stock_threshold) || 0,
-    is_low_stock: Boolean(row.is_low_stock),
-  } satisfies InventoryRow
-}
-
 function getStockStatus(
   row: Pick<InventoryRow, 'quantity_on_hand' | 'low_stock_threshold'>
 ) {
@@ -238,6 +223,9 @@ export default function AdminInventoryPage() {
     getInitialInventoryBranchId
   )
   const [inventoryRows, setInventoryRows] = useState<InventoryRow[]>([])
+  const [lowStockRows, setLowStockRows] = useState<InventoryRow[]>([])
+  const [totalInventoryRows, setTotalInventoryRows] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
   const [loadingBranches, setLoadingBranches] = useState(false)
   const [loadingInventory, setLoadingInventory] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -259,22 +247,14 @@ export default function AdminInventoryPage() {
   const selectedBranchLabel = isAllBranchesSelected
     ? 'كل الفروع'
     : selectedBranch?.name || 'اختر فرعًا لعرض المخزون'
-  const lowStockRows = useMemo(
-    () =>
-      inventoryRows.filter(
-        (row) =>
-          row.quantity_on_hand <= 0 ||
-          (row.low_stock_threshold > 0 &&
-            row.quantity_on_hand <= row.low_stock_threshold)
-      ),
-    [inventoryRows]
-  )
   const lowStockCount = lowStockRows.length
+  const totalPages = Math.max(1, Math.ceil(totalInventoryRows / INVENTORY_PAGE_SIZE))
   const drawerOpen = Boolean(drawerMode && selectedItem)
 
   const setSelectedBranchId = useCallback((value: string) => {
     const nextValue = value || ADMIN_BRANCH_FILTER_ALL
     setSelectedBranchIdState(nextValue)
+    setCurrentPage(1)
     setStoredAdminBranchFilter(nextValue)
     setBranchMenuOpen(false)
   }, [])
@@ -323,61 +303,75 @@ export default function AdminInventoryPage() {
     }
   }, [branches, selectedBranchId, setSelectedBranchId])
 
-  const loadInventory = useCallback(async (branchId: string) => {
+  const loadInventory = useCallback(async (
+    branchId: string,
+    page = currentPage,
+    signal?: AbortSignal
+  ) => {
     if (!tenantId || !branchId) {
       setInventoryRows([])
+      setLowStockRows([])
+      setTotalInventoryRows(0)
       return
     }
 
     try {
       setLoadingInventory(true)
       setErrorMessage('')
-      setInventoryRows([])
 
-      const targetBranches =
-        branchId === ADMIN_BRANCH_FILTER_ALL
-          ? branches
-          : branches.filter((branch) => branch.id === branchId)
+      const searchParams = new URLSearchParams({
+        branchId,
+        page: String(page),
+        pageSize: String(INVENTORY_PAGE_SIZE),
+      })
+      const response = await fetch(
+        `/api/admin/inventory?${searchParams.toString()}`,
+        {
+          method: 'GET',
+          cache: 'no-store',
+          signal,
+        }
+      )
+      const result = await response.json().catch(() => null)
 
-      if (targetBranches.length === 0) {
-        setInventoryRows([])
+      if (!response.ok || !result?.success) {
+        throw new Error(
+          result?.details || result?.error || 'تعذر تحميل المخزون'
+        )
+      }
+
+      const nextTotal = Number(result.total) || 0
+      const nextTotalPages = Math.max(
+        1,
+        Math.ceil(nextTotal / INVENTORY_PAGE_SIZE)
+      )
+
+      if (page > nextTotalPages) {
+        queueMicrotask(() => setCurrentPage(nextTotalPages))
+      }
+
+      setInventoryRows(Array.isArray(result.items) ? result.items : [])
+      setLowStockRows(
+        Array.isArray(result.lowStockRows) ? result.lowStockRows : []
+      )
+      setTotalInventoryRows(nextTotal)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
         return
       }
 
-      const inventoryResponses = await Promise.all(
-        targetBranches.map(async (branch) => {
-          const { data, error } = await supabase.rpc('get_branch_inventory', {
-            p_tenant_id: tenantId,
-            p_branch_id: branch.id,
-          })
-
-          if (error) {
-            throw new Error(error.message || 'تعذر تحميل المخزون')
-          }
-
-          return {
-            branch,
-            rows: Array.isArray(data)
-              ? data.map((row) =>
-                  normalizeInventoryRow(row as Partial<InventoryRow>, branch)
-                )
-              : [],
-          }
-        })
-      )
-
-      const nextRows = inventoryResponses.flatMap((response) => response.rows)
-
-      setInventoryRows(nextRows)
-    } catch (error) {
       setInventoryRows([])
+      setLowStockRows([])
+      setTotalInventoryRows(0)
       setErrorMessage(
         error instanceof Error ? error.message : 'تعذر تحميل المخزون'
       )
     } finally {
-      setLoadingInventory(false)
+      if (!signal?.aborted) {
+        setLoadingInventory(false)
+      }
     }
-  }, [branches, tenantId])
+  }, [currentPage, tenantId])
 
   useEffect(() => {
     if (!accessLoading && allowed) {
@@ -393,17 +387,23 @@ export default function AdminInventoryPage() {
     if (!allowed || !tenantId || !selectedBranchId) {
       const timeoutId = window.setTimeout(() => {
         setInventoryRows([])
+        setLowStockRows([])
+        setTotalInventoryRows(0)
       }, 0)
 
       return () => window.clearTimeout(timeoutId)
     }
 
+    const abortController = new AbortController()
     const timeoutId = window.setTimeout(() => {
-      void loadInventory(selectedBranchId)
+      void loadInventory(selectedBranchId, currentPage, abortController.signal)
     }, 0)
 
-    return () => window.clearTimeout(timeoutId)
-  }, [allowed, loadInventory, selectedBranchId, tenantId])
+    return () => {
+      abortController.abort()
+      window.clearTimeout(timeoutId)
+    }
+  }, [allowed, currentPage, loadInventory, selectedBranchId, tenantId])
 
   function openAdjustDrawer(item: InventoryRow) {
     setSelectedItem(item)
@@ -499,7 +499,7 @@ export default function AdminInventoryPage() {
       setSuccessMessage('تم تحديث كمية المخزون بنجاح')
       clearBranchInvoiceCatalogCache(selectedItem.branch_id)
       closeDrawer()
-      await loadInventory(selectedBranchId)
+      await loadInventory(selectedBranchId, currentPage)
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('[Inventory] adjust submit failed', error)
@@ -555,7 +555,7 @@ export default function AdminInventoryPage() {
       setSuccessMessage('تم تحديث حد التنبيه بنجاح')
       clearBranchInvoiceCatalogCache(selectedItem.branch_id)
       closeDrawer()
-      await loadInventory(selectedBranchId)
+      await loadInventory(selectedBranchId, currentPage)
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('[Inventory] threshold submit failed', error)
@@ -650,7 +650,7 @@ export default function AdminInventoryPage() {
             </div>
             <button
               type="button"
-              onClick={() => void loadInventory(selectedBranchId)}
+              onClick={() => void loadInventory(selectedBranchId, currentPage)}
               disabled={
                 !selectedBranchId ||
                 loadingInventory ||
@@ -726,7 +726,7 @@ export default function AdminInventoryPage() {
                 <span className="inline-flex h-11 items-center gap-2 rounded-2xl border border-cyan-300/45 bg-cyan-300/15 px-4 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.16)]">
                   <span>العناصر</span>
                   <span className="rounded-full bg-cyan-300/20 px-2 py-0.5 text-cyan-100">
-                    {inventoryRows.length.toLocaleString('ar-SA')}
+                    {totalInventoryRows.toLocaleString('ar-SA')}
                   </span>
                 </span>
                 <span className="inline-flex h-11 items-center gap-2 rounded-2xl border border-red-300/20 bg-red-500/10 px-4 text-red-100">
@@ -758,6 +758,7 @@ export default function AdminInventoryPage() {
               icon={<InventoryIcon className="h-7 w-7" />}
             />
           ) : (
+            <>
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#06111f]/65">
               <table className="w-full table-fixed text-right">
                 <colgroup>
@@ -850,6 +851,35 @@ export default function AdminInventoryPage() {
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 ? (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-cyan-300/10 pt-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((page) => Math.max(1, page - 1))
+                  }
+                  disabled={loadingInventory || currentPage <= 1}
+                  className="h-10 rounded-xl border border-cyan-300/15 bg-white/[0.045] px-4 text-xs font-black text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  السابق
+                </button>
+                <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-4 py-2 text-xs font-black text-cyan-100">
+                  {currentPage.toLocaleString('ar-SA')} /{' '}
+                  {totalPages.toLocaleString('ar-SA')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((page) => Math.min(totalPages, page + 1))
+                  }
+                  disabled={loadingInventory || currentPage >= totalPages}
+                  className="h-10 rounded-xl border border-cyan-300/15 bg-white/[0.045] px-4 text-xs font-black text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  التالي
+                </button>
+              </div>
+            ) : null}
+            </>
           )}
         </AdminGlassSection>
 
