@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
     let posProfilesQuery = supabaseAdmin
       .from('pos_profiles')
       .select(
-        'id, tenant_id, branch_id, username, full_name, role, is_active, pos_pin_hash, pos_pin_plain, created_by, created_at, updated_at'
+        'id, tenant_id, branch_id, username, full_name, role, is_active, pos_pin_hash, created_by, created_at, updated_at'
       )
       .eq('tenant_id', tenantId)
       .order('username', { ascending: true })
@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
           full_name: profile.full_name,
           role: profile.role,
           is_active: profile.is_active,
-          has_pos_pin: Boolean(profile.pos_pin_hash || profile.pos_pin_plain),
+          has_pos_pin: Boolean(profile.pos_pin_hash),
           pos_pin: null,
           created_at: profile.created_at,
           updated_at: profile.updated_at,

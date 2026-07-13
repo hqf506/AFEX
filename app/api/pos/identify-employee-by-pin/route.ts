@@ -229,11 +229,26 @@ export async function POST(request: NextRequest) {
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
-    const { data, error } = await supabaseAdmin.rpc('verify_pos_pin', {
-      p_raw_pin: pin,
-      p_tenant_id: tenantId,
-      p_branch_id: branchId,
-    })
+    let { data, error } = await supabaseAdmin.rpc(
+      'verify_pos_pin_for_actor',
+      {
+        p_raw_pin: pin,
+        p_actor_user_id: auth.user.id,
+        p_requested_branch_id: branchId,
+      }
+    )
+
+    // Application-first deployment compatibility: use the existing RPC only
+    // until the security migration creates the actor-scoped replacement.
+    if (error?.code === 'PGRST202') {
+      const legacyResult = await supabaseAdmin.rpc('verify_pos_pin', {
+        p_raw_pin: pin,
+        p_tenant_id: tenantId,
+        p_branch_id: branchId,
+      })
+      data = legacyResult.data
+      error = legacyResult.error
+    }
     const rpcRowCount = Array.isArray(data) ? data.length : data ? 1 : 0
 
     if (error) {
@@ -248,7 +263,7 @@ export async function POST(request: NextRequest) {
             }
 
       console.error(
-        '[POS PIN] verify_pos_pin RPC failed.',
+        '[POS PIN] Verification RPC failed.',
         redactSensitive({
           hasAuthSession: true,
           authRole,

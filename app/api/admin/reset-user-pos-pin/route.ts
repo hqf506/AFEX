@@ -264,7 +264,6 @@ export async function POST(request: NextRequest) {
             full_name: existingProfile.full_name || username,
             phone: existingProfile.phone || null,
             pos_pin_hash: pinHash,
-            pos_pin_plain: pin,
             role: existingProfile.role,
             is_active: existingProfile.is_active ?? true,
             created_by: auth.user.id,
@@ -359,7 +358,6 @@ export async function POST(request: NextRequest) {
       .from('pos_profiles')
       .update({
         pos_pin_hash: pinHash,
-        pos_pin_plain: pin,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)

@@ -409,7 +409,6 @@ export async function POST(request: NextRequest) {
             branch_id: resolvedBranchId,
             tenant_id: tenantId,
             pos_pin_hash: posPinHash,
-            pos_pin_plain: posPin,
             created_by: auth.user.id,
           })
           .select('id, username, full_name, phone, role, branch_id')
@@ -664,7 +663,6 @@ export async function POST(request: NextRequest) {
             branch_id: resolvedBranchId,
             tenant_id: tenantId,
             pos_pin_hash: posPinHash,
-            pos_pin_plain: posPin,
             created_by: auth.user.id,
             updated_at: new Date().toISOString(),
           },

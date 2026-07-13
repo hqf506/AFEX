@@ -57,7 +57,6 @@ type ExistingPosProfile = {
   is_active: boolean | null
   branch_id: string | null
   pos_pin_hash: string | null
-  pos_pin_plain: string | null
 }
 
 function normalizeUsername(value: unknown) {
@@ -255,7 +254,7 @@ export async function POST(request: NextRequest) {
       const { data: linkedPosProfile, error: linkedPosProfileError } =
         await supabaseAdmin
           .from('pos_profiles')
-          .select('id, username, full_name, phone, role, is_active, branch_id, pos_pin_hash, pos_pin_plain')
+          .select('id, username, full_name, phone, role, is_active, branch_id, pos_pin_hash')
           .eq('id', userId)
           .eq('tenant_id', tenantId)
           .maybeSingle<ExistingPosProfile>()
@@ -405,7 +404,6 @@ export async function POST(request: NextRequest) {
               full_name: fullName,
               phone: existingProfile.phone || null,
               pos_pin_hash: nextPosPinHash,
-              pos_pin_plain: posPin || linkedPosProfile?.pos_pin_plain || null,
               role: 'cashier',
               is_active: existingProfile.is_active ?? true,
               created_by: auth.user.id,
@@ -813,7 +811,6 @@ export async function POST(request: NextRequest) {
               is_active:
                 linkedPosProfile?.is_active ?? existingProfile.is_active ?? true,
               pos_pin_hash: posPinHash,
-              pos_pin_plain: posPin,
               created_by: auth.user.id,
               updated_at: new Date().toISOString(),
             },
@@ -863,7 +860,7 @@ export async function POST(request: NextRequest) {
     const { data: existingPosProfile, error: existingPosProfileError } =
       await supabaseAdmin
         .from('pos_profiles')
-        .select('id, username, full_name, phone, role, is_active, branch_id, pos_pin_hash, pos_pin_plain')
+        .select('id, username, full_name, phone, role, is_active, branch_id, pos_pin_hash')
         .eq('id', userId)
         .eq('tenant_id', tenantId)
         .maybeSingle<ExistingPosProfile>()
@@ -1257,7 +1254,6 @@ export async function POST(request: NextRequest) {
             branch_id: branchId,
             tenant_id: tenantId,
             pos_pin_hash: nextPosPinHash,
-            pos_pin_plain: posPin || existingPosProfile.pos_pin_plain || null,
             created_by: auth.user.id,
             updated_at: new Date().toISOString(),
           },
@@ -1395,7 +1391,6 @@ export async function POST(request: NextRequest) {
         role,
         branch_id: branchId,
         pos_pin_hash: nextPosPinHash,
-        pos_pin_plain: posPin || existingPosProfile.pos_pin_plain || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
