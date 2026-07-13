@@ -57,6 +57,7 @@ export type ReceiptTemplatePayload = {
   branchName?: string
   branch_name?: string
   note?: string
+  globalNote?: string
 }
 
 export const DEFAULT_DIGITAL_INVOICE_SETTINGS = {
@@ -285,7 +286,15 @@ export function renderInvoiceHtmlFromPayload(
     ? 'إجمالي المبلغ المستحق'
     : finalAmountLabel
   const orderDate = formatDate(createdAt)
-  const note = payload.note ?? DEFAULT_DIGITAL_INVOICE_SETTINGS.note
+  const note = payload.note ?? ''
+  const globalNote = payload.globalNote ?? ''
+  const trimmedGlobalNote = globalNote.trim()
+  const globalNoteLabelMatch = trimmedGlobalNote.match(/^(ملاحظة\s*:)([\s\S]*)$/u)
+  const globalNoteHtml = trimmedGlobalNote
+    ? globalNoteLabelMatch
+      ? `<div class="global-note-block"><strong>${escapeHtml(globalNoteLabelMatch[1])}</strong><span>${escapeHtml(globalNoteLabelMatch[2].replace(/^[ \t]+/, ''))}</span></div>`
+      : `<div class="global-note-block"><strong>ملاحظة:</strong><span>${escapeHtml(trimmedGlobalNote)}</span></div>`
+    : ''
   const cashPaymentDetailsHtml = isCash
     ? `
           <div class="summary-row" style="padding:0;"></div>
@@ -750,13 +759,50 @@ export function renderInvoiceHtmlFromPayload(
       font-weight: 700;
     }
 
-    .note {
+    .note-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      direction: rtl;
       text-align: right;
       font-size: 11px;
       color: #333;
       margin: 12px 0 0;
       line-height: 1.8;
+    }
+
+    .note-block strong {
+      flex: 0 0 auto;
+      font-weight: 700;
+    }
+
+    .note-block span {
+      min-width: 0;
       white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+
+    .global-note-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      direction: rtl;
+      text-align: right;
+      font-size: 10px;
+      color: #555;
+      margin: 10px 0 0;
+      line-height: 1.8;
+    }
+
+    .global-note-block strong {
+      flex: 0 0 auto;
+      font-weight: 700;
+    }
+
+    .global-note-block span {
+      min-width: 0;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
     }
 
     .cash-details {
@@ -858,7 +904,8 @@ export function renderInvoiceHtmlFromPayload(
       .table-wrap,
       .summary-box,
       .footer,
-      .note {
+      .note-block,
+      .global-note-block {
         page-break-inside: avoid;
         break-inside: avoid;
       }
@@ -930,7 +977,11 @@ export function renderInvoiceHtmlFromPayload(
           </div>
         </div>
 
-        ${note.trim() ? `<div class="note">${escapeHtml(note)}</div>` : ''}
+        ${
+          note.trim()
+            ? `<div class="note-block"><strong>ملاحظة:</strong><span>${escapeHtml(note)}</span></div>`
+            : ''
+        }
       </div>
 
       <div class="sidebar-area">
@@ -970,6 +1021,7 @@ export function renderInvoiceHtmlFromPayload(
       <div class="footer-links">
         ${footerItemsHtml}
       </div>
+      ${globalNoteHtml}
     </div>
   </div>
 </body>

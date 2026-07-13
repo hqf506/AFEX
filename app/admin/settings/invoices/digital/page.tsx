@@ -176,7 +176,7 @@ function buildSampleInvoicePreviewHtml(form: DigitalInvoiceSettingsPayload) {
     instagramLink: form.digital_invoice_instagram_link,
     tiktokEnabled: form.digital_invoice_tiktok_enabled,
     tiktokLink: form.digital_invoice_tiktok_link,
-    note: form.digital_invoice_note,
+    globalNote: form.digital_invoice_note,
     customerName: 'عميل تجريبي',
     customerPhone: '0500000000',
     invoiceNumber: 'PREVIEW-001',

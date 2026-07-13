@@ -148,7 +148,8 @@ export function renderInvoiceHtmlDocument(payload: InvoicePdfPayload) {
     discountAmount: payload.discount,
     taxAmount: payload.tax,
     finalTotal: payload.finalTotal,
-    note: payload.note ?? payload.digitalInvoiceSettings?.note,
+    note: payload.note,
+    globalNote: payload.digitalInvoiceSettings?.note,
     issuedAt: payload.issuedAt,
   })
 }
