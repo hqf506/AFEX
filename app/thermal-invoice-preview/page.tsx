@@ -8,36 +8,14 @@ import {
 } from '@/lib/admin/settings'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { renderThermalInvoiceHtml } from '@/lib/invoices/thermal-template'
+import {
+  fitThermalPreviewIframe,
+  getThermalPreviewWidth,
+  prepareThermalInvoicePreviewHtml,
+} from '@/lib/invoices/thermal-preview'
 
 function displayAfexText(value?: string | null) {
   return value?.replace(/leather\s*[- ]?\s*fix/gi, 'AFEX') ?? ''
-}
-
-function sanitizeThermalPreviewHtml(html: string, paperWidth: string) {
-  const paperWidthPx = paperWidth === '58mm' ? 220 : 280
-
-  return html.replace(
-    '</head>',
-    `
-  <style>
-    html, body {
-      background: #ffffff !important;
-      min-height: 100%;
-      padding: 0 !important;
-      width: ${paperWidthPx}px !important;
-      overflow: hidden;
-    }
-
-    .receipt {
-      width: ${paperWidthPx}px !important;
-      margin: 0 !important;
-      border-radius: 3px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-      transform-origin: top center;
-    }
-  </style>
-</head>`
-  )
 }
 
 function buildSampleThermalPreviewHtml(
@@ -81,7 +59,10 @@ function buildSampleThermalPreviewHtml(
     finalTotal: 414,
   })
 
-  return sanitizeThermalPreviewHtml(html, form.thermal_invoice_paper_width)
+  return prepareThermalInvoicePreviewHtml(
+    html,
+    form.thermal_invoice_paper_width
+  )
 }
 
 export default function ThermalInvoicePreviewPage() {
@@ -126,8 +107,9 @@ export default function ThermalInvoicePreviewPage() {
     () => buildSampleThermalPreviewHtml(form, settings),
     [form, settings]
   )
-  const thermalPreviewWidthPx =
-    form.thermal_invoice_paper_width === '58mm' ? 220 : 280
+  const thermalPreviewWidthPx = getThermalPreviewWidth(
+    form.thermal_invoice_paper_width
+  )
 
   if (access.loading || loading) {
     return (
@@ -151,16 +133,12 @@ export default function ThermalInvoicePreviewPage() {
         title="معاينة الفاتورة الحرارية"
         srcDoc={previewHtml}
         onLoad={(event) => {
-          const frameDocument = event.currentTarget.contentDocument
-          const measuredHeight = Math.max(
-            frameDocument?.documentElement.scrollHeight || 0,
-            frameDocument?.body.scrollHeight || 0
+          fitThermalPreviewIframe(
+            event.currentTarget,
+            setThermalPreviewHeight
           )
-
-          if (measuredHeight > 0) {
-            setThermalPreviewHeight(Math.ceil(measuredHeight) + 2)
-          }
         }}
+        scrolling="no"
         className="border-0 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
         style={{
           width: thermalPreviewWidthPx,

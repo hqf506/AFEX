@@ -40,6 +40,11 @@ import {
   normalizeDigitalInvoiceNote,
   normalizeDigitalInvoicePaymentMethod,
 } from '@/lib/invoices/digital-preview'
+import {
+  fitThermalPreviewIframe,
+  getThermalPreviewWidth,
+  prepareThermalInvoicePreviewHtml,
+} from '@/lib/invoices/thermal-preview'
 
 function fixArabic(text: string) {
   try {
@@ -1423,9 +1428,7 @@ export default function OrdersPage() {
       thermalShowPaymentMethod:
         systemSettings?.thermal_invoice_show_payment_method ?? true,
       thermalShowNote: systemSettings?.thermal_invoice_show_note ?? true,
-      thermalNote:
-        systemSettings?.thermal_invoice_note ||
-        (order.note === EMPTY_DASH ? '' : fixArabic(order.note)),
+      thermalNote: systemSettings?.thermal_invoice_note ?? undefined,
       thermalFooterMessage:
         systemSettings?.thermal_invoice_footer_message || undefined,
       thermalShowWhatsapp:
@@ -1882,13 +1885,15 @@ export default function OrdersPage() {
 
   const previewThermalInvoiceInPage = (order: PageOrderRecord) => {
     setThermalPreviewHeight(360)
+    const paperWidth =
+      systemSettings?.thermal_invoice_paper_width === '58mm' ? '58mm' : '80mm'
     setInvoicePreviewFrame({
       title: 'معاينة الفاتورة الحرارية',
-      srcDoc: buildThermalInvoiceHtmlForOrder(order),
-      paperWidth:
-        systemSettings?.thermal_invoice_paper_width === '58mm'
-          ? '58mm'
-          : '80mm',
+      srcDoc: prepareThermalInvoicePreviewHtml(
+        buildThermalInvoiceHtmlForOrder(order),
+        paperWidth
+      ),
+      paperWidth,
     })
   }
 
@@ -2799,22 +2804,17 @@ export default function OrdersPage() {
                         title={invoicePreviewFrame.title}
                         srcDoc={invoicePreviewFrame.srcDoc}
                         onLoad={(event) => {
-                          const frameDocument = event.currentTarget.contentDocument
-                          const measuredHeight = Math.max(
-                            frameDocument?.documentElement.scrollHeight || 0,
-                            frameDocument?.body.scrollHeight || 0
+                          fitThermalPreviewIframe(
+                            event.currentTarget,
+                            setThermalPreviewHeight
                           )
-
-                          if (measuredHeight > 0) {
-                            setThermalPreviewHeight(Math.ceil(measuredHeight) + 2)
-                          }
                         }}
+                        scrolling="no"
                         className="block rounded-sm border-0 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
                         style={{
-                          width:
-                            invoicePreviewFrame.paperWidth === '58mm'
-                              ? 219
-                              : 302,
+                          width: getThermalPreviewWidth(
+                            invoicePreviewFrame.paperWidth
+                          ),
                           height: thermalPreviewHeight,
                         }}
                       />

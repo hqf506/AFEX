@@ -327,7 +327,7 @@ export default function PosSaleSuccessPage() {
       thermalShowPaymentMethod:
         serverThermalInvoiceSettings?.showPaymentMethod ?? true,
       thermalShowNote: serverThermalInvoiceSettings?.showNote ?? true,
-      thermalNote: serverThermalInvoiceSettings?.note || snapshot.note,
+      thermalNote: serverThermalInvoiceSettings?.note ?? undefined,
       thermalFooterMessage:
         serverThermalInvoiceSettings?.footerMessage ||
         thermalInvoiceSettings?.footerText,
@@ -357,6 +357,7 @@ export default function PosSaleSuccessPage() {
       subtotal: snapshot.subtotal,
       taxAmount: snapshot.tax,
       finalTotal: snapshot.finalTotal,
+      note: snapshot.note,
     } as const
 
     const customerReceiptHtml = renderThermalInvoiceHtml(thermalPayload)

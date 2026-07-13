@@ -188,10 +188,11 @@ export function renderThermalInvoiceHtml(
     DEFAULT_THERMAL_INVOICE_SETTINGS.showPaymentMethod
   const showNote =
     payload.thermalShowNote ?? DEFAULT_THERMAL_INVOICE_SETTINGS.showNote
+  const rawCustomerNote = String(payload.note || '').trim()
+  const customerNote =
+    rawCustomerNote === '-' || rawCustomerNote === '—' ? '' : rawCustomerNote
   const note =
-    payload.thermalNote ??
-    payload.note ??
-    DEFAULT_THERMAL_INVOICE_SETTINGS.note
+    payload.thermalNote ?? DEFAULT_THERMAL_INVOICE_SETTINGS.note
   const footerMessage =
     payload.thermalFooterMessage ??
     DEFAULT_THERMAL_INVOICE_SETTINGS.footerMessage
@@ -473,6 +474,29 @@ export function renderThermalInvoiceHtml(
       margin-top: 12px;
     }
 
+    .customer-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      direction: rtl;
+      text-align: right;
+      font-size: 11px;
+      line-height: 1.8;
+      color: #333;
+      margin-top: 12px;
+    }
+
+    .customer-note strong {
+      flex: 0 0 auto;
+      font-weight: 700;
+    }
+
+    .customer-note span {
+      min-width: 0;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+
     .thanks {
       margin-top: 12px;
       text-align: center;
@@ -562,6 +586,14 @@ export function renderThermalInvoiceHtml(
         <span>${formatMoney(total)}</span>
       </div>
     </div>
+
+    ${
+      customerNote
+        ? `
+    <div class="customer-note"><strong>ملاحظة العميل:</strong><span>${escapeHtml(customerNote)}</span></div>
+    `
+        : ''
+    }
 
     ${
       showNote && note.trim() !== ''

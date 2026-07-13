@@ -17,6 +17,11 @@ import {
   type ReportOrderItemRecord,
 } from '@/lib/reports/core'
 import { renderThermalInvoiceHtml } from '@/lib/invoices/thermal-template'
+import {
+  fitThermalPreviewIframe,
+  getThermalPreviewWidth,
+  prepareThermalInvoicePreviewHtml,
+} from '@/lib/invoices/thermal-preview'
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -474,12 +479,8 @@ function buildThermalReceiptHtml(
       thermalSettings?.showCustomerPhone ??
       Boolean(receipt.customerPhone && receipt.customerPhone !== '—'),
     thermalShowPaymentMethod: thermalSettings?.showPaymentMethod ?? true,
-    thermalShowNote:
-      thermalSettings?.showNote ??
-      Boolean(receipt.note && receipt.note !== '—'),
-    thermalNote:
-      thermalSettings?.note ||
-      (receipt.note && receipt.note !== '—' ? receipt.note : ''),
+    thermalShowNote: thermalSettings?.showNote ?? true,
+    thermalNote: thermalSettings?.note ?? undefined,
     thermalFooterMessage: thermalSettings?.footerMessage || 'شكراً لزيارتكم',
     thermalShowWhatsapp: thermalSettings?.showWhatsapp ?? true,
     thermalShowInstagram: thermalSettings?.showInstagram ?? false,
@@ -506,6 +507,7 @@ function buildThermalReceiptHtml(
     taxAmount: receipt.tax,
     finalTotal: receipt.total,
     total: receipt.total,
+    note: receipt.note,
   })
 }
 
@@ -1405,7 +1407,13 @@ function ReceiptDrawer({
     : ''
   const thermalPreviewPaperWidth =
     thermalSettings?.paperWidth === '58mm' ? '58mm' : '80mm'
-  const thermalPreviewWidthPx = thermalPreviewPaperWidth === '58mm' ? 219 : 302
+  const thermalPreviewWidthPx = getThermalPreviewWidth(
+    thermalPreviewPaperWidth
+  )
+  const thermalPreviewHtml = prepareThermalInvoicePreviewHtml(
+    thermalReceiptHtml,
+    thermalPreviewPaperWidth
+  )
   const receiptCancelled = receipt ? isCancelledReceiptStatus(receipt.paymentStatus) : false
   const cancelActionVisible = receipt ? canShowCancelReceiptAction(receipt.paymentStatus) : false
 
@@ -1509,18 +1517,14 @@ function ReceiptDrawer({
                 <div className="mx-auto w-fit rounded-md bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
                   <iframe
                     title={`إيصال ${receipt.receiptNumber}`}
-                    srcDoc={thermalReceiptHtml}
+                    srcDoc={thermalPreviewHtml}
                     onLoad={(event) => {
-                      const frameDocument = event.currentTarget.contentDocument
-                      const measuredHeight = Math.max(
-                        frameDocument?.documentElement.scrollHeight || 0,
-                        frameDocument?.body.scrollHeight || 0
+                      fitThermalPreviewIframe(
+                        event.currentTarget,
+                        setThermalPreviewHeight
                       )
-
-                      if (measuredHeight > 0) {
-                        setThermalPreviewHeight(Math.ceil(measuredHeight) + 2)
-                      }
                     }}
+                    scrolling="no"
                     className="block rounded-sm border-0 bg-white"
                     style={{
                       width: thermalPreviewWidthPx,
