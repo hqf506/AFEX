@@ -139,7 +139,7 @@ export function renderInvoiceHtmlDocument(payload: InvoicePdfPayload) {
     tiktokLink: payload.digitalInvoiceSettings?.tiktokLink,
     branchName:
       payload.digitalInvoiceSettings?.branchName || payload.branchName,
-    paymentMethod: payload.paymentMethodLabel || payload.paymentMethod,
+    paymentMethod: payload.paymentMethod,
     cashReceived: payload.numericCashReceived,
     numericCashReceived: payload.numericCashReceived,
     remainingFromCustomer: payload.remainingFromCustomer,

@@ -16,6 +16,10 @@ import {
 } from '@/lib/feature-guards'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import {
+  normalizeDigitalInvoiceNote,
+  normalizeDigitalInvoicePaymentMethod,
+} from '@/lib/invoices/digital-preview'
 
 export const runtime = 'nodejs'
 
@@ -137,12 +141,7 @@ function normalizeInvoicePdfPayload(body: CreateInvoicePdfBody): InvoicePdfPaylo
     customerName: getTrimmedString(body.customerName),
     customerPhone: getTrimmedString(body.customerPhone),
     branchName: getTrimmedString(body.branchName) || undefined,
-    paymentMethod:
-      body.paymentMethod === 'mada' ||
-      body.paymentMethod === 'visa' ||
-      body.paymentMethod === 'cod'
-        ? body.paymentMethod
-        : 'cash',
+    paymentMethod: normalizeDigitalInvoicePaymentMethod(body.paymentMethod),
     paymentMethodLabel: getTrimmedString(body.paymentMethodLabel) || undefined,
     numericCashReceived: getNumericValue(body.numericCashReceived),
     remainingFromCustomer: getNumericValue(body.remainingFromCustomer),
@@ -151,7 +150,7 @@ function normalizeInvoicePdfPayload(body: CreateInvoicePdfBody): InvoicePdfPaylo
     discount: getNumericValue(body.discount),
     tax: getNumericValue(body.tax),
     finalTotal: getNumericValue(body.finalTotal),
-    note: getTrimmedString(body.note),
+    note: normalizeDigitalInvoiceNote(body.note),
     issuedAt: getTrimmedString(body.issuedAt) || undefined,
   }
 }

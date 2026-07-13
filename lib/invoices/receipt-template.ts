@@ -1,4 +1,4 @@
-import { getPaymentMethodLabel as getSharedPaymentMethodLabel } from '@/lib/invoices/payment-method'
+import { getDigitalInvoicePaymentMethodLabel } from '@/lib/invoices/digital-preview'
 
 export type ReceiptTemplateItem = {
   id?: string | number | null
@@ -178,49 +178,10 @@ function getPaymentMethodLabel(
   paymentMethod?: string,
   paymentMethodLabel?: string
 ): string {
-  const sharedLabel =
-    getSharedPaymentMethodLabel(paymentMethod) ||
-    getSharedPaymentMethodLabel(paymentMethodLabel)
-
-  if (sharedLabel) return sharedLabel
-
-  const raw = String(paymentMethod || paymentMethodLabel || '')
-    .trim()
-    .toLowerCase()
-
-  if (
-    raw === 'cod' ||
-    paymentMethod === 'عند الاستلام' ||
-    paymentMethodLabel === 'عند الاستلام'
-  ) {
-    return 'عند الاستلام'
-  }
-
-  if (
-    raw === 'mada' ||
-    paymentMethod === 'مدى' ||
-    paymentMethodLabel === 'مدى'
-  ) {
-    return 'مدى'
-  }
-
-  if (
-    raw === 'visa' ||
-    paymentMethod === 'فيزا' ||
-    paymentMethodLabel === 'فيزا'
-  ) {
-    return 'فيزا'
-  }
-
-  if (
-    raw === 'cash' ||
-    paymentMethod === 'نقدي' ||
-    paymentMethodLabel === 'نقدي'
-  ) {
-    return 'نقدي'
-  }
-
-  return paymentMethodLabel || paymentMethod || ''
+  return (
+    getDigitalInvoicePaymentMethodLabel(paymentMethod) ||
+    getDigitalInvoicePaymentMethodLabel(paymentMethodLabel)
+  )
 }
 
 function resolveColor(value: string | undefined, fallback: string) {
@@ -790,13 +751,12 @@ export function renderInvoiceHtmlFromPayload(
     }
 
     .note {
-      text-align: center;
-      font-size: 10px;
-      color: #777;
-      margin: 80px auto 0;
+      text-align: right;
+      font-size: 11px;
+      color: #333;
+      margin: 12px 0 0;
       line-height: 1.8;
-      max-width: 420px;
-      padding: 0 10px;
+      white-space: pre-line;
     }
 
     .cash-details {
@@ -970,7 +930,7 @@ export function renderInvoiceHtmlFromPayload(
           </div>
         </div>
 
-        <div class="note">${escapeHtml(note)}</div>
+        ${note.trim() ? `<div class="note">${escapeHtml(note)}</div>` : ''}
       </div>
 
       <div class="sidebar-area">

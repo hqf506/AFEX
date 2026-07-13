@@ -36,6 +36,10 @@ import {
   renderThermalInvoiceHtml,
   type ThermalPaperWidth,
 } from '@/lib/invoices/thermal-template'
+import {
+  normalizeDigitalInvoiceNote,
+  normalizeDigitalInvoicePaymentMethod,
+} from '@/lib/invoices/digital-preview'
 
 function fixArabic(text: string) {
   try {
@@ -1381,12 +1385,11 @@ export default function OrdersPage() {
       customerName: fixArabic(order.customer_name),
       customerPhone: order.customer_phone,
       branchName: getOrderBranchLabel(order),
-      paymentMethod:
-        order.payment_method_key === 'card' ||
-        order.payment_method_key === 'transfer'
-          ? order.payment_method_key
-          : 'cash',
-      paymentMethodLabel: order.payment_method,
+      paymentMethod: normalizeDigitalInvoicePaymentMethod(
+        order.payment_method_key === 'unknown'
+          ? order.payment_method
+          : order.payment_method_key
+      ),
       numericCashReceived: order.cash_received,
       remainingFromCustomer: order.remaining_from_customer,
       cashChange: order.cash_change,
@@ -1394,7 +1397,7 @@ export default function OrdersPage() {
       discount: order.discount,
       tax: order.tax,
       finalTotal: order.total,
-      note: order.note === EMPTY_DASH ? '' : fixArabic(order.note),
+      note: normalizeDigitalInvoiceNote(fixArabic(order.note)),
       issuedAt: order.created_at,
     }
   }
