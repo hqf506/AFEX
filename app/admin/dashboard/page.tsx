@@ -1,28 +1,65 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { useAuthState } from '@/components/auth-state-provider'
 import { getRoleLabel } from '@/lib/app-roles'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import {
-  isBranchScopedWithoutBranchId,
   shouldFilterByBranch,
 } from '@/lib/branch-access'
 import {
-  buildReportDateRange,
-  mapOrderSourceRowToReportOrderRecord,
   type ReportOrderRecord,
   type ReportRange,
+  type SalesByCategoryRow,
 } from '@/lib/reports/core'
-import { buildPreviousComparisonRange } from '@/lib/reports/comparison'
-import { buildExecutiveDashboardData } from '@/lib/reports/executive-dashboard'
-import { type OrderSourceRow } from '@/lib/orders/normalize'
+import { type ExecutiveDashboardSummary } from '@/lib/reports/executive-dashboard'
+import { type SalesTrendRow } from '@/lib/reports/sales-trend'
 import { formatCurrency, getDateInputValue } from '@/lib/orders/format'
-import { supabase } from '@/lib/supabase/client'
-import { applyTenantFilter } from '@/lib/tenant-filter'
+
+type DashboardRecentOrder = Pick<
+  ReportOrderRecord,
+  'id' | 'order_number' | 'customer_name' | 'status' | 'total'
+>
+
+type DashboardSummary = Pick<
+  ExecutiveDashboardSummary,
+  'totalSales' | 'totalOrders'
+>
+
+type DashboardPeriodPayload = {
+  summary: DashboardSummary
+  uniqueCustomersCount: number
+  activeOrdersCount: number
+  topCategories?: Array<
+    Pick<SalesByCategoryRow, 'categoryKey' | 'categoryName' | 'grossSales'>
+  >
+  trend?: Array<Pick<SalesTrendRow, 'periodKey' | 'periodLabel' | 'grossSales'>>
+  recentOrders?: DashboardRecentOrder[]
+}
+
+type DashboardPayload = {
+  success?: boolean
+  message?: string
+  current?: DashboardPeriodPayload
+  previous?: DashboardPeriodPayload
+}
+
+const EMPTY_DASHBOARD_SUMMARY: DashboardSummary = {
+  totalSales: 0,
+  totalOrders: 0,
+}
+
+const EMPTY_DASHBOARD_PERIOD: DashboardPeriodPayload = {
+  summary: EMPTY_DASHBOARD_SUMMARY,
+  uniqueCustomersCount: 0,
+  activeOrdersCount: 0,
+  topCategories: [],
+  trend: [],
+  recentOrders: [],
+}
 
 type PeriodPresetKey =
   | 'today'
@@ -124,36 +161,6 @@ function resolvePeriodPreset(period: PeriodPresetKey, anchorDate?: Date) {
   }
 }
 
-function filterOrdersByRange(
-  orders: ReportOrderRecord[],
-  range: { start: string; end: string }
-) {
-  const start = new Date(range.start)
-  const end = new Date(range.end)
-
-  if (
-    Number.isNaN(start.getTime()) ||
-    Number.isNaN(end.getTime()) ||
-    start > end
-  ) {
-    return []
-  }
-
-  const startMs = start.getTime()
-  const endMs = end.getTime()
-
-  return orders.filter((order) => {
-    const createdAt = new Date(order.created_at)
-
-    if (Number.isNaN(createdAt.getTime())) {
-      return false
-    }
-
-    const createdAtMs = createdAt.getTime()
-    return createdAtMs >= startMs && createdAtMs <= endMs
-  })
-}
-
 function getDisplayText(value: string, fallback: string) {
   const normalized = value.trim()
   if (!normalized || normalized === '?' || normalized === '???') {
@@ -240,7 +247,7 @@ type KpiCardProps = {
 
 function KpiCard({ title, value, growth, icon }: KpiCardProps) {
   return (
-    <div className="rounded-[24px] border border-cyan-300/15 bg-white/[0.045] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.18)] backdrop-blur">
+    <div className="h-full rounded-[24px] border border-cyan-300/15 bg-white/[0.045] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.18)] backdrop-blur">
       <div className="flex items-start justify-between gap-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200 shadow-[0_0_30px_rgba(34,211,238,0.12)]">
           <svg
@@ -256,7 +263,7 @@ function KpiCard({ title, value, growth, icon }: KpiCardProps) {
             <DashboardIcon type={icon} />
           </svg>
         </div>
-        <div className="min-w-0 text-left">
+        <div className="min-w-0 text-right">
           <p className="text-sm font-bold text-slate-400">{title}</p>
           <p className="mt-2 text-3xl font-black text-white">{value}</p>
           <p className="mt-2 text-xs font-black text-emerald-300">
@@ -313,36 +320,25 @@ export default function DashboardPage() {
   const [range, setRange] = useState<ReportRange>(initialPeriod.range)
   const [dateFrom, setDateFrom] = useState(initialPeriod.dateFrom)
   const [dateTo, setDateTo] = useState(initialPeriod.dateTo)
-  const [orders, setOrders] = useState<ReportOrderRecord[]>([])
+  const [dashboardData, setDashboardData] = useState(EMPTY_DASHBOARD_PERIOD)
+  const [previousDashboardData, setPreviousDashboardData] = useState(
+    EMPTY_DASHBOARD_PERIOD
+  )
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [lastUpdated, setLastUpdated] = useState('')
+  const requestSeqRef = useRef(0)
 
-  const currentRange = useMemo(() => {
-    const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
-
-    return {
-      start: fromIso,
-      end: toIso,
-    }
-  }, [range, dateFrom, dateTo])
-
-  const previousRange = useMemo(() => {
-    return buildPreviousComparisonRange(currentRange)
-  }, [currentRange])
-
-  const combinedRange = useMemo(() => {
-    return {
-      start: previousRange.start || currentRange.start,
-      end: currentRange.end,
-    }
-  }, [currentRange.end, currentRange.start, previousRange.start])
+  const resetDashboardData = useCallback(() => {
+    setDashboardData(EMPTY_DASHBOARD_PERIOD)
+    setPreviousDashboardData(EMPTY_DASHBOARD_PERIOD)
+  }, [])
 
   const fetchDashboardData = useCallback(
     async (silent = false) => {
       if (!dateFrom) {
-        setOrders([])
+        resetDashboardData()
         setLoading(false)
         setRefreshing(false)
         return
@@ -353,96 +349,68 @@ export default function DashboardPage() {
 
       setErrorMessage('')
 
-      if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
-        setOrders([])
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
-        setLoading(false)
-        setRefreshing(false)
-        return
-      }
-
       if (!tenantId) {
-        setOrders([])
+        resetDashboardData()
         setLastUpdated(new Date().toLocaleTimeString('en-GB'))
         setLoading(false)
         setRefreshing(false)
         return
       }
 
-      let query = supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          created_at,
-          customers (
-            name,
-            phone
-          ),
-          invoices (
-            invoice_number,
-            payment_method,
-            payment_status,
-            subtotal,
-            discount,
-            tax,
-            total,
-            note,
-            cash_received,
-            remaining_from_customer,
-            cash_change,
-            invoice_items (
-              item_name_snapshot,
-              item_type_snapshot,
-              item_category_snapshot,
-              quantity,
-              unit_price,
-              line_total
-            )
-          )
-        `)
-        .gte('created_at', combinedRange.start)
-        .lte('created_at', combinedRange.end)
-        .order('created_at', { ascending: false })
+      const params = new URLSearchParams({
+        view: 'dashboard',
+        range,
+        dateFrom,
+        dateTo,
+      })
 
-      query = applyTenantFilter(query, tenantId)
-
-      if (shouldFilterByBranch(scopeType, branchId)) {
-        query = query.eq('branch_id', branchId as string)
-      } else if (effectiveBranchId) {
-        query = query.eq('branch_id', effectiveBranchId)
+      if (!shouldFilterByBranch(scopeType, branchId) && effectiveBranchId) {
+        params.set('branchId', effectiveBranchId)
       }
 
-      const { data, error } = await query
+      const requestSeq = requestSeqRef.current + 1
+      requestSeqRef.current = requestSeq
 
-      if (error) {
-        setErrorMessage(`تعذر تحميل لوحة التحكم: ${error.message}`)
-        setOrders([])
-        setLoading(false)
-        setRefreshing(false)
-        return
+      try {
+        const response = await fetch(
+          `/api/admin/reports/summary?${params.toString()}`,
+          { credentials: 'include', cache: 'no-store' }
+        )
+        const result = (await response.json().catch(() => null)) as
+          | DashboardPayload
+          | null
+
+        if (!response.ok || !result?.success) {
+          throw new Error(result?.message || 'تعذر تحميل لوحة التحكم')
+        }
+
+        if (requestSeqRef.current !== requestSeq) return
+
+        setDashboardData(result.current || EMPTY_DASHBOARD_PERIOD)
+        setPreviousDashboardData(result.previous || EMPTY_DASHBOARD_PERIOD)
+      } catch (dashboardError) {
+        if (requestSeqRef.current !== requestSeq) return
+        resetDashboardData()
+        setErrorMessage(
+          dashboardError instanceof Error
+            ? dashboardError.message
+            : 'تعذر تحميل لوحة التحكم'
+        )
       }
 
-      const normalized = Array.isArray(data)
-        ? data.map((row, index) =>
-            mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index)
-          )
-        : []
-
-      setOrders(normalized)
       setLastUpdated(new Date().toLocaleTimeString('en-GB'))
       setLoading(false)
       setRefreshing(false)
     },
     [
       dateFrom,
-      combinedRange.end,
-      combinedRange.start,
+      dateTo,
+      range,
       scopeType,
       branchId,
       effectiveBranchId,
       tenantId,
+      resetDashboardData,
     ]
   )
 
@@ -456,74 +424,20 @@ export default function DashboardPage() {
     return () => window.clearTimeout(timeoutId)
   }, [allowed, fetchDashboardData])
 
-  const currentOrders = useMemo(() => {
-    return filterOrdersByRange(orders, currentRange)
-  }, [orders, currentRange])
-
-  const previousOrders = useMemo(() => {
-    if (!previousRange.start || !previousRange.end) {
-      return []
-    }
-
-    return filterOrdersByRange(orders, previousRange)
-  }, [orders, previousRange])
-
-  const dashboardData = useMemo(() => {
-    return buildExecutiveDashboardData(currentOrders, {
-      range,
-      dateFrom,
-      dateTo,
-      trendGrouping: 'day',
-      topLimit: 5,
-    })
-  }, [currentOrders, range, dateFrom, dateTo])
-
-  const previousDashboardData = useMemo(() => {
-    return buildExecutiveDashboardData(previousOrders, {
-      range,
-      dateFrom,
-      dateTo,
-      trendGrouping: 'day',
-      topLimit: 5,
-    })
-  }, [previousOrders, range, dateFrom, dateTo])
-
-  const uniqueCustomersCount = useMemo(() => {
-    return new Set(
-      currentOrders
-        .map((order) => getDisplayText(order.customer_name, ''))
-        .filter(Boolean)
-    ).size
-  }, [currentOrders])
-
-  const activeOrdersCount = useMemo(() => {
-    return currentOrders.filter((order) => order.status !== 'closed').length
-  }, [currentOrders])
-
-  const previousUniqueCustomersCount = useMemo(() => {
-    return new Set(
-      previousOrders
-        .map((order) => getDisplayText(order.customer_name, ''))
-        .filter(Boolean)
-    ).size
-  }, [previousOrders])
-
-  const previousActiveOrdersCount = useMemo(() => {
-    return previousOrders.filter((order) => order.status !== 'closed').length
-  }, [previousOrders])
-
-  const recentOrders = useMemo(() => {
-    return currentOrders.slice(0, 5)
-  }, [currentOrders])
+  const uniqueCustomersCount = dashboardData.uniqueCustomersCount
+  const activeOrdersCount = dashboardData.activeOrdersCount
+  const previousUniqueCustomersCount = previousDashboardData.uniqueCustomersCount
+  const previousActiveOrdersCount = previousDashboardData.activeOrdersCount
+  const recentOrders = dashboardData.recentOrders || []
 
   const salesTrendPoints = useMemo(() => {
     return buildLineChartPoints(
-      dashboardData.trend.map((item) => item.grossSales)
+      (dashboardData.trend || []).map((item) => item.grossSales)
     )
   }, [dashboardData.trend])
 
   const categoryTotal = useMemo(() => {
-    return dashboardData.topCategories.reduce(
+    return (dashboardData.topCategories || []).reduce(
       (sum, item) => sum + item.grossSales,
       0
     )
@@ -531,7 +445,7 @@ export default function DashboardPage() {
 
   const donutSegments = useMemo(() => {
     const colors = ['#2dd4bf', '#22d3ee', '#0ea5e9', '#155e75', '#334155']
-    const topCategories = dashboardData.topCategories.slice(0, 5)
+    const topCategories = (dashboardData.topCategories || []).slice(0, 5)
 
     return topCategories.map((item, index) => {
       const percent =
@@ -693,7 +607,7 @@ export default function DashboardPage() {
         <div className="rounded-[30px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_28px_110px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="text-right">
-            <h1 className="text-4xl font-black text-white">لوحة التحكم</h1>
+            <h1 className="text-3xl font-black text-white sm:text-4xl">لوحة التحكم</h1>
             <p className="mt-2 text-sm text-slate-300">
               مرحبًا بك في نظام AFEX
             </p>
@@ -764,7 +678,9 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => void fetchDashboardData(true)}
-              className="rounded-xl border border-white/10 bg-white/[0.045] px-4 py-2 text-sm font-bold text-white transition hover:bg-white/[0.08]"
+              disabled={refreshing}
+              aria-label="تحديث بيانات لوحة التحكم"
+              className="rounded-xl border border-white/10 bg-white/[0.045] px-4 py-2 text-sm font-bold text-white transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-60"
             >
               تحديث البيانات
             </button>
@@ -838,7 +754,7 @@ export default function DashboardPage() {
                 </div>
               )}
               <div className="absolute inset-x-5 bottom-4 flex justify-between gap-2 text-[10px] font-bold text-slate-500">
-                {dashboardData.trend.slice(0, 7).map((item) => (
+                {(dashboardData.trend || []).slice(0, 7).map((item) => (
                   <span key={item.periodKey} className="truncate">
                     {item.periodLabel.slice(5)}
                   </span>
@@ -919,7 +835,7 @@ export default function DashboardPage() {
                       >
                         {resolveDashboardOrderStatusLabel(order.status)}
                       </span>
-                      <div className="min-w-0 text-left">
+                      <div className="min-w-0 text-right">
                         <div className="truncate text-sm font-black text-white">
                           {formatCurrency(order.total)}
                         </div>

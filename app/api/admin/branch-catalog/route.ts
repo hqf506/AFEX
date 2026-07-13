@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
     ) {
       return withAuthCookies(
         auth.response,
-        jsonResponse({ error: 'Ø§Ù„ÙØ±Ø¹ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' }, 404)
+        jsonResponse({ error: 'الفرع غير موجود' }, 404)
       )
     }
 
@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
           auth.response,
           jsonResponse(
             {
-              error: 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„ÙƒØªØ§Ù„ÙˆØ¬ Ø§Ù„Ø®Ø§ØµØ© Ø¨Ø§Ù„ÙØ±Ø¹',
+              error: 'تعذر تحميل إعدادات الكتالوج الخاصة بالفرع',
               details: assignedError.message,
             },
             500

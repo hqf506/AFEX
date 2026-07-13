@@ -17,6 +17,8 @@ import {
   type ReportOrderRecord,
   type ReportRange,
 } from '@/lib/reports/core'
+import { buildPreviousComparisonRange } from '@/lib/reports/comparison'
+import { buildExecutiveDashboardData } from '@/lib/reports/executive-dashboard'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type ReportOrderSummaryRow = Omit<ReportOrderRecord, 'items'> & {
@@ -70,6 +72,7 @@ export async function GET(request: NextRequest) {
     const dateFrom = normalizeDateInput(params.get('dateFrom'))
     const dateTo = normalizeDateInput(params.get('dateTo')) || dateFrom
     const branchId = normalizeUuidString(params.get('branchId'))
+    const view = params.get('view')
 
     if (!dateFrom) {
       return jsonWithAuthCookies(
@@ -124,6 +127,19 @@ export async function GET(request: NextRequest) {
         topServices: [],
         salesTrend: [],
         orders: [],
+      })
+    }
+
+    if (view === 'dashboard') {
+      return await getDashboardResponse({
+        auth,
+        tenantId,
+        branchId,
+        range,
+        dateFrom,
+        dateTo,
+        fromIso,
+        toIso,
       })
     }
 
@@ -228,6 +244,174 @@ export async function GET(request: NextRequest) {
       { success: false, message: 'تعذر تحميل بيانات التقارير.' },
       500
     )
+  }
+}
+
+async function getDashboardResponse({
+  auth,
+  tenantId,
+  branchId,
+  range,
+  dateFrom,
+  dateTo,
+  fromIso,
+  toIso,
+}: {
+  auth: Extract<Awaited<ReturnType<typeof requireApiAuth>>, { ok: true }>
+  tenantId: string
+  branchId: string
+  range: ReportRange
+  dateFrom: string
+  dateTo: string
+  fromIso: string
+  toIso: string
+}) {
+  const previousRange = buildPreviousComparisonRange({
+    start: fromIso,
+    end: toIso,
+  })
+  let ordersQuery = auth.supabase
+    .from('orders')
+    .select(
+      `
+        id,
+        order_number,
+        status,
+        created_at,
+        customers (name),
+        invoices (
+          total,
+          invoice_items (
+            item_name_snapshot,
+            item_type_snapshot,
+            item_category_snapshot,
+            quantity,
+            unit_price,
+            line_total
+          )
+        )
+      `
+    )
+    .gte('created_at', previousRange.start || fromIso)
+    .lte('created_at', toIso)
+    .order('created_at', { ascending: false })
+
+  ordersQuery = applyTenantFilter(ordersQuery, tenantId)
+
+  if (shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)) {
+    ordersQuery = ordersQuery.eq('branch_id', auth.profile.branch_id as string)
+  } else if (branchId) {
+    ordersQuery = ordersQuery.eq('branch_id', branchId)
+  }
+
+  const { data, error } = await ordersQuery
+
+  if (error) {
+    return jsonWithAuthCookies(
+      auth.response,
+      {
+        success: false,
+        message: `فشل تحميل لوحة التحكم: ${error.message}`,
+      },
+      500
+    )
+  }
+
+  const orders = Array.isArray(data)
+    ? data.map((row, index) =>
+        mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index)
+      )
+    : []
+  const currentOrders = filterOrdersByRange(orders, fromIso, toIso)
+  const previousOrders = filterOrdersByRange(
+    orders,
+    previousRange.start,
+    previousRange.end
+  )
+
+  return jsonWithAuthCookies(auth.response, {
+    success: true,
+    current: buildDashboardPeriodPayload(currentOrders, {
+      range,
+      dateFrom,
+      dateTo,
+      includeDetails: true,
+    }),
+    previous: buildDashboardPeriodPayload(previousOrders, {
+      range,
+      dateFrom,
+      dateTo,
+      includeDetails: false,
+    }),
+  })
+}
+
+function filterOrdersByRange(
+  orders: ReportOrderRecord[],
+  startValue: string,
+  endValue: string
+) {
+  const start = new Date(startValue).getTime()
+  const end = new Date(endValue).getTime()
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) {
+    return []
+  }
+
+  return orders.filter((order) => {
+    const createdAt = new Date(order.created_at).getTime()
+    return Number.isFinite(createdAt) && createdAt >= start && createdAt <= end
+  })
+}
+
+function buildDashboardPeriodPayload(
+  orders: ReportOrderRecord[],
+  options: {
+    range: ReportRange
+    dateFrom: string
+    dateTo: string
+    includeDetails: boolean
+  }
+) {
+  const dashboard = buildExecutiveDashboardData(orders, {
+    range: options.range,
+    dateFrom: options.dateFrom,
+    dateTo: options.dateTo,
+    trendGrouping: 'day',
+    topLimit: 5,
+  })
+  const customerNames = new Set(
+    orders.map((order) => order.customer_name.trim()).filter(Boolean)
+  )
+
+  return {
+    summary: {
+      totalSales: dashboard.summary.totalSales,
+      totalOrders: dashboard.summary.totalOrders,
+    },
+    uniqueCustomersCount: customerNames.size,
+    activeOrdersCount: orders.filter((order) => order.status !== 'closed').length,
+    ...(options.includeDetails
+      ? {
+          topCategories: dashboard.topCategories.map((category) => ({
+            categoryKey: category.categoryKey,
+            categoryName: category.categoryName,
+            grossSales: category.grossSales,
+          })),
+          trend: dashboard.trend.map((period) => ({
+            periodKey: period.periodKey,
+            periodLabel: period.periodLabel,
+            grossSales: period.grossSales,
+          })),
+          recentOrders: orders.slice(0, 5).map((order) => ({
+            id: order.id,
+            order_number: order.order_number,
+            customer_name: order.customer_name,
+            status: order.status,
+            total: order.total,
+          })),
+        }
+      : {}),
   }
 }
 

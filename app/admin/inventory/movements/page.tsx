@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminAlert } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
@@ -420,6 +420,7 @@ export default function InventoryMovementsPage() {
   const [totalMovements, setTotalMovements] = useState(0)
   const [branchMenuOpen, setBranchMenuOpen] = useState(false)
   const [movementTypeMenuOpen, setMovementTypeMenuOpen] = useState(false)
+  const movementsRequestSeqRef = useRef(0)
   const totalPages = Math.max(1, Math.ceil(totalMovements / PAGE_SIZE))
   const paginationItems = getPaginationItems(currentPage, totalPages)
   const selectedBranchLabel =
@@ -466,6 +467,9 @@ export default function InventoryMovementsPage() {
       return
     }
 
+    const requestSeq = movementsRequestSeqRef.current + 1
+    movementsRequestSeqRef.current = requestSeq
+
     try {
       setLoadingMovements(true)
       setErrorMessage('')
@@ -493,6 +497,8 @@ export default function InventoryMovementsPage() {
         throw new Error(result?.error || 'تعذر تحميل حركات المخزون')
       }
 
+      if (movementsRequestSeqRef.current !== requestSeq) return
+
       const baseMovements = Array.isArray(result.rows)
         ? result.rows.map((row: Record<string, unknown>) => normalizeMovementRow(row))
         : []
@@ -510,13 +516,16 @@ export default function InventoryMovementsPage() {
       setTotalMovements(nextTotalMovements)
       setMovements(baseMovements)
     } catch (error) {
+      if (movementsRequestSeqRef.current !== requestSeq) return
       setMovements([])
       setTotalMovements(0)
       setErrorMessage(
         error instanceof Error ? error.message : 'تعذر تحميل حركات المخزون'
       )
     } finally {
-      setLoadingMovements(false)
+      if (movementsRequestSeqRef.current === requestSeq) {
+        setLoadingMovements(false)
+      }
     }
   }, [
     branchFilter,

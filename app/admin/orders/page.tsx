@@ -847,6 +847,8 @@ export default function OrdersPage() {
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return
         showError(error instanceof Error ? error.message : 'فشل تحميل الطلبات')
+        setLoading(false)
+        setRefreshing(false)
       } finally {
         isFetchInFlightRef.current = false
       }

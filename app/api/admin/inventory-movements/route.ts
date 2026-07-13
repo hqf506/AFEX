@@ -6,6 +6,8 @@ import { applyTenantFilter } from '@/lib/tenant-filter'
 
 const DEFAULT_PAGE_SIZE = 10
 const MAX_PAGE_SIZE = 50
+const INVENTORY_MOVEMENT_SELECT =
+  'id, tenant_id, branch_id, catalog_item_id, movement_type, quantity_delta, source_type, source_id, notes, created_by, created_at, item_name, branch_name, resolved_invoice_id, resolved_employee_id, resolved_employee_name, user_name, created_by_name, actor_name, actor_type'
 
 function positiveInteger(value: string | null, fallback: number) {
   const parsed = Number(value)
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   let query = auth.supabase
     .from('inventory_movements_view')
-    .select('*', { count: 'exact' })
+    .select(INVENTORY_MOVEMENT_SELECT, { count: 'exact' })
     .order('created_at', { ascending: false })
   query = applyTenantFilter(query, tenantId)
 

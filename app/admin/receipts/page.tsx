@@ -842,7 +842,12 @@ export default function AdminReceiptsPage() {
   const employees = useMemo(() => {
     const map = new Map<string, string>()
     employeeOptionsSource.forEach((employee) => {
-      map.set(employee.id, employee.full_name?.trim() || employee.username?.trim() || employee.id)
+      map.set(
+        employee.id,
+        employee.full_name?.trim() ||
+          employee.username?.trim() ||
+          'موظف غير معروف'
+      )
     })
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
   }, [employeeOptionsSource])
