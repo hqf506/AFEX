@@ -18,8 +18,13 @@ export function AdminGlassSection({ children, className = '' }: AdminUiProps) {
 export function AdminLoadingState({ className = '' }: { className?: string }) {
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-label="جارٍ تحميل البيانات"
       className={`mx-auto h-32 max-w-7xl animate-pulse rounded-[28px] border border-cyan-300/10 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.28)] ${className}`}
-    />
+    >
+      <span className="sr-only">جارٍ تحميل البيانات...</span>
+    </div>
   )
 }
 
@@ -43,6 +48,8 @@ export function AdminAlert({
 }: AdminUiProps & { tone?: AdminAlertTone }) {
   return (
     <div
+      role={tone === 'error' ? 'alert' : 'status'}
+      aria-live={tone === 'error' ? 'assertive' : 'polite'}
       className={`whitespace-pre-wrap rounded-2xl border px-4 py-3 text-sm font-bold ${alertToneClassNames[tone]} ${className}`}
     >
       {children}

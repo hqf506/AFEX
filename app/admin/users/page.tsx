@@ -18,6 +18,16 @@ import {
 import { resolveAuthScopeType } from '@/lib/auth-profile'
 import { AppRole, usePageAccess } from '@/hooks/use-page-access'
 
+function isArabicUserMessage(error: unknown): error is Error {
+  return error instanceof Error && /[\u0600-\u06ff]/.test(error.message)
+}
+
+function logUserActionFailure(action: string, error: unknown) {
+  console.error(action, {
+    category: error instanceof Error ? error.name : 'UnknownError',
+  })
+}
+
 type ProfileRow = {
   id: string
   tenant_id?: string | null
@@ -398,7 +408,7 @@ export default function AdminUsersPage() {
         method: 'GET',
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => null)
 
       if (!response.ok) {
         throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
@@ -406,8 +416,8 @@ export default function AdminUsersPage() {
 
       setBranches(result.branches || [])
     } catch (error) {
-      console.error('Load branches error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل الفروع')
+      logUserActionFailure('Load branches failed.', error)
+      setErrorMessage(isArabicUserMessage(error) ? error.message : 'تعذر تحميل الفروع')
     } finally {
       setLoadingBranches(false)
     }
@@ -422,7 +432,7 @@ export default function AdminUsersPage() {
         method: 'GET',
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => null)
 
       if (!response.ok) {
         throw new Error(result?.details || result?.error || 'تعذر تحميل المستخدمين')
@@ -431,9 +441,9 @@ export default function AdminUsersPage() {
       const nextUsers = mergeDuplicateUserRows((result.users || []) as ProfileRow[])
       setUsers(nextUsers)
     } catch (error) {
-      console.error('Load users error:', error)
+      logUserActionFailure('Load users failed.', error)
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر تحميل المستخدمين'
+        isArabicUserMessage(error) ? error.message : 'تعذر تحميل المستخدمين'
       )
     } finally {
       setLoadingUsers(false)
@@ -598,7 +608,7 @@ export default function AdminUsersPage() {
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => null)
 
       if (!response.ok) {
         throw new Error(result?.details || result?.error || 'فشل إنشاء المستخدم')
@@ -609,9 +619,9 @@ export default function AdminUsersPage() {
       setShowCreateForm(false)
       await loadUsers()
     } catch (error) {
-      console.error('Create user error:', error)
+      logUserActionFailure('Create user failed.', error)
       setErrorMessage(
-        error instanceof Error ? error.message : 'حدث خطأ أثناء إنشاء المستخدم'
+        isArabicUserMessage(error) ? error.message : 'حدث خطأ أثناء إنشاء المستخدم'
       )
     } finally {
       setCreating(false)
@@ -724,7 +734,7 @@ export default function AdminUsersPage() {
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => null)
 
       if (!response.ok) {
         throw new Error(
@@ -736,9 +746,9 @@ export default function AdminUsersPage() {
       setSuccessMessage('تم تحديث المستخدم بنجاح')
       await loadUsers()
     } catch (error) {
-      console.error('Edit user error:', error)
+      logUserActionFailure('Edit user failed.', error)
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر تحديث المستخدم'
+        isArabicUserMessage(error) ? error.message : 'تعذر تحديث المستخدم'
       )
     } finally {
       setSavingEdit(false)
@@ -771,7 +781,7 @@ export default function AdminUsersPage() {
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => null)
 
       if (!response.ok) {
         throw new Error(
@@ -782,9 +792,9 @@ export default function AdminUsersPage() {
       setSuccessMessage(result.message || 'تمت إعادة تعيين كلمة المرور بنجاح')
       closeResetModal()
     } catch (error) {
-      console.error('Reset password error:', error)
+      logUserActionFailure('Reset password failed.', error)
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر إعادة تعيين كلمة المرور'
+        isArabicUserMessage(error) ? error.message : 'تعذر إعادة تعيين كلمة المرور'
       )
     } finally {
       setUpdatingUserId(null)
@@ -826,7 +836,7 @@ export default function AdminUsersPage() {
       closeDeleteModal()
       await loadUsers()
     } catch (error) {
-      console.error('Delete user error:', error)
+      logUserActionFailure('Delete user failed.', error)
       setErrorMessage('فشل حذف المستخدم')
     } finally {
       setUpdatingUserId(null)
@@ -932,6 +942,9 @@ export default function AdminUsersPage() {
             <div className="absolute inset-y-0 right-0 flex w-full justify-end">
           <form
             id="create-user-form"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-user-title"
             onSubmit={handleCreateUser}
             className="animate-[users-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8"
           >
@@ -940,7 +953,7 @@ export default function AdminUsersPage() {
                   <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">
                     مستخدم جديد
                   </span>
-                  <h2 className="mt-4 text-3xl font-black text-white">
+                  <h2 id="create-user-title" className="mt-4 text-3xl font-black text-white">
                     إنشاء مستخدم جديد
                   </h2>
                   <p className="mt-2 text-sm font-medium leading-6 text-slate-400">
@@ -1266,6 +1279,9 @@ export default function AdminUsersPage() {
               <div className="absolute inset-y-0 right-0 flex w-full justify-end">
                 <form
                   id="edit-user-form"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="edit-user-title"
                   onSubmit={handleSaveEditUser}
                   className="animate-[users-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8"
                 >
@@ -1274,7 +1290,7 @@ export default function AdminUsersPage() {
                       <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">
                         تعديل المستخدم
                       </span>
-                      <h2 className="mt-4 text-3xl font-black text-white">
+                      <h2 id="edit-user-title" className="mt-4 text-3xl font-black text-white">
                         تعديل المستخدم
                       </h2>
                       <p className="mt-2 text-sm font-medium leading-6 text-slate-400">
@@ -1856,18 +1872,24 @@ export default function AdminUsersPage() {
 
       {resetModal.open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-password-title"
+            className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 shadow-[0_30px_110px_rgba(0,0,0,0.55)]"
+          >
             <div className="mb-5 text-right">
-              <h3 className="text-2xl font-black text-white">إعادة تعيين كلمة المرور</h3>
+              <h3 id="reset-password-title" className="text-2xl font-black text-white">إعادة تعيين كلمة المرور</h3>
               <p className="mt-1 text-sm text-slate-400">المستخدم: {resetModal.username}</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-bold text-slate-200">
+                <label htmlFor="reset-password" className="mb-2 block text-sm font-bold text-slate-200">
                   كلمة المرور الجديدة
                 </label>
                 <AdminInput
+                  id="reset-password"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -1878,10 +1900,11 @@ export default function AdminUsersPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-bold text-slate-200">
+                <label htmlFor="reset-password-confirmation" className="mb-2 block text-sm font-bold text-slate-200">
                   تأكيد كلمة المرور الجديدة
                 </label>
                 <AdminInput
+                  id="reset-password-confirmation"
                   type="password"
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
@@ -1918,13 +1941,16 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
           <div
             dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-user-title"
             className="w-full max-w-md rounded-[28px] border border-rose-300/20 bg-[#07111f] p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]"
           >
             <div className="mb-5">
               <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-300/20 bg-rose-500/10 text-rose-100">
                 حذف
               </div>
-              <h3 className="text-2xl font-black text-white">تأكيد حذف المستخدم</h3>
+              <h3 id="delete-user-title" className="text-2xl font-black text-white">تأكيد حذف المستخدم</h3>
               <p className="mt-3 text-sm leading-7 text-slate-300">
                 هل أنت متأكد من حذف المستخدم{' '}
                 <span className="font-black text-white">

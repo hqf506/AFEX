@@ -54,6 +54,7 @@ export default function PosOfflineDraftsPage() {
   const authState = useAuthState()
   const tenantId = authState.profile?.tenant_id || null
   const [drafts, setDrafts] = useState<PosOfflineInvoiceDraft[]>([])
+  const [draftsLoaded, setDraftsLoaded] = useState(false)
   const [syncingDraftId, setSyncingDraftId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -69,7 +70,12 @@ export default function PosOfflineDraftsPage() {
   )
 
   useEffect(() => {
-    setDrafts(readPosOfflineInvoiceDrafts())
+    const timer = window.setTimeout(() => {
+      setDrafts(readPosOfflineInvoiceDrafts())
+      setDraftsLoaded(true)
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [])
 
   const handleDeleteDraft = (localDraftId: string) => {
@@ -133,7 +139,7 @@ export default function PosOfflineDraftsPage() {
 
       if (invoiceId) {
         if (!tenantId) {
-          throw new Error('ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø© Ù„Ø­ÙØ¸ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯ÙØ¹')
+          throw new Error('تعذر تحديد نطاق المنشأة لحفظ بيانات الدفع')
         }
 
         const { error } = await supabase
@@ -156,7 +162,9 @@ export default function PosOfflineDraftsPage() {
           .eq('tenant_id', tenantId)
 
         if (error) {
-          console.warn('[POS OFFLINE] Cash snapshot update failed.', error)
+          console.warn('[POS OFFLINE] Cash snapshot update failed.', {
+            code: error.code,
+          })
         }
 
         await fetch('/api/invoices/cost-snapshot', {
@@ -168,8 +176,8 @@ export default function PosOfflineDraftsPage() {
             invoice_id: invoiceId,
             items: validItems,
           }),
-        }).catch((error) => {
-          console.warn('[POS OFFLINE] Cost snapshot update failed.', error)
+        }).catch(() => {
+          console.warn('[POS OFFLINE] Cost snapshot update failed.')
         })
       }
 
@@ -224,19 +232,34 @@ export default function PosOfflineDraftsPage() {
         </div>
 
         {message ? (
-          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"
+          >
             {message}
           </div>
         ) : null}
 
         {errorMessage ? (
-          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-600">
+          <div
+            role="alert"
+            className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-600"
+          >
             {errorMessage}
           </div>
         ) : null}
 
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
-          {drafts.length === 0 ? (
+          {!draftsLoaded ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/70 p-6 text-center text-sm font-bold text-slate-500"
+            >
+              جارٍ تحميل المسودات...
+            </div>
+          ) : drafts.length === 0 ? (
             <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-400 ring-1 ring-slate-100">
                 <span className="text-xl" aria-hidden="true">
@@ -307,7 +330,7 @@ export default function PosOfflineDraftsPage() {
                         type="button"
                         onClick={() => handleDeleteDraft(draft.localDraftId)}
                         disabled={syncing}
-                        className="min-h-[40px] rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="min-h-[44px] rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         حذف
                       </button>
@@ -315,7 +338,7 @@ export default function PosOfflineDraftsPage() {
                         type="button"
                         onClick={() => handleRetryDraft(draft)}
                         disabled={syncing || Boolean(syncingDraftId)}
-                        className="min-h-[40px] rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                        className="min-h-[44px] rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                       >
                         {syncing ? 'جارٍ الإرسال...' : 'إرسال الآن'}
                       </button>

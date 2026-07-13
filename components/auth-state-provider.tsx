@@ -42,23 +42,6 @@ type CachedAuthProfile = {
   userId: string
 }
 
-function logPosAuthDebug(message: string, details: Record<string, unknown> = {}) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  if (!window.location.pathname.startsWith('/pos')) {
-    return
-  }
-
-  console.info('[POS AUTH DEBUG]', message, {
-    pathname: window.location.pathname,
-    origin: window.location.origin,
-    userAgent: window.navigator.userAgent,
-    ...details,
-  })
-}
-
 function redirectToPosLoginIfNeeded() {
   if (typeof window === 'undefined') {
     return
@@ -287,12 +270,6 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
         if (isSupabaseAuthLockError(error)) {
           lockRetryCountRef.current += 1
 
-          console.warn('[POS AUTH] Auth session refresh hit a temporary lock.', {
-            requestId,
-            retryCount: lockRetryCountRef.current,
-            sessionUserId: sessionUser?.id ?? latestSessionUserRef.current?.id ?? null,
-          })
-
           if (profileRef.current) {
             setProfile(profileRef.current)
             setStatus('authenticated')
@@ -302,11 +279,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           }
 
           if (lockRetryCountRef.current >= AUTH_LOCK_MAX_RETRIES) {
-            console.error('[POS AUTH] Auth session refresh exceeded the retry limit.', {
-              requestId,
-              retryCount: lockRetryCountRef.current,
-              sessionUserId: sessionUser?.id ?? latestSessionUserRef.current?.id ?? null,
-            })
+            console.error('[POS AUTH] Auth session refresh exceeded the retry limit.')
             setUnauthenticatedState('auth-lock')
             return
           }
@@ -325,9 +298,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
         }
 
         console.error('[POS AUTH] Auth session refresh failed.', {
-          requestId,
-          sessionUserId: sessionUser?.id ?? latestSessionUserRef.current?.id ?? null,
-          error,
+          category: error instanceof Error ? error.name : 'UnknownError',
         })
         setUnauthenticatedState('auth-error')
       }
@@ -363,12 +334,6 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
         }
 
         latestSessionUserRef.current = toSessionUserSnapshot(session)
-        logPosAuthDebug('auth state changed', {
-          event: _event,
-          hasSession: Boolean(session),
-          userId: session?.user?.id ?? null,
-        })
-
         if (!session) {
           requestIdRef.current += 1
           lockRetryCountRef.current = 0
@@ -398,11 +363,6 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           data: { session },
         } = sessionResponse
         latestSessionUserRef.current = toSessionUserSnapshot(session)
-        logPosAuthDebug('bootstrap session resolved', {
-          hasSession: Boolean(session),
-          userId: session?.user?.id ?? null,
-        })
-
         if (cancelled || !mountedRef.current) {
           return
         }
@@ -440,7 +400,9 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        console.error('[POS AUTH] Auth bootstrap failed before profile resolution.', error)
+        console.error('[POS AUTH] Auth bootstrap failed before profile resolution.', {
+          category: error instanceof Error ? error.name : 'UnknownError',
+        })
         void refreshAuthState(latestSessionUserRef.current)
       }
     })()

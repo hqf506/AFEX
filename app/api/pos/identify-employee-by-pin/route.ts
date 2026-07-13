@@ -142,15 +142,6 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
   if (!auth.ok) {
-    console.info('[POS PIN] Unauthorized verification request.', {
-      hasAuthSession: false,
-      authRole: null,
-      tenantId: null,
-      requestedBranchId: null,
-      effectiveBranchId: null,
-      pinLength: null,
-      rpc: null,
-    })
     return withFixedPinDelay(auth.response)
   }
 
@@ -167,16 +158,7 @@ export async function POST(request: NextRequest) {
     const authIsFullAdmin = isFullAdmin(authRole)
 
     if (!tenantId) {
-      console.warn('[POS PIN] Missing POS tenant.', redactSensitive({
-        hasAuthSession: true,
-        authRole,
-        tenantId: null,
-        requestedBranchId,
-        effectiveBranchId: null,
-        profileBranchId: auth.profile.branch_id ?? null,
-        pinLength: pin.length,
-        rpc: null,
-      }))
+      console.warn('[POS PIN] Missing tenant context.')
 
       const response = jsonResponse(
         { error: MISSING_POS_CONTEXT_MESSAGE },
@@ -225,16 +207,6 @@ export async function POST(request: NextRequest) {
       branchId = profileBranchId
     }
 
-    console.info('[POS PIN] Verification request.', redactSensitive({
-      hasAuthSession: true,
-      authRole,
-      tenantId,
-      requestedBranchId,
-      effectiveBranchId: branchId,
-      profileBranchId,
-      pinLength: pin.length,
-    }))
-
     if (!/^[0-9]{4}$/.test(pin)) {
       const response = jsonResponse(
         { error: 'PIN يجب أن يتكون من 4 أرقام' },
@@ -263,21 +235,6 @@ export async function POST(request: NextRequest) {
       p_branch_id: branchId,
     })
     const rpcRowCount = Array.isArray(data) ? data.length : data ? 1 : 0
-
-    console.info('[POS PIN] verify_pos_pin RPC result.', redactSensitive({
-      hasAuthSession: true,
-      authRole,
-      tenantId,
-      requestedBranchId,
-      effectiveBranchId: branchId,
-      pinLength: pin.length,
-      rpc: {
-        hasData: rpcRowCount > 0,
-        rowCount: rpcRowCount,
-        hasError: Boolean(error),
-        errorCode: error?.code ?? null,
-      },
-    }))
 
     if (error) {
       const rpcErrorLog =

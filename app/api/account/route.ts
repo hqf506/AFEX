@@ -3,7 +3,6 @@ import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import type { ApiAuthProfile } from '@/lib/api-auth'
-import { maskId } from '@/lib/security/redaction'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -78,12 +77,6 @@ async function requireAccountAuth(
   const bearerToken = getBearerToken(request)
 
   if (!bearerToken) {
-    console.info('[api/account] auth diagnostics', {
-      hasSession: false,
-      hasUserId: false,
-      hasProfile: false,
-      hasTenantId: false,
-    })
     return auth
   }
 
@@ -94,12 +87,6 @@ async function requireAccountAuth(
   } = await supabaseAdmin.auth.getUser(bearerToken)
 
   if (userError || !user) {
-    console.info('[api/account] auth diagnostics', {
-      hasSession: true,
-      hasUserId: false,
-      hasProfile: false,
-      hasTenantId: false,
-    })
     return auth
   }
 
@@ -108,14 +95,6 @@ async function requireAccountAuth(
     .select('id, tenant_id, branch_id, is_active')
     .eq('id', user.id)
     .maybeSingle()
-
-  console.info('[api/account] auth diagnostics', {
-    hasSession: true,
-    userIdMasked: maskId(user.id),
-    hasUserId: Boolean(user.id),
-    hasProfile: Boolean(profile?.id),
-    hasTenantId: Boolean(profile?.tenant_id),
-  })
 
   if (profileError || !profile) {
     return {
@@ -172,7 +151,6 @@ export async function GET(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر تحميل بيانات الحساب',
-          details: error?.message || 'لم يتم العثور على ملف المستخدم',
         },
         404
       )
@@ -217,17 +195,13 @@ export async function GET(request: NextRequest) {
         tenant_name: tenantName,
         branch_name: branchName,
       },
-      debug: {
-        hasTenantId: Boolean(auth.profile.tenant_id),
-      },
     })
 
     return withAuthCookies(auth.response, response)
-  } catch (error) {
+  } catch {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
       },
       500
     )
@@ -299,7 +273,6 @@ export async function PATCH(request: NextRequest) {
         const response = jsonResponse(
           {
             error: 'تعذر التحقق من بريد التواصل',
-            details: duplicateEmailError.message,
           },
           500
         )
@@ -328,7 +301,6 @@ export async function PATCH(request: NextRequest) {
       const response = jsonResponse(
         {
           error: 'تعذر تحديث بيانات الحساب',
-          details: error?.message || 'لم يتم العثور على ملف المستخدم',
         },
         400
       )
@@ -351,7 +323,6 @@ export async function PATCH(request: NextRequest) {
         const response = jsonResponse(
           {
             error: 'تعذر تحديث اسم المؤسسة',
-            details: tenantError.message,
           },
           400
         )
@@ -371,7 +342,6 @@ export async function PATCH(request: NextRequest) {
         const response = jsonResponse(
           {
             error: 'تعذر تحديث اسم الفرع',
-            details: branchError.message,
           },
           400
         )
@@ -413,11 +383,10 @@ export async function PATCH(request: NextRequest) {
     })
 
     return withAuthCookies(auth.response, response)
-  } catch (error) {
+  } catch {
     const response = jsonResponse(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
       },
       500
     )

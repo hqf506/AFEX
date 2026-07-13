@@ -2,11 +2,22 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { AdminButton } from '@/components/admin-button'
 import { AdminInput } from '@/components/admin-input'
 import { AdminSelect } from '@/components/admin-select'
-import { AdminAlert, AdminGlassSection } from '@/components/admin-ui'
+import {
+  AdminAlert,
+  AdminGlassSection,
+  AdminLoadingState,
+} from '@/components/admin-ui'
 import { PageHeader } from '@/components/page-header'
 import {
   canSubmitBranchCatalogDraft,
@@ -19,6 +30,10 @@ import {
 import type { AdminBranchRecord } from '@/lib/admin/branches'
 import { formatCurrency } from '@/lib/orders/format'
 import { usePageAccess } from '@/hooks/use-page-access'
+
+function isArabicUserMessage(error: unknown): error is Error {
+  return error instanceof Error && /[\u0600-\u06ff]/.test(error.message)
+}
 
 const BRANCH_CATALOG_PAGE_SIZE = 10
 
@@ -43,7 +58,10 @@ function AdminBranchCatalogPageContent() {
   const [totalItems, setTotalItems] = useState(0)
   const branchCatalogRequestIdRef = useRef(0)
 
-  async function loadBranchCatalog(branchId?: string, page = currentPage) {
+  const loadBranchCatalog = useCallback(async (
+    branchId?: string,
+    page = currentPage
+  ) => {
     try {
       const requestId = branchCatalogRequestIdRef.current + 1
       branchCatalogRequestIdRef.current = requestId
@@ -65,7 +83,7 @@ function AdminBranchCatalogPageContent() {
         cache: 'no-store',
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => null)
 
       if (!response.ok) {
         throw new Error(
@@ -92,16 +110,18 @@ function AdminBranchCatalogPageContent() {
         }, {})
       )
     } catch (error) {
-      console.error('Load branch catalog error:', error)
+      console.error('Load branch catalog failed.', {
+        category: error instanceof Error ? error.name : 'UnknownError',
+      })
       setErrorMessage(
-        error instanceof Error
+        isArabicUserMessage(error)
           ? error.message
           : 'تعذر تحميل إعدادات كتالوج الفروع'
       )
     } finally {
       setLoadingData(false)
     }
-  }
+  }, [currentPage])
 
   useEffect(() => {
     if (!accessLoading && allowed) {
@@ -117,7 +137,13 @@ function AdminBranchCatalogPageContent() {
         isActive = false
       }
     }
-  }, [accessLoading, allowed, requestedBranchId, currentPage])
+  }, [
+    accessLoading,
+    allowed,
+    requestedBranchId,
+    currentPage,
+    loadBranchCatalog,
+  ])
 
   const selectedBranch = useMemo(
     () => resolveSelectedBranch(branches, selectedBranchId),
@@ -209,7 +235,7 @@ function AdminBranchCatalogPageContent() {
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => null)
 
       if (!response.ok) {
         throw new Error(
@@ -224,9 +250,11 @@ function AdminBranchCatalogPageContent() {
       )
       await loadBranchCatalog(selectedBranchId, currentPage)
     } catch (error) {
-      console.error('Save branch catalog item error:', error)
+      console.error('Save branch catalog item failed.', {
+        category: error instanceof Error ? error.name : 'UnknownError',
+      })
       setErrorMessage(
-        error instanceof Error
+        isArabicUserMessage(error)
           ? error.message
           : 'تعذر حفظ إعدادات العنصر الخاصة بالفرع'
       )
@@ -238,7 +266,9 @@ function AdminBranchCatalogPageContent() {
   if (accessLoading) {
     return (
       <div className="min-h-full bg-[#030714] text-white">
-        <div className="mx-auto max-w-7xl" />
+        <div className="mx-auto max-w-7xl pt-6">
+          <AdminLoadingState />
+        </div>
       </div>
     )
   }
@@ -302,7 +332,21 @@ function AdminBranchCatalogPageContent() {
         ) : null}
 
         {errorMessage ? (
-          <AdminAlert tone="error">{errorMessage}</AdminAlert>
+          <AdminAlert tone="error">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>{errorMessage}</span>
+              <button
+                type="button"
+                onClick={() =>
+                  void loadBranchCatalog(selectedBranchId || undefined, currentPage)
+                }
+                disabled={loadingData || Boolean(savingItemId)}
+                className="min-h-[44px] rounded-xl border border-rose-200/25 bg-rose-100/10 px-4 text-xs font-black text-rose-50 transition hover:bg-rose-100/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loadingData ? 'جارٍ إعادة التحميل...' : 'إعادة تحميل البيانات'}
+              </button>
+            </div>
+          </AdminAlert>
         ) : null}
 
         {focusedItem ? (

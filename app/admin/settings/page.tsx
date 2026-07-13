@@ -22,6 +22,12 @@ import {
 } from '@/lib/admin/settings'
 import { usePageAccess } from '@/hooks/use-page-access'
 
+function getArabicErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && /[\u0600-\u06ff]/.test(error.message)
+    ? error.message
+    : fallback
+}
+
 type SettingsTab =
   | 'status'
   | 'organization'
@@ -133,7 +139,7 @@ export default function AdminSettingsPage() {
       setLoading(false)
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'فشل تحميل إعدادات النظام'
+        getArabicErrorMessage(error, 'فشل تحميل إعدادات النظام')
       )
       setLoading(false)
     }
@@ -183,7 +189,7 @@ export default function AdminSettingsPage() {
 
       updateField('logo_url', result.logoUrl)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'فشل رفع شعار الفاتورة')
+      setErrorMessage(getArabicErrorMessage(error, 'فشل رفع شعار الفاتورة'))
     } finally {
       setUploadingThermalLogo(false)
       if (thermalLogoInputRef.current) {
@@ -300,7 +306,7 @@ export default function AdminSettingsPage() {
       setTestSending(false)
     } catch (error) {
       setTestErrorMessage(
-        error instanceof Error ? error.message : 'فشل إرسال رسالة الاختبار'
+        getArabicErrorMessage(error, 'فشل إرسال رسالة الاختبار')
       )
       setTestSending(false)
     }
@@ -347,7 +353,7 @@ export default function AdminSettingsPage() {
       if (!response.ok || !result?.success) {
         const errorDetails =
           result?.details || result?.error || 'فشل حفظ إعدادات النظام'
-        console.error('System settings save failed:', errorDetails, result)
+        console.error('System settings save failed.')
         setErrorMessage(errorDetails)
         setSaving(false)
         return
@@ -362,8 +368,10 @@ export default function AdminSettingsPage() {
       setSaving(false)
     } catch (error) {
       const errorDetails =
-        error instanceof Error ? error.message : 'فشل حفظ إعدادات النظام'
-      console.error('System settings save failed:', errorDetails)
+        getArabicErrorMessage(error, 'فشل حفظ إعدادات النظام')
+      console.error('System settings save failed.', {
+        category: error instanceof Error ? error.name : 'UnknownError',
+      })
       setErrorMessage(errorDetails)
       setSaving(false)
     }
@@ -1192,10 +1200,15 @@ export default function AdminSettingsPage() {
 
       {invoicePreviewFrame ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-          <div className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-invoice-preview-title"
+            className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]"
+          >
             <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
               <div className="text-right">
-                <h3 className="text-lg font-black text-white">{invoicePreviewFrame.title}</h3>
+                <h3 id="settings-invoice-preview-title" className="text-lg font-black text-white">{invoicePreviewFrame.title}</h3>
                 <p className="mt-1 text-xs font-bold text-cyan-100/70">
                   معاينة داخل إعدادات النظام
                 </p>
@@ -1203,7 +1216,7 @@ export default function AdminSettingsPage() {
               <button
                 type="button"
                 onClick={() => setInvoicePreviewFrame(null)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-[#091522]/80 text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/10 hover:text-white hover:shadow-[0_0_24px_rgba(34,211,238,0.22)] focus:outline-none focus:ring-2 focus:ring-cyan-300/25"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-[#091522]/80 text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/10 hover:text-white hover:shadow-[0_0_24px_rgba(34,211,238,0.22)] focus:outline-none focus:ring-2 focus:ring-cyan-300/25"
                 aria-label="إغلاق المعاينة"
                 title="إغلاق"
               >

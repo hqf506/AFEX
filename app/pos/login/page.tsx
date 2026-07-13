@@ -14,86 +14,6 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
 
-function readErrorField(error: unknown, field: string) {
-  if (!error || typeof error !== 'object') {
-    return null
-  }
-
-  const value = (error as Record<string, unknown>)[field]
-  return typeof value === 'string' || typeof value === 'number' ? value : null
-}
-
-function serializeErrorCause(cause: unknown) {
-  if (!cause) {
-    return null
-  }
-
-  if (cause instanceof Error) {
-    return {
-      name: cause.name,
-      message: cause.message,
-    }
-  }
-
-  if (typeof cause === 'string' || typeof cause === 'number') {
-    return cause
-  }
-
-  if (typeof cause === 'object') {
-    return {
-      name: readErrorField(cause, 'name'),
-      message: readErrorField(cause, 'message'),
-      status: readErrorField(cause, 'status'),
-      code: readErrorField(cause, 'code'),
-    }
-  }
-
-  return String(cause)
-}
-
-function serializeAuthError(error: unknown) {
-  if (!error) {
-    return null
-  }
-
-  const cause = error && typeof error === 'object'
-    ? (error as Record<string, unknown>).cause
-    : null
-
-  return {
-    message: error instanceof Error ? error.message : readErrorField(error, 'message'),
-    name: error instanceof Error ? error.name : readErrorField(error, 'name'),
-    status: readErrorField(error, 'status'),
-    code: readErrorField(error, 'code') ?? readErrorField(error, 'error_code'),
-    cause: serializeErrorCause(cause),
-    keys: error && typeof error === 'object' ? Object.getOwnPropertyNames(error) : [],
-  }
-}
-
-function getSupabaseClientDiagnostics() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  let supabaseHost: string | null = null
-
-  try {
-    supabaseHost = supabaseUrl ? new URL(supabaseUrl).host : null
-  } catch {
-    supabaseHost = 'invalid-url'
-  }
-
-  return {
-    hasSupabaseUrl: Boolean(supabaseUrl),
-    supabaseHost,
-    hasSupabaseAnonKey: Boolean(supabaseAnonKey),
-    supabaseAnonKeyLength: supabaseAnonKey?.length ?? 0,
-  }
-}
-
-function getEmailDomain(email: string) {
-  return email.split('@')[1] ?? null
-}
-
 function AfexMark({ className = 'h-14 w-14' }: { className?: string }) {
   return (
     <svg viewBox="0 0 96 96" fill="none" className={className} aria-hidden="true">
@@ -342,26 +262,9 @@ export default function PosLoginPage() {
       })
 
       if (signInError || !data.user) {
-        const authError = serializeAuthError(signInError)
-
         console.error('[POS LOGIN] auth sign-in failed', {
-          message: authError?.message ?? null,
-          name: authError?.name ?? null,
-          status: authError?.status ?? null,
-          code: authError?.code ?? null,
-          cause: authError?.cause ?? null,
-          authError,
-          error: signInError,
-          hasUser: Boolean(data.user),
-          hasSession: Boolean(data.session),
-          identifierType: isEmailLogin ? 'email' : 'username',
-          loginEmailDomain: getEmailDomain(loginEmail),
-          passwordLength: password.length,
-          supabaseClient: getSupabaseClientDiagnostics(),
-          profileLoaded: false,
-          role: null,
-          tenant_id: null,
-          branch_id: null,
+          category: signInError?.name || 'InvalidCredentials',
+          status: signInError?.status ?? null,
         })
         throw new Error('بيانات الدخول غير صحيحة')
       }
@@ -377,33 +280,14 @@ export default function PosLoginPage() {
 
       const profile = await getCurrentUserProfile({ user: data.user })
 
-      console.info('[POS LOGIN] profile resolved', {
-        profileLoaded: Boolean(profile),
-        role: profile?.role ?? null,
-        tenant_id: profile?.tenant_id ?? null,
-        branch_id: profile?.branch_id ?? null,
-      })
-
       if (!profile || !profile.is_active) {
         clearActivePosEmployee()
-        console.error('[POS LOGIN] profile validation failed', {
-          profileLoaded: Boolean(profile),
-          role: profile?.role ?? null,
-          tenant_id: profile?.tenant_id ?? null,
-          branch_id: profile?.branch_id ?? null,
-          isActive: profile?.is_active ?? null,
-        })
+        console.error('[POS LOGIN] profile validation failed.')
         throw new Error('بيانات الدخول غير صحيحة')
       }
 
       if (!canAccessPos(profile.role)) {
         clearActivePosEmployee()
-        console.error('[POS LOGIN] role cannot access POS', {
-          profileLoaded: true,
-          role: profile.role,
-          tenant_id: profile.tenant_id,
-          branch_id: profile.branch_id,
-        })
         throw new Error('غير مصرح لك بالدخول إلى POS')
       }
 
@@ -485,14 +369,18 @@ export default function PosLoginPage() {
               </div>
 
               {error ? (
-                <div className="mb-5 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-100 shadow-[0_0_20px_rgba(244,63,94,0.12)]">
+                <div
+                  id="pos-login-error"
+                  role="alert"
+                  className="mb-5 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-100 shadow-[0_0_20px_rgba(244,63,94,0.12)]"
+                >
                   {error}
                 </div>
               ) : null}
 
               <form onSubmit={handleLogin} className="space-y-3">
                 <div>
-                  <label className="mb-2 block text-sm font-bold text-slate-100">
+                  <label htmlFor="pos-login-username" className="mb-2 block text-sm font-bold text-slate-100">
                     البريد الإلكتروني أو اسم المستخدم
                   </label>
                   <div
@@ -502,6 +390,7 @@ export default function PosLoginPage() {
                     <UserIcon className="h-5 w-5 shrink-0 text-slate-400 transition group-focus-within:text-cyan-300" />
                     <input
                       ref={usernameInputRef}
+                      id="pos-login-username"
                       type="text"
                       value={username}
                       onChange={(event) => setUsername(event.target.value)}
@@ -511,12 +400,16 @@ export default function PosLoginPage() {
                       inputMode="text"
                       enterKeyHint="next"
                       dir="rtl"
+                      required
+                      aria-required="true"
+                      aria-invalid={Boolean(error)}
+                      aria-describedby={error ? 'pos-login-error' : undefined}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-bold text-slate-100">
+                  <label htmlFor="pos-login-password" className="mb-2 block text-sm font-bold text-slate-100">
                     كلمة المرور
                   </label>
                   <div
@@ -526,6 +419,7 @@ export default function PosLoginPage() {
                     <LockIcon className="h-5 w-5 shrink-0 text-slate-400 transition group-focus-within:text-cyan-300" />
                     <input
                       ref={passwordInputRef}
+                      id="pos-login-password"
                       type="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
@@ -534,12 +428,16 @@ export default function PosLoginPage() {
                       autoComplete="current-password"
                       enterKeyHint="done"
                       dir="rtl"
+                      required
+                      aria-required="true"
+                      aria-invalid={Boolean(error)}
+                      aria-describedby={error ? 'pos-login-error' : undefined}
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                  <label className="inline-flex cursor-pointer items-center gap-2 font-semibold text-slate-300">
+                  <label className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 font-semibold text-slate-300">
                     <input
                       type="checkbox"
                       checked={rememberMe}
@@ -551,7 +449,7 @@ export default function PosLoginPage() {
 
                   <Link
                     href="/reset-password"
-                    className="font-bold text-cyan-300 transition hover:text-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-300/40"
+                    className="inline-flex min-h-[44px] items-center font-bold text-cyan-300 transition hover:text-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-300/40"
                   >
                     نسيت كلمة المرور؟
                   </Link>

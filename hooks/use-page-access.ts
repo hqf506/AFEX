@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { getRoleLabel, type AppRole } from '@/lib/app-roles'
 import { type AuthScopeType } from '@/lib/auth-profile'
@@ -57,7 +57,6 @@ export function usePageAccess(
   redirectIfForbidden = DEFAULT_REDIRECT_IF_FORBIDDEN
 ): UsePageAccessResult {
   const router = useRouter()
-  const pathname = usePathname()
   const authState = useAuthState()
   const {
     allowedRoles,
@@ -100,25 +99,10 @@ export function usePageAccess(
         isFullAdmin(userRoleValueForEffect))
 
     if (loading) {
-      if (pathname?.startsWith('/pos')) {
-        console.info('[POS ACCESS DEBUG] waiting for auth', {
-          pathname,
-          authStatus: authState.status,
-          authError: authState.error,
-        })
-      }
       return
     }
 
     if (!profile) {
-      if (pathname?.startsWith('/pos')) {
-        console.info('[POS ACCESS DEBUG] redirect without profile', {
-          pathname,
-          redirectTo: resolvedRedirectIfNoUser,
-          authStatus: authState.status,
-          authError: authState.error,
-        })
-      }
       router.replace(resolvedRedirectIfNoUser)
       return
     }
@@ -128,22 +112,11 @@ export function usePageAccess(
       userRole &&
       !roleAllowedForEffect
     ) {
-      if (pathname?.startsWith('/pos')) {
-        console.info('[POS ACCESS DEBUG] redirect forbidden role', {
-          pathname,
-          role: userRole,
-          allowedRoles: stableAllowedRolesForEffect,
-          redirectTo: resolvedRedirectIfForbidden,
-        })
-      }
       router.replace(resolvedRedirectIfForbidden)
     }
   }, [
     allowedRolesKey,
-    authState.error,
-    authState.status,
     loading,
-    pathname,
     profile,
     resolvedRedirectIfForbidden,
     resolvedRedirectIfNoUser,

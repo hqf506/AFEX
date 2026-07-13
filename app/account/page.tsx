@@ -22,6 +22,12 @@ function splitFullName(fullName: string | null) {
   return { firstName, lastName }
 }
 
+function getArabicErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && /[\u0600-\u06ff]/.test(error.message)
+    ? error.message
+    : fallback
+}
+
 export default function AccountPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -54,15 +60,6 @@ export default function AccountPage() {
         const {
           data: { session },
         } = await supabase.auth.getSession()
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        console.info('[account] auth state before load', {
-          hasSession: Boolean(session),
-          hasUserId: Boolean(user?.id || session?.user?.id),
-        })
-
         if (!session?.access_token) {
           throw new Error('يجب تسجيل الدخول أولاً')
         }
@@ -85,13 +82,6 @@ export default function AccountPage() {
         }
 
         const nextAccount = result.account as AccountData
-
-        console.info('[account] account profile load result', {
-          hasSession: true,
-          hasUserId: Boolean(user?.id || session.user.id),
-          hasProfile: Boolean(nextAccount?.id),
-          hasTenantId: Boolean(result?.debug?.hasTenantId),
-        })
 
         if (!mounted) {
           return
@@ -117,7 +107,7 @@ export default function AccountPage() {
         }
 
         setErrorMessage(
-          error instanceof Error ? error.message : 'تعذر تحميل بيانات الحساب'
+          getArabicErrorMessage(error, 'تعذر تحميل بيانات الحساب')
         )
       } finally {
         if (mounted) {
@@ -207,7 +197,7 @@ export default function AccountPage() {
       setSuccessMessage('تم تحديث بيانات الحساب بنجاح')
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر تحديث بيانات الحساب'
+        getArabicErrorMessage(error, 'تعذر تحديث بيانات الحساب')
       )
     } finally {
       setSaving(false)
