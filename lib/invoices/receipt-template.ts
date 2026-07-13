@@ -789,9 +789,10 @@ export function renderInvoiceHtmlFromPayload(
       left: 40px;
       display: flex;
       align-items: flex-start;
+      justify-content: center;
       gap: 4px;
       direction: rtl;
-      text-align: right;
+      text-align: center;
       font-size: 10px;
       color: #555;
       margin: 0;
@@ -983,7 +984,7 @@ export function renderInvoiceHtmlFromPayload(
 
         ${
           note.trim()
-            ? `<div class="note-block"><strong>ملاحظة:</strong><span>${escapeHtml(note)}</span></div>`
+            ? `<div class="note-block"><strong>ملاحظة العميل:</strong><span>${escapeHtml(note)}</span></div>`
             : ''
         }
       </div>
