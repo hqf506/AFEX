@@ -193,9 +193,13 @@ export default function AdminCategoriesPage() {
   }
 
   useEffect(() => {
-    if (!accessLoading && allowed) {
+    if (accessLoading || !allowed) return
+
+    const timeoutId = window.setTimeout(() => {
       void loadCategories()
-    }
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [accessLoading, allowed])
 
   async function handleCreateCategory(e: React.FormEvent) {

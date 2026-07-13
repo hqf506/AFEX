@@ -235,10 +235,14 @@ export default function AdminDiscountsPage() {
   }
 
   useEffect(() => {
-    if (!accessLoading && allowed) {
+    if (accessLoading || !allowed) return
+
+    const timeoutId = window.setTimeout(() => {
       void loadDiscounts()
       void loadBranches()
-    }
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [accessLoading, allowed])
 
   async function handleCreateDiscount(event: React.FormEvent) {

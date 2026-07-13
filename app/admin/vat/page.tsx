@@ -218,15 +218,23 @@ export default function AdminVatPage() {
   }
 
   useEffect(() => {
-    if (!accessLoading && allowed && isSystemAdmin) {
+    if (accessLoading || !allowed || !isSystemAdmin) return
+
+    const timeoutId = window.setTimeout(() => {
       void loadBranches()
-    }
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [accessLoading, allowed, isSystemAdmin])
 
   useEffect(() => {
-    if (!accessLoading && allowed && isSystemAdmin) {
+    if (accessLoading || !allowed || !isSystemAdmin) return
+
+    const timeoutId = window.setTimeout(() => {
       void loadVatSetting(branchId)
-    }
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [accessLoading, allowed, branchId, isSystemAdmin])
 
   async function handleSave(event: React.FormEvent) {
