@@ -1258,7 +1258,7 @@ export function InvoiceItemsStep({
     return (
       <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_34%),radial-gradient(circle_at_78%_84%,rgba(14,165,233,0.12),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_48%,#020817_100%)]" />
-        <div className="relative flex h-full w-full gap-3.5 overflow-hidden p-4 [direction:ltr] xl:gap-4">
+        <div className="relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 [direction:ltr] md:flex-row md:p-4 xl:gap-4">
           <main className="flex min-w-0 flex-1 flex-col gap-2.5 overflow-hidden [direction:rtl]">
             {(hasInvalidBranchContext || hasAmbiguousAdminBranchContext || stockErrorMessage) ? (
               <div className="grid gap-2">
@@ -1371,7 +1371,7 @@ export function InvoiceItemsStep({
                 </div>
               ) : (
                 <div className="flex h-full min-h-0 flex-col gap-3">
-                  <div className="grid min-h-0 flex-1 auto-rows-[232px] grid-cols-4 gap-3 overflow-y-auto pr-1">
+                  <div className="grid min-h-0 flex-1 auto-rows-[232px] grid-cols-2 gap-3 overflow-y-auto pr-1 lg:grid-cols-4">
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
@@ -1484,7 +1484,7 @@ export function InvoiceItemsStep({
             </section>
           </main>
 
-          <aside className="flex h-full w-[320px] shrink-0 flex-col overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl]">
+          <aside className="flex h-[42%] w-full shrink-0 flex-col overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:h-full md:w-[280px] lg:w-[320px]">
             <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
               <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
                 AFEX POS

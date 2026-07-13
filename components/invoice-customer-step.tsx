@@ -14,6 +14,7 @@ import { prefetchBranchInvoiceCatalog } from '@/lib/invoices/catalog'
 import {
   INVOICE_CUSTOMER_STORAGE_KEY,
   isInvoiceCustomerDraftValid,
+  parseStoredInvoiceCustomerDraft,
   serializeInvoiceCustomerDraft,
 } from '@/lib/invoices/customer'
 import {
@@ -418,7 +419,15 @@ export function InvoiceCustomerStep({
       return
     }
 
+    const storedCustomer = parseStoredInvoiceCustomerDraft(
+      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
+    )
+
     const timeoutId = window.setTimeout(() => {
+      if (storedCustomer) {
+        setCustomerName(storedCustomer.name)
+        setCustomerPhone(storedCustomer.phone)
+      }
       customerPhoneInputRef.current?.focus()
     }, 150)
 
@@ -770,7 +779,7 @@ export function InvoiceCustomerStep({
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-sm font-black text-slate-300">
-                    بحث بالجوال
+                    بحث بالجوال <span className="text-cyan-300">(مطلوب)</span>
                   </span>
                   <div className="relative">
                     <input
@@ -787,13 +796,14 @@ export function InvoiceCustomerStep({
                       pattern="[0-9]*"
                       autoComplete="tel"
                       enterKeyHint="search"
+                      aria-required="true"
                     />
                   </div>
                 </label>
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-black text-slate-300">
-                    بحث بالاسم
+                    بحث بالاسم <span className="text-cyan-300">(مطلوب)</span>
                   </span>
                   <div className="relative">
                     <input
@@ -804,6 +814,7 @@ export function InvoiceCustomerStep({
                         setSelectedCustomerId(null)
                       }}
                       placeholder="اكتب اسم العميل"
+                      aria-required="true"
                       className="h-[66px] w-full rounded-[22px] border-0 bg-[rgba(6,20,38,0.76)] px-5 text-right text-lg font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation"
                     />
                   </div>
@@ -812,6 +823,11 @@ export function InvoiceCustomerStep({
 
               {customerSearchLoading ? (
                 <p className="mt-3 text-xs font-black text-cyan-100">بحث...</p>
+              ) : null}
+              {!isValid ? (
+                <p className="mt-3 text-xs font-bold text-amber-100">
+                  أدخل اسم العميل ورقم الجوال للمتابعة إلى العناصر.
+                </p>
               ) : null}
             </section>
 

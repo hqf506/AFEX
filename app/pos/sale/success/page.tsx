@@ -15,6 +15,8 @@ import {
 } from '@/lib/invoices/success'
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
+import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
+import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -242,6 +244,7 @@ export default function PosSaleSuccessPage() {
     )
   })
   const [redirectCountdown, setRedirectCountdown] = useState(10)
+  const [printing, setPrinting] = useState(false)
   const { settings: systemSettings } = useSystemSettings(Boolean(snapshot))
   const printingEnabled = systemSettings?.enable_printing !== false
   const whatsappEnabled = systemSettings?.enable_whatsapp !== false
@@ -384,8 +387,18 @@ export default function PosSaleSuccessPage() {
   const handlePagePrint = () => {
     if (runningInCapacitor) return
     if (!printingEnabled) return
+    if (printing) return
 
+    setPrinting(true)
     window.print()
+    window.setTimeout(() => setPrinting(false), 1000)
+  }
+
+  const handleNewSale = () => {
+    localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
+    localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+    sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
+    router.replace('/pos/sale/customer')
   }
 
   const handleWhatsApp = () => {
@@ -554,10 +567,10 @@ export default function PosSaleSuccessPage() {
         <ReceiptView snapshot={snapshot} />
       </div>
 
-      <div className="receipt-print-hide fixed inset-0 h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
+      <div className="receipt-print-hide fixed inset-0 h-[100svh] w-screen overflow-y-auto bg-[#020817] text-white md:overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_80%_82%,rgba(20,184,166,0.12),transparent_36%),linear-gradient(135deg,#020817_0%,#061426_54%,#020817_100%)]" />
-        <div className="relative grid h-full w-full grid-cols-[minmax(0,1fr)_360px] gap-5 overflow-hidden p-5 [direction:ltr]">
-          <main className="flex min-w-0 flex-col justify-between gap-5 overflow-hidden rounded-[34px] border border-cyan-300/10 bg-[#020817]/62 p-6 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl [direction:rtl]">
+        <div className="relative grid min-h-full w-full gap-3 p-3 [direction:ltr] md:h-full md:grid-cols-[minmax(0,1fr)_300px] md:overflow-hidden md:p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:p-5">
+          <main className="flex min-w-0 flex-col justify-between gap-4 rounded-[34px] border border-cyan-300/10 bg-[#020817]/62 p-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl [direction:rtl] md:overflow-hidden lg:p-6">
             <section className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
               <div className="relative flex h-28 w-28 animate-[success-pop_420ms_ease-out] items-center justify-center rounded-full border border-[#14B8A6]/35 bg-[#14B8A6]/14 text-teal-50 shadow-[0_0_46px_rgba(20,184,166,0.28)]">
                 <div className="absolute inset-3 rounded-full border border-cyan-300/12" />
@@ -602,11 +615,11 @@ export default function PosSaleSuccessPage() {
               </p>
             </section>
 
-            <section className="grid shrink-0 grid-cols-4 gap-3">
+            <section className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
               <button
                 type="button"
                 onClick={handlePagePrint}
-                disabled={!printingEnabled}
+                disabled={!printingEnabled || printing}
                 title={
                   printingEnabled
                     ? undefined
@@ -614,7 +627,7 @@ export default function PosSaleSuccessPage() {
                 }
                 className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-base font-black text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-slate-600/30 disabled:bg-slate-700/20 disabled:text-slate-500 disabled:shadow-none"
               >
-                🖨 طباعة الفاتورة
+                {printing ? 'جاري تجهيز الطباعة...' : '🖨 طباعة الفاتورة'}
               </button>
               <button
                 type="button"
@@ -631,7 +644,7 @@ export default function PosSaleSuccessPage() {
               </button>
               <button
                 type="button"
-                onClick={() => router.push('/pos/sale/customer')}
+                onClick={handleNewSale}
                 className="flex h-16 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] px-4 text-base font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98]"
               >
                 ➕ بيع جديد

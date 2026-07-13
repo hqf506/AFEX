@@ -169,6 +169,7 @@ export default function PosSaleCheckoutPage() {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [isOffline, setIsOffline] = useState(false)
   const cashReceivedInputRef = useRef<HTMLInputElement | null>(null)
+  const submitLockedRef = useRef(false)
   const [thermalReceiptSettings] = useState<ThermalReceiptSettings>(() => {
     if (typeof window === 'undefined') {
       return DEFAULT_THERMAL_RECEIPT_SETTINGS
@@ -450,8 +451,31 @@ export default function PosSaleCheckoutPage() {
       return false
     }
 
+    if (hasInvalidBranchContext || hasAmbiguousAdminBranchContext) {
+      return false
+    }
+
+    if (loadingDiscounts || loadingVat) {
+      return false
+    }
+
+    if (normalizedPaymentMethod === 'cash' && checkout.numericCashReceived <= 0) {
+      return false
+    }
+
     return true
-  }, [checkout.loading, customerName, customerPhone, invoiceItems.length])
+  }, [
+    checkout.loading,
+    checkout.numericCashReceived,
+    customerName,
+    customerPhone,
+    hasAmbiguousAdminBranchContext,
+    hasInvalidBranchContext,
+    invoiceItems.length,
+    loadingDiscounts,
+    loadingVat,
+    normalizedPaymentMethod,
+  ])
 
   const cashWarningMessage = useMemo(() => {
     if (normalizedPaymentMethod !== 'cash' || checkout.remainingFromCustomer <= 0) {
@@ -476,12 +500,17 @@ export default function PosSaleCheckoutPage() {
     }, 0)
   }
 
-  const handleCreateInvoice = () => {
-    if (!canSubmitInvoice) {
+  const handleCreateInvoice = async () => {
+    if (!canSubmitInvoice || submitLockedRef.current) {
       return
     }
 
-    void checkout.createInvoice()
+    submitLockedRef.current = true
+    try {
+      await checkout.createInvoice()
+    } finally {
+      submitLockedRef.current = false
+    }
   }
 
   const handleCancelInvoice = () => {
@@ -665,7 +694,7 @@ export default function PosSaleCheckoutPage() {
 
       <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_82%_82%,rgba(14,165,233,0.10),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-        <div className="relative flex h-full w-full gap-4 overflow-hidden p-4 [direction:ltr] xl:p-5">
+        <div className="relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 [direction:ltr] md:flex-row md:p-4 xl:p-5">
           <main className="order-1 flex min-w-0 flex-1 flex-col gap-3 overflow-hidden [direction:rtl]">
             {checkout.successMessage ? (
               <div className="rounded-[22px] border border-[#14B8A6]/25 bg-[#14B8A6]/10 px-4 py-3 text-sm font-bold text-teal-50 shadow-[0_0_28px_rgba(20,184,166,0.16)]">
@@ -707,7 +736,7 @@ export default function PosSaleCheckoutPage() {
               </div>
 
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                   {PAYMENT_METHODS.map((option) => {
                     const selected = checkout.paymentMethod === option.id
 
@@ -790,6 +819,11 @@ export default function PosSaleCheckoutPage() {
                       </button>
                     ))}
                   </div>
+                  {normalizedPaymentMethod === 'cash' && checkout.numericCashReceived <= 0 ? (
+                    <p className="mt-3 text-sm font-bold text-amber-100">
+                      أدخل المبلغ المستلم قبل إنشاء الفاتورة.
+                    </p>
+                  ) : null}
                 </div>
 
                 {cashWarningMessage ? (
@@ -860,7 +894,7 @@ export default function PosSaleCheckoutPage() {
             </section>
           </main>
 
-          <aside className="order-2 flex h-full w-[330px] shrink-0 flex-col overflow-hidden rounded-[30px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl]">
+          <aside className="order-2 flex h-[38%] w-full shrink-0 flex-col overflow-hidden rounded-[30px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:h-full md:w-[280px] lg:w-[330px]">
             <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
               <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
                 INVOICE
