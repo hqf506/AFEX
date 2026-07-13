@@ -19,6 +19,7 @@ import {
 import {
   disabledFeatureResponse,
   ORDERS_FEATURE_DISABLED_MESSAGE,
+  POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
 import type { OrderStatus } from '@/lib/orders/normalize'
 import { maskId, maskPhone } from '@/lib/security/redaction'
@@ -268,6 +269,17 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  const featureDisabledResponse = await disabledFeatureResponse(
+    auth.response,
+    auth.profile.tenant_id,
+    'enable_orders',
+    ORDERS_FEATURE_DISABLED_MESSAGE
+  )
+
+  if (featureDisabledResponse) {
+    return featureDisabledResponse
+  }
+
   if (
     isBranchScopedWithoutBranchId(
       auth.profile.scope_type,
@@ -418,9 +430,27 @@ export async function GET(request: NextRequest) {
       const employeeIds = [...new Set(items.map((row) => row.created_by_employee_id).filter((id): id is string => typeof id === 'string' && Boolean(id)))]
       employeeNames = {}
       if (employeeIds.length > 0) {
+        let profilesQuery = auth.supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .in('id', employeeIds)
+        let posProfilesQuery = auth.supabase
+          .from('pos_profiles')
+          .select('id, full_name, username')
+          .in('id', employeeIds)
+
+        profilesQuery = applyTenantFilter(
+          profilesQuery,
+          auth.profile.tenant_id
+        )
+        posProfilesQuery = applyTenantFilter(
+          posProfilesQuery,
+          auth.profile.tenant_id
+        )
+
         const [profiles, posProfiles] = await Promise.all([
-          auth.supabase.from('profiles').select('id, full_name, username').in('id', employeeIds),
-          auth.supabase.from('pos_profiles').select('id, full_name, username').in('id', employeeIds),
+          profilesQuery,
+          posProfilesQuery,
         ])
         if (profiles.error || posProfiles.error) throw profiles.error || posProfiles.error
         for (const row of [...(profiles.data || []), ...(posProfiles.data || [])]) {
@@ -554,6 +584,17 @@ export async function POST(request: NextRequest) {
 
     if (ordersDisabledResponse) {
       return ordersDisabledResponse
+    }
+
+    const posDisabledResponse = await disabledFeatureResponse(
+      auth.response,
+      profileTenantId,
+      'enable_pos',
+      POS_FEATURE_DISABLED_MESSAGE
+    )
+
+    if (posDisabledResponse) {
+      return posDisabledResponse
     }
 
     const profileBranchId = normalizeUuidString(auth.profile.branch_id)

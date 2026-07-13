@@ -22,6 +22,7 @@ import {
   type OrderFilter,
 } from '@/lib/orders/orders-page'
 import { supabase } from '@/lib/supabase/client'
+import { applyTenantFilter } from '@/lib/tenant-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { FeatureDisabledState } from '@/components/feature-disabled-state'
@@ -978,14 +979,14 @@ export default function OrdersPage() {
   }, [allowed, checkOrdersMetaAndReload])
 
   useEffect(() => {
-    if (!allowed || orders.length === 0) return
+    if (!allowed || !tenantId || orders.length === 0) return
 
     const orderIds = new Set(orders.map((order) => order.id))
     let cancelled = false
 
     async function fetchWhatsAppDeliveryStatus() {
       const orderIdList = buildPostgrestStringInList([...orderIds])
-      const { data, error } = await supabase
+      let auditQuery = supabase
         .from('audit_logs')
         .select('created_at, metadata')
         .eq('action', 'whatsapp.message_sent')
@@ -993,6 +994,9 @@ export default function OrdersPage() {
         .filter('metadata->>order_id', 'in', orderIdList)
         .order('created_at', { ascending: false })
         .limit(orderIds.size)
+
+      auditQuery = applyTenantFilter(auditQuery, tenantId)
+      const { data, error } = await auditQuery
 
       if (cancelled || error || !Array.isArray(data)) {
         return
@@ -1024,7 +1028,7 @@ export default function OrdersPage() {
     return () => {
       cancelled = true
     }
-  }, [allowed, orders])
+  }, [allowed, orders, tenantId])
 
   const filteredOrders = orders
   const stats = {
@@ -1064,6 +1068,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (
+      !tenantId ||
       !detailsDrawerOrderId ||
       orderDetailsById[detailsDrawerOrderId] ||
       orderDetailsInFlightRef.current.has(detailsDrawerOrderId)
@@ -1133,7 +1138,7 @@ export default function OrdersPage() {
     return () => {
       cancelled = true
     }
-  }, [detailsDrawerOrderId, orderDetailsById, orderDetailsRetryKey])
+  }, [detailsDrawerOrderId, orderDetailsById, orderDetailsRetryKey, tenantId])
 
   const drawerCustomerSummary = useMemo(() => {
     if (!detailsDrawerOrder) {
@@ -1165,6 +1170,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (
+      !tenantId ||
       !detailsDrawerOrderId ||
       notificationHistoryByOrderId[detailsDrawerOrderId]
     ) {
@@ -1176,13 +1182,16 @@ export default function OrdersPage() {
     async function fetchNotificationHistory(orderId: string) {
       setNotificationHistoryLoadingId(orderId)
 
-      const { data, error } = await supabase
+      let auditQuery = supabase
         .from('audit_logs')
         .select('id, action, entity_type, entity_id, created_at, metadata')
         .in('action', ['whatsapp.message_sent', 'whatsapp.message_failed'])
         .filter('metadata->>order_id', 'eq', orderId)
         .order('created_at', { ascending: false })
         .limit(100)
+
+      auditQuery = applyTenantFilter(auditQuery, tenantId)
+      const { data, error } = await auditQuery
 
       if (cancelled) return
 
@@ -1279,6 +1288,7 @@ export default function OrdersPage() {
     detailsDrawerOrder?.customer_phone,
     detailsDrawerOrderId,
     notificationHistoryByOrderId,
+    tenantId,
   ])
 
   const selectedStatusOption = useMemo(() => {

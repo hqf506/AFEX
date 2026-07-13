@@ -4,6 +4,10 @@ import { requireApiAuth } from '@/lib/api-auth'
 import { isSystemScopedAdmin, normalizeAdminBranchId } from '@/lib/admin/branches'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import {
+  disabledFeatureResponse,
+  POS_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
@@ -12,6 +16,22 @@ export async function GET(request: NextRequest) {
   const tenantId = auth.profile.tenant_id
   if (!tenantId) {
     return jsonWithAuthCookies(auth.response, { success: false, error: 'Tenant context is required' }, 403)
+  }
+
+  const featureDisabledResponse = await disabledFeatureResponse(
+    auth.response,
+    tenantId,
+    'enable_pos',
+    POS_FEATURE_DISABLED_MESSAGE
+  )
+  if (featureDisabledResponse) return featureDisabledResponse
+
+  if (!isSystemScopedAdmin(auth.profile.scope_type) && !auth.profile.branch_id) {
+    return jsonWithAuthCookies(
+      auth.response,
+      { success: false, error: 'A branch is required for POS access' },
+      403
+    )
   }
 
   const requestedBranchId = normalizeAdminBranchId(request.nextUrl.searchParams.get('branchId'))
@@ -51,7 +71,7 @@ export async function GET(request: NextRequest) {
   if (discountsResult.error || vatResult.error) {
     return jsonWithAuthCookies(auth.response, {
       success: false,
-      error: discountsResult.error?.message || vatResult.error?.message,
+      error: 'Failed to load POS runtime settings',
     }, 500)
   }
 

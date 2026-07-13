@@ -5,6 +5,10 @@ import type { AppRole } from '@/lib/app-roles'
 import { isFullAdmin } from '@/lib/permissions'
 import { redactSensitive, safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import {
+  disabledFeatureResponse,
+  POS_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
 
 type IdentifyEmployeeByPinBody = {
   pin?: string
@@ -163,7 +167,7 @@ export async function POST(request: NextRequest) {
     const authIsFullAdmin = isFullAdmin(authRole)
 
     if (!tenantId) {
-      console.warn('[POS PIN] Missing POS tenant.', {
+      console.warn('[POS PIN] Missing POS tenant.', redactSensitive({
         hasAuthSession: true,
         authRole,
         tenantId: null,
@@ -172,13 +176,24 @@ export async function POST(request: NextRequest) {
         profileBranchId: auth.profile.branch_id ?? null,
         pinLength: pin.length,
         rpc: null,
-      })
+      }))
 
       const response = jsonResponse(
         { error: MISSING_POS_CONTEXT_MESSAGE },
         400
       )
       return withFixedPinDelay(withAuthCookies(auth.response, response))
+    }
+
+    const featureDisabledResponse = await disabledFeatureResponse(
+      auth.response,
+      tenantId,
+      'enable_pos',
+      POS_FEATURE_DISABLED_MESSAGE
+    )
+
+    if (featureDisabledResponse) {
+      return withFixedPinDelay(featureDisabledResponse)
     }
 
     let branchId: string | null = null
@@ -210,7 +225,7 @@ export async function POST(request: NextRequest) {
       branchId = profileBranchId
     }
 
-    console.info('[POS PIN] Verification request.', {
+    console.info('[POS PIN] Verification request.', redactSensitive({
       hasAuthSession: true,
       authRole,
       tenantId,
@@ -218,7 +233,7 @@ export async function POST(request: NextRequest) {
       effectiveBranchId: branchId,
       profileBranchId,
       pinLength: pin.length,
-    })
+    }))
 
     if (!/^[0-9]{4}$/.test(pin)) {
       const response = jsonResponse(
@@ -249,7 +264,7 @@ export async function POST(request: NextRequest) {
     })
     const rpcRowCount = Array.isArray(data) ? data.length : data ? 1 : 0
 
-    console.info('[POS PIN] verify_pos_pin RPC result.', {
+    console.info('[POS PIN] verify_pos_pin RPC result.', redactSensitive({
       hasAuthSession: true,
       authRole,
       tenantId,
@@ -261,9 +276,8 @@ export async function POST(request: NextRequest) {
         rowCount: rpcRowCount,
         hasError: Boolean(error),
         errorCode: error?.code ?? null,
-        errorMessage: error?.message ?? null,
       },
-    })
+    }))
 
     if (error) {
       const rpcErrorLog =

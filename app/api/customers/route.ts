@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
       auth.response,
       {
         success: false,
-        error: error.message,
+        error: 'Failed to load customers',
       },
       500
     )
@@ -361,7 +361,7 @@ export async function POST(request: NextRequest) {
       auth.response,
       {
         success: false,
-        error: error.message,
+        error: 'Failed to create customer',
       },
       500
     )

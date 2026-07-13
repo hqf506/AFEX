@@ -330,7 +330,7 @@ export async function POST(request: NextRequest) {
     const response = jsonResponse({
       success: true,
       message: 'تم حفظ إعدادات النظام بنجاح',
-      settings: data,
+      settings: sanitizeSystemSettings(data),
     })
 
     return withAuthCookies(auth.response, response)

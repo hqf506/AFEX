@@ -11,10 +11,14 @@ export const INVOICES_FEATURE_DISABLED_MESSAGE =
 export const USERS_FEATURE_DISABLED_MESSAGE =
   'ميزة إدارة المستخدمين غير مفعلة من إعدادات النظام.'
 
+export const POS_FEATURE_DISABLED_MESSAGE =
+  'ميزة نقطة البيع غير مفعلة من إعدادات النظام.'
+
 export type FeatureToggleKey =
   | 'enable_orders'
   | 'enable_invoices'
   | 'enable_users'
+  | 'enable_pos'
 
 export async function isFeatureEnabled(
   tenantId: string,

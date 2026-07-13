@@ -8,6 +8,10 @@ import type {
   InventoryStockRow,
 } from '@/lib/invoices/catalog'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import {
+  disabledFeatureResponse,
+  INVOICES_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
 
 function normalizeBranchId(value: string | null) {
   return typeof value === 'string' ? value.trim() : ''
@@ -49,6 +53,17 @@ export async function GET(request: NextRequest) {
           403
         )
       )
+    }
+
+    const featureDisabledResponse = await disabledFeatureResponse(
+      auth.response,
+      tenantId,
+      'enable_invoices',
+      INVOICES_FEATURE_DISABLED_MESSAGE
+    )
+
+    if (featureDisabledResponse) {
+      return featureDisabledResponse
     }
 
     const requestedBranchId = normalizeBranchId(
@@ -117,7 +132,6 @@ export async function GET(request: NextRequest) {
         jsonResponse(
           {
             error: 'Failed to validate branch',
-            details: branchError.message,
           },
           500
         )
@@ -202,7 +216,6 @@ export async function GET(request: NextRequest) {
         jsonResponse(
           {
             error: 'Failed to load catalog items',
-            details: catalogError.message,
           },
           500
         )
@@ -230,7 +243,6 @@ export async function GET(request: NextRequest) {
           jsonResponse(
             {
               error: 'Failed to load branch catalog overrides',
-              details: branchOverridesError.message,
             },
             500
           )
@@ -263,7 +275,6 @@ export async function GET(request: NextRequest) {
           jsonResponse(
             {
               error: 'Failed to load branch catalog overrides',
-              details: branchOverridesError.message,
             },
             500
           )
@@ -293,7 +304,6 @@ export async function GET(request: NextRequest) {
           jsonResponse(
             {
               error: 'Failed to load inventory stock',
-              details: stockError.message,
             },
             500
           )
@@ -330,13 +340,12 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'no-store, max-age=0')
 
     return response
-  } catch (error) {
+  } catch {
     return withAuthCookies(
       auth.response,
       jsonResponse(
         {
           error: 'Unexpected invoice catalog error',
-          details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
       )

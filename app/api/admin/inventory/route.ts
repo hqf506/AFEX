@@ -101,7 +101,7 @@ function applyInventoryFilters(
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  const auth = await requireApiAuth(request, ['admin'])
 
   if (!auth.ok) {
     return auth.response
@@ -183,13 +183,7 @@ export async function GET(request: NextRequest) {
     if (branchesError) {
       return withAuthCookies(
         auth.response,
-        jsonResponse(
-          {
-            error: 'Failed to load branches',
-            details: branchesError.message,
-          },
-          500
-        )
+        jsonResponse({ error: 'Failed to load branches' }, 500)
       )
     }
 
@@ -271,16 +265,10 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'no-store, max-age=0')
 
     return response
-  } catch (error) {
+  } catch {
     return withAuthCookies(
       auth.response,
-      jsonResponse(
-        {
-          error: 'Unexpected inventory error',
-          details: error instanceof Error ? error.message : 'Unknown error',
-        },
-        500
-      )
+      jsonResponse({ error: 'Unexpected inventory error' }, 500)
     )
   }
 }

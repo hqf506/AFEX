@@ -51,7 +51,7 @@ function normalizePositiveInteger(value: string | null, fallback: number) {
 }
 
 function normalizeListText(value: string | null) {
-  return (value || '').trim()
+  return (value || '').trim().slice(0, 120)
 }
 
 function buildCatalogSearchFilter(search: string) {
@@ -178,7 +178,6 @@ export async function GET(request: NextRequest) {
         jsonResponse(
           {
             error: 'تعذر تحميل الفروع',
-            details: branchesError.message,
           },
           500
         )
@@ -221,7 +220,6 @@ export async function GET(request: NextRequest) {
           jsonResponse(
             {
               error: 'تعذر تحميل إعدادات الكتالوج الخاصة بالفرع',
-              details: assignedError.message,
             },
             500
           )
@@ -282,7 +280,6 @@ export async function GET(request: NextRequest) {
         jsonResponse(
           {
             error: 'تعذر تحميل الكتالوج',
-            details: catalogError.message,
           },
           500
         )
@@ -311,7 +308,6 @@ export async function GET(request: NextRequest) {
           jsonResponse(
             {
               error: 'تعذر تحميل إعدادات الكتالوج الخاصة بالفرع',
-              details: error.message,
             },
             500
           )
@@ -349,13 +345,12 @@ export async function GET(request: NextRequest) {
         pageSize,
       })
     )
-  } catch (error) {
+  } catch {
     return withAuthCookies(
       auth.response,
       jsonResponse(
         {
           error: 'حدث خطأ غير متوقع',
-          details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
       )
@@ -450,7 +445,6 @@ export async function POST(request: NextRequest) {
         jsonResponse(
           {
             error: 'تعذر التحقق من الفرع',
-            details: branchError.message,
           },
           500
         )
@@ -480,7 +474,6 @@ export async function POST(request: NextRequest) {
         jsonResponse(
           {
             error: 'تعذر التحقق من عنصر الكتالوج',
-            details: itemError.message,
           },
           500
         )
@@ -523,7 +516,6 @@ export async function POST(request: NextRequest) {
         jsonResponse(
           {
             error: 'فشل حفظ إعدادات الفرع الخاصة بالعنصر',
-            details: error?.message || 'Unknown error',
           },
           400
         )
@@ -538,13 +530,12 @@ export async function POST(request: NextRequest) {
         item: data,
       })
     )
-  } catch (error) {
+  } catch {
     return withAuthCookies(
       auth.response,
       jsonResponse(
         {
           error: 'حدث خطأ غير متوقع',
-          details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
       )

@@ -4,6 +4,10 @@ import { shouldFilterByBranch } from '@/lib/branch-access'
 import { isFullAdmin } from '@/lib/permissions'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import {
+  disabledFeatureResponse,
+  USERS_FEATURE_DISABLED_MESSAGE,
+} from '@/lib/feature-guards'
 
 type ListUserRow = {
   id: string
@@ -40,6 +44,17 @@ export async function GET(request: NextRequest) {
       })
 
       return withAuthCookies(auth.response, response)
+    }
+
+    const featureDisabledResponse = await disabledFeatureResponse(
+      auth.response,
+      tenantId,
+      'enable_users',
+      USERS_FEATURE_DISABLED_MESSAGE
+    )
+
+    if (featureDisabledResponse) {
+      return featureDisabledResponse
     }
 
     const currentUserIsFullAdmin = isFullAdmin(auth.profile.role)
@@ -81,7 +96,6 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.json(
         {
           error: 'تعذر تحميل المستخدمين',
-          details: error.message,
         },
         { status: 500 }
       )
@@ -113,7 +127,6 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.json(
         {
           error: 'تعذر تحميل مستخدمي POS',
-          details: posProfilesError.message,
         },
         { status: 500 }
       )
@@ -144,7 +157,6 @@ export async function GET(request: NextRequest) {
         const response = NextResponse.json(
           {
             error: 'تعذر تحميل منشئي مستخدمي POS',
-            details: creatorsError.message,
           },
           { status: 500 }
         )
@@ -180,10 +192,7 @@ export async function GET(request: NextRequest) {
           role: profile.role,
           is_active: profile.is_active,
           has_pos_pin: Boolean(profile.pos_pin_hash || profile.pos_pin_plain),
-          pos_pin:
-            typeof profile.pos_pin_plain === 'string'
-              ? profile.pos_pin_plain
-              : null,
+          pos_pin: null,
           created_at: profile.created_at,
           updated_at: profile.updated_at,
           account_type: 'pos_profile' as const,
@@ -217,7 +226,7 @@ export async function GET(request: NextRequest) {
         created_at: profile.created_at || matchingPosProfile.created_at,
         updated_at: profile.updated_at || matchingPosProfile.updated_at,
         has_pos_pin: Boolean(profile.has_pos_pin || matchingPosProfile.has_pos_pin),
-        pos_pin: profile.pos_pin || matchingPosProfile.pos_pin || null,
+        pos_pin: null,
       }
     })
 
@@ -232,11 +241,10 @@ export async function GET(request: NextRequest) {
     })
 
     return withAuthCookies(auth.response, response)
-  } catch (error) {
+  } catch {
     const response = NextResponse.json(
       {
         error: 'حدث خطأ غير متوقع',
-        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     )

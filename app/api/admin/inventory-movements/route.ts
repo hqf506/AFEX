@@ -7,7 +7,7 @@ import { applyTenantFilter } from '@/lib/tenant-filter'
 const DEFAULT_PAGE_SIZE = 10
 const MAX_PAGE_SIZE = 50
 const INVENTORY_MOVEMENT_SELECT =
-  'id, tenant_id, branch_id, catalog_item_id, movement_type, quantity_delta, source_type, source_id, notes, created_by, created_at, item_name, branch_name, resolved_invoice_id, resolved_employee_id, resolved_employee_name, user_name, created_by_name, actor_name, actor_type'
+  'id, branch_id, catalog_item_id, movement_type, quantity_delta, source_type, notes, created_at, item_name, branch_name, resolved_employee_name, user_name, created_by_name, actor_name, actor_type'
 
 function positiveInteger(value: string | null, fallback: number) {
   const parsed = Number(value)
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   const from = (page - 1) * pageSize
   const { data, error, count } = await query.range(from, from + pageSize - 1)
   if (error) {
-    return jsonWithAuthCookies(auth.response, { success: false, error: error.message }, 500)
+    return jsonWithAuthCookies(auth.response, { success: false, error: 'Failed to load inventory movements' }, 500)
   }
 
   const rows = Array.isArray(data) ? data : []
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
   ])
 
   if (catalogResult.error || branchResult.error) {
-    return jsonWithAuthCookies(auth.response, { success: false, error: catalogResult.error?.message || branchResult.error?.message }, 500)
+    return jsonWithAuthCookies(auth.response, { success: false, error: 'Failed to enrich inventory movements' }, 500)
   }
 
   const itemNames = new Map((catalogResult.data || []).map((row) => [row.id, row.name || '']))
