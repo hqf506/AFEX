@@ -783,6 +783,10 @@ export function renderInvoiceHtmlFromPayload(
     }
 
     .global-note-block {
+      position: absolute;
+      right: 40px;
+      bottom: 90px;
+      left: 40px;
       display: flex;
       align-items: flex-start;
       gap: 4px;
@@ -790,7 +794,7 @@ export function renderInvoiceHtmlFromPayload(
       text-align: right;
       font-size: 10px;
       color: #555;
-      margin: 10px 0 0;
+      margin: 0;
       line-height: 1.8;
     }
 
@@ -1017,11 +1021,12 @@ export function renderInvoiceHtmlFromPayload(
       </div>
     </div>
 
+    ${globalNoteHtml}
+
     <div class="footer">
       <div class="footer-links">
         ${footerItemsHtml}
       </div>
-      ${globalNoteHtml}
     </div>
   </div>
 </body>
