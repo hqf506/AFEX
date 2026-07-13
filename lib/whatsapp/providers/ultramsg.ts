@@ -7,8 +7,33 @@ import type {
   WhatsAppSendTextInput,
 } from '@/lib/whatsapp/types'
 
+const PROVIDER_REQUEST_TIMEOUT_MS = 15_000
+
 function normalizeUltraMsgPhone(phone: string) {
   return phone.replace(/\D/g, '')
+}
+
+async function fetchUltraMsg(url: string, init: RequestInit) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    PROVIDER_REQUEST_TIMEOUT_MS
+  )
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('UltraMsg request timed out', { cause: error })
+    }
+
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 export class UltraMsgProviderAdapter
@@ -37,7 +62,7 @@ export class UltraMsgProviderAdapter
     input: WhatsAppSendTextInput,
     config: UltraMsgProviderConfig
   ): Promise<WhatsAppProviderSendResult> {
-    const response = await fetch(`${config.apiUrl}/messages/chat`, {
+    const response = await fetchUltraMsg(`${config.apiUrl}/messages/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -82,7 +107,7 @@ export class UltraMsgProviderAdapter
     input: WhatsAppSendFileInput,
     config: UltraMsgProviderConfig
   ): Promise<WhatsAppProviderSendResult> {
-    const response = await fetch(`${config.apiUrl}/messages/document`, {
+    const response = await fetchUltraMsg(`${config.apiUrl}/messages/document`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +154,7 @@ export class UltraMsgProviderAdapter
     input: WhatsAppSendImageInput,
     config: UltraMsgProviderConfig
   ): Promise<WhatsAppProviderSendResult> {
-    const response = await fetch(`${config.apiUrl}/messages/image`, {
+    const response = await fetchUltraMsg(`${config.apiUrl}/messages/image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
