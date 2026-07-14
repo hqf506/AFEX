@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
 import { shouldFilterByBranch } from '@/lib/branch-access'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
 const DEFAULT_PAGE_SIZE = 10
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     ? auth.profile.branch_id || ''
     : requestedBranchId
 
-  let query = auth.supabase
+  let query = supabaseAdmin
     .from('inventory_movements_view')
     .select(INVENTORY_MOVEMENT_SELECT, { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -53,6 +54,19 @@ export async function GET(request: NextRequest) {
   if (search) query = query.ilike('item_name', `%${search}%`)
 
   const from = (page - 1) * pageSize
+  console.info('[inventory-movements] Supabase query', {
+    relation: 'inventory_movements_view',
+    select: INVENTORY_MOVEMENT_SELECT,
+    filters: {
+      tenant: true,
+      branch: Boolean(branchId),
+      movementType: Boolean(movementType),
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
+      search: Boolean(search),
+    },
+    range: { from, to: from + pageSize - 1 },
+  })
   const { data, error, count } = await query.range(from, from + pageSize - 1)
   if (error) {
     return jsonWithAuthCookies(auth.response, { success: false, error: 'Failed to load inventory movements' }, 500)
@@ -63,10 +77,10 @@ export async function GET(request: NextRequest) {
   const branchIds = [...new Set(rows.map((row) => row.branch_id).filter(Boolean))]
   const [catalogResult, branchResult] = await Promise.all([
     catalogItemIds.length
-      ? auth.supabase.from('catalog_items').select('id, name').eq('tenant_id', tenantId).in('id', catalogItemIds)
+      ? supabaseAdmin.from('catalog_items').select('id, name').eq('tenant_id', tenantId).in('id', catalogItemIds)
       : Promise.resolve({ data: [], error: null }),
     branchIds.length
-      ? auth.supabase.from('branches').select('id, name').eq('tenant_id', tenantId).in('id', branchIds)
+      ? supabaseAdmin.from('branches').select('id, name').eq('tenant_id', tenantId).in('id', branchIds)
       : Promise.resolve({ data: [], error: null }),
   ])
 
