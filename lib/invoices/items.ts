@@ -152,7 +152,7 @@ export function calculateRemainingFromCustomer(
   finalTotal: number,
   numericCashReceived: number
 ) {
-  if (paymentMethod !== 'cash') return 0
+  if (paymentMethod !== 'cash' && paymentMethod !== 'cod') return 0
   return Math.max(finalTotal - numericCashReceived, 0)
 }
 

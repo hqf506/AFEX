@@ -295,7 +295,7 @@ export function renderInvoiceHtmlFromPayload(
       ? `<div class="global-note-block"><strong>${escapeHtml(globalNoteLabelMatch[1])}</strong><span>${escapeHtml(globalNoteLabelMatch[2].replace(/^[ \t]+/, ''))}</span></div>`
       : `<div class="global-note-block"><strong>ملاحظة:</strong><span>${escapeHtml(trimmedGlobalNote)}</span></div>`
     : ''
-  const cashPaymentDetailsHtml = isCash
+  const cashPaymentDetailsHtml = isCash || isCashOnDelivery
     ? `
           <div class="summary-row" style="padding:0;"></div>
           <div style="margin-top: 8px;">
@@ -309,7 +309,7 @@ export function renderInvoiceHtmlFromPayload(
             </div>
 
             ${
-              remainingAmount > 0
+              isCashOnDelivery || remainingAmount > 0
                 ? `
             <div style="display:flex; justify-content:space-between; font-size:14px;">
               <span>المتبقي</span>

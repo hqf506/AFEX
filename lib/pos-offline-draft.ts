@@ -1,10 +1,6 @@
 import type { InvoiceLineItem } from '@/lib/invoices/items'
-import {
-  toApiPaymentMethod,
-  type PosPaymentMethod,
-} from '@/lib/invoices/payment-method'
+import type { PosPaymentMethod } from '@/lib/invoices/payment-method'
 import type { ActivePosEmployee } from '@/lib/pos-employee-session'
-import { supabase } from '@/lib/supabase/client'
 
 export const POS_OFFLINE_DRAFTS_STORAGE_KEY = 'leather_fix_pos_offline_drafts'
 export const POS_OFFLINE_DRAFTS_UPDATED_EVENT =
@@ -57,36 +53,6 @@ type CreateOrderResponse = {
 export type PosOfflineDraftSyncState = {
   draftsCount: number
   isSyncing: boolean
-}
-
-async function resolveCurrentTenantId() {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (userError || !user) {
-    throw new Error(userError?.message || 'تعذر تحديد المستخدم الحالي')
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profileError) {
-    throw new Error(profileError.message)
-  }
-
-  const tenantId =
-    typeof profile?.tenant_id === 'string' ? profile.tenant_id : ''
-
-  if (!tenantId) {
-    throw new Error('تعذر تحديد نطاق المنشأة لمزامنة المسودة')
-  }
-
-  return tenantId
 }
 
 function createLocalDraftId() {
@@ -265,7 +231,10 @@ async function sendOfflineDraft(draft: PosOfflineInvoiceDraft) {
       customerPhone: draft.customerPhone,
       clientIdempotencyKey: draft.clientIdempotencyKey,
       employee_id: draft.employee?.id ?? null,
-      paymentMethod: toApiPaymentMethod(draft.paymentMethod),
+      paymentMethod: draft.paymentMethod,
+      cashReceived: draft.totalsSnapshot.numericCashReceived,
+      remainingFromCustomer: draft.totalsSnapshot.remainingFromCustomer,
+      cashChange: draft.totalsSnapshot.cashChange,
       discountAmount: draft.totalsSnapshot.discountAmount,
       taxAmount: draft.totalsSnapshot.taxAmount,
       note: draft.note,
@@ -285,29 +254,6 @@ async function sendOfflineDraft(draft: PosOfflineInvoiceDraft) {
 
   if (!invoiceId) {
     return
-  }
-
-  const tenantId = await resolveCurrentTenantId()
-
-  const { error: cashSnapshotError } = await supabase
-    .from('invoices')
-    .update({
-      cash_received:
-        draft.paymentMethod === 'cash'
-          ? draft.totalsSnapshot.numericCashReceived
-          : 0,
-      remaining_from_customer:
-        draft.paymentMethod === 'cash'
-          ? draft.totalsSnapshot.remainingFromCustomer
-          : 0,
-      cash_change:
-        draft.paymentMethod === 'cash' ? draft.totalsSnapshot.cashChange : 0,
-    })
-    .eq('id', invoiceId)
-    .eq('tenant_id', tenantId)
-
-  if (cashSnapshotError) {
-    console.warn('[POS OFFLINE] Cash snapshot update failed.', cashSnapshotError)
   }
 
   await fetch('/api/invoices/cost-snapshot', {

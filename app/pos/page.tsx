@@ -15,6 +15,10 @@ import { prefetchBranchInvoiceCatalog } from '@/lib/invoices/catalog'
 import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
 import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
 import {
+  clearCompletedInvoiceSaleState,
+  hasCompletedInvoiceSaleState,
+} from '@/lib/invoices/sale-reset'
+import {
   mapOrderSummaryToOrderRecord,
   type OrderRecord,
 } from '@/lib/orders/orders-page'
@@ -648,6 +652,11 @@ export default function PosPage() {
 
   const handleStartSale = () => {
     triggerPosClickFeedback()
+
+    if (hasCompletedInvoiceSaleState()) {
+      clearCompletedInvoiceSaleState()
+    }
+
     router.push('/pos/sale/customer')
   }
 

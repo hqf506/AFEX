@@ -67,7 +67,10 @@ type CreateOrderBody = {
   branch_id?: string | null
   customerName?: string
   customerPhone?: string
-  paymentMethod?: 'cash' | 'card' | 'transfer'
+  paymentMethod?: 'cash' | 'card' | 'transfer' | 'mada' | 'visa' | 'cod'
+  cashReceived?: number
+  remainingFromCustomer?: number
+  cashChange?: number
   discountAmount?: number
   taxAmount?: number
   note?: string
@@ -111,6 +114,33 @@ type CreatedOrderInvoiceItemRecord = {
 
 type OrderCreationServiceClient = {
   from: ReturnType<typeof createClient>['from']
+}
+type InvoicePaymentSelectQuery = {
+  eq(column: string, value: string): InvoicePaymentSelectQuery
+  maybeSingle(): Promise<{
+    data: { total?: unknown } | null
+    error: SupabaseErrorLike | null
+  }>
+}
+type InvoicePaymentUpdateQuery = {
+  eq(column: string, value: string): InvoicePaymentUpdateQuery
+  select(columns: string): {
+    maybeSingle(): Promise<{
+      data: {
+        payment_method?: unknown
+        cash_received?: unknown
+        remaining_from_customer?: unknown
+        cash_change?: unknown
+      } | null
+      error: SupabaseErrorLike | null
+    }>
+  }
+}
+type InvoicePaymentPersistenceClient = {
+  from(table: 'invoices'): {
+    select(columns: string): InvoicePaymentSelectQuery
+    update(values: Record<string, string | number>): InvoicePaymentUpdateQuery
+  }
 }
 
 interface OrdersFilterQuery {
@@ -495,6 +525,19 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as CreateOrderBody
     const items = Array.isArray(body.items) ? body.items : []
     const rpcName = 'create_invoice_with_items_safe'
+    const paymentMethod = normalizeCreateOrderPaymentMethod(body.paymentMethod)
+    const paymentSnapshot = normalizeCreateOrderPaymentSnapshot(body)
+
+    if (paymentSnapshot === false) {
+      return jsonWithAuthCookies(
+        auth.response,
+        {
+          success: false,
+          message: 'بيانات الدفع غير صالحة',
+        },
+        400
+      )
+    }
     const clientIdempotencyKey = normalizeClientIdempotencyKey(
       body.clientIdempotencyKey
     )
@@ -804,9 +847,11 @@ export async function POST(request: NextRequest) {
         typeof body.customerPhone === 'string' ? body.customerPhone : '',
       p_customer_notes: '',
       p_payment_method:
-        body.paymentMethod === 'card' || body.paymentMethod === 'transfer'
-          ? body.paymentMethod
-          : 'cash',
+        paymentMethod === 'mada' || paymentMethod === 'visa'
+          ? 'card'
+          : paymentMethod === 'cod'
+          ? 'cash'
+          : paymentMethod,
       p_discount:
         typeof body.discountAmount === 'number' ? body.discountAmount : 0,
       p_tax: typeof body.taxAmount === 'number' ? body.taxAmount : 0,
@@ -881,6 +926,21 @@ export async function POST(request: NextRequest) {
     const invoiceId = stringValue(createdOrderRecord.invoice_id)
     const invoiceNumber = stringValue(createdOrderRecord.invoice_number)
     const totalValue = Number(createdOrderRecord.total)
+
+    if (!invoiceId) {
+      throw new Error('Order creation did not return an invoice id')
+    }
+
+    if (paymentSnapshot) {
+      await persistAndConfirmInvoicePaymentSnapshot({
+        supabase: serviceSupabase,
+        tenantId: profileTenantId,
+        invoiceId,
+        paymentMethod,
+        cashReceived: paymentSnapshot.cashReceived,
+        invoiceTotal: totalValue,
+      })
+    }
 
     if (employeeResolution.posEmployeeId && orderId) {
       const { error: updateEmployeeError } = await serviceSupabase
@@ -1365,6 +1425,147 @@ function numberValue(value: unknown) {
       : NaN
 
   return Number.isFinite(numericValue) ? numericValue : 0
+}
+
+type CreateOrderPaymentMethod = NonNullable<CreateOrderBody['paymentMethod']>
+
+function normalizeCreateOrderPaymentMethod(
+  value: CreateOrderBody['paymentMethod']
+): CreateOrderPaymentMethod {
+  if (
+    value === 'card' ||
+    value === 'transfer' ||
+    value === 'mada' ||
+    value === 'visa' ||
+    value === 'cod'
+  ) {
+    return value
+  }
+
+  return 'cash'
+}
+
+function normalizeCreateOrderPaymentSnapshot(body: CreateOrderBody) {
+  const values = [
+    body.cashReceived,
+    body.remainingFromCustomer,
+    body.cashChange,
+  ]
+  const suppliedValues = values.filter((value) => value !== undefined)
+
+  if (suppliedValues.length === 0) {
+    return null
+  }
+
+  if (
+    suppliedValues.length !== values.length ||
+    suppliedValues.some(
+      (value) => typeof value !== 'number' || !Number.isFinite(value) || value < 0
+    )
+  ) {
+    return false
+  }
+
+  return {
+    cashReceived: body.cashReceived as number,
+    remainingFromCustomer: body.remainingFromCustomer as number,
+    cashChange: body.cashChange as number,
+  }
+}
+
+async function persistAndConfirmInvoicePaymentSnapshot({
+  supabase,
+  tenantId,
+  invoiceId,
+  paymentMethod,
+  cashReceived,
+  invoiceTotal,
+}: {
+  supabase: unknown
+  tenantId: string
+  invoiceId: string
+  paymentMethod: CreateOrderPaymentMethod
+  cashReceived: number
+  invoiceTotal?: number
+}) {
+  const client = supabase as InvoicePaymentPersistenceClient
+  let total = Number.isFinite(invoiceTotal)
+    ? roundCurrency(Math.max(invoiceTotal as number, 0))
+    : null
+
+  if (total === null) {
+    const { data: invoice, error: invoiceError } = await client
+      .from('invoices')
+      .select('total')
+      .eq('id', invoiceId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+    if (invoiceError || !invoice) {
+      throw invoiceError || new Error('Created invoice was not found')
+    }
+
+    total = roundCurrency(Math.max(numberValue(invoice.total), 0))
+  }
+  const normalizedReceived = roundCurrency(Math.max(cashReceived, 0))
+  const isCard =
+    paymentMethod === 'mada' ||
+    paymentMethod === 'visa' ||
+    paymentMethod === 'card'
+  const persistedPaymentMethod = isCard ? 'card' : paymentMethod
+  const persistedCashReceived = isCard
+    ? total
+    : paymentMethod === 'cod'
+    ? Math.min(normalizedReceived, total)
+    : paymentMethod === 'transfer'
+    ? 0
+    : normalizedReceived
+  const persistedRemaining =
+    paymentMethod === 'cod' || paymentMethod === 'cash'
+      ? roundCurrency(Math.max(total - persistedCashReceived, 0))
+      : paymentMethod === 'transfer'
+      ? total
+      : 0
+  const persistedCashChange =
+    paymentMethod === 'cash'
+      ? roundCurrency(Math.max(persistedCashReceived - total, 0))
+      : 0
+
+  const { data: confirmedInvoice, error: updateError } = await client
+    .from('invoices')
+    .update({
+      payment_method: persistedPaymentMethod,
+      cash_received: persistedCashReceived,
+      remaining_from_customer: persistedRemaining,
+      cash_change: persistedCashChange,
+    })
+    .eq('id', invoiceId)
+    .eq('tenant_id', tenantId)
+    .select(
+      'payment_method, cash_received, remaining_from_customer, cash_change'
+    )
+    .maybeSingle()
+
+  if (updateError || !confirmedInvoice) {
+    throw updateError || new Error('Invoice payment snapshot was not persisted')
+  }
+
+  const snapshotMatches =
+    confirmedInvoice.payment_method === persistedPaymentMethod &&
+    roundCurrency(numberValue(confirmedInvoice.cash_received)) ===
+      persistedCashReceived &&
+    roundCurrency(numberValue(confirmedInvoice.remaining_from_customer)) ===
+      persistedRemaining &&
+    roundCurrency(numberValue(confirmedInvoice.cash_change)) ===
+      persistedCashChange
+
+  if (!snapshotMatches) {
+    throw new Error('Invoice payment snapshot confirmation failed')
+  }
+}
+
+function roundCurrency(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
 function parseOrdersQuery(request: NextRequest): OrdersApiQuery {

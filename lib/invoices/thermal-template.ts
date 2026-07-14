@@ -277,11 +277,13 @@ export function renderThermalInvoiceHtml(
     })
     .join('')
 
-  const cashDetailsHtml = isCash
+  const cashDetailsHtml = isCash || isCashOnDelivery
     ? `
       <div class="divider"></div>
       <div class="row">
-        <span>تفاصيل الدفع النقدي</span>
+        <span>${
+          isCashOnDelivery ? 'تفاصيل الدفع عند الاستلام' : 'تفاصيل الدفع النقدي'
+        }</span>
         <span></span>
       </div>
       <div class="row">
@@ -289,7 +291,7 @@ export function renderThermalInvoiceHtml(
         <span>${formatMoney(cashReceivedAmount)}</span>
       </div>
       ${
-        remainingAmount > 0
+        isCashOnDelivery || remainingAmount > 0
           ? `
       <div class="row">
         <span>المتبقي:</span>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
 import {
   calculateInvoiceSubtotal,
   parseCashReceivedAmount,
@@ -11,7 +10,6 @@ import {
 import {
   isReceivedAmountEditable,
   normalizeUiPaymentMethod,
-  toApiPaymentMethod,
   type PosPaymentMethod,
 } from '@/lib/invoices/payment-method'
 import {
@@ -24,7 +22,6 @@ import {
   savePosOfflineInvoiceDraft,
 } from '@/lib/pos-offline-draft'
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
-import { useAuthState } from '@/components/auth-state-provider'
 
 export type CheckoutDiscountOption = {
   id: string
@@ -66,8 +63,6 @@ export function useInvoiceCheckout({
   vatSetting = null,
   onInvoiceCreated,
 }: UseInvoiceCheckoutOptions) {
-  const authState = useAuthState()
-  const tenantId = authState.profile?.tenant_id || null
   const [paymentMethod, setPaymentMethodState] =
     useState<PosPaymentMethod>('mada')
   const [selectedDiscount, setSelectedDiscountState] =
@@ -128,7 +123,10 @@ export function useInvoiceCheckout({
     }
 
     if (safePaymentMethod === 'cod') {
-      return '0'
+      return Math.min(
+        Math.max(parseCashReceivedAmount(cashReceivedInput), 0),
+        finalTotal
+      ).toString()
     }
 
     return cashReceivedInput
@@ -142,7 +140,10 @@ export function useInvoiceCheckout({
     }
 
     if (safePaymentMethod === 'cod') {
-      return 0
+      return Math.min(
+        Math.max(parseCashReceivedAmount(cashReceivedInput), 0),
+        finalTotal
+      )
     }
 
     return parseCashReceivedAmount(cashReceivedInput)
@@ -151,11 +152,7 @@ export function useInvoiceCheckout({
   const remainingFromCustomer = useMemo(() => {
     const safePaymentMethod = normalizeUiPaymentMethod(paymentMethod)
 
-    if (safePaymentMethod === 'cod') {
-      return finalTotal
-    }
-
-    if (safePaymentMethod !== 'cash') {
+    if (safePaymentMethod !== 'cash' && safePaymentMethod !== 'cod') {
       return 0
     }
 
@@ -196,6 +193,17 @@ export function useInvoiceCheckout({
   }
 
   const setCashReceived = (value: string) => {
+    if (normalizeUiPaymentMethod(paymentMethod) === 'cod' && value.trim()) {
+      const numericValue = Number(value)
+
+      if (Number.isFinite(numericValue)) {
+        setCashReceivedInput(
+          Math.min(Math.max(numericValue, 0), finalTotal).toString()
+        )
+        return
+      }
+    }
+
     setCashReceivedInput(value)
   }
 
@@ -324,7 +332,10 @@ export function useInvoiceCheckout({
         branch_id: branchId,
         customerName,
         customerPhone,
-        paymentMethod: toApiPaymentMethod(safePaymentMethod),
+        paymentMethod: safePaymentMethod,
+        cashReceived: numericCashReceived,
+        remainingFromCustomer,
+        cashChange,
         discountAmount,
         taxAmount,
         note,
@@ -355,23 +366,6 @@ export function useInvoiceCheckout({
     const result = createOrderResult.data
 
     if (result?.invoice_id) {
-      if (!tenantId) {
-        setLoading(false)
-        setErrorMessage('ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ¯ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ù†Ø´Ø£Ø© Ù„Ø­ÙØ¸ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯ÙØ¹')
-        return
-      }
-
-      await supabase
-        .from('invoices')
-        .update({
-          cash_received: safePaymentMethod === 'cash' ? numericCashReceived : 0,
-          remaining_from_customer:
-            safePaymentMethod === 'cash' ? remainingFromCustomer : 0,
-          cash_change: safePaymentMethod === 'cash' ? cashChange : 0,
-        })
-        .eq('id', result.invoice_id)
-        .eq('tenant_id', tenantId)
-
       await fetch('/api/invoices/cost-snapshot', {
         method: 'POST',
         headers: {

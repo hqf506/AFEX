@@ -13,6 +13,7 @@ export function ReceiptView({
   snapshot,
   storeName = 'AFEX',
 }: ReceiptViewProps) {
+  const isCashOnDelivery = snapshot.paymentMethod === 'cod'
   const issuedAtLabel = new Intl.DateTimeFormat('ar-SA', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -53,6 +54,18 @@ export function ReceiptView({
           label="طريقة الدفع"
           value={getPaymentMethodLabel(snapshot.paymentMethod)}
         />
+        {isCashOnDelivery ? (
+          <>
+            <ReceiptRow
+              label="المبلغ المدفوع"
+              value={formatCurrency(snapshot.numericCashReceived)}
+            />
+            <ReceiptRow
+              label="المتبقي"
+              value={formatCurrency(snapshot.remainingFromCustomer)}
+            />
+          </>
+        ) : null}
       </div>
 
       <div className="mt-4 border-t border-slate-200 pt-3">

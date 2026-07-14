@@ -8,12 +8,7 @@ import {
   readPosOfflineInvoiceDrafts,
   type PosOfflineInvoiceDraft,
 } from '@/lib/pos-offline-draft'
-import {
-  getPaymentMethodLabel,
-  toApiPaymentMethod,
-} from '@/lib/invoices/payment-method'
-import { supabase } from '@/lib/supabase/client'
-import { useAuthState } from '@/components/auth-state-provider'
+import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 
 type CreateOrderResponse = {
   success?: boolean
@@ -51,8 +46,6 @@ function getDraftPaymentStatus(draft: PosOfflineInvoiceDraft) {
 }
 
 export default function PosOfflineDraftsPage() {
-  const authState = useAuthState()
-  const tenantId = authState.profile?.tenant_id || null
   const [drafts, setDrafts] = useState<PosOfflineInvoiceDraft[]>([])
   const [draftsLoaded, setDraftsLoaded] = useState(false)
   const [syncingDraftId, setSyncingDraftId] = useState<string | null>(null)
@@ -117,7 +110,10 @@ export default function PosOfflineDraftsPage() {
           employee_id: draft.employee?.id ?? null,
           customerName: draft.customerName,
           customerPhone: draft.customerPhone,
-          paymentMethod: toApiPaymentMethod(draft.paymentMethod),
+          paymentMethod: draft.paymentMethod,
+          cashReceived: draft.totalsSnapshot.numericCashReceived,
+          remainingFromCustomer: draft.totalsSnapshot.remainingFromCustomer,
+          cashChange: draft.totalsSnapshot.cashChange,
           discountAmount: draft.totalsSnapshot.discountAmount,
           taxAmount: draft.totalsSnapshot.taxAmount,
           note: draft.note,
@@ -138,35 +134,6 @@ export default function PosOfflineDraftsPage() {
       const invoiceId = result.data.invoice_id || result.data.invoiceId || ''
 
       if (invoiceId) {
-        if (!tenantId) {
-          throw new Error('تعذر تحديد نطاق المنشأة لحفظ بيانات الدفع')
-        }
-
-        const { error } = await supabase
-          .from('invoices')
-          .update({
-            cash_received:
-              draft.paymentMethod === 'cash'
-                ? draft.totalsSnapshot.numericCashReceived
-                : 0,
-            remaining_from_customer:
-              draft.paymentMethod === 'cash'
-                ? draft.totalsSnapshot.remainingFromCustomer
-                : 0,
-            cash_change:
-              draft.paymentMethod === 'cash'
-                ? draft.totalsSnapshot.cashChange
-                : 0,
-          })
-          .eq('id', invoiceId)
-          .eq('tenant_id', tenantId)
-
-        if (error) {
-          console.warn('[POS OFFLINE] Cash snapshot update failed.', {
-            code: error.code,
-          })
-        }
-
         await fetch('/api/invoices/cost-snapshot', {
           method: 'POST',
           headers: {

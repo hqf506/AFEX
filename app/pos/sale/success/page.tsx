@@ -15,8 +15,7 @@ import {
 } from '@/lib/invoices/success'
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
-import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
-import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
+import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -396,10 +395,8 @@ export default function PosSaleSuccessPage() {
   }
 
   const handleNewSale = () => {
-    localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
-    localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
-    sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
-    router.replace('/pos/sale/customer')
+    clearCompletedInvoiceSaleState()
+    window.location.replace('/pos/sale/customer')
   }
 
   const handleWhatsApp = () => {
@@ -684,6 +681,18 @@ export default function PosSaleSuccessPage() {
                 <ReceiptLine label="العميل" value={snapshot.customerName || '—'} />
                 <ReceiptLine label="الجوال" value={snapshot.customerPhone || '—'} />
                 <ReceiptLine label="الدفع" value={getPaymentMethodLabel(snapshot.paymentMethod)} />
+                {snapshot.paymentMethod === 'cod' ? (
+                  <>
+                    <ReceiptLine
+                      label="المبلغ المدفوع"
+                      value={formatCurrency(snapshot.numericCashReceived)}
+                    />
+                    <ReceiptLine
+                      label="المتبقي"
+                      value={formatCurrency(snapshot.remainingFromCustomer)}
+                    />
+                  </>
+                ) : null}
                 <ReceiptLine label="التاريخ" value={issuedAtLabel} />
               </div>
 

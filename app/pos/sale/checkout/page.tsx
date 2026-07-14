@@ -1103,15 +1103,16 @@ export default function PosSaleCheckoutPage() {
               <span>الضريبة</span>
             </div>
             {isCashOnDelivery ? (
-              <div className="flex items-center justify-between gap-3">
-                <span>
-                  {(checkout.remainingFromCustomer > 0
-                    ? checkout.remainingFromCustomer
-                    : checkout.finalTotal
-                  ).toFixed(2)} ريال
-                </span>
-                <span>المتبقي عند الاستلام</span>
-              </div>
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <span>{checkout.numericCashReceived.toFixed(2)} ريال</span>
+                  <span>المبلغ المدفوع</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>{checkout.remainingFromCustomer.toFixed(2)} ريال</span>
+                  <span>المتبقي عند الاستلام</span>
+                </div>
+              </>
             ) : null}
           </div>
 

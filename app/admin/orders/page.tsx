@@ -1456,7 +1456,10 @@ export default function OrdersPage() {
       invoiceNumber: order.invoice_number,
       orderNumber: order.order_number,
       issuedAt: order.created_at,
-      paymentMethod: order.payment_method_key || order.payment_method,
+      paymentMethod:
+        order.payment_method_key === 'unknown'
+          ? order.payment_method
+          : order.payment_method_key,
       invoiceItems: order.items.map((item) => ({
         item_name: fixArabic(item.item_name),
         name: fixArabic(item.item_name),
