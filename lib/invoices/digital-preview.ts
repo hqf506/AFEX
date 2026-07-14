@@ -26,6 +26,7 @@ function getKnownDigitalInvoicePaymentMethod(
 
   if (
     normalized === 'cod' ||
+    normalized === 'on_delivery' ||
     normalized === 'on delivery' ||
     normalized === 'cash on delivery' ||
     raw === 'عند الاستلام' ||

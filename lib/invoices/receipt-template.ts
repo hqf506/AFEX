@@ -1,4 +1,7 @@
-import { getDigitalInvoicePaymentMethodLabel } from '@/lib/invoices/digital-preview'
+import {
+  getDigitalInvoicePaymentMethodLabel,
+  normalizeDigitalInvoicePaymentMethod,
+} from '@/lib/invoices/digital-preview'
 
 export type ReceiptTemplateItem = {
   id?: string | number | null
@@ -264,10 +267,10 @@ export function renderInvoiceHtmlFromPayload(
   const vatAmount = Number(payload.taxAmount ?? 0)
   const amountDue = Number(payload.finalTotal ?? payload.total ?? 0)
   const paymentMethodValue = payload.paymentMethod || payload.payment_method
-  const isCash =
-    paymentMethodValue === 'cash' || paymentMethodValue === 'نقدي'
-  const isCashOnDelivery =
-    paymentMethodValue === 'cod' || paymentMethodValue === 'عند الاستلام'
+  const normalizedPaymentMethod =
+    normalizeDigitalInvoicePaymentMethod(paymentMethodValue)
+  const isCash = normalizedPaymentMethod === 'cash'
+  const isCashOnDelivery = normalizedPaymentMethod === 'cod'
   const cashReceivedAmount = Number(
     payload.cashReceived ?? payload.numericCashReceived ?? 0
   )
@@ -300,11 +303,11 @@ export function renderInvoiceHtmlFromPayload(
           <div class="summary-row" style="padding:0;"></div>
           <div style="margin-top: 8px;">
             <div style="font-weight:500; margin-bottom:4px;">
-              تفاصيل العملية
+              تفاصيل عملية الدفع
             </div>
 
             <div style="display:flex; justify-content:space-between; font-size:14px;">
-              <span>المبلغ المدفوع</span>
+              <span>المبلغ المستلم</span>
               <span>${formatMoney(cashReceivedAmount)}</span>
             </div>
 

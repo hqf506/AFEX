@@ -11,6 +11,7 @@ import {
   generateInvoicePdfFile,
   type InvoicePdfPayload,
 } from '@/lib/invoices/pdf'
+import { normalizeDigitalInvoicePaymentMethod } from '@/lib/invoices/digital-preview'
 import { isFullAdmin } from '@/lib/permissions'
 import { maskId, maskPhone, redactSensitive } from '@/lib/security/redaction'
 import { logWhatsAppSend } from '@/lib/whatsapp/logging'
@@ -287,15 +288,7 @@ function readNumber(value: number | string | null | undefined) {
 }
 
 function normalizePaymentMethod(value: string | null | undefined) {
-  if (value === 'mada' || value === 'visa' || value === 'cod') {
-    return value
-  }
-
-  if (value === 'card' || value === 'transfer') {
-    return value
-  }
-
-  return 'cash'
+  return normalizeDigitalInvoicePaymentMethod(value || undefined)
 }
 
 function normalizeInvoiceRecord(value: NotificationOrderRow['invoices']) {

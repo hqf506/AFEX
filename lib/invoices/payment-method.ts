@@ -7,7 +7,7 @@ export const PAYMENT_METHODS: Array<{
   { id: 'mada', label: 'مدى' },
   { id: 'cash', label: 'نقدي' },
   { id: 'visa', label: 'فيزا' },
-  { id: 'cod', label: 'عند الاستلام' },
+  { id: 'cod', label: 'الدفع عند الاستلام' },
 ]
 
 export function normalizeUiPaymentMethod(method?: string): PosPaymentMethod {
@@ -17,7 +17,7 @@ export function normalizeUiPaymentMethod(method?: string): PosPaymentMethod {
 
   if (value === 'cash') return 'cash'
   if (value === 'visa') return 'visa'
-  if (value === 'cod') return 'cod'
+  if (value === 'cod' || value === 'on_delivery') return 'cod'
   if (value === 'card' || value === 'mada') return 'mada'
 
   return 'mada'

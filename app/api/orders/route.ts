@@ -16,6 +16,7 @@ import {
   generateInvoicePdfFile,
   type InvoicePdfPayload,
 } from '@/lib/invoices/pdf'
+import { normalizeDigitalInvoicePaymentMethod } from '@/lib/invoices/digital-preview'
 import {
   disabledFeatureResponse,
   ORDERS_FEATURE_DISABLED_MESSAGE,
@@ -67,7 +68,14 @@ type CreateOrderBody = {
   branch_id?: string | null
   customerName?: string
   customerPhone?: string
-  paymentMethod?: 'cash' | 'card' | 'transfer' | 'mada' | 'visa' | 'cod'
+  paymentMethod?:
+    | 'cash'
+    | 'card'
+    | 'transfer'
+    | 'mada'
+    | 'visa'
+    | 'cod'
+    | 'on_delivery'
   cashReceived?: number
   remainingFromCustomer?: number
   cashChange?: number
@@ -849,7 +857,7 @@ export async function POST(request: NextRequest) {
       p_payment_method:
         paymentMethod === 'mada' || paymentMethod === 'visa'
           ? 'card'
-          : paymentMethod === 'cod'
+          : paymentMethod === 'cod' || paymentMethod === 'on_delivery'
           ? 'cash'
           : paymentMethod,
       p_discount:
@@ -931,15 +939,27 @@ export async function POST(request: NextRequest) {
       throw new Error('Order creation did not return an invoice id')
     }
 
+    let paymentSnapshotError: unknown = null
+
     if (paymentSnapshot) {
-      await persistAndConfirmInvoicePaymentSnapshot({
-        supabase: serviceSupabase,
-        tenantId: profileTenantId,
-        invoiceId,
-        paymentMethod,
-        cashReceived: paymentSnapshot.cashReceived,
-        invoiceTotal: totalValue,
-      })
+      try {
+        await persistAndConfirmInvoicePaymentSnapshot({
+          supabase: serviceSupabase,
+          tenantId: profileTenantId,
+          invoiceId,
+          paymentMethod,
+          cashReceived: paymentSnapshot.cashReceived,
+          invoiceTotal: totalValue,
+        })
+      } catch (error) {
+        paymentSnapshotError = error
+        console.error('[api/orders] invoice payment snapshot persistence failed', {
+          orderId: maskId(orderId),
+          invoiceId: maskId(invoiceId),
+          paymentMethod: getPersistedInvoicePaymentMethod(paymentMethod),
+          message: error instanceof Error ? error.message : String(error),
+        })
+      }
     }
 
     if (employeeResolution.posEmployeeId && orderId) {
@@ -1024,36 +1044,56 @@ export async function POST(request: NextRequest) {
         created_by_employee_id: createdByEmployeeId || null,
         branch_id: branchId || null,
         items_count: validItems.length,
-        payment_method: rpcPayload.p_payment_method,
+        payment_method: getPersistedInvoicePaymentMethod(paymentMethod),
         total: Number.isFinite(totalValue) ? totalValue : null,
         source: 'pos',
       },
     })
 
-    after(async () => {
-      try {
-        await sendCreatedInvoicePdfOverWhatsApp({
-          auth,
-          request,
-          supabase: serviceSupabase,
-          tenantId: profileTenantId,
-          branchId,
-          orderId,
-        })
-      } catch (error) {
-        console.error('[api/orders] background invoice PDF WhatsApp task failed', {
-          orderId: maskId(orderId),
+    if (paymentSnapshotError) {
+      await writeAuditLog({
+        auth,
+        request,
+        action: 'invoice.payment_snapshot_failed',
+        entityType: 'invoice',
+        entityId: invoiceId,
+        branchId,
+        metadata: {
+          order_id: orderId || null,
+          invoice_number: invoiceNumber || null,
+          payment_method: getPersistedInvoicePaymentMethod(paymentMethod),
           error:
-            error instanceof Error
-              ? {
-                  name: error.name,
-                  message: error.message,
-                  stack: error.stack,
-                }
-              : String(error),
-        })
-      }
-    })
+            paymentSnapshotError instanceof Error
+              ? paymentSnapshotError.message
+              : String(paymentSnapshotError),
+        },
+      })
+    } else {
+      after(async () => {
+        try {
+          await sendCreatedInvoicePdfOverWhatsApp({
+            auth,
+            request,
+            supabase: serviceSupabase,
+            tenantId: profileTenantId,
+            branchId,
+            orderId,
+          })
+        } catch (error) {
+          console.error('[api/orders] background invoice PDF WhatsApp task failed', {
+            orderId: maskId(orderId),
+            error:
+              error instanceof Error
+                ? {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack,
+                  }
+                : String(error),
+          })
+        }
+      })
+    }
 
     return jsonWithAuthCookies(auth.response, {
       success: true,
@@ -1086,6 +1126,11 @@ async function sendCreatedInvoicePdfOverWhatsApp({
   branchId: string
   orderId: string
 }) {
+  let deliveryStage: 'preflight' | 'pdf_generation' | 'whatsapp_send' =
+    'preflight'
+  let deliveryInvoiceId: string | null = null
+  let deliveryInvoiceNumber: string | null = null
+
   try {
     if (!orderId) {
       console.info('[api/orders] skip automatic invoice PDF WhatsApp: missing order id')
@@ -1243,6 +1288,8 @@ async function sendCreatedInvoicePdfOverWhatsApp({
     }
 
     const invoiceNumber = invoice.invoice_number?.trim() || ''
+    deliveryInvoiceId = invoice.id || null
+    deliveryInvoiceNumber = invoiceNumber || null
     const safeInvoiceNumber = `\u200E${invoiceNumber}\u200E`
     const pdfPayload: InvoicePdfPayload = {
       invoiceItems,
@@ -1265,7 +1312,9 @@ async function sendCreatedInvoicePdfOverWhatsApp({
       digitalInvoiceSettings: resolveDigitalInvoiceTemplateSettings(settings),
     }
 
+    deliveryStage = 'pdf_generation'
     const generatedFile = await generateInvoicePdfFile(pdfPayload)
+    deliveryStage = 'whatsapp_send'
     const result = await sendWhatsAppFile(
       {
         to: customerPhone,
@@ -1362,7 +1411,30 @@ async function sendCreatedInvoicePdfOverWhatsApp({
               message: error.message,
               stack: error.stack,
             }
-          : String(error),
+            : String(error),
+    })
+    await writeAuditLog({
+      auth,
+      request,
+      action:
+        deliveryStage === 'pdf_generation'
+          ? 'invoice.pdf_generation_failed'
+          : 'whatsapp.message_failed',
+      entityType:
+        deliveryStage === 'pdf_generation' ? 'invoice' : 'whatsapp_message',
+      entityId: deliveryInvoiceId || orderId || null,
+      branchId,
+      metadata: {
+        channel: 'whatsapp',
+        mode: 'file',
+        type: 'invoice_pdf',
+        status: 'failed',
+        stage: deliveryStage,
+        order_id: orderId,
+        invoice_id: deliveryInvoiceId,
+        invoice_number: deliveryInvoiceNumber,
+        error: error instanceof Error ? error.message : String(error),
+      },
     })
   }
 }
@@ -1405,15 +1477,7 @@ function normalizeCreatedOrderInvoiceItems(value: unknown): InvoicePdfPayload['i
 function normalizeInvoicePdfPaymentMethod(
   value: string | null | undefined
 ): InvoicePdfPayload['paymentMethod'] {
-  if (value === 'card' || value === 'transfer' || value === 'cash') {
-    return value
-  }
-
-  if (value === 'mada' || value === 'visa' || value === 'cod') {
-    return value
-  }
-
-  return 'cash'
+  return normalizeDigitalInvoicePaymentMethod(value || undefined)
 }
 
 function numberValue(value: unknown) {
@@ -1437,7 +1501,8 @@ function normalizeCreateOrderPaymentMethod(
     value === 'transfer' ||
     value === 'mada' ||
     value === 'visa' ||
-    value === 'cod'
+    value === 'cod' ||
+    value === 'on_delivery'
   ) {
     return value
   }
@@ -1471,6 +1536,27 @@ function normalizeCreateOrderPaymentSnapshot(body: CreateOrderBody) {
     remainingFromCustomer: body.remainingFromCustomer as number,
     cashChange: body.cashChange as number,
   }
+}
+
+function getPersistedInvoicePaymentMethod(
+  paymentMethod: CreateOrderPaymentMethod
+) {
+  if (
+    paymentMethod === 'mada' ||
+    paymentMethod === 'visa'
+  ) {
+    return paymentMethod
+  }
+
+  if (paymentMethod === 'card') {
+    return 'card'
+  }
+
+  if (paymentMethod === 'cod' || paymentMethod === 'on_delivery') {
+    return 'on_delivery'
+  }
+
+  return paymentMethod
 }
 
 async function persistAndConfirmInvoicePaymentSnapshot({
@@ -1512,16 +1598,18 @@ async function persistAndConfirmInvoicePaymentSnapshot({
     paymentMethod === 'mada' ||
     paymentMethod === 'visa' ||
     paymentMethod === 'card'
-  const persistedPaymentMethod = isCard ? 'card' : paymentMethod
+  const persistedPaymentMethod = getPersistedInvoicePaymentMethod(paymentMethod)
   const persistedCashReceived = isCard
     ? total
-    : paymentMethod === 'cod'
+    : paymentMethod === 'cod' || paymentMethod === 'on_delivery'
     ? Math.min(normalizedReceived, total)
     : paymentMethod === 'transfer'
     ? 0
     : normalizedReceived
   const persistedRemaining =
-    paymentMethod === 'cod' || paymentMethod === 'cash'
+    paymentMethod === 'cod' ||
+    paymentMethod === 'on_delivery' ||
+    paymentMethod === 'cash'
       ? roundCurrency(Math.max(total - persistedCashReceived, 0))
       : paymentMethod === 'transfer'
       ? total
