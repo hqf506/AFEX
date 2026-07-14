@@ -7,7 +7,7 @@ import { applyTenantFilter } from '@/lib/tenant-filter'
 const DEFAULT_PAGE_SIZE = 10
 const MAX_PAGE_SIZE = 50
 const INVENTORY_MOVEMENT_SELECT =
-  'id, branch_id, catalog_item_id, movement_type, quantity_delta, source_type, notes, created_at, item_name, branch_name, resolved_employee_name, user_name, created_by_name, actor_name, actor_type'
+  'id, branch_id, catalog_item_id, movement_type, quantity_delta, source_type, notes, created_at, item_name, branch_name, resolved_employee_name, created_by_name, actor_name, actor_type'
 
 function positiveInteger(value: string | null, fallback: number) {
   const parsed = Number(value)
