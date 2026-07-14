@@ -309,6 +309,10 @@ function ProtectedPosShellLayout({
     )
   }
 
+  if (!requireEmployee) {
+    return <PosShellViewport>{children}</PosShellViewport>
+  }
+
   return (
     <PosShellViewport>
       <div className="page-wrap flex h-full w-full min-h-0 flex-col overflow-y-auto overscroll-contain px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-[max(env(safe-area-inset-top),0.5rem)] sm:px-3 md:px-4 lg:overflow-hidden">
