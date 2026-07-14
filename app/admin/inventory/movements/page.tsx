@@ -163,6 +163,41 @@ function getMovementTypeLabel(value: string) {
   )
 }
 
+const SYSTEM_NOTE_LABELS: Record<string, string> = {
+  'pos sale stock deduction': 'تم خصم الكمية بسبب عملية بيع',
+  'خصم تلقائي من بيع pos': 'تم خصم الكمية بسبب عملية بيع',
+  'manual stock increase': 'تمت زيادة الكمية يدويًا',
+  'manual stock decrease': 'تم تخفيض الكمية يدويًا',
+  'stock received': 'تمت إضافة الكمية إلى المخزون',
+  'transfer in': 'تم استلام الكمية من فرع آخر',
+  'transfer out': 'تم تحويل الكمية إلى فرع آخر',
+  'order cancelled stock restore': 'تمت إعادة الكمية بعد إلغاء الطلب',
+  'restore stock from cancelled invoice': 'تمت إعادة الكمية بعد إلغاء الطلب',
+}
+
+function getMovementNote(movement: MovementRow) {
+  const note = movement.notes?.trim() || ''
+  const translatedNote = SYSTEM_NOTE_LABELS[note.toLocaleLowerCase('en-US')]
+
+  if (translatedNote) return translatedNote
+  if (note) return note
+
+  if (movement.movement_type === 'sale') return 'تم خصم الكمية بسبب عملية بيع'
+  if (movement.movement_type === 'sale_void') return 'تمت إعادة الكمية بعد إلغاء الطلب'
+  if (movement.movement_type === 'purchase_receive') return 'تمت إضافة الكمية إلى المخزون'
+  if (movement.movement_type === 'transfer_in') return 'تم استلام الكمية من فرع آخر'
+  if (movement.movement_type === 'transfer_out') return 'تم تحويل الكمية إلى فرع آخر'
+  if (movement.movement_type === 'manual_adjustment') {
+    return movement.quantity_delta >= 0
+      ? 'تمت زيادة الكمية يدويًا'
+      : 'تم تخفيض الكمية يدويًا'
+  }
+
+  return movement.quantity_delta >= 0
+    ? 'تمت زيادة كمية المخزون'
+    : 'تم تخفيض كمية المخزون'
+}
+
 function getMovementTone(value: string) {
   if (value === 'sale' || value === 'transfer_out') {
     return 'border-red-300/20 bg-red-500/10 text-red-100'
@@ -862,7 +897,7 @@ export default function InventoryMovementsPage() {
                       </div>
                     </td>
                     <td className="rounded-l-2xl border-y border-l border-white/[0.08] px-3 py-4 text-sm font-bold text-slate-400">
-                      {movement.notes || '-'}
+                      {getMovementNote(movement)}
                     </td>
                   </tr>
                   )
