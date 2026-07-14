@@ -86,98 +86,30 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
   system: 'النظام',
 }
 
-const METADATA_KEY_LABELS: Record<string, string> = {
-  order_id: 'رقم الطلب',
-  order_number: 'رقم الطلب',
-  invoice_id: 'رقم الفاتورة',
-  invoice_number: 'رقم الفاتورة',
-  provider_status: 'حالة المزود',
-  provider_key: 'مزود الخدمة',
-  provider_message_id: 'رقم الرسالة لدى المزود',
-  recipient: 'رقم المستلم',
-  recipient_masked: 'رقم المستلم',
-  channel: 'قناة الإرسال',
-  mode: 'طريقة الإرسال',
-  type: 'نوع المحتوى',
-  has_file: 'يحتوي على ملف',
-  has_text: 'يحتوي على نص',
-  status: 'الحالة',
-  order_status: 'حالة الطلب',
-  old_status: 'الحالة السابقة',
-  new_status: 'الحالة الجديدة',
-  payment_method: 'طريقة الدفع',
-  items_count: 'عدد العناصر',
-  total: 'الإجمالي',
-  source: 'المصدر',
-  error: 'سبب التعذر',
-  message: 'الرسالة',
-  role: 'الصلاحية',
-  old_role: 'الصلاحية السابقة',
-  new_role: 'الصلاحية الجديدة',
-  branch_id: 'رقم الفرع',
-  old_branch_id: 'الفرع السابق',
-  new_branch_id: 'الفرع الجديد',
-  is_active: 'الحالة النشطة',
-  old_is_active: 'الحالة السابقة',
-  new_is_active: 'الحالة الجديدة',
-  username: 'اسم المستخدم',
-  old_username: 'اسم المستخدم السابق',
-  new_username: 'اسم المستخدم الجديد',
-  full_name: 'الاسم الكامل',
-  code: 'الرمز',
-  name: 'الاسم',
-  updated_fields: 'البيانات التي تم تحديثها',
-  retention_days: 'مدة الاحتفاظ بالأيام',
-  restored_from_soft_delete: 'تمت الاستعادة بعد حذف مؤقت',
-  reset_by_admin: 'تمت إعادة التعيين بواسطة الإدارة',
-  notification: 'بيانات الإشعار',
-}
-
-const METADATA_WORD_LABELS: Record<string, string> = {
-  old: 'السابق',
-  new: 'الجديد',
-  id: 'الرقم',
-  order: 'الطلب',
-  invoice: 'الفاتورة',
-  branch: 'الفرع',
-  user: 'المستخدم',
-  customer: 'العميل',
-  provider: 'المزود',
-  status: 'الحالة',
-  number: 'الرقم',
-  name: 'الاسم',
-  type: 'النوع',
-  method: 'الطريقة',
-  payment: 'الدفع',
-  message: 'الرسالة',
-  error: 'الخطأ',
-  count: 'العدد',
-  total: 'الإجمالي',
-  source: 'المصدر',
-  created: 'الإنشاء',
-  updated: 'التحديث',
-}
-
 const VALUE_LABELS: Record<string, string> = {
   whatsapp: 'واتساب',
-  invoice_pdf: 'ملف PDF',
-  pdf: 'ملف PDF',
+  invoice_pdf: 'فاتورة PDF',
+  pdf: 'فاتورة PDF',
+  file: 'فاتورة PDF',
   text: 'رسالة نصية',
   sent: 'تم الإرسال',
   failed: 'فشل الإرسال',
   success: 'تم بنجاح',
+  true: 'نجح',
+  false: 'فشل',
   pos: 'نقطة البيع',
   cash: 'نقدًا',
   card: 'بطاقة',
+  bank_transfer: 'تحويل بنكي',
+  pending: 'قيد الانتظار',
+  completed: 'مكتمل',
+  cancelled: 'ملغي',
+  in_progress: 'قيد التنفيذ',
   active: 'نشط',
   inactive: 'غير نشط',
 }
 
-function shortId(value: string | null | undefined) {
-  if (!value) return '—'
-  if (value.length <= 12) return value
-  return `${value.slice(0, 6)}...${value.slice(-4)}`
-}
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function formatDate(value: string) {
   const date = new Date(value)
@@ -197,7 +129,7 @@ function resolveActorName(log: AuditLogRow) {
   const fullName = actor?.full_name?.trim()
   const username = actor?.username?.trim()
 
-  return fullName || username || shortId(log.actor_user_id)
+  return fullName || username || 'النظام'
 }
 
 function getEventLabel(action: string) {
@@ -208,56 +140,98 @@ function getEntityTypeLabel(entityType: string) {
   return ENTITY_TYPE_LABELS[entityType] || 'النظام'
 }
 
-function getMetadataKeyLabel(key: string) {
-  if (METADATA_KEY_LABELS[key]) return METADATA_KEY_LABELS[key]
-
-  const readableWords = key
-    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-    .toLowerCase()
-    .split(/[_\s.-]+/)
-    .filter(Boolean)
-    .map((word) => METADATA_WORD_LABELS[word] || word)
-
-  return readableWords.join(' ') || 'معلومة إضافية'
+function metadataRecord(metadata: unknown) {
+  return metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : {}
 }
 
-function formatMetadataValue(value: unknown): string {
-  if (value === true) return 'نعم'
-  if (value === false) return 'لا'
-  if (value === null || value === undefined || value === '') return 'غير متوفر'
-  if (Array.isArray(value)) return value.map(formatMetadataValue).join('، ') || 'غير متوفر'
-  if (typeof value === 'object') return 'بيانات إضافية'
+function getBusinessValue(metadata: unknown, keys: string[]) {
+  const root = metadataRecord(metadata)
+  const notification = metadataRecord(root.notification)
 
-  const text = String(value)
+  for (const key of keys) {
+    const value = root[key] ?? notification[key]
+    if (value !== null && value !== undefined && value !== '') return value
+  }
+
+  return null
+}
+
+function formatBusinessValue(value: unknown) {
+  if (value === true) return 'نجح'
+  if (value === false) return 'فشل'
+  if (typeof value !== 'string' && typeof value !== 'number') return ''
+
+  const text = String(value).trim()
+  if (!text || UUID_PATTERN.test(text)) return ''
   return VALUE_LABELS[text.toLowerCase()] || text
 }
 
-function getMetadataEntries(metadata: unknown) {
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return []
-
-  const entries: Array<{ key: string; label: string; value: string }> = []
-
-  function visit(value: Record<string, unknown>, parentLabel = '') {
-    for (const [key, item] of Object.entries(value)) {
-      const keyLabel = getMetadataKeyLabel(key)
-      const label = parentLabel ? `${parentLabel} — ${keyLabel}` : keyLabel
-
-      if (item && typeof item === 'object' && !Array.isArray(item)) {
-        visit(item as Record<string, unknown>, label)
-      } else {
-        entries.push({ key: `${parentLabel}.${key}`, label, value: formatMetadataValue(item) })
-      }
-    }
+function getOperationStatus(log: AuditLogRow) {
+  if (/(failed|error)/i.test(log.action)) return 'فشل'
+  if (/(sent|created|updated|received|deducted|success|cancelled|restored|reset|saved)/i.test(log.action)) {
+    return 'نجحت'
   }
 
-  visit(metadata as Record<string, unknown>)
-  return entries
+  return formatBusinessValue(
+    getBusinessValue(log.metadata, ['provider_status', 'status', 'order_status', 'new_status'])
+  ) || 'تم تسجيلها'
 }
 
-function summarizeMetadata(metadata: unknown) {
-  const entries = getMetadataEntries(metadata).slice(0, 3)
-  if (entries.length === 0) return 'لا توجد تفاصيل إضافية'
-  return entries.map(({ label, value }) => `${label}: ${value}`).join(' · ')
+function getOperationDescription(log: AuditLogRow) {
+  const total = Number(getBusinessValue(log.metadata, ['total']))
+
+  if (log.action === 'order.created' && Number.isFinite(total)) {
+    return `تم إنشاء طلب جديد بقيمة ${total.toFixed(2)} ريال`
+  }
+
+  if (log.action === 'whatsapp.message_sent') {
+    const contentType = formatBusinessValue(getBusinessValue(log.metadata, ['type', 'mode']))
+    const hasFile = getBusinessValue(log.metadata, ['has_file']) === true
+    return contentType === 'فاتورة PDF' || hasFile
+      ? 'تم إرسال فاتورة PDF عبر واتساب'
+      : 'تم إرسال رسالة عبر واتساب'
+  }
+
+  if (log.action === 'whatsapp.message_failed') return 'فشل إرسال رسالة عبر واتساب'
+  if (log.action === 'inventory.deducted') return 'تم خصم كمية بسبب عملية بيع'
+
+  return getEventLabel(log.action)
+}
+
+function getBusinessDetails(log: AuditLogRow) {
+  const values = [
+    { label: 'نوع العملية', value: getEntityTypeLabel(log.entity_type) },
+    { label: 'وصف العملية', value: getOperationDescription(log) },
+    {
+      label: 'رقم الطلب',
+      value: formatBusinessValue(getBusinessValue(log.metadata, ['order_number', 'order_id'])),
+    },
+    {
+      label: 'رقم الفاتورة',
+      value: formatBusinessValue(getBusinessValue(log.metadata, ['invoice_number', 'invoice_id'])),
+    },
+    { label: 'المستخدم', value: resolveActorName(log) },
+    {
+      label: 'العميل',
+      value: formatBusinessValue(
+        getBusinessValue(log.metadata, ['customer_name', 'customer_number', 'recipient_masked'])
+      ),
+    },
+    {
+      label: 'قناة الإرسال',
+      value: formatBusinessValue(getBusinessValue(log.metadata, ['channel'])),
+    },
+    { label: 'حالة العملية', value: getOperationStatus(log) },
+    {
+      label: 'طريقة الدفع',
+      value: formatBusinessValue(getBusinessValue(log.metadata, ['payment_method'])),
+    },
+    { label: 'التاريخ والوقت', value: formatDate(log.created_at) },
+  ]
+
+  return values.filter(({ value }) => value)
 }
 
 function resolveFilterValue(value: string, labels: Record<string, string>) {
@@ -303,7 +277,7 @@ export default function AdminAuditLogsPage() {
   const [entityType, setEntityType] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [selectedMetadata, setSelectedMetadata] = useState<unknown | null>(null)
+  const [selectedLog, setSelectedLog] = useState<AuditLogRow | null>(null)
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
@@ -464,28 +438,27 @@ export default function AdminAuditLogsPage() {
 
       <div className="overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#07111f]/88 shadow-[0_22px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl">
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full border-collapse text-right">
+          <table className="min-w-[820px] w-full border-collapse text-right">
             <thead>
               <tr className="border-b border-cyan-300/10 bg-cyan-300/8 text-xs font-black text-cyan-100">
                 <th className="px-4 py-4">التاريخ</th>
                 <th className="px-4 py-4">الحدث</th>
                 <th className="px-4 py-4">النوع</th>
                 <th className="px-4 py-4">المنفذ</th>
-                <th className="px-4 py-4">رقم السجل</th>
-                <th className="px-4 py-4">ملخص التفاصيل</th>
+                <th className="px-4 py-4">وصف العملية</th>
                 <th className="px-4 py-4">تفاصيل</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-cyan-300/10">
               {loadingLogs ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
                     جارٍ تحميل سجل النشاط...
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
                     لا توجد سجلات مطابقة.
                   </td>
                 </tr>
@@ -505,16 +478,13 @@ export default function AdminAuditLogsPage() {
                       {getEntityTypeLabel(log.entity_type)}
                     </td>
                     <td className="px-4 py-4">{resolveActorName(log)}</td>
-                    <td className="px-4 py-4 font-mono text-xs text-slate-400">
-                      {shortId(log.entity_id)}
-                    </td>
-                    <td className="max-w-[320px] truncate px-4 py-4 text-xs text-slate-400">
-                      {summarizeMetadata(log.metadata)}
+                    <td className="max-w-[360px] px-4 py-4 text-sm font-bold leading-6 text-slate-300">
+                      {getOperationDescription(log)}
                     </td>
                     <td className="px-4 py-4">
                       <button
                         type="button"
-                        onClick={() => setSelectedMetadata(log.metadata)}
+                        onClick={() => setSelectedLog(log)}
                         className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/16"
                       >
                         عرض
@@ -552,39 +522,33 @@ export default function AdminAuditLogsPage() {
         </div>
       </div>
 
-      {selectedMetadata !== null ? (
+      {selectedLog !== null ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
           <div className="w-full max-w-2xl rounded-[28px] border border-cyan-300/20 bg-[#07111f] p-5 shadow-[0_30px_110px_rgba(0,0,0,0.6)]">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-black text-white">تفاصيل النشاط</h2>
               <button
                 type="button"
-                onClick={() => setSelectedMetadata(null)}
+                onClick={() => setSelectedLog(null)}
                 className="rounded-xl border border-slate-500/20 bg-[#06111f] px-3 py-2 text-sm font-black text-slate-300 transition hover:text-white"
               >
                 إغلاق
               </button>
             </div>
             <div className="mt-4 max-h-[60vh] overflow-y-auto rounded-2xl border border-cyan-300/12 bg-[#030714] p-4">
-              {getMetadataEntries(selectedMetadata).length > 0 ? (
-                <dl className="grid gap-3 sm:grid-cols-2">
-                  {getMetadataEntries(selectedMetadata).map((entry, index) => (
-                    <div
-                      key={`${entry.key}-${index}`}
-                      className="rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.045] p-4"
-                    >
-                      <dt className="text-xs font-black text-cyan-200">{entry.label}</dt>
-                      <dd className="mt-2 break-words text-sm font-bold leading-6 text-white">
-                        {entry.value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : (
-                <p className="py-8 text-center text-sm font-bold text-slate-400">
-                  لا توجد تفاصيل إضافية لهذا النشاط.
-                </p>
-              )}
+              <dl className="grid gap-3 sm:grid-cols-2">
+                {getBusinessDetails(selectedLog).map((entry) => (
+                  <div
+                    key={entry.label}
+                    className="rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.045] p-4"
+                  >
+                    <dt className="text-xs font-black text-cyan-200">{entry.label}</dt>
+                    <dd className="mt-2 break-words text-sm font-bold leading-6 text-white">
+                      {entry.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
         </div>
