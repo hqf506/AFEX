@@ -71,6 +71,11 @@ type AdminOrderStatus = 'in_progress' | 'ready' | 'closed' | 'cancelled'
 type StatusEditOptionKey = AdminOrderStatus | 'delivered_closed'
 type WhatsAppDeliveryStatus = 'sent' | 'failed' | 'not_sent' | 'pending'
 type NotificationChannel = 'whatsapp' | 'email' | 'sms' | 'push' | 'system'
+type NotificationAuditAction =
+  | 'invoice.payment_snapshot_failed'
+  | 'invoice.pdf_generation_failed'
+  | 'whatsapp.message_failed'
+  | 'whatsapp.message_sent'
 type InvoicePdfAction = 'preview' | 'send'
 type PageOrderRecord = OrderRecord & {
   status_raw: string
@@ -79,6 +84,7 @@ type PageOrderRecord = OrderRecord & {
 }
 type NotificationHistoryRecord = {
   id: string
+  action: NotificationAuditAction
   created_at: string
   status: 'sent' | 'failed'
   messageType: string
@@ -471,7 +477,7 @@ function getNotificationChannelUi(channel: NotificationChannel) {
       }
     case 'system':
       return {
-        label: 'System',
+        label: 'النظام',
         icon: '🟠',
         dotClassName: 'bg-orange-300',
       }
@@ -484,7 +490,18 @@ function getNotificationChannelUi(channel: NotificationChannel) {
   }
 }
 
-function getNotificationTypeLabel(messageType: string) {
+function getNotificationTypeLabel(
+  action: NotificationAuditAction,
+  messageType: string
+) {
+  if (action === 'invoice.payment_snapshot_failed') {
+    return 'فشل حفظ بيانات الدفع'
+  }
+  if (action === 'invoice.pdf_generation_failed') {
+    return 'فشل إنشاء ملف الفاتورة'
+  }
+  if (action === 'whatsapp.message_failed') return 'فشل إرسال رسالة واتساب'
+  if (action === 'whatsapp.message_sent') return 'تم إرسال رسالة واتساب'
   if (messageType === 'invoice_pdf') return 'فاتورة PDF'
   if (messageType === 'ready') return 'رسالة تم التجهيز'
   if (messageType === 'closed' || messageType === 'delivered') {
@@ -492,6 +509,40 @@ function getNotificationTypeLabel(messageType: string) {
   }
   if (messageType === 'announcement') return 'Announcement'
   return messageType ? fixArabic(messageType) : 'إشعار'
+}
+
+function getNotificationAuditAction(value: unknown): NotificationAuditAction | null {
+  if (
+    value === 'invoice.payment_snapshot_failed' ||
+    value === 'invoice.pdf_generation_failed' ||
+    value === 'whatsapp.message_failed' ||
+    value === 'whatsapp.message_sent'
+  ) {
+    return value
+  }
+
+  return null
+}
+
+function getNotificationFailureMessage(action: NotificationAuditAction) {
+  if (action === 'invoice.payment_snapshot_failed') {
+    return 'تعذر تأكيد بيانات الدفع المحفوظة.'
+  }
+  if (action === 'invoice.pdf_generation_failed') {
+    return 'تعذر إنشاء ملف الفاتورة الرقمية.'
+  }
+  if (action === 'whatsapp.message_failed') {
+    return 'تعذر إرسال فاتورة واتساب.'
+  }
+
+  return undefined
+}
+
+function getNotificationStatusLabel(entry: NotificationHistoryRecord) {
+  if (entry.status === 'sent') return '✓ تم الإرسال'
+  if (entry.action === 'invoice.payment_snapshot_failed') return '✕ فشل حفظ الدفع'
+  if (entry.action === 'invoice.pdf_generation_failed') return '✕ فشل إنشاء PDF'
+  return '✕ فشل الإرسال'
 }
 
 function applyReadyOrderWhatsAppTemplate(
@@ -1190,12 +1241,19 @@ export default function OrdersPage() {
 
     async function fetchNotificationHistory(orderId: string) {
       setNotificationHistoryLoadingId(orderId)
+      const maskedOrderId = maskDebugId(orderId)
+      const matchingOrderIds = new Set([orderId, maskedOrderId])
 
       let auditQuery = supabase
         .from('audit_logs')
         .select('id, action, entity_type, entity_id, created_at, metadata')
-        .in('action', ['whatsapp.message_sent', 'whatsapp.message_failed'])
-        .filter('metadata->>order_id', 'eq', orderId)
+        .in('action', [
+          'invoice.payment_snapshot_failed',
+          'invoice.pdf_generation_failed',
+          'whatsapp.message_failed',
+          'whatsapp.message_sent',
+        ])
+        .in('metadata->>order_id', [orderId, maskedOrderId])
         .order('created_at', { ascending: false })
         .limit(100)
 
@@ -1216,6 +1274,10 @@ export default function OrdersPage() {
       const fallbackRecipient = detailsDrawerOrder?.customer_phone || EMPTY_DASH
       const history = data
         .map((log) => {
+          const action = getNotificationAuditAction(log.action)
+
+          if (!action) return null
+
           const metadata =
             log && typeof log.metadata === 'object' && log.metadata
               ? (log.metadata as Record<string, unknown>)
@@ -1237,7 +1299,7 @@ export default function OrdersPage() {
                     ? log.entity_id
                     : ''
 
-          if (logOrderId !== orderId) return null
+          if (!matchingOrderIds.has(logOrderId)) return null
 
           const messageType =
             (typeof metadata?.order_status === 'string'
@@ -1263,17 +1325,19 @@ export default function OrdersPage() {
 
           return {
             id: typeof log.id === 'string' ? log.id : `${orderId}-${log.created_at}`,
+            action,
             created_at:
               typeof log.created_at === 'string' ? log.created_at : '',
             status:
-              log.action === 'whatsapp.message_sent' ? 'sent' : 'failed',
+              action === 'whatsapp.message_sent' ? 'sent' : 'failed',
             messageType,
-            channel: getNotificationChannel(
-              notification?.channel || metadata?.channel
-            ),
-            recipient,
-            error:
-              typeof metadata?.error === 'string' ? metadata.error : undefined,
+            channel: action.startsWith('invoice.')
+              ? 'system'
+              : getNotificationChannel(
+                  notification?.channel || metadata?.channel
+                ),
+            recipient: action.startsWith('invoice.') ? EMPTY_DASH : recipient,
+            error: getNotificationFailureMessage(action),
           } satisfies NotificationHistoryRecord
         })
         .filter(
@@ -2535,7 +2599,7 @@ export default function OrdersPage() {
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
                                     <p className="text-xs font-black text-white">
-                                      {getNotificationTypeLabel(entry.messageType)}
+                                      {getNotificationTypeLabel(entry.action, entry.messageType)}
                                     </p>
                                     <p className="mt-1 text-[11px] font-bold text-slate-400">
                                       <span aria-hidden="true">{channelUi.icon}</span>{' '}
@@ -2544,7 +2608,7 @@ export default function OrdersPage() {
                                   </div>
                                   <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${entryUi.className}`}>
                                     <span className={`h-1.5 w-1.5 rounded-full ${channelUi.dotClassName}`} />
-                                    {entry.status === 'sent' ? '✓ تم الإرسال' : '✕ فشل الإرسال'}
+                                    {getNotificationStatusLabel(entry)}
                                   </span>
                                 </div>
                                 <div className="mt-3 grid gap-2 text-[11px] font-bold text-slate-400 sm:grid-cols-[1fr_auto]">
