@@ -169,16 +169,12 @@ export async function GET(request: NextRequest) {
       60
     )
 
-    const { data: categoryRows } = await supabaseAdmin
+    const categoriesQuery = supabaseAdmin
       .from('catalog_categories')
       .select('name')
       .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('created_at', { ascending: true })
-
-    const categories = (categoryRows || [])
-      .map((row) => (typeof row.name === 'string' ? row.name.trim() : ''))
-      .filter(Boolean)
 
     let catalogItemsQuery = supabaseAdmin
       .from('catalog_items')
@@ -207,8 +203,14 @@ export async function GET(request: NextRequest) {
       catalogItemsQuery = catalogItemsQuery.range(from, to)
     }
 
-    const { data: catalogItems, error: catalogError, count } =
-      await catalogItemsQuery
+    const [categoriesResult, catalogResult] = await Promise.all([
+      categoriesQuery,
+      catalogItemsQuery,
+    ])
+    const { data: catalogItems, error: catalogError, count } = catalogResult
+    const categories = (categoriesResult.data || [])
+      .map((row) => (typeof row.name === 'string' ? row.name.trim() : ''))
+      .filter(Boolean)
 
     if (catalogError) {
       return withAuthCookies(

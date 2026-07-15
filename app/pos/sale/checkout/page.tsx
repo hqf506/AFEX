@@ -70,12 +70,8 @@ type PosRuntime = {
   vat: CheckoutVatSetting | null
 }
 
-function getDiscountsCacheKey(branchId: string | null) {
-  return `pos-runtime:${branchId || 'all'}`
-}
-
-function getVatCacheKey(branchId: string | null) {
-  return `pos-runtime:${branchId || 'all'}`
+function getPosRuntimeCacheKey(tenantId: string | null, branchId: string | null) {
+  return `pos-runtime:${tenantId || 'unknown'}:${branchId || 'all'}`
 }
 
 function formatDiscountOptionLabel(option: CheckoutDiscountOption) {
@@ -161,10 +157,10 @@ export default function PosSaleCheckoutPage() {
   const [invoiceItems, setInvoiceItems] = useState<InvoiceLineItem[]>([])
   const [availableDiscounts, setAvailableDiscounts] = useState<
     CheckoutDiscountOption[]
-  >(() => peekClientResource<CheckoutDiscountOption[]>(getDiscountsCacheKey(checkoutBranchId)) || [])
+  >([])
   const [loadingDiscounts, setLoadingDiscounts] = useState(false)
   const [availableVatSetting, setAvailableVatSetting] = useState<CheckoutVatSetting | null>(
-    () => peekClientResource<CheckoutVatSetting | null>(getVatCacheKey(checkoutBranchId)) || null
+    null
   )
   const [loadingVat, setLoadingVat] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
@@ -237,17 +233,19 @@ export default function PosSaleCheckoutPage() {
 
     let cancelled = false
 
-    async function loadDiscounts() {
+    async function loadRuntime() {
       try {
-        const discountsCacheKey = getDiscountsCacheKey(checkoutBranchId)
-        const cachedRuntime = peekClientResource<PosRuntime>(discountsCacheKey)
-        const cachedDiscounts = cachedRuntime?.discounts || []
+        const runtimeCacheKey = getPosRuntimeCacheKey(tenantId, checkoutBranchId)
+        const cachedRuntime = peekClientResource<PosRuntime>(runtimeCacheKey)
 
-        if (!cancelled && cachedDiscounts.length > 0) {
-          setAvailableDiscounts(cachedDiscounts)
+        if (!cancelled && cachedRuntime) {
+          setAvailableDiscounts(cachedRuntime.discounts)
+          setAvailableVatSetting(cachedRuntime.vat)
           setLoadingDiscounts(false)
+          setLoadingVat(false)
         } else {
           setLoadingDiscounts(true)
+          setLoadingVat(true)
         }
 
         const searchParams = new URLSearchParams()
@@ -256,7 +254,7 @@ export default function PosSaleCheckoutPage() {
         }
 
         const runtime = await loadClientResource<PosRuntime>(
-          discountsCacheKey,
+          runtimeCacheKey,
           async () => {
             const response = await fetch(
               `/api/pos/runtime${
@@ -289,100 +287,27 @@ export default function PosSaleCheckoutPage() {
 
         if (!cancelled) {
           setAvailableDiscounts(runtime.discounts)
-        }
-      } catch {
-        if (!cancelled) {
-          setAvailableDiscounts([])
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingDiscounts(false)
-        }
-      }
-    }
-
-    void loadDiscounts()
-
-    return () => {
-      cancelled = true
-    }
-  }, [allowed, checkoutBranchId])
-
-  useEffect(() => {
-    if (!allowed) return
-
-    let cancelled = false
-
-    async function loadVatSetting() {
-      try {
-        const vatCacheKey = getVatCacheKey(checkoutBranchId)
-        const cachedRuntime = peekClientResource<PosRuntime>(vatCacheKey)
-        const cachedSetting = cachedRuntime?.vat || null
-
-        if (!cancelled && cachedSetting) {
-          setAvailableVatSetting(cachedSetting)
-          setLoadingVat(false)
-        } else {
-          setLoadingVat(true)
-        }
-
-        const searchParams = new URLSearchParams()
-        if (checkoutBranchId) {
-          searchParams.set('branchId', checkoutBranchId)
-        }
-
-        const runtime = await loadClientResource<PosRuntime>(
-          vatCacheKey,
-          async () => {
-            const response = await fetch(
-              `/api/pos/runtime${
-                searchParams.toString() ? `?${searchParams.toString()}` : ''
-              }`,
-              {
-                method: 'GET',
-                cache: 'no-store',
-              }
-            )
-
-            const result = await response.json().catch(() => null)
-
-            if (!response.ok || !result?.success) {
-              throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات الضريبة حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
-            }
-
-            return {
-              discounts: Array.isArray(result.runtime?.discounts)
-                ? result.runtime.discounts
-                : [],
-              vat: (result.runtime?.vat as CheckoutVatSetting | null) || null,
-            }
-          },
-          {
-            ttlMs: POS_RUNTIME_CACHE_TTL_MS,
-            logLabel: `fetch POS runtime (${checkoutBranchId || 'all'})`,
-          }
-        )
-
-        if (!cancelled) {
           setAvailableVatSetting(runtime.vat)
         }
       } catch {
         if (!cancelled) {
+          setAvailableDiscounts([])
           setAvailableVatSetting(null)
         }
       } finally {
         if (!cancelled) {
+          setLoadingDiscounts(false)
           setLoadingVat(false)
         }
       }
     }
 
-    void loadVatSetting()
+    void loadRuntime()
 
     return () => {
       cancelled = true
     }
-  }, [allowed, checkoutBranchId])
+  }, [allowed, checkoutBranchId, tenantId])
 
   const checkout = useInvoiceCheckout({
     customerName,

@@ -21,6 +21,7 @@ import { SummaryRow } from '@/components/summary-row'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import {
   useInvoiceCheckout,
+  type CheckoutDiscountOption,
   type CheckoutVatSetting,
 } from '@/hooks/use-invoice-checkout'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
@@ -67,12 +68,9 @@ import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 
 const POS_HIDDEN_CATEGORY_FILTERS = new Set(['دون فئة'])
-const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
-const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
 const ADMIN_SYSTEM_SETTINGS_CACHE_KEY = 'admin-system-settings'
 const ADMIN_SYSTEM_SETTINGS_CACHE_TTL_MS = 60_000
-const ADMIN_DISCOUNTS_CACHE_TTL_MS = 30_000
-const ADMIN_VAT_CACHE_TTL_MS = 30_000
+const POS_RUNTIME_CACHE_TTL_MS = 30_000
 const CATALOG_ITEMS_PER_PAGE = 10
 type PosFeedbackKind = 'add' | 'remove' | 'error'
 const SOUND_ENABLED = true
@@ -166,19 +164,13 @@ function triggerPosFeedback(kind: PosFeedbackKind) {
   void playFeedbackSound(kind)
 }
 
-type CategoryApiRecord = {
-  id?: string
-  name?: string
-  is_active?: boolean
-  used_count?: number
+type PosRuntime = {
+  discounts: CheckoutDiscountOption[]
+  vat: CheckoutVatSetting | null
 }
 
-function getDiscountsCacheKey(branchId: string | null) {
-  return `admin-discounts:${branchId || 'all'}`
-}
-
-function getVatCacheKey(branchId: string | null) {
-  return `admin-vat:${branchId || 'all'}`
+function getPosRuntimeCacheKey(tenantId: string | null, branchId: string | null) {
+  return `pos-runtime:${tenantId || 'unknown'}:${branchId || 'all'}`
 }
 
 function handlePosProtectedResourceUnauthorized() {
@@ -433,19 +425,7 @@ export function InvoiceItemsStep({
     Record<string, PosInvoiceCatalogProduct>
   >({})
   const [catalogTotal, setCatalogTotal] = useState(0)
-  const [catalogCategoryFilters, setCatalogCategoryFilters] = useState<string[]>(() => {
-    const cachedCategories =
-      peekClientResource<CategoryApiRecord[]>(ADMIN_CATEGORIES_CACHE_KEY) || []
-
-    return cachedCategories
-      .map((category) =>
-        typeof category?.name === 'string' ? category.name.trim() : ''
-      )
-      .filter(
-        (categoryName): categoryName is string =>
-          Boolean(categoryName) && !POS_HIDDEN_CATEGORY_FILTERS.has(categoryName)
-      )
-  })
+  const [catalogCategoryFilters, setCatalogCategoryFilters] = useState<string[]>([])
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [catalogRefreshing, setCatalogRefreshing] = useState(false)
   const [catalogError, setCatalogError] = useState(false)
@@ -474,7 +454,7 @@ export function InvoiceItemsStep({
     async (options: { showRefreshing?: boolean } = {}) => {
       if (!invoiceBranchId) return
 
-      clearBranchInvoiceCatalogCache(invoiceBranchId)
+      clearBranchInvoiceCatalogCache(invoiceBranchId, tenantId)
 
       if (options.showRefreshing) {
         setCatalogRefreshing(true)
@@ -487,6 +467,7 @@ export function InvoiceItemsStep({
           search: deferredSearch,
           category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
           force: true,
+          tenantId,
         })
 
         setCatalogProducts(nextCatalogPage.products)
@@ -521,6 +502,7 @@ export function InvoiceItemsStep({
       deferredSearch,
       invoiceBranchId,
       rememberCatalogProducts,
+      tenantId,
     ]
   )
   const [showItemsModal, setShowItemsModal] = useState(false)
@@ -530,94 +512,6 @@ export function InvoiceItemsStep({
   const [recentlyAddedItemId, setRecentlyAddedItemId] = useState<string | null>(null)
   const [pressedItemId, setPressedItemId] = useState<string | null>(null)
   const [stockErrorMessage, setStockErrorMessage] = useState('')
-
-  useEffect(() => {
-    if (!allowed) return
-
-    let cancelled = false
-
-    const loadCategoryFilters = async () => {
-      try {
-        const cachedCategories =
-          peekClientResource<CategoryApiRecord[]>(ADMIN_CATEGORIES_CACHE_KEY) || []
-
-        if (!cancelled && cachedCategories.length > 0) {
-          setCatalogCategoryFilters(
-            cachedCategories
-              .map((category) =>
-                typeof category?.name === 'string' ? category.name.trim() : ''
-              )
-              .filter(
-                (categoryName): categoryName is string =>
-                  Boolean(categoryName) &&
-                  !POS_HIDDEN_CATEGORY_FILTERS.has(categoryName)
-              )
-          )
-        }
-
-        const nextCategories = await loadClientResource<CategoryApiRecord[]>(
-          ADMIN_CATEGORIES_CACHE_KEY,
-          async () => {
-            const response = await fetch('/api/admin/categories', {
-              method: 'GET',
-              cache: 'no-store',
-            })
-
-            if (response.status === 401) {
-              markProtectedResourcesUnauthorized()
-              throw createProtectedResourceAuthError()
-            }
-
-            const result = await response.json().catch(() => null)
-
-            if (!response.ok || !result) {
-              throw new Error(
-                getClientErrorMessage(
-                  result,
-                  'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'
-                )
-              )
-            }
-
-            return Array.isArray(result.categories) ? result.categories : []
-          },
-          {
-            ttlMs: ADMIN_CATEGORIES_CACHE_TTL_MS,
-            logLabel: 'fetch categories',
-            protectedResource: true,
-          }
-        )
-
-        if (!cancelled) {
-          const nextFilters = nextCategories
-            .map((category) =>
-              typeof category?.name === 'string' ? category.name.trim() : ''
-            )
-            .filter(
-              (categoryName): categoryName is string =>
-                Boolean(categoryName) && !POS_HIDDEN_CATEGORY_FILTERS.has(categoryName)
-            )
-
-          setCatalogCategoryFilters(nextFilters)
-        }
-      } catch (error) {
-        if (!cancelled && isProtectedResourceAuthError(error)) {
-          handlePosProtectedResourceUnauthorized()
-          return
-        }
-
-        if (!cancelled) {
-          setCatalogCategoryFilters([])
-        }
-      }
-    }
-
-    void loadCategoryFilters()
-
-    return () => {
-      cancelled = true
-    }
-  }, [allowed])
 
   useEffect(() => {
     if (!allowed) return
@@ -657,7 +551,7 @@ export function InvoiceItemsStep({
         const cachedProducts =
           variant === 'pos' || activeFilter !== INVOICE_ALL_FILTER || deferredSearch.trim()
             ? []
-            : peekBranchInvoiceCatalog(invoiceBranchId)
+            : peekBranchInvoiceCatalog(invoiceBranchId, tenantId)
 
         if (!cancelled && cachedProducts.length > 0) {
           setCatalogProducts(cachedProducts)
@@ -677,7 +571,7 @@ export function InvoiceItemsStep({
           pageSize: CATALOG_ITEMS_PER_PAGE,
           search: deferredSearch,
           category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
-          force: true,
+          tenantId,
         })
 
         if (!cancelled) {
@@ -729,6 +623,7 @@ export function InvoiceItemsStep({
     activeFilter,
     deferredSearch,
     rememberCatalogProducts,
+    tenantId,
   ])
 
   useEffect(() => {
@@ -747,7 +642,7 @@ export function InvoiceItemsStep({
     let followUpReloadTimeoutId: number | null = null
 
     const scheduleCatalogReload = () => {
-      clearBranchInvoiceCatalogCache(invoiceBranchId)
+      clearBranchInvoiceCatalogCache(invoiceBranchId, tenantId)
 
       if (reloadTimeoutId) {
         window.clearTimeout(reloadTimeoutId)
@@ -910,14 +805,13 @@ export function InvoiceItemsStep({
 
     let cancelled = false
 
-    async function loadVatSetting() {
+    async function loadPosRuntime() {
       try {
-        const vatCacheKey = getVatCacheKey(invoiceBranchId)
-        const cachedSetting =
-          peekClientResource<CheckoutVatSetting | null>(vatCacheKey) || null
+        const runtimeCacheKey = getPosRuntimeCacheKey(tenantId, invoiceBranchId)
+        const cachedRuntime = peekClientResource<PosRuntime>(runtimeCacheKey)
 
-        if (!cancelled && cachedSetting) {
-          setVatSetting(cachedSetting)
+        if (!cancelled && cachedRuntime) {
+          setVatSetting(cachedRuntime.vat)
         }
 
         const searchParams = new URLSearchParams()
@@ -925,11 +819,11 @@ export function InvoiceItemsStep({
           searchParams.set('branchId', invoiceBranchId)
         }
 
-        const nextSetting = await loadClientResource(
-          vatCacheKey,
+        const runtime = await loadClientResource<PosRuntime>(
+          runtimeCacheKey,
           async () => {
             const response = await fetch(
-              `/api/admin/vat${searchParams.toString() ? `?${searchParams.toString()}` : ''}`,
+              `/api/pos/runtime${searchParams.toString() ? `?${searchParams.toString()}` : ''}`,
               {
                 method: 'GET',
                 cache: 'no-store',
@@ -944,20 +838,25 @@ export function InvoiceItemsStep({
             const result = await response.json().catch(() => null)
 
             if (!response.ok || !result?.success) {
-              throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات الضريبة حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
+              throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات نقطة البيع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
             }
 
-            return (result.setting as CheckoutVatSetting | null) || null
+            return {
+              discounts: Array.isArray(result.runtime?.discounts)
+                ? result.runtime.discounts
+                : [],
+              vat: (result.runtime?.vat as CheckoutVatSetting | null) || null,
+            }
           },
           {
-            ttlMs: ADMIN_VAT_CACHE_TTL_MS,
-            logLabel: `fetch vat (${invoiceBranchId || 'all'})`,
+            ttlMs: POS_RUNTIME_CACHE_TTL_MS,
+            logLabel: `fetch POS runtime (${invoiceBranchId || 'all'})`,
             protectedResource: true,
           }
         )
 
         if (!cancelled) {
-          setVatSetting(nextSetting)
+          setVatSetting(runtime.vat)
         }
       } catch (error) {
         if (!cancelled && isProtectedResourceAuthError(error)) {
@@ -971,12 +870,12 @@ export function InvoiceItemsStep({
       }
     }
 
-    void loadVatSetting()
+    void loadPosRuntime()
 
     return () => {
       cancelled = true
     }
-  }, [allowed, invoiceBranchId])
+  }, [allowed, invoiceBranchId, tenantId])
 
   useEffect(() => {
     if (!allowed || !ready || hasUnavailablePosBranchContext) {
@@ -985,8 +884,8 @@ export function InvoiceItemsStep({
 
     router.prefetch(checkoutHref)
 
-    void prefetchClientResource(
-      getDiscountsCacheKey(invoiceBranchId),
+    void prefetchClientResource<PosRuntime>(
+      getPosRuntimeCacheKey(tenantId, invoiceBranchId),
       async () => {
         const searchParams = new URLSearchParams()
         if (invoiceBranchId) {
@@ -994,7 +893,7 @@ export function InvoiceItemsStep({
         }
 
         const response = await fetch(
-          `/api/admin/discounts${
+          `/api/pos/runtime${
             searchParams.toString() ? `?${searchParams.toString()}` : ''
           }`,
           {
@@ -1011,52 +910,19 @@ export function InvoiceItemsStep({
         const result = await response.json().catch(() => null)
 
         if (!response.ok || !result?.success) {
-          throw new Error(getClientErrorMessage(result, 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
+          throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات نقطة البيع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
         }
 
-        return Array.isArray(result.discounts) ? result.discounts : []
+        return {
+          discounts: Array.isArray(result.runtime?.discounts)
+            ? result.runtime.discounts
+            : [],
+          vat: (result.runtime?.vat as CheckoutVatSetting | null) || null,
+        }
       },
       {
-        ttlMs: ADMIN_DISCOUNTS_CACHE_TTL_MS,
-        logLabel: `fetch discounts (${invoiceBranchId || 'all'})`,
-        protectedResource: true,
-      }
-    )
-
-    void prefetchClientResource(
-      getVatCacheKey(invoiceBranchId),
-      async () => {
-        const searchParams = new URLSearchParams()
-        if (invoiceBranchId) {
-          searchParams.set('branchId', invoiceBranchId)
-        }
-
-        const response = await fetch(
-          `/api/admin/vat${
-            searchParams.toString() ? `?${searchParams.toString()}` : ''
-          }`,
-          {
-            method: 'GET',
-            cache: 'no-store',
-          }
-        )
-
-        if (response.status === 401) {
-          markProtectedResourcesUnauthorized()
-          throw createProtectedResourceAuthError()
-        }
-
-        const result = await response.json().catch(() => null)
-
-        if (!response.ok || !result?.success) {
-          throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات الضريبة حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
-        }
-
-        return (result.setting as CheckoutVatSetting | null) || null
-      },
-      {
-        ttlMs: ADMIN_VAT_CACHE_TTL_MS,
-        logLabel: `fetch vat (${invoiceBranchId || 'all'})`,
+        ttlMs: POS_RUNTIME_CACHE_TTL_MS,
+        logLabel: `fetch POS runtime (${invoiceBranchId || 'all'})`,
         protectedResource: true,
       }
     )
@@ -1088,7 +954,7 @@ export function InvoiceItemsStep({
         protectedResource: true,
       }
     )
-  }, [allowed, checkoutHref, invoiceBranchId, hasUnavailablePosBranchContext, ready, router])
+  }, [allowed, checkoutHref, invoiceBranchId, hasUnavailablePosBranchContext, ready, router, tenantId])
 
   const checkout = useInvoiceCheckout({
     customerName,

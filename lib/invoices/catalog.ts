@@ -99,13 +99,15 @@ export type PosInvoiceCatalogPage = {
 }
 
 const INVOICE_CATALOG_CACHE_TTL_MS = 60_000
+const INVOICE_CATALOG_PAGE_CACHE_TTL_MS = 10_000
 
-function getInvoiceCatalogCacheKey(branchId: string | null) {
-  return `invoice-catalog:${branchId || 'none'}`
+function getInvoiceCatalogCacheKey(branchId: string | null, tenantId?: string | null) {
+  return `invoice-catalog:${tenantId || 'unknown'}:${branchId || 'none'}`
 }
 
 function getInvoiceCatalogPageCacheKey(params: {
   branchId: string | null
+  tenantId?: string | null
   page: number
   pageSize: number
   search?: string
@@ -113,6 +115,7 @@ function getInvoiceCatalogPageCacheKey(params: {
 }) {
   return [
     'invoice-catalog-page',
+    params.tenantId || 'unknown',
     params.branchId || 'none',
     params.page,
     params.pageSize,
@@ -121,15 +124,18 @@ function getInvoiceCatalogPageCacheKey(params: {
   ].join(':')
 }
 
-export function clearBranchInvoiceCatalogCache(branchId: string | null) {
-  if (!branchId) {
+export function clearBranchInvoiceCatalogCache(
+  branchId: string | null,
+  tenantId?: string | null
+) {
+  if (!branchId || !tenantId) {
     clearClientResourcesByPrefix('invoice-catalog:')
     clearClientResourcesByPrefix('invoice-catalog-page:')
     return
   }
 
-  clearClientResource(getInvoiceCatalogCacheKey(branchId))
-  clearClientResourcesByPrefix(`invoice-catalog-page:${branchId}:`)
+  clearClientResource(getInvoiceCatalogCacheKey(branchId, tenantId))
+  clearClientResourcesByPrefix(`invoice-catalog-page:${tenantId}:${branchId}:`)
 }
 
 export function clearAllInvoiceCatalogCache() {
@@ -416,19 +422,19 @@ async function fetchBranchInvoiceCatalogPage(
 
 export async function loadBranchInvoiceCatalog(
   branchId: string | null,
-  options: { force?: boolean } = {}
+  options: { force?: boolean; tenantId?: string | null } = {}
 ) {
   if (!branchId) {
     return []
   }
 
   if (options.force === true) {
-    clearClientResource(getInvoiceCatalogCacheKey(branchId))
+    clearClientResource(getInvoiceCatalogCacheKey(branchId, options.tenantId))
     return fetchBranchInvoiceCatalog(branchId, { cacheBust: true })
   }
 
   return loadClientResource(
-    getInvoiceCatalogCacheKey(branchId),
+    getInvoiceCatalogCacheKey(branchId, options.tenantId),
     () => fetchBranchInvoiceCatalog(branchId),
     {
       ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
@@ -446,6 +452,7 @@ export async function loadBranchInvoiceCatalogPage(
     search?: string
     category?: string
     force?: boolean
+    tenantId?: string | null
   }
 ) {
   if (!branchId) {
@@ -460,6 +467,7 @@ export async function loadBranchInvoiceCatalogPage(
 
   const cacheKey = getInvoiceCatalogPageCacheKey({
     branchId,
+    tenantId: options.tenantId,
     page: options.page,
     pageSize: options.pageSize,
     search: options.search,
@@ -478,26 +486,32 @@ export async function loadBranchInvoiceCatalogPage(
     cacheKey,
     () => fetchBranchInvoiceCatalogPage(branchId, options),
     {
-      ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
+      ttlMs: INVOICE_CATALOG_PAGE_CACHE_TTL_MS,
       logLabel: `fetch catalog page (${branchId})`,
       protectedResource: true,
     }
   )
 }
 
-export function peekBranchInvoiceCatalog(branchId: string | null) {
+export function peekBranchInvoiceCatalog(
+  branchId: string | null,
+  tenantId?: string | null
+) {
   if (!branchId) {
     return []
   }
 
   return (
     peekClientResource<PosInvoiceCatalogProduct[]>(
-      getInvoiceCatalogCacheKey(branchId)
+      getInvoiceCatalogCacheKey(branchId, tenantId)
     ) || []
   )
 }
 
-export function prefetchBranchInvoiceCatalog(branchId: string | null) {
+export function prefetchBranchInvoiceCatalog(
+  branchId: string | null,
+  tenantId?: string | null
+) {
   if (!branchId) {
     return Promise.resolve(null)
   }
@@ -505,6 +519,7 @@ export function prefetchBranchInvoiceCatalog(branchId: string | null) {
   return prefetchClientResource(
     getInvoiceCatalogPageCacheKey({
       branchId,
+      tenantId,
       page: 1,
       pageSize: 10,
       search: '',
@@ -516,7 +531,7 @@ export function prefetchBranchInvoiceCatalog(branchId: string | null) {
         pageSize: 10,
       }),
     {
-      ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
+      ttlMs: INVOICE_CATALOG_PAGE_CACHE_TTL_MS,
       logLabel: `fetch catalog page (${branchId})`,
       protectedResource: true,
     }

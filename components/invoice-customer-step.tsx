@@ -131,6 +131,7 @@ export function InvoiceCustomerStep({
     roleLabel,
     branchId,
     scopeType,
+    tenantId,
   } = usePageAccess(pageAccessOptions)
 
   const [customerName, setCustomerName] = useState('')
@@ -419,9 +420,9 @@ export function InvoiceCustomerStep({
     )
 
     if (scopeType === 'branch' && branchId) {
-      void prefetchBranchInvoiceCatalog(branchId)
+      void prefetchBranchInvoiceCatalog(branchId, tenantId)
     }
-  }, [allowed, branchId, router, scopeType, variant])
+  }, [allowed, branchId, router, scopeType, tenantId, variant])
 
   useEffect(() => {
     if (variant !== 'pos' || !allowed) {

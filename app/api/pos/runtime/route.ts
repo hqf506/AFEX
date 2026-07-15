@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
   let vatQuery = supabaseAdmin
     .from('vat_settings')
-    .select('id, name, rate, is_active, branch_id, created_at, updated_at')
+    .select('id, name, rate, is_active, branch_id')
   vatQuery = applyTenantFilter(vatQuery, tenantId)
   vatQuery = branchId
     ? vatQuery.or(`branch_id.eq.${branchId},branch_id.is.null`)
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
 
   const vatRows = Array.isArray(vatResult.data) ? vatResult.data : []
   const vat = vatRows.find((row) => row.branch_id === branchId) || vatRows.find((row) => row.branch_id === null) || {
-    id: '', name: 'VAT', rate: 15, is_active: false, branch_id: branchId, created_at: '', updated_at: '',
+    id: '', name: 'VAT', rate: 15, is_active: false, branch_id: branchId,
   }
 
   return jsonWithAuthCookies(auth.response, {

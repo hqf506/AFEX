@@ -497,9 +497,16 @@ export default function PosPage() {
     )
 
     if (access.scopeType === 'branch' && access.branchId) {
-      void prefetchBranchInvoiceCatalog(access.branchId)
+      void prefetchBranchInvoiceCatalog(access.branchId, access.tenantId)
     }
-  }, [access.allowed, access.branchId, access.scopeType, isPosLoginPage, router])
+  }, [
+    access.allowed,
+    access.branchId,
+    access.scopeType,
+    access.tenantId,
+    isPosLoginPage,
+    router,
+  ])
 
   useEffect(() => {
     if (!access.allowed || isPosLoginPage) {

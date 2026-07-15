@@ -19,6 +19,7 @@ const PROTECTED_RESOURCE_CACHE_PREFIXES = [
   'admin-system-settings',
   'admin-discounts:',
   'admin-vat:',
+  'pos-runtime:',
   'invoice-catalog:',
 ] as const
 
