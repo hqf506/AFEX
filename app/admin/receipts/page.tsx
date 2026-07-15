@@ -23,6 +23,7 @@ import {
   getThermalPreviewWidth,
   prepareThermalInvoicePreviewHtml,
 } from '@/lib/invoices/thermal-preview'
+import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -519,14 +520,19 @@ function printThermalReceipt(
   const printWindow = window.open('', '_blank', 'width=420,height=900')
 
   if (!printWindow) {
-    window.print()
-    return
+    return false
   }
 
-  printWindow.document.write(buildThermalReceiptHtml(receipt, thermalSettings))
-  printWindow.document.close()
-  printWindow.focus()
-  printWindow.print()
+  try {
+    printWindow.document.write(buildThermalReceiptHtml(receipt, thermalSettings))
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
+    return true
+  } catch {
+    printWindow.close()
+    return false
+  }
 }
 
 export default function AdminReceiptsPage() {
@@ -1399,6 +1405,7 @@ function ReceiptDrawer({
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const [printingReceipt, setPrintingReceipt] = useState(false)
   const [canceling, setCanceling] = useState(false)
   const [thermalPreviewHeight, setThermalPreviewHeight] = useState(360)
   const { settings: systemSettings } = useSystemSettings(Boolean(receipt))
@@ -1546,10 +1553,19 @@ function ReceiptDrawer({
               <button
                 type="button"
                 onClick={() => {
-                  if (!printingEnabled || detailsLoading) return
-                  printThermalReceipt(receipt, thermalSettings)
+                  if (!printingEnabled || detailsLoading || printingReceipt) return
+                  setPrintingReceipt(true)
+                  setCancelFeedback(null)
+                  const opened = printThermalReceipt(receipt, thermalSettings)
+                  setCancelFeedback({
+                    type: opened ? 'success' : 'error',
+                    message: opened
+                      ? INVOICE_UX_MESSAGES.printDialogOpened
+                      : INVOICE_UX_MESSAGES.printPreparationFailure,
+                  })
+                  setPrintingReceipt(false)
                 }}
-                disabled={!printingEnabled || detailsLoading}
+                disabled={!printingEnabled || detailsLoading || printingReceipt}
                 title={
                   printingEnabled
                     ? undefined
@@ -1558,7 +1574,7 @@ function ReceiptDrawer({
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-cyan-300/20 bg-white/[0.04] text-sm font-black text-slate-100 transition hover:border-cyan-300/50 hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:border-slate-500/25 disabled:bg-slate-500/10 disabled:text-slate-500"
               >
                 <PrintIcon className="h-4 w-4" />
-                طباعة
+                {printingReceipt ? INVOICE_UX_MESSAGES.printPreparing : 'طباعة'}
               </button>
               <button
                 type="button"

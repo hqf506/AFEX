@@ -17,6 +17,7 @@ import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
+import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -396,8 +397,9 @@ export default function PosSaleSuccessPage() {
     setActionMessage('')
     try {
       window.print()
+      setActionMessage(INVOICE_UX_MESSAGES.printDialogOpened)
     } catch {
-      setActionMessage(POS_UX_MESSAGES.printFailure)
+      setActionMessage(INVOICE_UX_MESSAGES.printFailureAfterSavedOrder)
     } finally {
       window.setTimeout(() => setPrinting(false), 1000)
     }

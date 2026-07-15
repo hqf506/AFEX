@@ -28,6 +28,7 @@ import {
   getThermalPreviewWidth,
   prepareThermalInvoicePreviewHtml,
 } from '@/lib/invoices/thermal-preview'
+import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 
 const THERMAL_INVOICE_TABS = [
   { id: 'identity', label: 'الهوية' },
@@ -124,6 +125,8 @@ function ThermalLogoUploadCard({
   onRemove: () => void
 }) {
   const hasLogo = Boolean(logoUrl.trim())
+  const [failedLogoUrl, setFailedLogoUrl] = useState('')
+  const logoLoadFailed = Boolean(logoUrl && failedLogoUrl === logoUrl)
 
   return (
     <div className={`${darkCardClassName} md:col-span-2`}>
@@ -137,7 +140,7 @@ function ThermalLogoUploadCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#050d18]">
-            {hasLogo ? (
+            {hasLogo && !logoLoadFailed ? (
               <Image
                 src={logoUrl}
                 alt="شعار الفاتورة الحرارية"
@@ -145,6 +148,7 @@ function ThermalLogoUploadCard({
                 height={80}
                 unoptimized
                 className="max-h-20 max-w-20 object-contain"
+                onError={() => setFailedLogoUrl(logoUrl)}
               />
             ) : (
               <span className="px-3 text-center text-xs font-black text-slate-500">
@@ -152,6 +156,11 @@ function ThermalLogoUploadCard({
               </span>
             )}
           </div>
+          {logoLoadFailed ? (
+            <p role="alert" className="text-xs font-bold text-amber-200">
+              {INVOICE_UX_MESSAGES.logoFailure}
+            </p>
+          ) : null}
           <div className="text-right">
             <h4 className="text-sm font-black text-white">شعار الفاتورة الحرارية</h4>
             <p className="mt-1 text-xs font-bold leading-6 text-slate-400">
@@ -344,8 +353,8 @@ export default function AdminThermalInvoiceSettingsPage() {
       }
 
       updateField('logo_url', result.logoUrl)
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'فشل رفع شعار الفاتورة')
+    } catch {
+      setErrorMessage(INVOICE_UX_MESSAGES.logoFailure)
     } finally {
       setUploadingLogo(false)
       if (logoInputRef.current) {

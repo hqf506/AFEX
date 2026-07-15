@@ -17,7 +17,8 @@
     "check:encoding": "node scripts/check-encoding.js",
     "check:error-safety": "node scripts/check-error-safety.js",
     "check:ui-language": "node scripts/check-ui-language.js",
-    "check:pos-ux": "node scripts/check-pos-ux.js"
+    "check:pos-ux": "node scripts/check-pos-ux.js",
+    "check:invoice-ux": "node scripts/check-invoice-communication-ux.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

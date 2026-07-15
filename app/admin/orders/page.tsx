@@ -45,6 +45,7 @@ import {
   getThermalPreviewWidth,
   prepareThermalInvoicePreviewHtml,
 } from '@/lib/invoices/thermal-preview'
+import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 
 function fixArabic(text: string) {
   try {
@@ -76,7 +77,7 @@ type NotificationAuditAction =
   | 'invoice.pdf_generation_failed'
   | 'whatsapp.message_failed'
   | 'whatsapp.message_sent'
-type InvoicePdfAction = 'preview' | 'send'
+type InvoicePdfAction = 'preview' | 'send' | 'print'
 type PageOrderRecord = OrderRecord & {
   status_raw: string
   created_by_employee_id: string
@@ -1571,7 +1572,7 @@ export default function OrdersPage() {
       window.open(`/api/invoices/pdf?format=html&payload=${payload}`, '_blank')
     } catch (error) {
       console.error('Invoice preview error:', error)
-      showError('تعذر فتح معاينة الفاتورة الرقمية')
+      showError(INVOICE_UX_MESSAGES.previewFailure)
     } finally {
       setInvoicePdfActionByOrderId((current) => ({
         ...current,
@@ -1595,7 +1596,7 @@ export default function OrdersPage() {
       })
     } catch (error) {
       console.error('Invoice preview error:', error)
-      showError('تعذر فتح معاينة الفاتورة الرقمية')
+      showError(INVOICE_UX_MESSAGES.previewFailure)
     }
   }
 
@@ -1606,12 +1607,12 @@ export default function OrdersPage() {
     }
 
     if (!whatsappFeatureEnabled) {
-      showError(WHATSAPP_FEATURE_DISABLED_MESSAGE)
+      showError(INVOICE_UX_MESSAGES.providerDisabled)
       return
     }
 
     if (!isSendableWhatsAppPhone(order.customer_phone)) {
-      showError('لا يوجد رقم واتساب صالح لهذا العميل')
+      showError(INVOICE_UX_MESSAGES.missingPhone)
       return
     }
 
@@ -1631,6 +1632,10 @@ export default function OrdersPage() {
       [order.id]: 'pending',
     }))
 
+    let sendStage: 'pdf' | 'whatsapp' = 'pdf'
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), 30000)
+
     try {
       const pdfResponse = await fetch('/api/invoices/pdf?delivery=whatsapp', {
         method: 'POST',
@@ -1638,16 +1643,18 @@ export default function OrdersPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(buildInvoicePdfPayload(order)),
+        signal: controller.signal,
       })
       const pdfResult = await pdfResponse.json().catch(() => null)
 
       if (!pdfResponse.ok || !pdfResult?.success || !pdfResult?.fileUrl) {
-        throw new Error(pdfResult?.error || 'فشل توليد ملف PDF')
+        throw new Error('safe-pdf-failure')
       }
 
       const invoiceNumber = order.invoice_number || ''
       const safeInvoiceNumber = `\u200E${invoiceNumber}\u200E`
 
+      sendStage = 'whatsapp'
       const whatsappResponse = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: {
@@ -1669,18 +1676,19 @@ export default function OrdersPage() {
             channel: 'whatsapp',
           },
         }),
+        signal: controller.signal,
       })
       const whatsappResult = await whatsappResponse.json().catch(() => null)
 
       if (!whatsappResponse.ok || !whatsappResult?.success) {
-        throw new Error(whatsappResult?.error || 'فشل إرسال PDF عبر واتساب')
+        throw new Error('safe-whatsapp-failure')
       }
 
       setWhatsappStatusByOrderId((current) => ({
         ...current,
         [order.id]: 'sent',
       }))
-      showSuccess('تم إرسال الفاتورة الرقمية PDF عبر واتساب')
+      showSuccess(INVOICE_UX_MESSAGES.whatsappSuccess)
     } catch (error) {
       console.error('Invoice PDF WhatsApp send error:', error)
       setWhatsappStatusByOrderId((current) => ({
@@ -1688,11 +1696,16 @@ export default function OrdersPage() {
         [order.id]: 'failed',
       }))
       showError(
-        error instanceof Error
-          ? error.message
-          : 'فشل إرسال الفاتورة الرقمية PDF عبر واتساب'
+        error instanceof DOMException && error.name === 'AbortError'
+          ? sendStage === 'whatsapp'
+            ? INVOICE_UX_MESSAGES.whatsappTimeout
+            : INVOICE_UX_MESSAGES.pdfFailureAfterSavedOrder
+          : sendStage === 'pdf'
+            ? INVOICE_UX_MESSAGES.pdfFailureAfterSavedOrder
+            : INVOICE_UX_MESSAGES.whatsappFailure
       )
     } finally {
+      window.clearTimeout(timeoutId)
       setInvoicePdfActionByOrderId((current) => ({
         ...current,
         [order.id]: undefined,
@@ -1933,20 +1946,42 @@ export default function OrdersPage() {
   }
 
   const printThermalReceipt = (order: OrderRecord) => {
+    if (invoicePdfActionByOrderId[order.id]) return
+
+    setInvoicePdfActionByOrderId((current) => ({
+      ...current,
+      [order.id]: 'print',
+    }))
+    showSuccess(INVOICE_UX_MESSAGES.printPreparing)
     const printWindow = window.open('', '_blank', 'width=420,height=800')
 
     if (!printWindow) {
-      showError('تعذر فتح نافذة الطباعة')
+      showError(INVOICE_UX_MESSAGES.printPreparationFailure)
+      setInvoicePdfActionByOrderId((current) => ({
+        ...current,
+        [order.id]: undefined,
+      }))
       return
     }
 
-    printWindow.document.write(
-      buildThermalInvoiceHtmlForOrder(order).replace(
-        '</body>',
-        '<script>window.onload = function () { window.print(); };</script></body>'
+    try {
+      printWindow.document.write(
+        buildThermalInvoiceHtmlForOrder(order).replace(
+          '</body>',
+          '<script>window.onload = function () { window.print(); };</script></body>'
+        )
       )
-    )
-    printWindow.document.close()
+      printWindow.document.close()
+      showSuccess(INVOICE_UX_MESSAGES.printDialogOpened)
+    } catch {
+      printWindow.close()
+      showError(INVOICE_UX_MESSAGES.printFailureAfterSavedOrder)
+    } finally {
+      setInvoicePdfActionByOrderId((current) => ({
+        ...current,
+        [order.id]: undefined,
+      }))
+    }
   }
   void printThermalReceipt
 
@@ -2812,17 +2847,24 @@ export default function OrdersPage() {
                       onClick={() => sendDigitalInvoicePdf(detailsDrawerOrder)}
                       className="h-10 rounded-xl border border-teal-300/25 bg-teal-500/15 px-3 text-xs font-black text-teal-100 transition hover:bg-teal-500/25 disabled:opacity-50"
                     >
-                      {whatsappStatusByOrderId[detailsDrawerOrder.id] === 'sent'
+                      {invoicePdfActionByOrderId[detailsDrawerOrder.id] === 'send'
+                        ? 'جارٍ تجهيز الفاتورة وإرسالها...'
+                        : whatsappStatusByOrderId[detailsDrawerOrder.id] === 'sent'
                         ? 'إعادة إرسال PDF'
                         : 'إرسال PDF'}
                     </button>
                     <button
                       type="button"
-                      disabled={detailsDrawerActionsDisabled}
+                      disabled={
+                        detailsDrawerActionsDisabled ||
+                        Boolean(invoicePdfActionByOrderId[detailsDrawerOrder.id])
+                      }
                       onClick={() => printThermalReceipt(detailsDrawerOrder)}
                       className="h-10 rounded-xl border border-slate-300/20 bg-slate-400/10 px-3 text-xs font-black text-slate-100 transition hover:bg-slate-400/15 disabled:opacity-50"
                     >
-                      طباعة
+                      {invoicePdfActionByOrderId[detailsDrawerOrder.id] === 'print'
+                        ? INVOICE_UX_MESSAGES.printPreparing
+                        : 'طباعة'}
                     </button>
                     <button
                       type="button"
@@ -2876,6 +2918,7 @@ export default function OrdersPage() {
                             setThermalPreviewHeight
                           )
                         }}
+                        onError={() => showError(INVOICE_UX_MESSAGES.previewFailure)}
                         scrolling="no"
                         className="block rounded-sm border-0 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
                         style={{
@@ -2891,6 +2934,7 @@ export default function OrdersPage() {
                       key={invoicePreviewFrame.src || ''}
                       title={invoicePreviewFrame.title}
                       src={invoicePreviewFrame.src}
+                      onError={() => showError(INVOICE_UX_MESSAGES.previewFailure)}
                       className="h-[78vh] w-full rounded-[20px] border border-cyan-300/10 bg-white"
                     />
                   )}

@@ -13,6 +13,7 @@ import {
   getThermalPreviewWidth,
   prepareThermalInvoicePreviewHtml,
 } from '@/lib/invoices/thermal-preview'
+import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 
 function displayAfexText(value?: string | null) {
   return value?.replace(/leather\s*[- ]?\s*fix/gi, 'AFEX') ?? ''
@@ -73,9 +74,11 @@ export default function ThermalInvoicePreviewPage() {
     createThermalInvoiceSettingsPayload(null)
   )
   const [thermalPreviewHeight, setThermalPreviewHeight] = useState(360)
+  const [previewError, setPreviewError] = useState('')
 
   const fetchSettings = useCallback(async () => {
     setLoading(true)
+    setPreviewError('')
 
     try {
       const response = await fetch('/api/admin/system-settings', {
@@ -88,6 +91,8 @@ export default function ThermalInvoicePreviewPage() {
 
       setSettings(settingsData)
       setForm(createThermalInvoiceSettingsPayload(settingsData))
+    } catch {
+      setPreviewError(INVOICE_UX_MESSAGES.previewFailure)
     } finally {
       setLoading(false)
     }
@@ -114,7 +119,7 @@ export default function ThermalInvoicePreviewPage() {
   if (access.loading || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#020817] text-sm font-black text-cyan-100">
-        جارٍ تحميل المعاينة...
+        {INVOICE_UX_MESSAGES.thermalPreviewLoading}
       </div>
     )
   }
@@ -123,6 +128,17 @@ export default function ThermalInvoicePreviewPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#020817] text-sm font-black text-cyan-100">
         جارٍ التحقق من الصلاحية...
+      </div>
+    )
+  }
+
+  if (previewError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#020817] p-6 text-center text-sm font-black text-rose-100">
+        <p role="alert">{previewError}</p>
+        <button type="button" onClick={() => void fetchSettings()} className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-cyan-100">
+          إعادة المحاولة
+        </button>
       </div>
     )
   }
@@ -138,6 +154,7 @@ export default function ThermalInvoicePreviewPage() {
             setThermalPreviewHeight
           )
         }}
+        onError={() => setPreviewError(INVOICE_UX_MESSAGES.previewFailure)}
         scrolling="no"
         className="border-0 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
         style={{
