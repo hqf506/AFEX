@@ -18,7 +18,10 @@ import {
   type ReportRange,
 } from '@/lib/reports/core'
 import { buildPreviousComparisonRange } from '@/lib/reports/comparison'
-import { buildExecutiveDashboardData } from '@/lib/reports/executive-dashboard'
+import {
+  buildDashboardPeriodPayload,
+  filterDashboardOrdersByRange,
+} from '@/lib/reports/dashboard-aggregation'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type ReportOrderSummaryRow = Omit<ReportOrderRecord, 'items'> & {
@@ -282,11 +285,7 @@ async function getDashboardResponse({
         invoices (
           total,
           invoice_items (
-            item_name_snapshot,
-            item_type_snapshot,
             item_category_snapshot,
-            quantity,
-            unit_price,
             line_total
           )
         )
@@ -322,8 +321,8 @@ async function getDashboardResponse({
         mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index)
       )
     : []
-  const currentOrders = filterOrdersByRange(orders, fromIso, toIso)
-  const previousOrders = filterOrdersByRange(
+  const currentOrders = filterDashboardOrdersByRange(orders, fromIso, toIso)
+  const previousOrders = filterDashboardOrdersByRange(
     orders,
     previousRange.start,
     previousRange.end
@@ -344,75 +343,6 @@ async function getDashboardResponse({
       includeDetails: false,
     }),
   })
-}
-
-function filterOrdersByRange(
-  orders: ReportOrderRecord[],
-  startValue: string,
-  endValue: string
-) {
-  const start = new Date(startValue).getTime()
-  const end = new Date(endValue).getTime()
-
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) {
-    return []
-  }
-
-  return orders.filter((order) => {
-    const createdAt = new Date(order.created_at).getTime()
-    return Number.isFinite(createdAt) && createdAt >= start && createdAt <= end
-  })
-}
-
-function buildDashboardPeriodPayload(
-  orders: ReportOrderRecord[],
-  options: {
-    range: ReportRange
-    dateFrom: string
-    dateTo: string
-    includeDetails: boolean
-  }
-) {
-  const dashboard = buildExecutiveDashboardData(orders, {
-    range: options.range,
-    dateFrom: options.dateFrom,
-    dateTo: options.dateTo,
-    trendGrouping: 'day',
-    topLimit: 5,
-  })
-  const customerNames = new Set(
-    orders.map((order) => order.customer_name.trim()).filter(Boolean)
-  )
-
-  return {
-    summary: {
-      totalSales: dashboard.summary.totalSales,
-      totalOrders: dashboard.summary.totalOrders,
-    },
-    uniqueCustomersCount: customerNames.size,
-    activeOrdersCount: orders.filter((order) => order.status !== 'closed').length,
-    ...(options.includeDetails
-      ? {
-          topCategories: dashboard.topCategories.map((category) => ({
-            categoryKey: category.categoryKey,
-            categoryName: category.categoryName,
-            grossSales: category.grossSales,
-          })),
-          trend: dashboard.trend.map((period) => ({
-            periodKey: period.periodKey,
-            periodLabel: period.periodLabel,
-            grossSales: period.grossSales,
-          })),
-          recentOrders: orders.slice(0, 5).map((order) => ({
-            id: order.id,
-            order_number: order.order_number,
-            customer_name: order.customer_name,
-            status: order.status,
-            total: order.total,
-          })),
-        }
-      : {}),
-  }
 }
 
 function parseReportRange(value: string | null): ReportRange {
