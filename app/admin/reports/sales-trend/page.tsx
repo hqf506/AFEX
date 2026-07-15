@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { useAuthState } from '@/components/auth-state-provider'
@@ -9,26 +9,19 @@ import { usePageAccess } from '@/hooks/use-page-access'
 import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
 import {
   isBranchScopedWithoutBranchId,
-  shouldFilterByBranch,
 } from '@/lib/branch-access'
 import { formatCurrency, getDateInputValue } from '@/lib/orders/format'
-import { type OrderSourceRow } from '@/lib/orders/normalize'
 import {
   buildReportDateRange,
   escapeCsvValue,
-  mapOrderSourceRowToReportOrderRecord,
-  type ReportOrderRecord,
   type ReportRange,
 } from '@/lib/reports/core'
 import {
-  buildSalesTrendRows,
   type SalesTrendGrouping,
   type SalesTrendRange,
   type SalesTrendRow,
 } from '@/lib/reports/sales-trend'
 import { canViewReportRange } from '@/lib/permissions'
-import { supabase } from '@/lib/supabase/client'
-import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type PeriodPresetKey = 'today' | 'this-week' | 'this-month' | 'custom'
 type SalesTrendSortKey =
@@ -359,11 +352,12 @@ export default function SalesTrendPage() {
     useState<SalesTrendGrouping>('day')
   const [sortKey, setSortKey] = useState<SalesTrendSortKey>('period')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [orders, setOrders] = useState<ReportOrderRecord[]>([])
+  const [trendRows, setTrendRows] = useState<SalesTrendRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [lastUpdated, setLastUpdated] = useState('')
+  const requestSeqRef = useRef(0)
 
   const isCustomPeriod = period === 'custom'
 
@@ -374,8 +368,9 @@ export default function SalesTrendPage() {
 
   const fetchSalesTrendData = useCallback(
     async (silent = false) => {
+      const requestSeq = ++requestSeqRef.current
       if (!dateFrom) {
-        setOrders([])
+        setTrendRows([])
         setLoading(false)
         setRefreshing(false)
         return
@@ -388,14 +383,14 @@ export default function SalesTrendPage() {
 
       if (!canViewReportRange(access.userRole, trendRange.start, trendRange.end)) {
         setErrorMessage('يمكن للموظف عرض فترة لا تتجاوز 31 يومًا.')
-        setOrders([])
+        setTrendRows([])
         setLoading(false)
         setRefreshing(false)
         return
       }
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
-        setOrders([])
+        setTrendRows([])
         setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
@@ -403,76 +398,35 @@ export default function SalesTrendPage() {
       }
 
       if (!tenantId) {
-        setOrders([])
+        setTrendRows([])
         setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
       }
 
-      let query = supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          created_at,
-          customers (
-            name,
-            phone
-          ),
-          invoices (
-            invoice_number,
-            payment_method,
-            payment_status,
-            subtotal,
-            discount,
-            tax,
-            total,
-            note,
-            cash_received,
-            remaining_from_customer,
-            cash_change,
-            invoice_items (
-              item_name_snapshot,
-              item_type_snapshot,
-              item_category_snapshot,
-              quantity,
-              unit_price,
-              line_total,
-              cost_price
-            )
-          )
-        `)
-        .gte('created_at', trendRange.start)
-        .lte('created_at', trendRange.end)
-        .order('created_at', { ascending: false })
+      const params = new URLSearchParams({
+        type: 'trend', range, dateFrom, dateTo, grouping: trendGrouping,
+      })
+      if (effectiveBranchId) params.set('branchId', effectiveBranchId)
+      const response = await fetch(
+        `/api/admin/reports/sales-performance?${params.toString()}`,
+        { cache: 'no-store' }
+      )
+      const payload = (await response.json().catch(() => null)) as
+        | { success?: boolean; trendRows?: SalesTrendRow[] }
+        | null
+      if (requestSeqRef.current !== requestSeq) return
 
-      query = applyTenantFilter(query, tenantId)
-
-      if (shouldFilterByBranch(scopeType, branchId)) {
-        query = query.eq('branch_id', branchId as string)
-      } else if (effectiveBranchId) {
-        query = query.eq('branch_id', effectiveBranchId)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
+      if (!response.ok || !payload?.success) {
         setErrorMessage('تعذر تحميل التقرير. تحقق من الاتصال ثم حاول مرة أخرى.')
-        setOrders([])
+        setTrendRows([])
         setLoading(false)
         setRefreshing(false)
         return
       }
 
-      const normalized = Array.isArray(data)
-        ? data.map((row, index) =>
-            mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index)
-          )
-        : []
-
-      setOrders(normalized)
+      setTrendRows(Array.isArray(payload.trendRows) ? payload.trendRows : [])
       setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
@@ -484,6 +438,9 @@ export default function SalesTrendPage() {
       branchId,
       effectiveBranchId,
       trendRange,
+      trendGrouping,
+      range,
+      dateTo,
       tenantId,
     ]
   )
@@ -497,11 +454,6 @@ export default function SalesTrendPage() {
 
     return () => window.clearTimeout(timeoutId)
   }, [allowed, fetchSalesTrendData])
-
-  const trendRows = useMemo(
-    () => buildSalesTrendRows(orders, trendGrouping, trendRange),
-    [orders, trendGrouping, trendRange]
-  )
 
   const sortedTrendRows = useMemo(() => {
     return [...trendRows].sort((left, right) =>

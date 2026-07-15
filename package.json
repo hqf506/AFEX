@@ -25,7 +25,8 @@
     "check:orders-performance": "node scripts/check-orders-performance.mjs",
     "check:orders-correctness": "node scripts/check-orders-correctness.mjs",
     "check:inventory-performance": "node scripts/check-inventory-performance.mjs",
-    "check:dashboard-performance": "node scripts/check-dashboard-performance.mjs"
+    "check:dashboard-performance": "node scripts/check-dashboard-performance.mjs",
+    "check:reports-performance": "node scripts/check-reports-performance.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

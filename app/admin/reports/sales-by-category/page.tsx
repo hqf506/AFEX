@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { useAuthState } from '@/components/auth-state-provider'
@@ -9,23 +9,15 @@ import { usePageAccess } from '@/hooks/use-page-access'
 import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
 import {
   isBranchScopedWithoutBranchId,
-  shouldFilterByBranch,
 } from '@/lib/branch-access'
 import { formatCurrency, getDateInputValue } from '@/lib/orders/format'
-import { type OrderSourceRow } from '@/lib/orders/normalize'
 import {
   buildReportDateRange,
-  enrichOrdersWithCatalogFinancials,
   escapeCsvValue,
-  mapOrderSourceRowToReportOrderRecord,
-  type CatalogFinancialSource,
-  type ReportOrderRecord,
   type ReportRange,
+  type SalesByCategoryRow,
 } from '@/lib/reports/core'
-import { buildSalesByCategoryRows } from '@/lib/reports/sales-by-category'
 import { canViewReportRange } from '@/lib/permissions'
-import { supabase } from '@/lib/supabase/client'
-import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type PeriodPresetKey = 'today' | 'this-week' | 'this-month' | 'custom'
 type SalesByCategorySortKey =
@@ -263,27 +255,6 @@ function getRankBadge(rank: number) {
   return String(rank)
 }
 
-async function fetchCatalogFinancials(tenantId: string | null | undefined) {
-  if (!tenantId) {
-    return [] as CatalogFinancialSource[]
-  }
-
-  let query = supabase
-    .from('catalog_items')
-    .select('name, item_type, category, default_price, cost_price')
-
-  query = applyTenantFilter(query, tenantId)
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Load catalog financials error:', error)
-    return [] as CatalogFinancialSource[]
-  }
-
-  return (data || []) as CatalogFinancialSource[]
-}
-
 export default function SalesByCategoryPage() {
   const authState = useAuthState()
   const access = usePageAccess(['admin', 'employee'])
@@ -306,7 +277,7 @@ export default function SalesByCategoryPage() {
   const [range, setRange] = useState<ReportRange>(initialPeriod.range)
   const [dateFrom, setDateFrom] = useState(initialPeriod.dateFrom)
   const [dateTo, setDateTo] = useState(initialPeriod.dateTo)
-  const [orders, setOrders] = useState<ReportOrderRecord[]>([])
+  const [categoryRows, setCategoryRows] = useState<SalesByCategoryRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -314,13 +285,15 @@ export default function SalesByCategoryPage() {
   const [sortKey, setSortKey] = useState<SalesByCategorySortKey>('grossSales')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [showAllCategories, setShowAllCategories] = useState(false)
+  const requestSeqRef = useRef(0)
 
   const isCustomPeriod = period === 'custom'
 
   const fetchData = useCallback(
     async (silent = false) => {
+      const requestSeq = ++requestSeqRef.current
       if (!dateFrom) {
-        setOrders([])
+        setCategoryRows([])
         setLoading(false)
         setRefreshing(false)
         return
@@ -331,7 +304,7 @@ export default function SalesByCategoryPage() {
       setErrorMessage('')
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
-        setOrders([])
+        setCategoryRows([])
         setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
@@ -339,7 +312,7 @@ export default function SalesByCategoryPage() {
       }
 
       if (!tenantId) {
-        setOrders([])
+        setCategoryRows([])
         setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
@@ -350,78 +323,36 @@ export default function SalesByCategoryPage() {
 
       if (!canViewReportRange(access.userRole, fromIso, toIso)) {
         setErrorMessage('يمكن للموظف عرض فترة لا تتجاوز 31 يومًا.')
-        setOrders([])
+        setCategoryRows([])
         setLoading(false)
         setRefreshing(false)
         return
       }
 
-      let query = supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          created_at,
-          customers (
-            name,
-            phone
-          ),
-          invoices (
-            invoice_number,
-            payment_method,
-            payment_status,
-            subtotal,
-            discount,
-            tax,
-            total,
-            note,
-            cash_received,
-            remaining_from_customer,
-            cash_change,
-            invoice_items (
-              item_name_snapshot,
-              item_type_snapshot,
-              item_category_snapshot,
-              quantity,
-              unit_price,
-              line_total,
-              cost_price
-            )
-          )
-        `)
-        .gte('created_at', fromIso)
-        .lte('created_at', toIso)
-        .order('created_at', { ascending: false })
+      const params = new URLSearchParams({
+        type: 'category', range, dateFrom, dateTo,
+      })
+      if (effectiveBranchId) params.set('branchId', effectiveBranchId)
+      const response = await fetch(
+        `/api/admin/reports/sales-performance?${params.toString()}`,
+        { cache: 'no-store' }
+      )
+      const payload = (await response.json().catch(() => null)) as
+        | { success?: boolean; categoryRows?: SalesByCategoryRow[] }
+        | null
+      if (requestSeqRef.current !== requestSeq) return
 
-      query = applyTenantFilter(query, tenantId)
-
-      if (shouldFilterByBranch(scopeType, branchId)) {
-        query = query.eq('branch_id', branchId as string)
-      } else if (effectiveBranchId) {
-        query = query.eq('branch_id', effectiveBranchId)
-      }
-
-      const [{ data, error }, catalogFinancials] = await Promise.all([
-        query,
-        fetchCatalogFinancials(tenantId),
-      ])
-
-      if (error) {
+      if (!response.ok || !payload?.success) {
         setErrorMessage('تعذر تحميل التقرير. تحقق من الاتصال ثم حاول مرة أخرى.')
-        setOrders([])
+        setCategoryRows([])
         setLoading(false)
         setRefreshing(false)
         return
       }
 
-      const normalized = Array.isArray(data)
-        ? data.map((row, index) =>
-            mapOrderSourceRowToReportOrderRecord(row as OrderSourceRow, index)
-          )
-        : []
-
-      setOrders(enrichOrdersWithCatalogFinancials(normalized, catalogFinancials))
+      setCategoryRows(
+        Array.isArray(payload.categoryRows) ? payload.categoryRows : []
+      )
       setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
@@ -445,8 +376,6 @@ export default function SalesByCategoryPage() {
     }, 0)
     return () => window.clearTimeout(timeoutId)
   }, [allowed, fetchData])
-
-  const categoryRows = useMemo(() => buildSalesByCategoryRows(orders), [orders])
 
   const sortedCategoryRows = useMemo(() => {
     const directionFactor = sortDirection === 'asc' ? 1 : -1

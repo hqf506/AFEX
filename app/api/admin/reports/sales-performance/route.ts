@@ -16,19 +16,38 @@ import {
   type ReportRange,
 } from '@/lib/reports/core'
 import { buildSalesByCustomerRows } from '@/lib/reports/sales-by-customer'
+import { buildSalesByCategoryRows } from '@/lib/reports/sales-by-category'
 import {
   buildSalesByEmployeeRows,
   type EmployeeProfileSource,
   type EmployeeReportOrder,
 } from '@/lib/reports/sales-by-employee'
+import { buildSalesByItemRows } from '@/lib/reports/sales-by-item'
+import {
+  buildSalesTrendRows,
+  type SalesTrendGrouping,
+} from '@/lib/reports/sales-trend'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
-type SalesPerformanceReportType = 'customer' | 'employee'
+type SalesPerformanceReportType =
+  | 'customer'
+  | 'employee'
+  | 'item'
+  | 'category'
+  | 'trend'
 type ApiAuthSuccess = Extract<Awaited<ReturnType<typeof requireApiAuth>>, { ok: true }>
 
 const VALID_REPORT_TYPES = new Set<SalesPerformanceReportType>([
   'customer',
   'employee',
+  'item',
+  'category',
+  'trend',
+])
+const VALID_TREND_GROUPINGS = new Set<SalesTrendGrouping>([
+  'day',
+  'week',
+  'month',
 ])
 const VALID_REPORT_RANGES = new Set<ReportRange>([
   'daily',
@@ -77,6 +96,7 @@ export async function GET(request: NextRequest) {
     const dateFrom = normalizeDateInput(params.get('dateFrom'))
     const dateTo = normalizeDateInput(params.get('dateTo')) || dateFrom
     const branchId = normalizeUuidString(params.get('branchId'))
+    const trendGrouping = parseTrendGrouping(params.get('grouping'))
 
     if (!dateFrom) {
       return jsonWithAuthCookies(
@@ -127,10 +147,15 @@ export async function GET(request: NextRequest) {
       return jsonWithAuthCookies(auth.response, emptyReportResponse(reportType))
     }
 
-    const payload =
-      reportType === 'employee'
-        ? await buildEmployeeReport(auth, tenantId, fromIso, toIso, branchId)
-        : await buildCustomerReport(auth, tenantId, fromIso, toIso, branchId)
+    const payload = await buildReport(
+      reportType,
+      auth,
+      tenantId,
+      fromIso,
+      toIso,
+      branchId,
+      trendGrouping
+    )
 
     return jsonWithAuthCookies(auth.response, payload)
   } catch (error) {
@@ -141,6 +166,47 @@ export async function GET(request: NextRequest) {
       500
     )
   }
+}
+
+function parseTrendGrouping(value: string | null): SalesTrendGrouping {
+  return VALID_TREND_GROUPINGS.has(value as SalesTrendGrouping)
+    ? (value as SalesTrendGrouping)
+    : 'day'
+}
+
+async function buildReport(
+  reportType: SalesPerformanceReportType,
+  auth: ApiAuthSuccess,
+  tenantId: string,
+  fromIso: string,
+  toIso: string,
+  branchId: string,
+  trendGrouping: SalesTrendGrouping
+) {
+  if (reportType === 'employee') {
+    return buildEmployeeReport(auth, tenantId, fromIso, toIso, branchId)
+  }
+  if (reportType === 'trend') {
+    return buildTrendReport(
+      auth,
+      tenantId,
+      fromIso,
+      toIso,
+      branchId,
+      trendGrouping
+    )
+  }
+  if (reportType === 'item' || reportType === 'category') {
+    return buildItemReport(
+      reportType,
+      auth,
+      tenantId,
+      fromIso,
+      toIso,
+      branchId
+    )
+  }
+  return buildCustomerReport(auth, tenantId, fromIso, toIso, branchId)
 }
 
 function parseReportType(value: string | null): SalesPerformanceReportType {
@@ -197,25 +263,11 @@ async function buildCustomerReport(
     .select(
       `
         id,
-        order_number,
-        status,
-        created_at,
         customers (
           name,
           phone
         ),
         invoices (
-          invoice_number,
-          payment_method,
-          payment_status,
-          subtotal,
-          discount,
-          tax,
-          total,
-          note,
-          cash_received,
-          remaining_from_customer,
-          cash_change,
           invoice_items (
             item_name_snapshot,
             item_type_snapshot,
@@ -284,27 +336,15 @@ async function buildEmployeeReport(
     .select(
       `
         id,
-        order_number,
-        status,
-        created_at,
         created_by_employee_id,
         customers (
           name,
           phone
         ),
         invoices (
-          id,
-          invoice_number,
-          payment_method,
-          payment_status,
           subtotal,
           discount,
-          tax,
-          total,
-          cash_received,
-          remaining_from_customer,
-          cash_change,
-          note
+          total
         )
       `
     )
@@ -336,6 +376,91 @@ async function buildEmployeeReport(
   return {
     success: true,
     employeeRows: buildSalesByEmployeeRows(employeeOrders, employeeProfiles),
+  }
+}
+
+async function buildItemReport(
+  reportType: 'item' | 'category',
+  auth: ApiAuthSuccess,
+  tenantId: string,
+  fromIso: string,
+  toIso: string,
+  branchId: string
+) {
+  let ordersQuery = auth.supabase
+    .from('orders')
+    .select(`
+      id,
+      invoices (
+        invoice_items (
+          item_name_snapshot,
+          item_type_snapshot,
+          item_category_snapshot,
+          quantity,
+          unit_price,
+          line_total,
+          cost_price
+        )
+      )
+    `)
+    .gte('created_at', fromIso)
+    .lte('created_at', toIso)
+
+  ordersQuery = applyTenantFilter(ordersQuery, tenantId)
+  ordersQuery = applyBranchFilter(ordersQuery, auth, branchId)
+
+  let catalogQuery = auth.supabase
+    .from('catalog_items')
+    .select('name, item_type, category, default_price, cost_price')
+  catalogQuery = applyTenantFilter(catalogQuery, tenantId)
+
+  const [ordersResult, catalogResult] = await Promise.all([
+    ordersQuery,
+    catalogQuery,
+  ])
+  if (ordersResult.error) throw ordersResult.error
+  if (catalogResult.error) throw catalogResult.error
+
+  const orders = enrichOrdersWithCatalogFinancials(
+    ((ordersResult.data ?? []) as OrderSourceRow[]).map((row, index) =>
+      mapOrderSourceRowToReportOrderRecord(row, index)
+    ),
+    (catalogResult.data ?? []) as CatalogFinancialSource[]
+  )
+
+  return reportType === 'item'
+    ? { success: true, itemRows: buildSalesByItemRows(orders) }
+    : { success: true, categoryRows: buildSalesByCategoryRows(orders) }
+}
+
+async function buildTrendReport(
+  auth: ApiAuthSuccess,
+  tenantId: string,
+  fromIso: string,
+  toIso: string,
+  branchId: string,
+  grouping: SalesTrendGrouping
+) {
+  let query = auth.supabase
+    .from('orders')
+    .select('id, created_at, invoices(invoice_items(quantity, line_total))')
+    .gte('created_at', fromIso)
+    .lte('created_at', toIso)
+    .order('created_at', { ascending: false })
+  query = applyTenantFilter(query, tenantId)
+  query = applyBranchFilter(query, auth, branchId)
+
+  const { data, error } = await query
+  if (error) throw error
+  const orders = ((data ?? []) as OrderSourceRow[]).map((row, index) =>
+    mapOrderSourceRowToReportOrderRecord(row, index)
+  )
+  return {
+    success: true,
+    trendRows: buildSalesTrendRows(orders, grouping, {
+      start: fromIso,
+      end: toIso,
+    }),
   }
 }
 
@@ -429,6 +554,10 @@ function emptyReportResponse(reportType: SalesPerformanceReportType) {
       employeeRows: [],
     }
   }
+
+  if (reportType === 'item') return { success: true, itemRows: [] }
+  if (reportType === 'category') return { success: true, categoryRows: [] }
+  if (reportType === 'trend') return { success: true, trendRows: [] }
 
   return {
     success: true,
