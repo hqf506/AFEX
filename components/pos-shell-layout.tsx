@@ -64,7 +64,7 @@ function PosShellViewport({
   }, [])
 
   return (
-    <div className="pos-shell-viewport h-[100dvh] min-h-[100dvh] w-screen overflow-hidden bg-slate-950 text-slate-900 xl:bg-black">
+    <div className="pos-shell-viewport h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-slate-900 xl:bg-black">
       <div className="pos-shell-inner h-full min-h-0 w-full overflow-hidden px-0 py-0">
         <PosTabletFrame isLoginPage={isLoginPage}>{children}</PosTabletFrame>
       </div>

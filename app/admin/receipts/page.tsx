@@ -1477,7 +1477,7 @@ function ReceiptDrawer({
       />
       <aside
         dir="rtl"
-        className={`fixed left-0 top-0 z-[90] h-screen w-[min(380px,calc(100vw-24px))] border-r border-cyan-400/25 bg-[#06111f]/95 shadow-[0_0_70px_rgba(34,211,238,0.18)] backdrop-blur-2xl transition-transform duration-300 ${
+        className={`fixed left-0 top-0 z-[90] h-[100dvh] w-[min(380px,calc(100vw-24px))] border-r border-cyan-400/25 bg-[#06111f]/95 shadow-[0_0_70px_rgba(34,211,238,0.18)] backdrop-blur-2xl transition-transform duration-300 ${
           receipt ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

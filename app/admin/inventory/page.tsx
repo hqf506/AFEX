@@ -761,8 +761,8 @@ export default function AdminInventoryPage() {
             />
           ) : (
             <>
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full table-fixed text-right">
+            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
+              <table className="w-full min-w-[820px] table-fixed text-right">
                 <colgroup>
                   <col className="w-[24%]" />
                   <col className="w-[12%]" />
@@ -829,19 +829,19 @@ export default function AdminInventoryPage() {
                             {stockStatus.label}
                           </span>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="sticky left-0 bg-[#06111f] px-3 py-4">
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => openAdjustDrawer(row)}
-                              className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15"
+                              className="inline-flex h-11 min-w-0 flex-1 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15"
                             >
                               تعديل الكمية
                             </button>
                             <button
                               type="button"
                               onClick={() => openThresholdDrawer(row)}
-                              className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] px-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/25 hover:bg-cyan-300/10 hover:text-cyan-100"
+                              className="inline-flex h-11 min-w-0 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] px-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/25 hover:bg-cyan-300/10 hover:text-cyan-100"
                             >
                               حد التنبيه
                             </button>
@@ -861,7 +861,7 @@ export default function AdminInventoryPage() {
                     setCurrentPage((page) => Math.max(1, page - 1))
                   }
                   disabled={loadingInventory || currentPage <= 1}
-                  className="h-10 rounded-xl border border-cyan-300/15 bg-white/[0.045] px-4 text-xs font-black text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-11 rounded-xl border border-cyan-300/15 bg-white/[0.045] px-4 text-xs font-black text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   السابق
                 </button>
@@ -875,7 +875,7 @@ export default function AdminInventoryPage() {
                     setCurrentPage((page) => Math.min(totalPages, page + 1))
                   }
                   disabled={loadingInventory || currentPage >= totalPages}
-                  className="h-10 rounded-xl border border-cyan-300/15 bg-white/[0.045] px-4 text-xs font-black text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-11 rounded-xl border border-cyan-300/15 bg-white/[0.045] px-4 text-xs font-black text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   التالي
                 </button>

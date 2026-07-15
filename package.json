@@ -19,7 +19,8 @@
     "check:ui-language": "node scripts/check-ui-language.js",
     "check:pos-ux": "node scripts/check-pos-ux.js",
     "check:invoice-ux": "node scripts/check-invoice-communication-ux.js",
-    "check:admin-ux": "node scripts/check-admin-ux.js"
+    "check:admin-ux": "node scripts/check-admin-ux.js",
+    "check:responsive-ux": "node scripts/check-responsive-ux.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

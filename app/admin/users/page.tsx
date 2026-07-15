@@ -947,7 +947,7 @@ export default function AdminUsersPage() {
             aria-modal="true"
             aria-labelledby="create-user-title"
             onSubmit={handleCreateUser}
-            className="animate-[users-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8"
+            className="animate-[users-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6 lg:p-8"
           >
             <div className="mb-8 flex items-start justify-between gap-4">
                 <div className="pt-3">
@@ -1284,7 +1284,7 @@ export default function AdminUsersPage() {
                   aria-modal="true"
                   aria-labelledby="edit-user-title"
                   onSubmit={handleSaveEditUser}
-                  className="animate-[users-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8"
+                  className="animate-[users-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6 lg:p-8"
                 >
                   <div className="mb-8 flex items-start justify-between gap-4">
                     <div className="pt-3">
@@ -1833,7 +1833,7 @@ export default function AdminUsersPage() {
                               </span>
                             </td>
 
-                            <td className="px-3 py-4">
+                            <td className="sticky left-0 bg-[#06111f] px-3 py-4">
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
@@ -1843,7 +1843,7 @@ export default function AdminUsersPage() {
                                     isMainAdmin ||
                                     !user.account_type
                                   }
-                                  className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="inline-flex h-11 min-w-0 flex-1 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   تعديل
                                 </button>
@@ -1852,7 +1852,7 @@ export default function AdminUsersPage() {
                                   type="button"
                                   onClick={() => openDeleteModal(user)}
                                   disabled={isBusy || isMainAdmin}
-                                  className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border border-red-300/20 bg-red-500/10 px-2 text-xs font-black text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="inline-flex h-11 min-w-0 flex-1 items-center justify-center rounded-xl border border-red-300/20 bg-red-500/10 px-2 text-xs font-black text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   حذف
                                 </button>

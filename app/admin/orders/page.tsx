@@ -2331,12 +2331,12 @@ export default function OrdersPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-4 align-middle">
+                          <td className="sticky left-0 bg-[#07111d] px-4 py-4 align-middle">
                             <div className="flex items-center">
                               <button
                                 type="button"
                                 onClick={() => setDetailsDrawerOrderId(order.id)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-cyan-200/55 bg-cyan-300/15 px-4 text-[11px] font-black text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)] transition hover:border-cyan-200/80 hover:bg-cyan-300/25 hover:shadow-[0_0_22px_rgba(34,211,238,0.24)]"
+                                className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-cyan-200/55 bg-cyan-300/15 px-4 text-[11px] font-black text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)] transition hover:border-cyan-200/80 hover:bg-cyan-300/25 hover:shadow-[0_0_22px_rgba(34,211,238,0.24)]"
                               >
                                 <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                   <path d="M7 3h10a2 2 0 0 1 2 2v16l-3-1.5-3 1.5-3-1.5L7 21V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -2360,7 +2360,7 @@ export default function OrdersPage() {
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                className="h-10 rounded-xl border border-cyan-300/15 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-11 rounded-xl border border-cyan-300/15 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 السابق
               </button>
@@ -2371,7 +2371,7 @@ export default function OrdersPage() {
                 type="button"
                 disabled={currentPage >= Math.ceil(totalOrders / ORDERS_PAGE_SIZE)}
                 onClick={() => setCurrentPage((page) => page + 1)}
-                className="h-10 rounded-xl border border-cyan-300/15 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-11 rounded-xl border border-cyan-300/15 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 التالي
               </button>
@@ -2882,7 +2882,7 @@ export default function OrdersPage() {
           ) : null}
           {invoicePreviewFrame ? (
             <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-              <div className={`flex max-h-[88vh] w-full flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] ${
+              <div className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] sm:max-h-[88dvh] ${
                 invoicePreviewFrame.srcDoc ? 'max-w-[520px]' : 'max-w-[1180px]'
               }`}>
                 <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">

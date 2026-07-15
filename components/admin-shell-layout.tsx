@@ -529,9 +529,9 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
       </div>
       <div className="relative z-10 w-full px-3 py-4 sm:px-4 sm:py-5 lg:px-6 lg:py-6 xl:px-8">
-        <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
-          <aside className="w-full xl:w-[300px] xl:min-w-[300px]">
-            <div className="sticky top-4 rounded-[30px] border border-white/10 bg-[#07111f]/86 p-4 text-right shadow-[0_28px_110px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="min-w-0 max-lg:max-h-[34dvh] max-lg:overflow-y-auto lg:w-[260px] lg:min-w-[260px] xl:w-[300px] xl:min-w-[300px]">
+            <div className="rounded-[30px] border border-white/10 bg-[#07111f]/86 p-4 text-right shadow-[0_28px_110px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
               <div className="mb-7 space-y-4">
                 <Image
                   src="/brand/afex-logo.png"

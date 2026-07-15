@@ -713,7 +713,7 @@ export default async function AdminCustomersPage({
           <div className="absolute inset-y-0 right-0 flex w-full justify-end">
             <form
               action={updateCustomer}
-              className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8"
+              className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6 lg:p-8"
             >
               <input type="hidden" name="customerId" value={selectedCustomer.id} />
 
