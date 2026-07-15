@@ -227,7 +227,7 @@ export default function AdminCategoriesPage() {
         throw new Error(getClientErrorMessage(result, 'تعذر حفظ الفئة. لم يتم حفظ التغييرات.'))
       }
 
-      setSuccessMessage('تمت إضافة فئة جديدة بنجاح')
+      setSuccessMessage('تم حفظ الفئة بنجاح.')
       setName('')
       await loadCategories(true)
     } catch (error) {
@@ -423,7 +423,7 @@ export default function AdminCategoriesPage() {
                 <CategoryIcon className="h-7 w-7" />
               </div>
               <h3 className="mt-4 text-lg font-black text-white">
-                لا توجد فئات مضافة حتى الآن.
+                لا توجد فئات حتى الآن.
               </h3>
               <p className="mt-2 text-sm text-slate-400">
                 أضف أول فئة لتنظيم العناصر والخدمات في الكتالوج.
@@ -508,7 +508,7 @@ export default function AdminCategoriesPage() {
               <p className="mt-4 text-sm leading-7 text-slate-300">
                 {pendingDeleteCategory.used_count > 0
                   ? `هذه الفئة مستخدمة في ${pendingDeleteCategory.used_count} عنصر. عند حذفها سيتم نقل العناصر إلى دون فئة. هل تريد المتابعة؟`
-                  : 'هل تريد تأكيد حذف هذه الفئة؟'}
+                  : 'هل تريد حذف هذه الفئة؟ لا يمكن التراجع عن هذه العملية.'}
               </p>
 
               <div className="mt-6 flex items-center justify-end gap-3">

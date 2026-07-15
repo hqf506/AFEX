@@ -807,7 +807,7 @@ export default function AdminAnnouncementsPage() {
                 <AnnouncementIcon className="h-7 w-7" />
               </div>
               <h3 className="mt-4 text-lg font-black text-white">
-                لا توجد إعلانات حتى الآن
+                لا توجد إعلانات حتى الآن.
               </h3>
               <p className="mt-2 text-sm text-slate-400">
                 أنشئ إعلانك الأول ثم أرسل رسالة واتساب للعملاء.

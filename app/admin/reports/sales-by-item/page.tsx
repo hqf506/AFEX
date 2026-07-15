@@ -250,7 +250,7 @@ function EmptyItemsState() {
         </svg>
       </div>
       <p className="text-base font-black text-white">
-        لا توجد بيانات عناصر خلال الفترة الحالية
+        لا توجد بيانات كافية للفترة المحددة.
       </p>
       <p className="mt-2 text-sm text-slate-500">
         جرّب تغيير الفترة أو الفرع لعرض نتائج أكثر.
@@ -336,7 +336,7 @@ export default function SalesByItemPage() {
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
         setOrders([])
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -344,7 +344,7 @@ export default function SalesByItemPage() {
 
       if (!tenantId) {
         setOrders([])
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -353,7 +353,7 @@ export default function SalesByItemPage() {
       const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
 
       if (!canViewReportRange(access.userRole, fromIso, toIso)) {
-        setErrorMessage('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        setErrorMessage('يمكن للموظف عرض فترة لا تتجاوز 31 يومًا.')
         setOrders([])
         setLoading(false)
         setRefreshing(false)
@@ -412,7 +412,7 @@ export default function SalesByItemPage() {
       ])
 
       if (error) {
-        setErrorMessage(`فشل تحميل تقرير المبيعات حسب العنصر: ${error.message}`)
+        setErrorMessage('تعذر تحميل التقرير. تحقق من الاتصال ثم حاول مرة أخرى.')
         setOrders([])
         setLoading(false)
         setRefreshing(false)
@@ -426,7 +426,7 @@ export default function SalesByItemPage() {
         : []
 
       setOrders(enrichOrdersWithCatalogFinancials(normalized, catalogFinancials))
-      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+      setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
     },

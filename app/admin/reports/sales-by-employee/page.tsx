@@ -297,7 +297,7 @@ export default function SalesByEmployeeReportPage() {
       if (!canViewReportRange(access.userRole, dateRange.from, dateRange.to)) {
         setServerEmployeeRows([])
         setLoading(false)
-        setError('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        setError('يمكن للموظف عرض فترة لا تتجاوز 31 يومًا.')
         return
       }
 

@@ -259,7 +259,7 @@ export default function ReportsPage() {
       const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
 
       if (!canViewReportRange(access.userRole, fromIso, toIso)) {
-        setErrorMessage('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        setErrorMessage('يمكن للموظف عرض فترة لا تتجاوز 31 يومًا.')
         resetReportData()
         setLoading(false)
         setRefreshing(false)
@@ -268,7 +268,7 @@ export default function ReportsPage() {
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
         resetReportData()
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -276,7 +276,7 @@ export default function ReportsPage() {
 
       if (!tenantId) {
         resetReportData()
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -334,7 +334,7 @@ export default function ReportsPage() {
         resetReportData()
       }
 
-      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+      setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
     },
@@ -684,7 +684,7 @@ export default function ReportsPage() {
               <div class="title">تقرير التقارير - AFEX</div>
               <div class="muted">الفترة: ${dateFrom} إلى ${dateTo}</div>
             </div>
-            <div class="muted">تاريخ الطباعة: ${new Date().toLocaleString('en-GB')}</div>
+            <div class="muted">تاريخ الطباعة: ${new Date().toLocaleString('ar-SA')}</div>
           </div>
 
           <div class="box">

@@ -514,7 +514,7 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
       <div className="min-h-screen bg-[#030714] text-white">
         <div className="page-wrap">
           <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-5 text-slate-200">
-            جارٍ التحويل...
+            لا تملك صلاحية فتح هذه الصفحة. سيتم إعادتك إلى الصفحة الرئيسية.
           </div>
         </div>
       </div>

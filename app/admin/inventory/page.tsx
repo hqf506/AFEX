@@ -25,6 +25,7 @@ import {
 } from '@/lib/admin/branch-filter'
 import { clearBranchInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import { supabase } from '@/lib/supabase/client'
+import { ADMIN_UX_MESSAGES } from '@/lib/admin-ux-messages'
 
 type InventoryRow = {
   branch_id: string
@@ -497,7 +498,7 @@ export default function AdminInventoryPage() {
         throw new Error('تعذر تعديل كمية المخزون')
       }
 
-      setSuccessMessage('تم تحديث كمية المخزون بنجاح')
+      setSuccessMessage(ADMIN_UX_MESSAGES.inventorySuccess)
       clearBranchInvoiceCatalogCache(selectedItem.branch_id)
       closeDrawer()
       await loadInventory(selectedBranchId, currentPage)
@@ -506,7 +507,7 @@ export default function AdminInventoryPage() {
         console.error('[Inventory] adjust submit failed', error)
       }
 
-      setErrorMessage('تعذر تعديل كمية المخزون')
+      setErrorMessage(ADMIN_UX_MESSAGES.inventoryFailure)
     } finally {
       setSaving(false)
     }
@@ -553,7 +554,7 @@ export default function AdminInventoryPage() {
         throw new Error('تعذر تحديث حد التنبيه')
       }
 
-      setSuccessMessage('تم تحديث حد التنبيه بنجاح')
+      setSuccessMessage(ADMIN_UX_MESSAGES.lowStockSuccess)
       clearBranchInvoiceCatalogCache(selectedItem.branch_id)
       closeDrawer()
       await loadInventory(selectedBranchId, currentPage)
@@ -562,7 +563,7 @@ export default function AdminInventoryPage() {
         console.error('[Inventory] threshold submit failed', error)
       }
 
-      setErrorMessage('تعذر تحديث حد التنبيه')
+      setErrorMessage(ADMIN_UX_MESSAGES.lowStockFailure)
     } finally {
       setSaving(false)
     }

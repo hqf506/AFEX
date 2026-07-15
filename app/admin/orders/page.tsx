@@ -46,6 +46,7 @@ import {
   prepareThermalInvoicePreviewHtml,
 } from '@/lib/invoices/thermal-preview'
 import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
+import { ADMIN_UX_MESSAGES } from '@/lib/admin-ux-messages'
 
 function fixArabic(text: string) {
   try {
@@ -1748,11 +1749,10 @@ export default function OrdersPage() {
       body: JSON.stringify({ status }),
     })
     const result = await response.json().catch(() => null)
-    const error = { message: result?.error || 'تعذر تحديث حالة الطلب' }
 
     if (!response.ok || !result?.success) {
       setUpdatingId(null)
-      showError(`فشل تحديث حالة الطلب: ${error.message}`)
+      showError(ADMIN_UX_MESSAGES.orderStatusFailure)
       return
     }
 
@@ -1860,7 +1860,7 @@ export default function OrdersPage() {
       showError(WHATSAPP_FEATURE_DISABLED_MESSAGE)
     }
 
-    showSuccess('تم تحديث الحالة بنجاح')
+    showSuccess(ADMIN_UX_MESSAGES.orderStatusSuccess)
     setStatusModalOrder(null)
     setStatusDropdownOpen(false)
     setUpdatingId(null)
@@ -1901,8 +1901,7 @@ export default function OrdersPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        const message = result?.error || 'تعذر إلغاء الطلب'
-        showError(`فشل إلغاء الطلب: ${message}`)
+        showError(ADMIN_UX_MESSAGES.orderCancelFailure)
         return
       }
 
@@ -1939,7 +1938,7 @@ export default function OrdersPage() {
       void fetchOrders(true)
     } catch (error) {
       console.error('[admin/orders] cancel order failed', error)
-      showError('فشل إلغاء الطلب')
+      showError(ADMIN_UX_MESSAGES.orderCancelFailure)
     } finally {
       setUpdatingId(null)
     }

@@ -615,7 +615,7 @@ export default function AdminUsersPage() {
         throw new Error(getClientErrorMessage(result, 'تعذر إنشاء المستخدم. لم يتم حفظ الحساب.'))
       }
 
-      setSuccessMessage('تم إنشاء المستخدم بنجاح')
+      setSuccessMessage('تم إنشاء المستخدم بنجاح.')
       resetForm()
       setShowCreateForm(false)
       await loadUsers()
@@ -744,7 +744,7 @@ export default function AdminUsersPage() {
       }
 
       closeEditDrawer()
-      setSuccessMessage('تم تحديث المستخدم بنجاح')
+      setSuccessMessage('تم تحديث بيانات المستخدم بنجاح.')
       await loadUsers()
     } catch (error) {
       logUserActionFailure('Edit user failed.', error)
@@ -1727,7 +1727,7 @@ export default function AdminUsersPage() {
                   <h3 className="mt-4 text-lg font-black text-white">
                     {users.length === 0
                       ? 'لا يوجد مستخدمون حتى الآن.'
-                      : 'لا توجد نتائج مطابقة'}
+                      : 'لا يوجد مستخدمون مطابقون للبحث.'}
                   </h3>
                   <p className="mt-1 text-sm text-slate-400">
                     {users.length === 0
@@ -1953,11 +1953,12 @@ export default function AdminUsersPage() {
               </div>
               <h3 id="delete-user-title" className="text-2xl font-black text-white">تأكيد حذف المستخدم</h3>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                هل أنت متأكد من حذف المستخدم{' '}
+                هل تريد حذف هذا السجل نهائيًا؟ لا يمكن التراجع عن هذه العملية.
+                <br />
+                المستخدم:{' '}
                 <span className="font-black text-white">
                   {deleteModal.user.username || deleteModal.user.full_name || 'هذا المستخدم'}
                 </span>
-                ؟
               </p>
             </div>
 

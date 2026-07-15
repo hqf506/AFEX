@@ -250,7 +250,7 @@ function EmptyCustomersState() {
         </svg>
       </div>
       <p className="text-base font-black text-white">
-        لا توجد بيانات عملاء خلال الفترة الحالية
+        لا توجد بيانات كافية للفترة المحددة.
       </p>
       <p className="mt-2 text-sm text-slate-500">
         جرّب تغيير الفترة أو الفرع لعرض نتائج أكثر.
@@ -336,7 +336,7 @@ export default function SalesByCustomerPage() {
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
         setOrders([])
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -344,7 +344,7 @@ export default function SalesByCustomerPage() {
 
       if (!tenantId) {
         setOrders([])
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -383,7 +383,7 @@ export default function SalesByCustomerPage() {
         setServerCustomerRows(Array.isArray(result.customerRows) ? result.customerRows : [])
       }
 
-      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+      setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
       return
@@ -391,7 +391,7 @@ export default function SalesByCustomerPage() {
       const { fromIso, toIso } = buildReportDateRange(range, dateFrom, dateTo)
 
       if (!canViewReportRange(access.userRole, fromIso, toIso)) {
-        setErrorMessage('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        setErrorMessage('يمكن للموظف عرض فترة لا تتجاوز 31 يومًا.')
         setOrders([])
         setLoading(false)
         setRefreshing(false)
@@ -450,7 +450,7 @@ export default function SalesByCustomerPage() {
       ])
 
       if (error) {
-        setErrorMessage(`فشل تحميل تقرير المبيعات حسب العميل: ${error.message}`)
+        setErrorMessage('تعذر تحميل التقرير. تحقق من الاتصال ثم حاول مرة أخرى.')
         setOrders([])
         setLoading(false)
         setRefreshing(false)
@@ -474,7 +474,7 @@ export default function SalesByCustomerPage() {
         setOrders([])
       }
 
-      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+      setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
     },

@@ -19,6 +19,7 @@ import {
   DEFAULT_DIGITAL_INVOICE_SETTINGS,
   renderInvoiceHtmlFromPayload,
 } from '@/lib/invoices/receipt-template'
+import { ADMIN_UX_MESSAGES } from '@/lib/admin-ux-messages'
 
 const DIGITAL_INVOICE_TABS = [
   { id: 'identity', label: 'الهوية' },
@@ -294,7 +295,7 @@ export default function AdminDigitalInvoiceSettingsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        setErrorMessage(result?.error || 'فشل حفظ إعدادات الفاتورة الرقمية')
+        setErrorMessage(ADMIN_UX_MESSAGES.saveFailure)
         setSaving(false)
         return
       }
@@ -302,13 +303,11 @@ export default function AdminDigitalInvoiceSettingsPage() {
       const savedSettings = result.settings as SystemSettings
       setSettings(savedSettings)
       setForm(createDigitalInvoiceSettingsPayload(savedSettings))
-      setSuccessMessage(result.message || 'تم حفظ إعدادات الفاتورة الرقمية بنجاح')
+      setSuccessMessage(ADMIN_UX_MESSAGES.settingsSuccess)
       setSaving(false)
       setTimeout(() => setSuccessMessage(''), 3000)
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'فشل حفظ إعدادات الفاتورة الرقمية'
-      )
+    } catch {
+      setErrorMessage(ADMIN_UX_MESSAGES.saveFailure)
       setSaving(false)
     }
   }

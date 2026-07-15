@@ -387,7 +387,7 @@ export default function SalesTrendPage() {
       setErrorMessage('')
 
       if (!canViewReportRange(access.userRole, trendRange.start, trendRange.end)) {
-        setErrorMessage('الإداري يمكنه عرض تقارير لمدة شهر واحد كحد أقصى')
+        setErrorMessage('يمكن للموظف عرض فترة لا تتجاوز 31 يومًا.')
         setOrders([])
         setLoading(false)
         setRefreshing(false)
@@ -396,7 +396,7 @@ export default function SalesTrendPage() {
 
       if (isBranchScopedWithoutBranchId(scopeType, branchId)) {
         setOrders([])
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -404,7 +404,7 @@ export default function SalesTrendPage() {
 
       if (!tenantId) {
         setOrders([])
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -459,7 +459,7 @@ export default function SalesTrendPage() {
       const { data, error } = await query
 
       if (error) {
-        setErrorMessage(`فشل تحميل تقرير اتجاه المبيعات: ${error.message}`)
+        setErrorMessage('تعذر تحميل التقرير. تحقق من الاتصال ثم حاول مرة أخرى.')
         setOrders([])
         setLoading(false)
         setRefreshing(false)
@@ -473,7 +473,7 @@ export default function SalesTrendPage() {
         : []
 
       setOrders(normalized)
-      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+      setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
     },

@@ -24,6 +24,7 @@ import {
   prepareThermalInvoicePreviewHtml,
 } from '@/lib/invoices/thermal-preview'
 import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
+import { ADMIN_UX_MESSAGES } from '@/lib/admin-ux-messages'
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
@@ -1448,11 +1449,11 @@ function ReceiptDrawer({
 
       onCanceled(receipt.id)
       setShowCancelConfirm(false)
-      setCancelFeedback({ type: 'success', message: 'تم إلغاء الإيصال بنجاح' })
-    } catch (error) {
+      setCancelFeedback({ type: 'success', message: ADMIN_UX_MESSAGES.receiptCancelSuccess })
+    } catch {
       setCancelFeedback({
         type: 'error',
-        message: error instanceof Error ? error.message : 'تعذر إلغاء الإيصال',
+        message: ADMIN_UX_MESSAGES.receiptCancelFailure,
       })
     } finally {
       setCanceling(false)
@@ -1634,7 +1635,7 @@ function ReceiptDrawer({
                   تأكيد إلغاء الإيصال
                 </h3>
                 <p className="mt-2 text-sm font-semibold leading-7 text-slate-300">
-                  هل أنت متأكد من إلغاء هذا الإيصال؟
+                  هل تريد إلغاء هذه الفاتورة؟ سيتم إلغاء العملية وإعادة المخزون.
                 </p>
               </div>
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-rose-300/25 bg-rose-500/10 text-rose-300">
@@ -1657,7 +1658,7 @@ function ReceiptDrawer({
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/40 bg-rose-500/10 text-sm font-black text-rose-200 transition hover:bg-rose-500/20 hover:shadow-[0_0_24px_rgba(244,63,94,0.18)] disabled:cursor-wait disabled:opacity-60"
               >
                 <UndoIcon className="h-4 w-4" />
-                {canceling ? 'جارٍ الإلغاء...' : 'تأكيد الإلغاء'}
+                {canceling ? 'جارٍ إلغاء الفاتورة...' : 'تأكيد الإلغاء'}
               </button>
               <button
                 type="button"

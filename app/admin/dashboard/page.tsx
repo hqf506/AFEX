@@ -351,7 +351,7 @@ export default function DashboardPage() {
 
       if (!tenantId) {
         resetDashboardData()
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+        setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
         setLoading(false)
         setRefreshing(false)
         return
@@ -398,7 +398,7 @@ export default function DashboardPage() {
         )
       }
 
-      setLastUpdated(new Date().toLocaleTimeString('en-GB'))
+      setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       setLoading(false)
       setRefreshing(false)
     },

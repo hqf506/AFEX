@@ -1627,9 +1627,7 @@ export default function AdminCatalogPage() {
       }
 
       setSuccessMessage(
-        editingItemId
-          ? 'تم تحديث العنصر بنجاح'
-          : result?.message || 'تم إنشاء العنصر بنجاح'
+        'تم حفظ بيانات المنتج بنجاح.'
       )
       if (editingItemId && removedCurrentImagePreview && !selectedImageFile) {
         await persistRemovedImageReference()
@@ -3331,7 +3329,7 @@ export default function AdminCatalogPage() {
                   </svg>
                 </div>
                 <p className="text-base font-black text-white">
-                  {branchFilterMessage || 'لا توجد عناصر في الكتالوج مطابقة للفلاتر الحالية.'}
+                  {branchFilterMessage || 'لا توجد منتجات في الكتالوج مطابقة للفلاتر الحالية.'}
                 </p>
                 <p className="mt-2 max-w-md text-sm text-slate-500">
                   جرّب تعديل الفلاتر أو أضف أول عنصر جديد إلى الكتالوج.

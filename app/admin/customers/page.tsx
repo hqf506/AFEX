@@ -246,11 +246,11 @@ function formatCurrency(value: number | null | undefined) {
     return EMPTY_VALUE
   }
 
-  return new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: 'SAR',
+  const amount = new Intl.NumberFormat('ar-SA', {
     maximumFractionDigits: 2,
   }).format(value)
+
+  return `${amount} ريال`
 }
 
 function formatDate(value: string | null | undefined) {

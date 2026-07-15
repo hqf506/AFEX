@@ -175,6 +175,15 @@ export default function AdminBranchesPage() {
   const filteredDeletedBranches = deletedBranches.filter(matchesBranchSearch)
 
   async function handleToggleBranch(branch: AdminBranchRecord) {
+    if (
+      branch.is_active &&
+      !window.confirm(
+        'هل تريد تعطيل هذا الفرع؟ قد تتوقف العمليات المرتبطة به.'
+      )
+    ) {
+      return
+    }
+
     try {
       setUpdatingBranchId(branch.id)
       setSuccessMessage('')
@@ -278,9 +287,9 @@ export default function AdminBranchesPage() {
         throw new Error(getClientErrorMessage(result, 'تعذر إنشاء الفرع. لم يتم حفظ البيانات.'))
       }
 
-      setSuccessMessage('تم إنشاء الفرع بنجاح')
+      setSuccessMessage('تم حفظ بيانات الفرع بنجاح.')
       if (isEditMode) {
-        setSuccessMessage('تم حفظ تعديلات الفرع بنجاح')
+        setSuccessMessage('تم حفظ بيانات الفرع بنجاح.')
       }
       setCreateBranchForm(emptyCreateBranchForm)
       setIsCreateDrawerOpen(false)

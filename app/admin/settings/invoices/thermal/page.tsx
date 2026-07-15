@@ -29,6 +29,7 @@ import {
   prepareThermalInvoicePreviewHtml,
 } from '@/lib/invoices/thermal-preview'
 import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
+import { ADMIN_UX_MESSAGES } from '@/lib/admin-ux-messages'
 
 const THERMAL_INVOICE_TABS = [
   { id: 'identity', label: 'الهوية' },
@@ -388,7 +389,7 @@ export default function AdminThermalInvoiceSettingsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        setErrorMessage(result?.error || 'فشل حفظ إعدادات الفاتورة الحرارية')
+        setErrorMessage(ADMIN_UX_MESSAGES.saveFailure)
         setSaving(false)
         return
       }
@@ -396,13 +397,11 @@ export default function AdminThermalInvoiceSettingsPage() {
       const savedSettings = result.settings as SystemSettings
       setSettings(savedSettings)
       setForm(createThermalInvoiceSettingsPayload(savedSettings))
-      setSuccessMessage(result.message || 'تم حفظ إعدادات الفاتورة الحرارية بنجاح')
+      setSuccessMessage(ADMIN_UX_MESSAGES.settingsSuccess)
       setSaving(false)
       setTimeout(() => setSuccessMessage(''), 3000)
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'فشل حفظ إعدادات الفاتورة الحرارية'
-      )
+    } catch {
+      setErrorMessage(ADMIN_UX_MESSAGES.saveFailure)
       setSaving(false)
     }
   }
