@@ -716,6 +716,7 @@ export async function POST(request: NextRequest) {
         return jsonWithAuthCookies(auth.response, {
           success: true,
           data: existingOrder,
+          duplicate: true,
         })
       }
     }
@@ -880,6 +881,7 @@ export async function POST(request: NextRequest) {
           return jsonWithAuthCookies(auth.response, {
             success: true,
             data: existingOrder,
+            duplicate: true,
           })
         }
       }

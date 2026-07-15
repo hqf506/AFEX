@@ -16,7 +16,8 @@
     "lint": "eslint",
     "check:encoding": "node scripts/check-encoding.js",
     "check:error-safety": "node scripts/check-error-safety.js",
-    "check:ui-language": "node scripts/check-ui-language.js"
+    "check:ui-language": "node scripts/check-ui-language.js",
+    "check:pos-ux": "node scripts/check-pos-ux.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

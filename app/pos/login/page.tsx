@@ -14,6 +14,7 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
 import { getClientErrorMessage } from '@/lib/api/client-error'
+import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
 function AfexMark({ className = 'h-14 w-14' }: { className?: string }) {
   return (
@@ -246,11 +247,11 @@ export default function PosLoginPage() {
       }
 
       if (!checkResult?.exists) {
-        throw new Error('بيانات الدخول غير صحيحة')
+        throw new Error(POS_UX_MESSAGES.invalidLogin)
       }
 
       if (checkResult?.user && checkResult.user.is_active === false) {
-        throw new Error('هذا الحساب معطل، راجع الإدارة')
+        throw new Error(POS_UX_MESSAGES.disabledUser)
       }
 
       const isEmailLogin = normalizedUsername.includes('@')
@@ -267,7 +268,7 @@ export default function PosLoginPage() {
           category: signInError?.name || 'InvalidCredentials',
           status: signInError?.status ?? null,
         })
-        throw new Error('بيانات الدخول غير صحيحة')
+        throw new Error(POS_UX_MESSAGES.invalidLogin)
       }
 
       await new Promise((resolve) => window.setTimeout(resolve, 200))
@@ -299,9 +300,11 @@ export default function PosLoginPage() {
       window.location.href = '/pos/employee-pin'
     } catch (loginError) {
       setError(
-        loginError instanceof Error
+        loginError instanceof TypeError
+          ? POS_UX_MESSAGES.networkFailure
+          : loginError instanceof Error
           ? loginError.message
-          : 'حدث خطأ أثناء تسجيل الدخول'
+          : POS_UX_MESSAGES.networkFailure
       )
     } finally {
       setLoading(false)

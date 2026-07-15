@@ -15,12 +15,13 @@ import {
   clearPosLoggedOut,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
+import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
 const PIN_LENGTH = 4
 const PIN_LOCK_ATTEMPTS = 3
 const PIN_LOCK_MS = 5000
 const PIN_CLEAR_AFTER_ERROR_MS = 500
-const INVALID_PIN_MESSAGE = 'رمز PIN غير صحيح'
+const INVALID_PIN_MESSAGE = POS_UX_MESSAGES.wrongPin
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
 function EmployeeAvatarIcon() {
@@ -294,7 +295,9 @@ export default function PosEmployeePinPage() {
         setFailedAttempts(shouldLock ? 0 : nextFailedAttempts)
         setError(
           shouldLock
-            ? 'تم إيقاف المحاولات مؤقتًا بسبب تكرار الرمز الخاطئ. حاول مرة أخرى بعد قليل.'
+            ? POS_UX_MESSAGES.pinRateLimit
+            : verificationError instanceof TypeError
+              ? POS_UX_MESSAGES.networkFailure
             : verificationError instanceof Error
               ? verificationError.message
               : INVALID_PIN_MESSAGE

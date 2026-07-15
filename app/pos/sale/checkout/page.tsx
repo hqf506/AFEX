@@ -1160,7 +1160,7 @@ export default function PosSaleCheckoutPage() {
               </h2>
 
               <p className="mb-6 text-sm font-bold leading-7 text-slate-300">
-                هل أنت متأكد من إلغاء الفاتورة؟
+                هل تريد إلغاء عملية البيع الحالية؟ سيتم حذف المنتجات والبيانات المدخلة في هذه العملية.
               </p>
 
               <div className="flex justify-end gap-2">
@@ -1169,7 +1169,7 @@ export default function PosSaleCheckoutPage() {
                   className="h-11 rounded-2xl border border-cyan-300/12 bg-[#061426] px-5 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10"
                   onClick={() => setShowCancelModal(false)}
                 >
-                  إلغاء
+                  العودة للبيع
                 </button>
 
                 <button
@@ -1177,7 +1177,7 @@ export default function PosSaleCheckoutPage() {
                   className="h-11 rounded-2xl bg-red-500 px-5 text-sm font-black text-white transition hover:bg-red-400"
                   onClick={confirmCancelInvoice}
                 >
-                  تأكيد
+                  نعم، إلغاء البيع
                 </button>
               </div>
             </div>

@@ -630,11 +630,23 @@ export default function PosPage() {
   }
 
   const handleLogout = async () => {
+    const hasActiveSale = Boolean(
+      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY) ||
+        localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+    )
+
+    if (
+      hasActiveSale &&
+      !window.confirm(
+        'لديك عملية بيع غير مكتملة. هل تريد تسجيل الخروج وتركها محفوظة؟'
+      )
+    ) {
+      return
+    }
+
     try {
       setLoggingOut(true)
       clearActivePosEmployee()
-      localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
-      localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
       sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
       markPosLoggedOut()
       setActivePosEmployee(null)

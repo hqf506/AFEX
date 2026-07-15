@@ -22,6 +22,7 @@ import {
   savePosOfflineInvoiceDraft,
 } from '@/lib/pos-offline-draft'
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
+import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
 export type CheckoutDiscountOption = {
   id: string
@@ -240,15 +241,20 @@ export function useInvoiceCheckout({
       return
     }
 
+    if (!customerName.trim() || !customerPhone.trim()) {
+      setErrorMessage(POS_UX_MESSAGES.missingCustomer)
+      return
+    }
+
     if (invoiceItems.length === 0) {
-      setErrorMessage('أضف عنصرًا واحدًا على الأقل')
+      setErrorMessage(POS_UX_MESSAGES.noItems)
       return
     }
 
     const safePaymentMethod = normalizeUiPaymentMethod(paymentMethod)
 
     if (safePaymentMethod === 'cash' && numericCashReceived <= 0) {
-      setErrorMessage('اكتب المبلغ المستلم من العميل')
+      setErrorMessage(POS_UX_MESSAGES.invalidReceivedAmount)
       return
     }
 
@@ -307,13 +313,10 @@ export function useInvoiceCheckout({
           employee: activePosEmployee,
         })
 
-        setOfflineDraftMessage('تم حفظ الفاتورة كمسودة بسبب انقطاع الاتصال')
-        window.setTimeout(() => {
-          setOfflineDraftMessage('')
-        }, 5000)
+        setOfflineDraftMessage(POS_UX_MESSAGES.draftSaved)
       } catch (error) {
         console.error('[POS OFFLINE] Failed to save checkout draft.', error)
-        setErrorMessage('تعذر حفظ الفاتورة كمسودة محلية')
+        setErrorMessage(POS_UX_MESSAGES.draftSaveFailure)
       } finally {
         setLoading(false)
       }
@@ -321,7 +324,8 @@ export function useInvoiceCheckout({
       return
     }
 
-    const createOrderResponse = await fetch('/api/orders', {
+    try {
+      const createOrderResponse = await fetch('/api/orders', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -343,13 +347,14 @@ export function useInvoiceCheckout({
       }),
     })
 
-    const createOrderResult = (await createOrderResponse
+      const createOrderResult = (await createOrderResponse
       .json()
       .catch(() => null)) as
       | {
           success?: boolean
           data?: CreatedInvoiceRecord
           error?: string
+          duplicate?: boolean
         }
       | null
 
@@ -358,10 +363,9 @@ export function useInvoiceCheckout({
       !createOrderResult?.success ||
       !createOrderResult.data
     ) {
-      setLoading(false)
-      setErrorMessage(createOrderResult?.error || 'تعذر إنشاء الفاتورة')
-      return
-    }
+        setErrorMessage(POS_UX_MESSAGES.orderFailure)
+        return
+      }
 
     const result = createOrderResult.data
 
@@ -380,7 +384,11 @@ export function useInvoiceCheckout({
 
     setLastInvoiceNumber(result?.invoice_number || '')
     setLastOrderNumber(result?.order_number || '')
-    setSuccessMessage(`تم إنشاء الفاتورة ${result?.invoice_number || ''} بنجاح`)
+      setSuccessMessage(
+        createOrderResult.duplicate
+          ? POS_UX_MESSAGES.duplicateSubmission
+          : POS_UX_MESSAGES.orderSuccess
+      )
 
     clearAllInvoiceCatalogCache()
 
@@ -404,11 +412,11 @@ export function useInvoiceCheckout({
       })
     )
 
-    setLoading(false)
-
-    setTimeout(() => {
-      setSuccessMessage('')
-    }, 4000)
+    } catch {
+      setErrorMessage(POS_UX_MESSAGES.uncertainSubmission)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return {

@@ -16,6 +16,7 @@ import {
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
+import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -244,6 +245,8 @@ export default function PosSaleSuccessPage() {
   })
   const [redirectCountdown, setRedirectCountdown] = useState(10)
   const [printing, setPrinting] = useState(false)
+  const [whatsappOpening, setWhatsappOpening] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
   const { settings: systemSettings } = useSystemSettings(Boolean(snapshot))
   const printingEnabled = systemSettings?.enable_printing !== false
   const whatsappEnabled = systemSettings?.enable_whatsapp !== false
@@ -390,8 +393,14 @@ export default function PosSaleSuccessPage() {
     if (printing) return
 
     setPrinting(true)
-    window.print()
-    window.setTimeout(() => setPrinting(false), 1000)
+    setActionMessage('')
+    try {
+      window.print()
+    } catch {
+      setActionMessage(POS_UX_MESSAGES.printFailure)
+    } finally {
+      window.setTimeout(() => setPrinting(false), 1000)
+    }
   }
 
   const handleNewSale = () => {
@@ -400,6 +409,7 @@ export default function PosSaleSuccessPage() {
   }
 
   const handleWhatsApp = () => {
+    if (whatsappOpening) return
     if (!whatsappEnabled) return
     if (!snapshot?.customerPhone) return
 
@@ -413,7 +423,14 @@ export default function PosSaleSuccessPage() {
       `الإجمالي: ${formatCurrency(snapshot.finalTotal)}`,
     ].join('\n')
 
-    window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    setWhatsappOpening(true)
+    setActionMessage('')
+    try {
+      window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    } catch {
+      setActionMessage(POS_UX_MESSAGES.whatsappFailure)
+      setWhatsappOpening(false)
+    }
   }
 
   useEffect(() => {
@@ -583,6 +600,11 @@ export default function PosSaleSuccessPage() {
               <p className="mt-3 max-w-xl text-base font-bold text-slate-400">
                 تم حفظ العملية وإصدار الفاتورة بنجاح
               </p>
+              {actionMessage ? (
+                <p role="alert" className="mt-4 max-w-xl rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
+                  {actionMessage}
+                </p>
+              ) : null}
 
               <div className="mt-7 grid w-full max-w-3xl grid-cols-2 gap-3">
                 <div className="rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4">
@@ -630,7 +652,7 @@ export default function PosSaleSuccessPage() {
               <button
                 type="button"
                 onClick={handleWhatsApp}
-                disabled={!snapshot.customerPhone || !whatsappEnabled}
+                disabled={!snapshot.customerPhone || !whatsappEnabled || whatsappOpening}
                 title={
                   whatsappEnabled
                     ? undefined
@@ -638,7 +660,7 @@ export default function PosSaleSuccessPage() {
                 }
                 className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/14 bg-[#061426]/70 px-4 text-base font-black text-cyan-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:text-slate-600"
               >
-                📱 إرسال واتساب
+                {whatsappOpening ? 'جارٍ فتح واتساب...' : '📱 إرسال واتساب'}
               </button>
               <button
                 type="button"

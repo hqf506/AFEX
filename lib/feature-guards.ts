@@ -12,7 +12,7 @@ export const USERS_FEATURE_DISABLED_MESSAGE =
   'ميزة إدارة المستخدمين غير مفعلة من إعدادات النظام.'
 
 export const POS_FEATURE_DISABLED_MESSAGE =
-  'ميزة نقطة البيع غير مفعلة من إعدادات النظام.'
+  'نقطة البيع غير مفعلة لهذه المؤسسة. تواصل مع مدير النظام.'
 
 export type FeatureToggleKey =
   | 'enable_orders'

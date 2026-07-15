@@ -1111,7 +1111,7 @@ export function InvoiceItemsStep({
     }
 
     if (isProductOutOfStock(product)) {
-      setStockErrorMessage('المخزون غير متوفر لهذا المنتج')
+      setStockErrorMessage('المنتج غير متوفر في المخزون حاليًا.')
       triggerPosFeedback('error')
       return
     }
@@ -1124,7 +1124,7 @@ export function InvoiceItemsStep({
         0
 
       if (productCartQuantity + 1 > normalizedQuantity) {
-        setStockErrorMessage('الكمية المطلوبة أكبر من المخزون المتاح')
+        setStockErrorMessage(`الكمية المطلوبة غير متوفرة. الكمية المتاحة: ${normalizedQuantity}.`)
         triggerPosFeedback('error')
         return
       }

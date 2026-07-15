@@ -154,7 +154,10 @@ export function InvoiceCustomerStep({
   const customerSearchRequestIdRef = useRef(0)
   const customerPhoneInputRef = useRef<HTMLInputElement | null>(null)
 
-  const isValid = isInvoiceCustomerDraftValid(customerName, customerPhone)
+  const normalizedCustomerPhone = customerPhone.replace(/[\s()-]/g, '')
+  const isValidSaudiPhone = /^(?:\+?966|0)?5\d{8}$/.test(normalizedCustomerPhone)
+  const isValid =
+    isInvoiceCustomerDraftValid(customerName, customerPhone) && isValidSaudiPhone
   const activePosEmployee = variant === 'pos' ? readActivePosEmployee() : null
   const employeeDisplayName =
     activePosEmployee?.full_name?.trim() ||
@@ -442,7 +445,11 @@ export function InvoiceCustomerStep({
 
   const handleNext = () => {
     if (!isValid) {
-      alert('اكتب اسم العميل ورقم الجوال')
+      alert(
+        !customerName.trim()
+          ? 'اسم العميل مطلوب.'
+          : 'أدخل رقم جوال سعودي صحيحًا.'
+      )
       return
     }
 
@@ -503,7 +510,7 @@ export function InvoiceCustomerStep({
     const phone = newCustomerPhone.trim()
 
     if (!firstName) {
-      setNewCustomerError('الاسم الأول مطلوب')
+      setNewCustomerError('اسم العميل مطلوب.')
       return
     }
 
@@ -513,7 +520,12 @@ export function InvoiceCustomerStep({
     }
 
     if (!phone) {
-      setNewCustomerError('رقم الجوال مطلوب')
+      setNewCustomerError('أدخل رقم جوال سعودي صحيحًا.')
+      return
+    }
+
+    if (!/^(?:\+?966|0)?5\d{8}$/.test(phone.replace(/[\s()-]/g, ''))) {
+      setNewCustomerError('أدخل رقم جوال سعودي صحيحًا.')
       return
     }
 
@@ -539,7 +551,7 @@ export function InvoiceCustomerStep({
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success || !result.customer) {
-        throw new Error(result?.error || 'تعذر حفظ العميل')
+        throw new Error('safe-customer-save-failure')
       }
 
       const createdCustomer = result.customer as ExistingCustomer
@@ -559,9 +571,9 @@ export function InvoiceCustomerStep({
       clearClientResourcesByPrefix('recent-customers:')
       clearClientResourcesByPrefix('customer-search:')
       setAddCustomerOpen(false)
-    } catch (error) {
+    } catch {
       setNewCustomerError(
-        getClientCaughtErrorMessage(error, 'تعذر حفظ العميل')
+        'تعذر حفظ بيانات العميل. لم يتم إنشاء الطلب بعد.'
       )
     } finally {
       setNewCustomerSaving(false)
@@ -569,6 +581,23 @@ export function InvoiceCustomerStep({
   }
 
   const handlePosLogout = () => {
+    const hasActiveSale = Boolean(customerName.trim() || customerPhone.trim())
+    if (
+      hasActiveSale &&
+      !window.confirm(
+        'لديك عملية بيع غير مكتملة. هل تريد تسجيل الخروج وتركها محفوظة؟'
+      )
+    ) {
+      return
+    }
+
+    if (hasActiveSale) {
+      localStorage.setItem(
+        INVOICE_CUSTOMER_STORAGE_KEY,
+        serializeInvoiceCustomerDraft({ name: customerName, phone: customerPhone })
+      )
+    }
+
     clearActivePosEmployee()
     markPosLoggedOut()
     router.replace('/pos/login')
@@ -860,7 +889,7 @@ export function InvoiceCustomerStep({
                 {customerCardsLoading ? (
                   <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
                     <p className="text-sm font-bold leading-7 text-slate-400">
-                      جار تحميل العملاء...
+                      جارٍ تحميل العملاء...
                     </p>
                   </div>
                 ) : visibleCustomerCards.length > 0 ? (
@@ -943,7 +972,7 @@ export function InvoiceCustomerStep({
                 ) : customerSearch.active && !customerSearchLoading ? (
                   <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
                     <p className="text-sm font-bold leading-7 text-slate-400">
-                      لا يوجد عميل مطابق. يمكنك استخدام البيانات الحالية كعميل جديد.
+                      لا يوجد عميل مطابق للبحث. يمكنك إضافة عميل جديد.
                     </p>
                   </div>
                 ) : (

@@ -9,6 +9,7 @@ import {
   type PosOfflineInvoiceDraft,
 } from '@/lib/pos-offline-draft'
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
+import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
 type CreateOrderResponse = {
   success?: boolean
@@ -18,6 +19,7 @@ type CreateOrderResponse = {
   }
   error?: string
   message?: string
+  duplicate?: boolean
 }
 
 function formatDraftDate(value: string) {
@@ -72,9 +74,15 @@ export default function PosOfflineDraftsPage() {
   }, [])
 
   const handleDeleteDraft = (localDraftId: string) => {
-    setDrafts(deletePosOfflineInvoiceDraft(localDraftId))
-    setMessage('تم حذف المسودة محليًا')
-    setErrorMessage('')
+    if (!window.confirm('هل تريد حذف هذه المسودة؟ لا يمكن استعادتها بعد الحذف.')) return
+
+    try {
+      setDrafts(deletePosOfflineInvoiceDraft(localDraftId))
+      setMessage('تم حذف المسودة من هذا الجهاز.')
+      setErrorMessage('')
+    } catch {
+      setErrorMessage(POS_UX_MESSAGES.draftRetained)
+    }
   }
 
   const handleRetryDraft = async (draft: PosOfflineInvoiceDraft) => {
@@ -126,9 +134,7 @@ export default function PosOfflineDraftsPage() {
         | null
 
       if (!response.ok || !result?.success || !result.data) {
-        throw new Error(
-          result?.error || result?.message || 'تعذر إرسال المسودة'
-        )
+        throw new Error('safe-sync-failure')
       }
 
       const invoiceId = result.data.invoice_id || result.data.invoiceId || ''
@@ -149,10 +155,16 @@ export default function PosOfflineDraftsPage() {
       }
 
       setDrafts(deletePosOfflineInvoiceDraft(draft.localDraftId))
-      setMessage('تم إرسال المسودة وحذفها محليًا')
+      setMessage(
+        result.duplicate
+          ? POS_UX_MESSAGES.duplicateSubmission
+          : POS_UX_MESSAGES.draftSyncSuccess
+      )
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر إرسال المسودة'
+        error instanceof TypeError
+          ? POS_UX_MESSAGES.draftSyncUncertain
+          : 'تعذر إرسال المسودة. لم يتم حذف المسودة، ويمكنك المحاولة مرة أخرى لاحقًا.'
       )
     } finally {
       setSyncingDraftId(null)
@@ -307,7 +319,7 @@ export default function PosOfflineDraftsPage() {
                         disabled={syncing || Boolean(syncingDraftId)}
                         className="min-h-[44px] rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                       >
-                        {syncing ? 'جارٍ الإرسال...' : 'إرسال الآن'}
+                        {syncing ? 'جارٍ إرسال المسودة...' : 'إرسال الآن'}
                       </button>
                     </div>
                   </article>
