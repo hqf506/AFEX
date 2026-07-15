@@ -257,7 +257,7 @@ export async function GET(request: NextRequest) {
         auth.response,
         utf8JsonResponse(
           {
-            error: 'تعذر تحميل عناصر الكتالوج',
+            error: 'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.',
             details: error.message,
           },
           500
@@ -280,7 +280,7 @@ export async function GET(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
@@ -665,7 +665,7 @@ export async function POST(request: NextRequest) {
         auth.response,
         utf8JsonResponse(
           {
-            error: 'فشل إنشاء عنصر الكتالوج',
+            error: 'تعذر حفظ بيانات المنتج. لم يتم حفظ التغييرات.',
             details: error?.message || 'Unknown error',
           },
           400
@@ -690,7 +690,7 @@ export async function POST(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر حفظ بيانات المنتج. لم يتم حفظ التغييرات.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500

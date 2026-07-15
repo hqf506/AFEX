@@ -21,6 +21,7 @@ import {
   type SystemSettingsPayload,
 } from '@/lib/admin/settings'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 function getArabicErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && /[\u0600-\u06ff]/.test(error.message)
@@ -106,12 +107,14 @@ export default function AdminSettingsPage() {
   const allowed = access.allowed
   const roleLabel =
     access.userRole === 'admin'
-      ? 'مدير'
+      ? 'مدير النظام'
       : access.userRole === 'employee'
-        ? 'إداري'
-        : access.userRole === 'cashier'
-          ? 'أمين صندوق'
-          : 'غير محدد'
+        ? 'موظف'
+      : access.userRole === 'cashier'
+          ? 'أمين الصندوق'
+          : access.userRole === 'manager'
+            ? 'مدير'
+            : 'لم يُحدد'
 
   const fetchSettings = useCallback(async () => {
     setLoading(true)
@@ -126,7 +129,7 @@ export default function AdminSettingsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        setErrorMessage(result?.details || result?.error || 'فشل تحميل إعدادات النظام')
+        setErrorMessage(getClientErrorMessage(result, 'تعذر تحميل إعدادات النظام حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
         setSettings(null)
         setLoading(false)
         return
@@ -183,7 +186,7 @@ export default function AdminSettingsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success || !result?.logoUrl) {
-        setErrorMessage(result?.details || result?.error || 'فشل رفع شعار الفاتورة')
+        setErrorMessage(getClientErrorMessage(result, 'تعذر رفع الشعار. تحقق من الاتصال وحجم الملف ثم حاول مرة أخرى.'))
         return
       }
 
@@ -352,7 +355,7 @@ export default function AdminSettingsPage() {
 
       if (!response.ok || !result?.success) {
         const errorDetails =
-          result?.details || result?.error || 'فشل حفظ إعدادات النظام'
+          getClientErrorMessage(result, 'تعذر حفظ إعدادات النظام. لم يتم حفظ التغييرات.')
         console.error('System settings save failed.')
         setErrorMessage(errorDetails)
         setSaving(false)
@@ -1170,8 +1173,8 @@ export default function AdminSettingsPage() {
           >
             <div className="space-y-3 text-sm font-semibold leading-8 text-amber-100">
               <p>معلومات المنشأة المعروضة هنا للعرض فقط عندما تكون مشتقة من بيانات الفرع أو المنشأة.</p>
-              <p>حقول اسم النشاط واسم الفرع لا تُرسل ضمن payload حفظ system_settings الحالي.</p>
-              <p>لا توجد أي إعدادات لرسائل حالة الطلبات في هذه الصفحة؛ الرسائل ثابتة من منطق الطلبات.</p>
+              <p>حقلا اسم النشاط واسم الفرع للعرض فقط، ولا تُحفظ التغييرات عليهما من هذه الصفحة.</p>
+              <p>رسائل حالات الطلبات ثابتة حاليًا، ولا يمكن تعديلها من هذه الصفحة.</p>
             </div>
           </Panel>
         ) : null}

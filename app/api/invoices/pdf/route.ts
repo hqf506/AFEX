@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { jsonResponse } from '@/lib/api/responses'
 import {
   generateInvoicePdf,
   generateInvoicePdfFile,
@@ -251,12 +252,12 @@ export async function GET(request: NextRequest) {
     if (format !== 'html' || !encodedPayload) {
       return withAuthCookies(
         auth.response,
-        NextResponse.json(
+        jsonResponse(
           {
             success: false,
-            error: 'Invalid invoice preview request',
+            error: 'تعذر فتح معاينة الفاتورة. أعد فتح الفاتورة ثم حاول مرة أخرى.',
           },
-          { status: 400 }
+          422
         )
       )
     }
@@ -312,12 +313,12 @@ export async function GET(request: NextRequest) {
     logInvoicePdfError(requestId, 'html-preview-error', error)
     return withAuthCookies(
       auth.response,
-      NextResponse.json(
+      jsonResponse(
         {
           success: false,
-          error: 'Failed to open invoice preview',
+          error: 'تعذر فتح معاينة الفاتورة. حاول مرة أخرى من تفاصيل الطلب.',
         },
-        { status: 500 }
+        500
       )
     )
   }
@@ -377,12 +378,12 @@ export async function POST(request: NextRequest) {
       })
       return withAuthCookies(
         auth.response,
-        NextResponse.json(
+        jsonResponse(
           {
             success: false,
-            error: 'Customer name and phone are required',
+            error: 'اسم العميل ورقم الجوال مطلوبان لإنشاء الفاتورة.',
           },
-          { status: 400 }
+          422
         )
       )
     }
@@ -394,12 +395,12 @@ export async function POST(request: NextRequest) {
       })
       return withAuthCookies(
         auth.response,
-        NextResponse.json(
+        jsonResponse(
           {
             success: false,
-            error: 'At least one invoice item is required',
+            error: 'أضف عنصرًا واحدًا على الأقل إلى الفاتورة.',
           },
-          { status: 400 }
+          422
         )
       )
     }
@@ -440,12 +441,12 @@ export async function POST(request: NextRequest) {
       if (!(await isWhatsAppFeatureEnabled(auth.profile.tenant_id))) {
         return withAuthCookies(
           auth.response,
-          NextResponse.json(
+          jsonResponse(
             {
               success: false,
               error: WHATSAPP_FEATURE_DISABLED_MESSAGE,
             },
-            { status: 403 }
+            403
           )
         )
       }
@@ -495,15 +496,13 @@ export async function POST(request: NextRequest) {
     logInvoicePdfError(requestId, 'post-error', error)
     return withAuthCookies(
       auth.response,
-      NextResponse.json(
+      jsonResponse(
         {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to generate invoice PDF',
+          error: 'تم حفظ الطلب، لكن تعذر إنشاء ملف الفاتورة. يمكنك إعادة المحاولة من تفاصيل الطلب.',
+          details: error instanceof Error ? error.message : error,
         },
-        { status: 500 }
+        500
       )
     )
   }

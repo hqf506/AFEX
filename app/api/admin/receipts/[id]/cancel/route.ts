@@ -389,7 +389,7 @@ export async function POST(
           auth.response,
           utf8JsonResponse(
             {
-              error: 'تعذر إرجاع المخزون بعد إلغاء الفاتورة',
+              error: 'تعذر إلغاء الفاتورة. لم تكتمل عملية الإلغاء أو إعادة المخزون.',
               ...safeErrorDetails(
                 restoreInventoryError,
                 'تعذر إرجاع المخزون بعد إلغاء الفاتورة'
@@ -457,7 +457,7 @@ export async function POST(
         auth.response,
         utf8JsonResponse(
           {
-            error: 'تعذر إلغاء الإيصال',
+            error: 'تعذر إلغاء الفاتورة. لم تكتمل عملية الإلغاء أو إعادة المخزون.',
             ...safeErrorDetails(updateError, 'تعذر إلغاء الإيصال'),
             ...safeErrorCode(updateError),
           },
@@ -526,7 +526,7 @@ export async function POST(
         auth.response,
         utf8JsonResponse(
           {
-            error: 'تعذر إرجاع المخزون بعد إلغاء الفاتورة',
+            error: 'تعذر إلغاء الفاتورة. لم تكتمل عملية الإلغاء أو إعادة المخزون.',
             ...safeErrorDetails(
               restoreInventoryError,
               'تعذر إرجاع المخزون بعد إلغاء الفاتورة'
@@ -586,7 +586,7 @@ export async function POST(
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع أثناء إلغاء الإيصال',
+          error: 'تعذر إلغاء الفاتورة. لم تكتمل عملية الإلغاء أو إعادة المخزون.',
           ...safeErrorDetails(
             error,
             'حدث خطأ غير متوقع أثناء إلغاء الإيصال'

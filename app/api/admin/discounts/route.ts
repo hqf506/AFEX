@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
         auth.response,
         utf8JsonResponse(
           {
-            error: 'تعذر تحميل الخصومات',
+            error: 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.',
             details: error.message,
           },
           500
@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
           auth.response,
           utf8JsonResponse(
             {
-              error: 'تعذر إعادة تفعيل الخصم',
+              error: 'تعذر حفظ الخصم. لم يتم حفظ التغييرات.',
               details: reactivateError?.message || 'Unknown error',
             },
             400
@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
         auth.response,
         utf8JsonResponse(
           {
-            error: 'فشل إنشاء الخصم',
+            error: 'تعذر حفظ الخصم. لم يتم حفظ التغييرات.',
             details: error?.message || 'Unknown error',
           },
           400
@@ -359,7 +359,7 @@ export async function POST(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر حفظ الخصم. لم يتم حفظ التغييرات.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
@@ -477,7 +477,7 @@ export async function PATCH(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر تحديث الخصم. لم يتم حفظ التغييرات.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
@@ -566,7 +566,7 @@ export async function DELETE(request: NextRequest) {
         auth.response,
         utf8JsonResponse(
           {
-            error: 'تعذر حذف الخصم',
+            error: 'تعذر حذف الخصم. لم يتم تنفيذ الحذف.',
             details: error.message,
           },
           400
@@ -586,7 +586,7 @@ export async function DELETE(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر حذف الخصم. لم يتم تنفيذ الحذف.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500

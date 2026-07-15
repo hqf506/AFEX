@@ -596,7 +596,7 @@ function whatsAppFailureResponse() {
   return jsonResponse(
     {
       success: false,
-      error: 'تعذر إرسال رسالة واتساب',
+      error: 'تعذر إرسال رسالة واتساب حاليًا. لم يتم تأكيد الإرسال.',
     },
     500
   )
@@ -780,7 +780,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse(
         {
           success: false,
-          error: 'Tenant context is required for WhatsApp config',
+          error: 'تعذر تحديد نطاق المؤسسة. سجّل الدخول مرة أخرى ثم حاول مجددًا.',
         },
         400
       )
@@ -790,7 +790,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse(
         {
           success: false,
-          error: 'Branch WhatsApp config requires a concrete branch',
+          error: 'اختر فرعًا محددًا قبل إرسال رسالة واتساب.',
         },
         400
       )
@@ -845,7 +845,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse(
         {
           success: false,
-          error: 'Recipient phone is required',
+          error: 'رقم جوال المستلم مطلوب لإرسال رسالة واتساب.',
         },
         400
       )
@@ -855,7 +855,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse(
         {
           success: false,
-          error: 'Message text is required',
+          error: 'اكتب نص الرسالة قبل الإرسال.',
         },
         400
       )
@@ -865,7 +865,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse(
         {
           success: false,
-          error: 'File URL is required',
+          error: 'تعذر تجهيز ملف الفاتورة للإرسال. أعد إنشاء الفاتورة ثم حاول مرة أخرى.',
         },
         400
       )
@@ -1143,7 +1143,7 @@ export async function POST(req: NextRequest) {
     return jsonResponse(
       {
         success: false,
-        error: 'تعذر إرسال رسالة واتساب',
+        error: 'تعذر إرسال رسالة واتساب حاليًا. لم يتم تأكيد الإرسال.',
       },
       500
     )

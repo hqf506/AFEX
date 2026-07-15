@@ -17,6 +17,7 @@ import {
 } from '@/lib/admin/users'
 import { resolveAuthScopeType } from '@/lib/auth-profile'
 import { AppRole, usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 function isArabicUserMessage(error: unknown): error is Error {
   return error instanceof Error && /[\u0600-\u06ff]/.test(error.message)
@@ -74,21 +75,21 @@ function getBranchName(
   branchId: string | null | undefined
 ) {
   if (!branchId) return 'بدون فرع'
-  return branches.find((branch) => branch.id === branchId)?.name || 'فرع غير معروف'
+  return branches.find((branch) => branch.id === branchId)?.name || 'غير مرتبط بفرع'
 }
 
 const ROLE_DISPLAY_LABELS: Partial<Record<AppRole, string>> = {
-  admin: 'مدير',
+  admin: 'مدير النظام',
   manager: 'مدير',
   employee: 'موظف',
-  cashier: 'كاشير',
+  cashier: 'أمين الصندوق',
 }
 
 const EMAIL_LOGIN_ROLES = new Set<AppRole>(['admin', 'manager', 'employee'])
 const USER_FORM_ROLE_VALUES: AppRole[] = ['admin', 'employee', 'cashier']
 
 function getRoleDisplayLabel(role: AppRole | string) {
-  return ROLE_DISPLAY_LABELS[role as AppRole] || 'غير معروف'
+  return ROLE_DISPLAY_LABELS[role as AppRole] || 'لم يُحدد'
 }
 
 function getRoleBadgeClassName(role: AppRole | string) {
@@ -411,7 +412,7 @@ export default function AdminUsersPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       setBranches(result.branches || [])
@@ -435,7 +436,7 @@ export default function AdminUsersPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل المستخدمين')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل المستخدمين حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       const nextUsers = mergeDuplicateUserRows((result.users || []) as ProfileRow[])
@@ -611,7 +612,7 @@ export default function AdminUsersPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل إنشاء المستخدم')
+        throw new Error(getClientErrorMessage(result, 'تعذر إنشاء المستخدم. لم يتم حفظ الحساب.'))
       }
 
       setSuccessMessage('تم إنشاء المستخدم بنجاح')
@@ -738,7 +739,7 @@ export default function AdminUsersPage() {
 
       if (!response.ok) {
         throw new Error(
-          result?.details || result?.error || 'تعذر تحديث مستخدم POS'
+          getClientErrorMessage(result, 'تعذر تحديث المستخدم. لم يتم حفظ التغييرات.')
         )
       }
 
@@ -785,7 +786,7 @@ export default function AdminUsersPage() {
 
       if (!response.ok) {
         throw new Error(
-          result?.details || result?.error || 'فشل إعادة تعيين كلمة المرور'
+          getClientErrorMessage(result, 'تعذر إعادة تعيين كلمة المرور. لم يتم حفظ التغيير.')
         )
       }
 

@@ -6,6 +6,7 @@ import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput } from '@/components/admin-input'
 import { AdminAlert } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import {
   canSubmitCatalogForm,
   createEmptyCatalogFormPayload,
@@ -725,7 +726,7 @@ export default function AdminCatalogPage() {
         const result = await response.json()
 
         if (!response.ok) {
-          throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+          throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
         }
 
         return result.branches || []
@@ -759,7 +760,7 @@ export default function AdminCatalogPage() {
         const result = await response.json()
 
         if (!response.ok) {
-          throw new Error(result?.details || result?.error || 'تعذر تحميل الفئات')
+          throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفئات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
         }
 
         return result.categories || []
@@ -836,7 +837,7 @@ export default function AdminCatalogPage() {
           const result = await response.json()
 
           if (!response.ok) {
-            throw new Error(result?.details || result?.error || 'تعذر تحميل العناصر')
+            throw new Error(getClientErrorMessage(result, 'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
           }
 
           return {
@@ -865,7 +866,7 @@ export default function AdminCatalogPage() {
       )
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر تحميل العناصر'
+        getClientCaughtErrorMessage(error, 'تعذر تحميل العناصر')
       )
     } finally {
       setLoadingItems(false)
@@ -907,11 +908,7 @@ export default function AdminCatalogPage() {
           const result = await response.json()
 
           if (!response.ok) {
-            throw new Error(
-              result?.details ||
-                result?.error ||
-                'تعذر تحميل إعدادات العناصر الخاصة بالفرع'
-            )
+            throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات المنتجات الخاصة بالفرع. تحقق من الاتصال ثم حاول مرة أخرى.'))
           }
 
           return ((result.items || []) as BranchCatalogItemRecord[]).filter(
@@ -933,9 +930,7 @@ export default function AdminCatalogPage() {
     } catch (error) {
       setBranchScopedItems([])
       setBranchFilterMessage(
-        error instanceof Error
-          ? error.message
-          : 'تعذر تحميل إعدادات العناصر الخاصة بالفرع'
+        getClientCaughtErrorMessage(error, 'تعذر تحميل إعدادات العناصر الخاصة بالفرع')
       )
     } finally {
       setLoadingItems(false)
@@ -1580,7 +1575,7 @@ export default function AdminCatalogPage() {
     const result = await response.json()
 
     if (!response.ok) {
-      throw new Error(result?.details || result?.error || 'تعذر إزالة صورة العنصر')
+      throw new Error(getClientErrorMessage(result, 'تعذر إزالة صورة المنتج. لم يتم حفظ التغييرات.'))
     }
   }
 
@@ -1628,11 +1623,7 @@ export default function AdminCatalogPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(
-          result?.details ||
-            result?.error ||
-            (editingItemId ? 'فشل تحديث العنصر' : 'فشل إنشاء العنصر')
-        )
+        throw new Error(getClientErrorMessage(result, 'تعذر حفظ بيانات المنتج. لم يتم حفظ التغييرات.'))
       }
 
       setSuccessMessage(
@@ -1651,7 +1642,7 @@ export default function AdminCatalogPage() {
       resetForm()
       await loadItems(true)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر حفظ العنصر')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر حفظ بيانات المنتج. لم يتم حفظ التغييرات.'))
     } finally {
       setSaving(false)
     }
@@ -1689,7 +1680,7 @@ export default function AdminCatalogPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل تحديث حالة العنصر')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحديث حالة المنتج. لم يتم حفظ التغييرات.'))
       }
 
       setSuccessMessage(
@@ -1699,7 +1690,7 @@ export default function AdminCatalogPage() {
       await loadItems(true)
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر تحديث حالة العنصر'
+        getClientCaughtErrorMessage(error, 'تعذر تحديث حالة العنصر')
       )
     } finally {
       setUpdatingItemId(null)
@@ -1731,54 +1722,17 @@ export default function AdminCatalogPage() {
       })
 
       let result: unknown = null
-      let fallbackText = ''
 
       try {
         result = await response.json()
-      } catch {
-        try {
-          fallbackText = await response.text()
-        } catch {
-          fallbackText = ''
-        }
-      }
+      } catch {}
 
       if (!response.ok) {
-        const errorBody = result ?? null
-        const apiError =
-          result && typeof result === 'object'
-            ? (result as {
-                code?: unknown
-                error?: unknown
-                details?: unknown
-              })
-            : null
-        const code =
-          typeof apiError?.code === 'string' ? apiError.code : undefined
-        const error =
-          typeof apiError?.error === 'string' ? apiError.error : undefined
-        const details =
-          typeof apiError?.details === 'string' ? apiError.details : undefined
-        const debugObject = {
-          status: response.status,
-          statusText: response.statusText,
-          errorBody,
-          rawText: fallbackText,
-          itemId,
-          fileName: uploadFile.name,
-          fileType: uploadFile.type,
-          fileSize: uploadFile.size,
-        }
-
-        console.error(
-          '[CATALOG_UPLOAD_FAILED]',
-          JSON.stringify(debugObject, null, 2)
-        )
-
         throw new Error(
-          [code, error, details].filter(Boolean).join(' - ') ||
-            fallbackText ||
-            'فشل رفع صورة العنصر'
+          getClientErrorMessage(
+            result,
+            'تعذر رفع الصورة. تحقق من الاتصال وحجم الملف ثم حاول مرة أخرى.'
+          )
         )
       }
 
@@ -1795,7 +1749,7 @@ export default function AdminCatalogPage() {
       await loadItems(true)
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر رفع صورة العنصر'
+        getClientCaughtErrorMessage(error, 'تعذر رفع الصورة. تحقق من الاتصال وحجم الملف ثم حاول مرة أخرى.')
       )
     } finally {
       setUploadingImageItemId(null)
@@ -1816,7 +1770,9 @@ export default function AdminCatalogPage() {
     return
     /*
 
-    const confirmed = window.confirm('?? ???? ??? ??????? ????????')
+    const confirmed = window.confirm(
+      'هل تريد حذف العناصر المحددة؟ لن تظهر هذه العناصر في الكتالوج بعد الحذف.'
+    )
     if (!confirmed) return
 
     try {
@@ -1883,7 +1839,7 @@ export default function AdminCatalogPage() {
       )
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر حذف العناصر المحددة'
+        getClientCaughtErrorMessage(error, 'تعذر حذف العنصر. لم يتم تنفيذ الحذف.')
       )
     } finally {
       setSaving(false)
@@ -1898,7 +1854,7 @@ export default function AdminCatalogPage() {
     if (selectedItemIds.length === 0) return
 
     const confirmed = window.confirm(
-      'سيتم حذف العناصر المحددة نهائيًا من العناصر ومن نقطة البيع، وستبقى الفواتير القديمة محفوظة كسجل تاريخي. هل تريد المتابعة؟'
+      'هل تريد حذف العناصر المحددة نهائيًا؟ لا يمكن التراجع عن هذه العملية. ستبقى الفواتير القديمة محفوظة كسجل تاريخي.'
     )
     if (!confirmed) return
 
@@ -1947,7 +1903,7 @@ export default function AdminCatalogPage() {
       await loadItems(true)
 
       if (failedCount > 0 && deletedCount === 0) {
-        setErrorMessage(`فشل حذف ${failedCount} عنصر. يرجى المحاولة مرة أخرى.`)
+        setErrorMessage(`تعذر حذف ${failedCount} عنصر. لم يتم تنفيذ الحذف. حاول مرة أخرى.`)
       } else if (failedCount > 0 && invoiceUsedCount === failedCount) {
         setSuccessMessage(
           `تم حذف ${deletedCount} عنصر، وفشل حذف ${invoiceUsedCount} عنصر لأنها مستخدمة في فواتير سابقة`
@@ -1959,7 +1915,7 @@ export default function AdminCatalogPage() {
       }
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر حذف العناصر المحددة'
+        getClientCaughtErrorMessage(error, 'تعذر حذف العناصر المحددة. لم يتم تنفيذ الحذف.')
       )
     } finally {
       setSaving(false)
@@ -2073,7 +2029,7 @@ export default function AdminCatalogPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'تعذر تحديث الفئة')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحديث فئة المنتج. لم يتم حفظ التغييرات.'))
       }
 
       applyItemCategoryLocally(item.id, result?.item?.category ?? nextCategory)
@@ -2081,7 +2037,7 @@ export default function AdminCatalogPage() {
       setSuccessMessage('تم تحديث الفئة بنجاح')
     } catch (error) {
       applyItemCategoryLocally(item.id, previousCategory)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحديث الفئة')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر تحديث الفئة'))
     } finally {
       setUpdatingCategoryItemId(null)
     }
@@ -2128,14 +2084,14 @@ export default function AdminCatalogPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل تحديث السعر')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحديث السعر. لم يتم حفظ التغييرات.'))
       }
 
       setInlinePriceEdit(null)
       setSuccessMessage(result?.message || 'تم تحديث السعر بنجاح')
       await loadItems(true)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحديث السعر')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر تحديث السعر'))
     } finally {
       setUpdatingItemId(null)
     }
@@ -2190,7 +2146,7 @@ export default function AdminCatalogPage() {
     const result = await response.json()
 
     if (!response.ok) {
-      setErrorMessage(result?.details || result?.error || 'تعذر تصدير العناصر')
+      setErrorMessage(getClientErrorMessage(result, 'تعذر تصدير المنتجات حاليًا. حاول مرة أخرى.'))
       return
     }
 
@@ -2334,7 +2290,7 @@ export default function AdminCatalogPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل إدخال العناصر')
+        throw new Error(getClientErrorMessage(result, 'تعذر استيراد المنتجات. لم يتم حفظ العناصر غير المكتملة.'))
       }
 
       setSuccessMessage(
@@ -2346,7 +2302,7 @@ export default function AdminCatalogPage() {
       setImportFile(null)
       await loadItems(true)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر إدخال العناصر')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر إدخال العناصر'))
     } finally {
       setImporting(false)
     }
@@ -3375,7 +3331,7 @@ export default function AdminCatalogPage() {
                   </svg>
                 </div>
                 <p className="text-base font-black text-white">
-                  {branchFilterMessage || 'لا توجد عناصر مطابقة'}
+                  {branchFilterMessage || 'لا توجد عناصر في الكتالوج مطابقة للفلاتر الحالية.'}
                 </p>
                 <p className="mt-2 max-w-md text-sm text-slate-500">
                   جرّب تعديل الفلاتر أو أضف أول عنصر جديد إلى الكتالوج.

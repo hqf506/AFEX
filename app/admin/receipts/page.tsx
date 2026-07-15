@@ -9,6 +9,7 @@ import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import { getDateInputValue } from '@/lib/orders/format'
 import { type OrderSourceRow } from '@/lib/orders/normalize'
 import {
@@ -230,15 +231,15 @@ const periodOptions: { value: PeriodOption; label: string }[] = [
 ]
 
 function formatSar(value: number) {
-  return `${Number(value || 0).toLocaleString('en-US', {
+  return `${Number(value || 0).toLocaleString('ar-SA', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })} SAR`
+  })} ريال`
 }
 
 function formatDate(value: string) {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'غير محدد'
+  if (Number.isNaN(date.getTime())) return 'لم يُسجل'
 
   return new Intl.DateTimeFormat('ar-SA', {
     year: 'numeric',
@@ -249,9 +250,9 @@ function formatDate(value: string) {
 
 function formatTime(value: string) {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'غير محدد'
+  if (Number.isNaN(date.getTime())) return 'لم يُسجل'
 
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('ar-SA', {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
@@ -434,7 +435,7 @@ function buildReceiptRecords(
     const branchId = getStringValue(row.branch_id)
     const employee = employeeId ? employeeById.get(employeeId) : null
     const branch = branchId ? branchById.get(branchId) : null
-    const employeeName = employee?.full_name?.trim() || employee?.username?.trim() || 'غير محدد'
+    const employeeName = employee?.full_name?.trim() || employee?.username?.trim() || 'لم يُسجل'
     const receiptNumber = order.invoice_number && order.invoice_number !== '—' ? order.invoice_number : order.order_number
     const receiptStatus = isCancelledReceiptStatus(order.payment_status) ? 'cancelled' : order.status
 
@@ -448,7 +449,7 @@ function buildReceiptRecords(
       employeeId,
       employeeName,
       branchId,
-      branchName: branch?.name || 'غير محدد',
+      branchName: branch?.name || 'غير مرتبط بفرع',
       customerName: order.customer_name,
       customerPhone: order.customer_phone,
       paymentType: order.payment_method,
@@ -848,7 +849,7 @@ export default function AdminReceiptsPage() {
         employee.id,
         employee.full_name?.trim() ||
           employee.username?.trim() ||
-          'موظف غير معروف'
+          'لم يُسجل الموظف'
       )
     })
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
@@ -1301,7 +1302,7 @@ export default function AdminReceiptsPage() {
                     <td colSpan={8} className="px-5 py-12 text-center">
                       <div className="mx-auto max-w-md rounded-3xl border border-cyan-500/15 bg-white/[0.03] p-8">
                         <ReceiptIcon className="mx-auto h-10 w-10 text-cyan-300/70" />
-                        <h3 className="mt-4 text-lg font-black text-white">لا توجد إيصالات</h3>
+                        <h3 className="mt-4 text-lg font-black text-white">لا توجد فواتير مطابقة للفلاتر الحالية.</h3>
                         <p className="mt-2 text-sm text-slate-400">جرّب تغيير الفلاتر أو الفترة الزمنية.</p>
                       </div>
                     </td>
@@ -1430,7 +1431,12 @@ function ReceiptDrawer({
       const result = (await response.json().catch(() => ({}))) as CancelReceiptResponse
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || result.details || 'تعذر إلغاء الإيصال')
+        throw new Error(
+          getClientErrorMessage(
+            result,
+            'تعذر إلغاء الفاتورة. لم تكتمل عملية الإلغاء أو إعادة المخزون.'
+          )
+        )
       }
 
       onCanceled(receipt.id)

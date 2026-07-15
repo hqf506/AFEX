@@ -322,7 +322,7 @@ export default function AdminDigitalInvoiceSettingsPage() {
   }
 
   if (loading) {
-    return <div className={darkPanelClassName}>جاري تحميل إعدادات الفاتورة الرقمية...</div>
+    return <div className={darkPanelClassName}>جارٍ تحميل إعدادات الفاتورة الرقمية...</div>
   }
 
   return (
@@ -771,7 +771,7 @@ export default function AdminDigitalInvoiceSettingsPage() {
                 className={darkPrimaryButtonClassName}
                 type="button"
               >
-                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
               </button>
 
               <button

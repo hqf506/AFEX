@@ -239,7 +239,7 @@ const ORDER_STATUS_UI: Record<
     dotClassName: 'bg-emerald-300',
   },
   unknown: {
-    label: 'غير معروف',
+    label: 'لم تُحدد الحالة',
     badgeClassName:
       'border-slate-400/20 bg-slate-400/10 text-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.08)]',
     dotClassName: 'bg-slate-400',
@@ -1416,7 +1416,7 @@ export default function OrdersPage() {
   }, [branches])
 
   const getOrderBranchLabel = (order: OrderRecord) => {
-    if (!order.branch_id) return 'غير محدد'
+    if (!order.branch_id) return 'غير مرتبط بفرع'
 
     const branchName = branchNameById.get(order.branch_id)
     if (branchName) return fixArabic(branchName)
@@ -2205,7 +2205,7 @@ export default function OrdersPage() {
                     <path d="M6 5h12M6 10h12M6 15h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   </svg>
                 </div>
-                <p className="mt-4 text-sm font-bold text-white">لا توجد طلبات مطابقة</p>
+                <p className="mt-4 text-sm font-bold text-white">لا توجد طلبات مطابقة للفلاتر الحالية.</p>
                 <p className="mt-1 text-xs text-slate-500">جرّب تغيير الفلتر أو البحث.</p>
               </div>
             ) : (
@@ -2495,8 +2495,8 @@ export default function OrdersPage() {
                           detailsDrawerOrder.created_by_employee_id
                             ? employeeNameById[
                                 detailsDrawerOrder.created_by_employee_id
-                              ] || 'غير معروف'
-                            : 'غير معروف'
+                              ] || 'لم تُسجل'
+                            : 'لم تُسجل'
                         }
                       />
                       <DetailItem

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { type FormEvent, useMemo, useState } from 'react'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import { notifyAdminBranchOptionsChanged } from '@/lib/admin/branch-filter'
 
 type BranchFormState = {
@@ -131,7 +132,7 @@ export default function NewBranchPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'تعذر إنشاء الفرع')
+        throw new Error(getClientErrorMessage(result, 'تعذر إنشاء الفرع. لم يتم حفظ البيانات.'))
       }
 
       notifyAdminBranchOptionsChanged()
@@ -331,7 +332,7 @@ export default function NewBranchPage() {
                 disabled={!canSubmit || saving}
                 className="inline-flex h-13 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] hover:shadow-[0_0_45px_rgba(34,211,238,0.3)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? 'جاري حفظ الفرع...' : 'حفظ الفرع'}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ الفرع'}
               </button>
             </div>
           </form>

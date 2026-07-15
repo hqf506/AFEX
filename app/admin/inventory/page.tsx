@@ -16,6 +16,7 @@ import {
   AdminLoadingState,
 } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
 import {
   ADMIN_BRANCH_FILTER_ALL,
@@ -271,7 +272,7 @@ export default function AdminInventoryPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       const nextBranches = Array.isArray(result.branches)
@@ -336,7 +337,7 @@ export default function AdminInventoryPage() {
 
       if (!response.ok || !result?.success) {
         throw new Error(
-          result?.details || result?.error || 'تعذر تحميل المخزون'
+          getClientErrorMessage(result, 'تعذر تحميل المخزون حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.')
         )
       }
 

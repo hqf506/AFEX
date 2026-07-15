@@ -147,10 +147,10 @@ const periodOptions: { value: PeriodOption; label: string }[] = [
 ]
 
 function formatSarCurrency(value: number): string {
-  return `SAR ${value.toLocaleString('en-US', {
+  return `${value.toLocaleString('ar-SA', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`
+  })} ريال`
 }
 
 function formatDateTime(date: Date): string {
@@ -215,13 +215,15 @@ function buildPresetDateRange(period: PeriodOption) {
 function getRoleLabel(role: string | null): string {
   switch (role) {
     case 'admin':
+      return 'مدير النظام'
+    case 'manager':
       return 'مدير'
     case 'employee':
       return 'موظف'
     case 'cashier':
-      return 'كاشير'
+      return 'أمين الصندوق'
     default:
-      return 'غير معروف'
+      return 'لم يُحدد'
   }
 }
 

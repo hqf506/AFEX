@@ -13,6 +13,7 @@ import {
 } from '@/lib/pos-employee-session'
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 function AfexMark({ className = 'h-14 w-14' }: { className?: string }) {
   return (
@@ -240,7 +241,7 @@ export default function PosLoginPage() {
 
       if (!checkResponse.ok) {
         throw new Error(
-          checkResult?.details || checkResult?.error || 'تعذر التحقق من المستخدم'
+          getClientErrorMessage(checkResult, 'تعذر التحقق من المستخدم')
         )
       }
 
@@ -460,7 +461,7 @@ export default function PosLoginPage() {
                   disabled={loading}
                   className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-cyan-300 text-lg font-black text-slate-950 shadow-[0_0_38px_rgba(34,211,238,0.48)] transition hover:bg-cyan-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {loading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
+                  {loading ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
                   <span className="text-2xl" aria-hidden="true">
                     ↗
                   </span>

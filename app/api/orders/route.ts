@@ -30,7 +30,7 @@ import {
   POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
 import type { OrderStatus } from '@/lib/orders/normalize'
-import { maskId, maskPhone } from '@/lib/security/redaction'
+import { maskId, maskPhone, redactSensitive } from '@/lib/security/redaction'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { isSendableWhatsAppPhone } from '@/lib/whatsapp/messages'
 import { sendWhatsAppFile } from '@/lib/whatsapp/service'
@@ -593,7 +593,7 @@ export async function POST(request: NextRequest) {
         auth.response,
         {
           success: false,
-          message: 'حدث خطأ أثناء إنشاء الفاتورة',
+          error: 'تعذر إنشاء الطلب. لم يتم تأكيد إنشاء الطلب.',
         },
         500
       )
@@ -1394,17 +1394,16 @@ async function sendCreatedInvoicePdfOverWhatsApp({
       providerStatus: result.providerStatus || null,
     })
   } catch (error) {
-    console.error('[api/orders] automatic invoice PDF WhatsApp failed without blocking invoice creation', {
-      orderId: maskId(orderId),
-      error:
-        error instanceof Error
-          ? {
-              name: error.name,
-              message: error.message,
-              stack: error.stack,
-            }
+    console.error(
+      '[api/orders] automatic invoice PDF WhatsApp failed without blocking invoice creation',
+      redactSensitive({
+        orderId: maskId(orderId),
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
             : String(error),
-    })
+      })
+    )
     await writeAuditLog({
       auth,
       request,

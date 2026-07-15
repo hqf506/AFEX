@@ -19,6 +19,7 @@ import {
 } from '@/lib/admin/settings'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   renderThermalInvoiceHtml,
 } from '@/lib/invoices/thermal-template'
@@ -168,7 +169,7 @@ function ThermalLogoUploadCard({
             disabled={uploading}
             className="h-10 rounded-2xl border border-cyan-300/35 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-300/20 hover:text-white hover:shadow-[0_0_22px_rgba(34,211,238,0.22)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {uploading ? 'جاري الرفع...' : hasLogo ? 'تغيير الصورة' : 'رفع الشعار'}
+            {uploading ? 'جارٍ الرفع...' : hasLogo ? 'تغيير الصورة' : 'رفع الشعار'}
           </button>
           {hasLogo ? (
             <button
@@ -338,7 +339,7 @@ export default function AdminThermalInvoiceSettingsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success || !result?.logoUrl) {
-        setErrorMessage(result?.details || result?.error || 'فشل رفع شعار الفاتورة')
+        setErrorMessage(getClientErrorMessage(result, 'تعذر رفع الشعار. تحقق من الاتصال وحجم الملف ثم حاول مرة أخرى.'))
         return
       }
 
@@ -406,7 +407,7 @@ export default function AdminThermalInvoiceSettingsPage() {
   }
 
   if (loading) {
-    return <div className={darkPanelClassName}>جاري تحميل إعدادات الفاتورة الحرارية...</div>
+    return <div className={darkPanelClassName}>جارٍ تحميل إعدادات الفاتورة الحرارية...</div>
   }
 
   return (
@@ -482,7 +483,7 @@ export default function AdminThermalInvoiceSettingsPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-black text-white">هوية الإيصال</h2>
-                <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">Thermal</span>
+                <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">الفاتورة الحرارية</span>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -671,7 +672,7 @@ export default function AdminThermalInvoiceSettingsPage() {
                     تتحدث المعاينة مباشرة حسب الإعدادات الحالية قبل الحفظ.
                   </p>
                 </div>
-                <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">Live</span>
+                <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">معاينة مباشرة</span>
               </div>
 
               <div className="rounded-3xl border border-cyan-300/15 bg-[#07111d]/90 p-5 shadow-[0_0_35px_rgba(34,211,238,0.08)]">
@@ -718,7 +719,7 @@ export default function AdminThermalInvoiceSettingsPage() {
                 className={darkPrimaryButtonClassName}
                 type="button"
               >
-                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
               </button>
 
               <button

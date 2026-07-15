@@ -122,7 +122,7 @@ export default function ResetPasswordPage() {
 
           {!sessionChecked ? (
             <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100">
-              جاري التحقق من رابط إعادة التعيين...
+              جارٍ التحقق من رابط إعادة التعيين...
             </div>
           ) : hasRecoverySession ? (
             <form onSubmit={handleUpdatePassword} className="space-y-5">
@@ -159,7 +159,7 @@ export default function ResetPasswordPage() {
                 disabled={loading}
                 className="h-14 w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-base font-black text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(45,212,191,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'جاري التحديث...' : 'تحديث كلمة المرور'}
+                {loading ? 'جارٍ الحفظ...' : 'تحديث كلمة المرور'}
               </button>
             </form>
           ) : (

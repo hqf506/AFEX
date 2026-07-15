@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput } from '@/components/admin-input'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import {
   peekClientResource,
   writeClientResource,
@@ -188,7 +189,7 @@ export default function AdminDiscountsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الخصومات')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       const nextDiscounts = Array.isArray(result.discounts) ? result.discounts : []
@@ -196,7 +197,7 @@ export default function AdminDiscountsPage() {
       writeClientResource(ADMIN_DISCOUNTS_INCLUDE_INACTIVE_CACHE_KEY, nextDiscounts)
     } catch (error) {
       console.error('Load discounts error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل الخصومات')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر تحميل الخصومات'))
     } finally {
       setLoadingDiscounts(false)
     }
@@ -222,7 +223,7 @@ export default function AdminDiscountsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
       const nextBranches = Array.isArray(result.branches) ? result.branches : []
       setBranches(nextBranches)
@@ -269,7 +270,7 @@ export default function AdminDiscountsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر إضافة الخصم')
+        throw new Error(getClientErrorMessage(result, 'تعذر حفظ الخصم. لم يتم حفظ التغييرات.'))
       }
 
       setSuccessMessage('تمت إضافة خصم جديد بنجاح')
@@ -280,7 +281,7 @@ export default function AdminDiscountsPage() {
       await loadDiscounts()
     } catch (error) {
       console.error('Create discount error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر إضافة الخصم')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر إضافة الخصم'))
     } finally {
       setCreating(false)
     }
@@ -306,7 +307,7 @@ export default function AdminDiscountsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحديث حالة الخصم')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحديث الخصم. لم يتم حفظ التغييرات.'))
       }
 
       setSuccessMessage(
@@ -324,7 +325,7 @@ export default function AdminDiscountsPage() {
       )
     } catch (error) {
       console.error('Toggle discount error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحديث حالة الخصم')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر تحديث حالة الخصم'))
     } finally {
       setTogglingDiscountId(null)
     }
@@ -349,14 +350,14 @@ export default function AdminDiscountsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر حذف الخصم')
+        throw new Error(getClientErrorMessage(result, 'تعذر حذف الخصم. لم يتم تنفيذ الحذف.'))
       }
 
       setSuccessMessage('تم حذف الخصم بنجاح')
       setDiscounts((prev) => prev.filter((item) => item.id !== discount.id))
     } catch (error) {
       console.error('Delete discount error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر حذف الخصم')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر حذف الخصم'))
     } finally {
       setDeletingDiscountId(null)
     }
@@ -536,7 +537,7 @@ export default function AdminDiscountsPage() {
                 disabled={!canCreate || creating}
                 className="inline-flex h-14 min-w-[170px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition duration-150 hover:scale-[1.01] hover:shadow-[0_0_45px_rgba(34,211,238,0.3)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {creating ? 'جاري الإضافة...' : 'إضافة خصم'}
+                {creating ? 'جارٍ الحفظ...' : 'إضافة خصم'}
               </button>
             </div>
           </form>
@@ -560,7 +561,7 @@ export default function AdminDiscountsPage() {
 
           {loadingDiscounts ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/15 bg-black/20 px-4 py-10 text-center text-sm font-bold text-slate-400">
-              جاري تحميل الخصومات...
+              جارٍ تحميل الخصومات...
             </div>
           ) : discounts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/20 bg-black/20 px-4 py-12 text-center">

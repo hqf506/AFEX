@@ -313,7 +313,7 @@ export async function PATCH(
         auth.response,
         jsonResponse(
           {
-            error: 'فشل تحديث عنصر الكتالوج',
+            error: 'تعذر حفظ بيانات المنتج. لم يتم حفظ التغييرات.',
             details: error?.message || 'Unknown error',
           },
           400
@@ -338,7 +338,7 @@ export async function PATCH(
       auth.response,
       jsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر حفظ بيانات المنتج. لم يتم حفظ التغييرات.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
@@ -363,8 +363,7 @@ export async function DELETE(
       utf8JsonResponse(
         {
           success: false,
-          error: 'FORBIDDEN',
-          message: 'هذه العملية متاحة لمدير النظام فقط',
+          error: 'لا تملك صلاحية تنفيذ هذه العملية.',
         },
         403
       )
@@ -384,8 +383,7 @@ export async function DELETE(
         utf8JsonResponse(
           {
             success: false,
-            error: 'INVALID_CATALOG_ITEM_ID',
-            message: 'معرف العنصر مطلوب',
+            error: 'تعذر تحديد العنصر المطلوب. حدّث الصفحة ثم حاول مرة أخرى.',
           },
           400
         )
@@ -398,8 +396,7 @@ export async function DELETE(
         utf8JsonResponse(
           {
             success: false,
-            error: 'MISSING_SERVICE_ROLE_KEY',
-            message: 'SUPABASE_SERVICE_ROLE_KEY غير موجود في .env.local',
+            error: 'تعذر حذف العنصر. لم يتم تنفيذ الحذف.',
           },
           500
         )
@@ -421,8 +418,7 @@ export async function DELETE(
         utf8JsonResponse(
           {
             success: false,
-            error: 'CATALOG_ITEM_NOT_FOUND',
-            message: 'العنصر غير موجود في الكتالوج',
+            error: 'العنصر المطلوب غير موجود أو تم حذفه.',
           },
           404
         )
@@ -446,8 +442,7 @@ export async function DELETE(
         utf8JsonResponse(
           {
             success: false,
-            error: 'CATALOG_ITEM_LOOKUP_FAILED',
-            message: 'تعذر التحقق من العنصر قبل حذفه',
+            error: 'تعذر حذف العنصر. لم يتم تنفيذ الحذف.',
             details: existingItemError.message,
             code: existingItemError.code,
           },
@@ -462,8 +457,7 @@ export async function DELETE(
         utf8JsonResponse(
           {
             success: false,
-            error: 'CATALOG_ITEM_NOT_FOUND',
-            message: 'العنصر غير موجود في الكتالوج',
+            error: 'العنصر المطلوب غير موجود أو تم حذفه.',
           },
           404
         )
@@ -482,8 +476,7 @@ export async function DELETE(
         utf8JsonResponse(
           {
             success: false,
-            error: 'BRANCH_CATALOG_DELETE_FAILED',
-            message: 'تعذر حذف ارتباطات الفروع لهذا العنصر',
+            error: 'تعذر حذف العنصر. لم يتم تنفيذ الحذف.',
           },
           500
         )
@@ -502,8 +495,7 @@ export async function DELETE(
         utf8JsonResponse(
           {
             success: false,
-            error: 'CATALOG_ITEM_DELETE_FAILED',
-            message: 'تعذر حذف العنصر من الكتالوج',
+            error: 'تعذر حذف العنصر. لم يتم تنفيذ الحذف.',
             details: catalogDeleteError.message,
             code: catalogDeleteError.code,
           },
@@ -525,8 +517,7 @@ export async function DELETE(
       utf8JsonResponse(
         {
           success: false,
-          error: 'UNEXPECTED_DELETE_ERROR',
-          message: 'حدث خطأ غير متوقع أثناء حذف العنصر',
+          error: 'تعذر حذف العنصر. لم يتم تنفيذ الحذف.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500

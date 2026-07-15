@@ -290,7 +290,7 @@ function ProtectedPosShellLayout({
     return (
       <PosShellViewport>
         <div className="page-wrap">
-          <div className="page-card">جاري فتح شاشة رمز الموظف...</div>
+          <div className="page-card">جارٍ فتح شاشة رمز الموظف...</div>
         </div>
       </PosShellViewport>
     )

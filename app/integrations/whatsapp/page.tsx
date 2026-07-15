@@ -7,6 +7,7 @@ import { AdminInput } from '@/components/admin-input'
 import { AdminSelect } from '@/components/admin-select'
 import { PageHeader } from '@/components/page-header'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import type { AdminBranchRecord } from '@/lib/admin/branches'
 import {
   BRANCH_WHATSAPP_PROVIDER_OPTIONS,
@@ -56,7 +57,7 @@ export default function IntegrationsWhatsAppPage() {
         const result = await response.json().catch(() => null)
 
         if (!response.ok || !result?.success) {
-          throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+          throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
         }
 
         const nextBranches = Array.isArray(result.branches)
@@ -79,7 +80,7 @@ export default function IntegrationsWhatsAppPage() {
         }))
       } catch (error) {
         if (cancelled) return
-        setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل الفروع')
+        setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر تحميل الفروع'))
       } finally {
         if (!cancelled) {
           setLoadingBranches(false)
@@ -116,7 +117,7 @@ export default function IntegrationsWhatsAppPage() {
 
         if (!response.ok || !result?.success) {
           throw new Error(
-            result?.details || result?.error || 'تعذر تحميل إعدادات واتساب'
+            getClientErrorMessage(result, 'تعذر تحميل إعدادات واتساب حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.')
           )
         }
 
@@ -143,7 +144,7 @@ export default function IntegrationsWhatsAppPage() {
           token: '',
         }))
         setErrorMessage(
-          error instanceof Error ? error.message : 'تعذر تحميل إعدادات واتساب'
+          getClientCaughtErrorMessage(error, 'تعذر تحميل إعدادات واتساب')
         )
       } finally {
         if (!cancelled) {
@@ -202,7 +203,7 @@ export default function IntegrationsWhatsAppPage() {
 
       if (!response.ok || !result?.success) {
         throw new Error(
-          result?.details || result?.error || 'فشل حفظ إعدادات واتساب'
+          getClientErrorMessage(result, 'تعذر حفظ إعدادات واتساب. لم يتم حفظ التغييرات.')
         )
       }
 
@@ -216,7 +217,7 @@ export default function IntegrationsWhatsAppPage() {
       setSuccessMessage(result.message || 'تم حفظ إعدادات واتساب بنجاح')
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'فشل حفظ إعدادات واتساب'
+        getClientCaughtErrorMessage(error, 'فشل حفظ إعدادات واتساب')
       )
     } finally {
       setSaving(false)
@@ -272,7 +273,7 @@ export default function IntegrationsWhatsAppPage() {
 
       if (!response.ok || !result?.success) {
         throw new Error(
-          result?.details || result?.error || 'فشل إرسال رسالة الاختبار'
+          getClientErrorMessage(result, 'تعذر إرسال رسالة واتساب حاليًا. لم يتم تأكيد الإرسال.')
         )
       }
 
@@ -280,7 +281,7 @@ export default function IntegrationsWhatsAppPage() {
       setErrorMessage('')
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'فشل إرسال رسالة الاختبار'
+        getClientCaughtErrorMessage(error, 'فشل إرسال رسالة الاختبار')
       )
       setSuccessMessage('')
     } finally {

@@ -573,7 +573,7 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
 
               <nav className="space-y-5 text-right">
                 <div className="space-y-1">
-                  <NavSectionTitle>MAIN</NavSectionTitle>
+                  <NavSectionTitle>الرئيسية</NavSectionTitle>
                   <div className="space-y-1">
                     {mainNavItems.map((item) => (
                       <SidebarLink
@@ -645,7 +645,7 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
               </nav>
 
               <div className="mt-5 space-y-1">
-                <NavSectionTitle>ACTIONS</NavSectionTitle>
+                <NavSectionTitle>اختصارات</NavSectionTitle>
                 <Link
                   href="/pos"
                   className="flex flex-row-reverse items-center justify-between gap-2.5 rounded-2xl border border-transparent px-3.5 py-3 text-sm font-bold text-slate-400 transition-all duration-150 hover:bg-white/[0.055] hover:text-white"

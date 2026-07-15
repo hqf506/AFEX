@@ -625,7 +625,7 @@ export default function PosSaleSuccessPage() {
                 }
                 className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-base font-black text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-slate-600/30 disabled:bg-slate-700/20 disabled:text-slate-500 disabled:shadow-none"
               >
-                {printing ? 'جاري تجهيز الطباعة...' : '🖨 طباعة الفاتورة'}
+                {printing ? 'جارٍ تجهيز الطباعة...' : '🖨 طباعة الفاتورة'}
               </button>
               <button
                 type="button"

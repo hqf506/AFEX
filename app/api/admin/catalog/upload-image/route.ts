@@ -41,15 +41,13 @@ function logCatalogImageUploadIssue(
 
 function uploadErrorResponse(
   error: string,
-  code: string,
   status: number,
-  details?: string
+  diagnostic?: unknown
 ) {
   return jsonResponse(
     {
       error,
-      code,
-      ...(details ? { details } : {}),
+      ...(diagnostic ? { details: diagnostic } : {}),
     },
     status
   )
@@ -66,8 +64,7 @@ export async function POST(request: NextRequest) {
     return withAuthCookies(
       auth.response,
       uploadErrorResponse(
-        'Only system administrators can upload catalog item images.',
-        'FORBIDDEN',
+          'لا تملك صلاحية تنفيذ هذه العملية.',
         403
       )
     )
@@ -85,9 +82,8 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          'Missing tenant_id for the authenticated user.',
-          'MISSING_TENANT_ID',
-          400
+          'تعذر تحديد نطاق المؤسسة. سجّل الدخول مرة أخرى ثم حاول مجددًا.',
+          422
         )
       )
     }
@@ -105,9 +101,8 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          'Invalid multipart form data.',
-          'INVALID_FORM_DATA',
-          400,
+          'تعذر قراءة ملف الصورة. اختر الصورة مرة أخرى ثم حاول مجددًا.',
+          422,
           error instanceof Error ? error.message : undefined
         )
       )
@@ -125,9 +120,8 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          `Missing catalog item id. Expected FormData field "${UPLOAD_FORM_ITEM_ID_FIELD}".`,
-          'MISSING_ITEM_ID',
-          400
+          'تعذر تحديد المنتج المطلوب. حدّث الصفحة ثم حاول مرة أخرى.',
+          422
         )
       )
     }
@@ -143,9 +137,8 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          `Missing image file. Expected FormData field "${UPLOAD_FORM_FILE_FIELD}".`,
-          'MISSING_FILE',
-          400
+          'اختر صورة للمنتج ثم حاول مرة أخرى.',
+          422
         )
       )
     }
@@ -161,7 +154,7 @@ export async function POST(request: NextRequest) {
 
       return withAuthCookies(
         auth.response,
-        uploadErrorResponse('Image file is empty.', 'EMPTY_FILE', 400)
+        uploadErrorResponse('ملف الصورة فارغ. اختر صورة أخرى.', 422)
       )
     }
 
@@ -180,9 +173,8 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          'Invalid image type. Allowed types are image/png, image/jpeg, and image/webp.',
-          'INVALID_IMAGE_TYPE',
-          400
+          'صيغة الصورة غير مدعومة. استخدم PNG أو JPG أو WEBP.',
+          422
         )
       )
     }
@@ -199,9 +191,8 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          'Image file is too large. Maximum size is 5 MB.',
-          'FILE_TOO_LARGE',
-          400
+          'حجم الصورة أكبر من الحد المسموح. استخدم صورة لا تتجاوز 5 ميجابايت.',
+          422
         )
       )
     }
@@ -226,8 +217,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          'Could not verify catalog item before uploading image.',
-          'CATALOG_ITEM_LOOKUP_FAILED',
+          'تعذر رفع الصورة. تحقق من الاتصال وحجم الملف ثم حاول مرة أخرى.',
           500,
           existingItemError.message
         )
@@ -243,8 +233,7 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          'Catalog item was not found for this tenant.',
-          'CATALOG_ITEM_NOT_FOUND',
+          'المنتج المطلوب غير موجود أو تم حذفه.',
           404
         )
       )
@@ -275,9 +264,8 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          'Supabase storage upload failed.',
-          'STORAGE_UPLOAD_FAILED',
-          400,
+          'تعذر رفع الصورة. تحقق من الاتصال وحجم الملف ثم حاول مرة أخرى.',
+          500,
           uploadError.message
         )
       )
@@ -312,9 +300,8 @@ export async function POST(request: NextRequest) {
       return withAuthCookies(
         auth.response,
         uploadErrorResponse(
-          'Image uploaded, but saving image URL to catalog item failed.',
-          'CATALOG_IMAGE_URL_UPDATE_FAILED',
-          400,
+          'تم رفع الصورة، لكن تعذر حفظها للمنتج. حاول مرة أخرى.',
+          500,
           updateError?.message || 'No updated item returned'
         )
       )
@@ -336,8 +323,7 @@ export async function POST(request: NextRequest) {
     return withAuthCookies(
       auth.response,
       uploadErrorResponse(
-        'Unexpected error while uploading catalog item image.',
-        'UNEXPECTED_UPLOAD_ERROR',
+        'تعذر رفع الصورة. تحقق من الاتصال وحجم الملف ثم حاول مرة أخرى.',
         500,
         error instanceof Error ? error.message : 'Unknown error'
       )

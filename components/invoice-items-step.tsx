@@ -10,6 +10,7 @@ import {
   type CSSProperties,
 } from 'react'
 import { useRouter } from 'next/navigation'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { AdminButton } from '@/components/admin-button'
 import { AdminInput } from '@/components/admin-input'
@@ -571,7 +572,10 @@ export function InvoiceItemsStep({
 
             if (!response.ok || !result) {
               throw new Error(
-                result?.details || result?.error || 'Failed to load categories'
+                getClientErrorMessage(
+                  result,
+                  'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'
+                )
               )
             }
 
@@ -940,9 +944,7 @@ export function InvoiceItemsStep({
             const result = await response.json().catch(() => null)
 
             if (!response.ok || !result?.success) {
-              throw new Error(
-                result?.details || result?.error || 'تعذر تحميل إعدادات الضريبة'
-              )
+              throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات الضريبة حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
             }
 
             return (result.setting as CheckoutVatSetting | null) || null
@@ -1009,7 +1011,7 @@ export function InvoiceItemsStep({
         const result = await response.json().catch(() => null)
 
         if (!response.ok || !result?.success) {
-          throw new Error(result?.details || result?.error || 'تعذر تحميل الخصومات')
+          throw new Error(getClientErrorMessage(result, 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
         }
 
         return Array.isArray(result.discounts) ? result.discounts : []
@@ -1047,9 +1049,7 @@ export function InvoiceItemsStep({
         const result = await response.json().catch(() => null)
 
         if (!response.ok || !result?.success) {
-          throw new Error(
-            result?.details || result?.error || 'تعذر تحميل إعدادات الضريبة'
-          )
+          throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات الضريبة حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
         }
 
         return (result.setting as CheckoutVatSetting | null) || null
@@ -1240,7 +1240,7 @@ export function InvoiceItemsStep({
   }
 
   if (authLoading || !allowed || !ready) {
-    return <div className="page-card">جاري التحميل...</div>
+    return <div className="page-card">جارٍ تحميل العناصر...</div>
   }
 
   if (variant === 'pos') {
@@ -1359,7 +1359,7 @@ export function InvoiceItemsStep({
                 </div>
               ) : catalogLoading && !canRenderCatalogImmediately ? (
                 <div className="flex h-full items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300">
-                  جاري تحميل العناصر...
+                  جارٍ تحميل العناصر...
                 </div>
               ) : catalogError && filteredProducts.length === 0 ? (
                 <div className="flex h-full items-center justify-center rounded-[28px] border border-red-400/20 bg-red-950/20 px-6 text-center text-sm font-bold text-red-100">
@@ -1774,7 +1774,7 @@ export function InvoiceItemsStep({
                   </div>
                 ) : catalogLoading && !canRenderCatalogImmediately ? (
                   <div className="rounded-xl bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
-                    جاري تحميل العناصر...
+                    جارٍ تحميل العناصر...
                   </div>
                 ) : catalogError && filteredProducts.length === 0 ? (
                   <div className="rounded-xl bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
@@ -2429,7 +2429,7 @@ export function InvoiceItemsStep({
             </div>
           ) : catalogLoading && !canRenderCatalogImmediately ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-              جاري تحميل العناصر...
+              جارٍ تحميل العناصر...
             </div>
           ) : catalogError && filteredProducts.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">

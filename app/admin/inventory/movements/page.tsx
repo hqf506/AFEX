@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminAlert } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
 
 type MovementType =
@@ -158,8 +159,7 @@ function normalizeMovementRow(row: Record<string, unknown>) {
 function getMovementTypeLabel(value: string) {
   return (
     MOVEMENT_TYPE_OPTIONS.find((option) => option.value === value)?.label ||
-    value ||
-    '-'
+    'حركة مخزون'
   )
 }
 
@@ -212,7 +212,7 @@ function getMovementTone(value: string) {
 
 function getActorTypeLabel(value: string) {
   if (value === 'pos_employee') {
-    return 'موظف POS'
+    return 'موظف نقطة البيع'
   }
 
   if (value === 'owner') {
@@ -220,7 +220,7 @@ function getActorTypeLabel(value: string) {
   }
 
   if (value === 'admin') {
-    return 'إداري'
+    return 'مدير النظام'
   }
 
   if (value === 'system' || value === 'unknown') {
@@ -234,22 +234,26 @@ function getUserRoleDisplayLabel(value: string) {
   const normalizedValue = value.trim()
 
   if (normalizedValue === 'admin') {
-    return 'المدير'
+    return 'مدير النظام'
   }
 
   if (normalizedValue === 'employee') {
-    return 'الإداري'
+    return 'موظف'
   }
 
   if (normalizedValue === 'cashier') {
     return 'أمين الصندوق'
   }
 
+  if (normalizedValue === 'manager') {
+    return 'مدير'
+  }
+
   if (normalizedValue === 'owner') {
     return 'المالك'
   }
 
-  return normalizedValue
+  return 'موظف'
 }
 
 function getActorTypeTone(value: string) {
@@ -462,7 +466,7 @@ export default function InventoryMovementsPage() {
     branchFilter === ''
       ? 'كل الفروع'
       : branches.find((branch) => branch.id === branchFilter)?.name ||
-        'فرع غير معروف'
+        'غير مرتبط بفرع'
   const selectedMovementTypeLabel =
     movementTypeFilter === ''
       ? 'كل الحركات'
@@ -479,7 +483,7 @@ export default function InventoryMovementsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       const nextBranches = Array.isArray(result.branches)
@@ -825,7 +829,7 @@ export default function InventoryMovementsPage() {
                     colSpan={7}
                     className="rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-10 text-center text-sm font-bold text-slate-400"
                   >
-                    لا توجد حركات مخزون حتى الآن.
+                    لا توجد حركات مخزون مطابقة للفلاتر الحالية.
                   </td>
                 </tr>
               ) : (

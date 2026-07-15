@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 type AccountData = {
   id: string
@@ -77,7 +78,7 @@ export default function AccountPage() {
 
         if (!response.ok || !result?.success) {
           throw new Error(
-            result?.details || result?.error || 'تعذر تحميل بيانات الحساب'
+            getClientErrorMessage(result, 'تعذر تحميل بيانات الحساب حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.')
           )
         }
 
@@ -179,7 +180,7 @@ export default function AccountPage() {
         }
 
         throw new Error(
-          result?.details || result?.error || 'تعذر تحديث بيانات الحساب'
+          getClientErrorMessage(result, 'تعذر تحديث بيانات الحساب. لم يتم حفظ التغييرات.')
         )
       }
 
@@ -244,7 +245,7 @@ export default function AccountPage() {
 
             {loading ? (
               <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-4 text-sm font-bold text-cyan-100">
-                جاري تحميل بيانات الحساب...
+                جارٍ تحميل بيانات الحساب...
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
@@ -340,7 +341,7 @@ export default function AccountPage() {
                   disabled={saving}
                   className="h-[52px] w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-base font-black text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(45,212,191,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+                  {saving ? 'جارٍ الحفظ...' : 'حفظ التعديلات'}
                 </button>
 
                 <Link

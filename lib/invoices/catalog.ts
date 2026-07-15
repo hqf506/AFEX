@@ -11,6 +11,7 @@ import {
   peekClientResource,
   prefetchClientResource,
 } from '@/lib/client-resource-cache'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 export type PosInvoiceCatalogProduct = InvoiceCatalogItem & {
   item_id: string
@@ -343,9 +344,7 @@ async function fetchBranchInvoiceCatalog(
     | null
 
   if (!response.ok || !result?.success || !Array.isArray(result.products)) {
-    throw new Error(
-      result?.details || result?.error || 'Failed to load branch catalog'
-    )
+    throw new Error(getClientErrorMessage(result, 'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
   }
 
   return normalizeLoadedInvoiceCatalogProducts(result.products)
@@ -394,9 +393,7 @@ async function fetchBranchInvoiceCatalogPage(
     | null
 
   if (!response.ok || !result?.success || !Array.isArray(result.products)) {
-    throw new Error(
-      result?.details || result?.error || 'Failed to load branch catalog'
-    )
+    throw new Error(getClientErrorMessage(result, 'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
   }
 
   const page = Number(result.page)

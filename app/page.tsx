@@ -8,6 +8,7 @@ import { useAuthState } from '@/components/auth-state-provider'
 import { isFullAdmin } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername } from '@/lib/usernames'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 const navLinks = [
   { href: '/', label: 'الرئيسية' },
@@ -244,14 +245,14 @@ export default function LandingPage() {
 
     try {
       setProtectedNavLoading(true)
-      setProtectedNavMessage('جاري تجهيز الجلسة...')
+      setProtectedNavMessage('جارٍ تجهيز الجلسة...')
 
       const {
         data: { session },
       } = await supabase.auth.getSession()
 
       if (!session) {
-        setProtectedNavMessage('جاري تجهيز الجلسة، حاول مرة أخرى بعد لحظة.')
+        setProtectedNavMessage('جارٍ تجهيز الجلسة، حاول مرة أخرى بعد لحظة.')
         return
       }
 
@@ -301,7 +302,7 @@ export default function LandingPage() {
       const checkResult = await checkResponse.json()
 
       if (!checkResponse.ok) {
-        throw new Error(checkResult?.details || checkResult?.error || 'تعذر التحقق من المستخدم')
+        throw new Error(getClientErrorMessage(checkResult, 'تعذر التحقق من المستخدم'))
       }
 
       if (!checkResult?.exists) {
@@ -449,7 +450,7 @@ export default function LandingPage() {
                 disabled={protectedNavLoading}
                 className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-bold text-white/70 backdrop-blur transition hover:border-cyan-200/30 hover:text-cyan-100 disabled:cursor-wait disabled:opacity-70"
               >
-                {protectedNavLoading ? 'جاري تجهيز الجلسة...' : link.label}
+                {protectedNavLoading ? 'جارٍ تجهيز الجلسة...' : link.label}
               </button>
             ) : (
               <Link
@@ -764,7 +765,7 @@ export default function LandingPage() {
                   disabled={loginLoading}
                   className="h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_0_34px_rgba(34,211,238,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {loginLoading ? 'جاري الدخول...' : 'دخول'}
+                  {loginLoading ? 'جارٍ تسجيل الدخول...' : 'دخول'}
                 </button>
               </div>
             </form>

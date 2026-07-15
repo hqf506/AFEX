@@ -10,6 +10,7 @@ import {
   type CheckoutVatSetting,
 } from '@/hooks/use-invoice-checkout'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   loadClientResource,
   peekClientResource,
@@ -270,9 +271,7 @@ export default function PosSaleCheckoutPage() {
             const result = await response.json().catch(() => null)
 
             if (!response.ok || !result?.success) {
-              throw new Error(
-                result?.details || result?.error || 'تعذر تحميل الخصومات'
-              )
+              throw new Error(getClientErrorMessage(result, 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
             }
 
             return {
@@ -348,9 +347,7 @@ export default function PosSaleCheckoutPage() {
             const result = await response.json().catch(() => null)
 
             if (!response.ok || !result?.success) {
-              throw new Error(
-                result?.details || result?.error || 'تعذر تحميل إعدادات الضريبة'
-              )
+              throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات الضريبة حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
             }
 
             return {
@@ -610,7 +607,7 @@ export default function PosSaleCheckoutPage() {
       <div className="fixed inset-0 flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#020817] p-5 text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
         <div className="relative rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 px-6 py-4 text-sm font-black text-cyan-100 shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
-          جاري تحميل بيانات الفاتورة...
+          جارٍ تحميل بيانات الفاتورة...
         </div>
       </div>
     )
@@ -880,7 +877,7 @@ export default function PosSaleCheckoutPage() {
                   disabled={!canSubmitInvoice}
                   className="flex h-16 flex-1 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] text-lg font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
                 >
-                  {checkout.loading ? 'جاري إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
+                  {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
                 </button>
 
                 <button
@@ -1251,7 +1248,7 @@ function DiscountSelectorCard({
       </div>
 
       {loading ? (
-        <p className="mt-3 text-xs font-bold text-slate-400">جاري التحميل...</p>
+        <p className="mt-3 text-xs font-bold text-slate-400">جارٍ تحميل البيانات...</p>
       ) : null}
     </div>
   )
@@ -1273,7 +1270,7 @@ function VatInfoCard({
         <span
           className={`font-black ${enabled ? 'text-[#14B8A6]' : 'text-slate-500'}`}
         >
-          {loading ? 'جاري التحميل...' : enabled ? 'مطبقة' : 'غير مفعلة'}
+          {loading ? 'جارٍ تحميل البيانات...' : enabled ? 'مطبقة' : 'غير مفعلة'}
         </span>
         <span className="font-black text-white">{enabled ? `${rate}%` : '0%'}</span>
       </div>

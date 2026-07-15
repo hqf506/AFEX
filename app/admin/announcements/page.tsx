@@ -11,6 +11,7 @@ import {
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput, AdminTextarea } from '@/components/admin-input'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 type AnnouncementType =
   | 'discount'
@@ -377,7 +378,7 @@ export default function AdminAnnouncementsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الإعلانات')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الإعلانات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       setAnnouncements(
@@ -404,7 +405,7 @@ export default function AdminAnnouncementsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       setBranches(Array.isArray(result.branches) ? result.branches : [])
@@ -433,7 +434,7 @@ export default function AdminAnnouncementsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل العملاء')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل العملاء حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       setCustomers(Array.isArray(result.customers) ? result.customers : [])
@@ -520,7 +521,7 @@ export default function AdminAnnouncementsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر إنشاء الإعلان')
+        throw new Error(getClientErrorMessage(result, 'تعذر إنشاء الإعلان. لم يتم حفظ التغييرات.'))
       }
 
       setSuccessMessage('تم إنشاء الإعلان بنجاح')
@@ -554,7 +555,7 @@ export default function AdminAnnouncementsPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر إرسال واتساب')
+        throw new Error(getClientErrorMessage(result, 'تعذر إرسال رسالة واتساب حاليًا. لم يتم تأكيد الإرسال.'))
       }
 
       const summary = {
@@ -596,7 +597,7 @@ export default function AdminAnnouncementsPage() {
 
       if (!response.ok || !result?.success) {
         throw new Error(
-          result?.details || result?.error || 'تعذر تحميل تفاصيل الإعلان'
+          getClientErrorMessage(result, 'تعذر تحميل تفاصيل الإعلان حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.')
         )
       }
 
@@ -798,7 +799,7 @@ export default function AdminAnnouncementsPage() {
 
           {announcementsCollapsed ? null : loadingAnnouncements ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/15 bg-black/20 px-4 py-10 text-center text-sm font-bold text-slate-400">
-              جاري تحميل الإعلانات...
+              جارٍ تحميل الإعلانات...
             </div>
           ) : announcements.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/20 bg-black/20 px-4 py-12 text-center">
@@ -876,7 +877,7 @@ export default function AdminAnnouncementsPage() {
                             className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {loadingDetailsId === announcement.id
-                              ? 'جاري التحميل...'
+                              ? 'جارٍ تحميل البيانات...'
                               : 'تفاصيل الرسالة'}
                           </button>
                           <button
@@ -887,7 +888,7 @@ export default function AdminAnnouncementsPage() {
                           >
                             <LinkIcon className="h-4 w-4" />
                             {generatingId === announcement.id
-                              ? 'جاري الإرسال...'
+                              ? 'جارٍ الإرسال...'
                               : 'إرسال واتساب'}
                           </button>
                         </div>
@@ -1320,7 +1321,7 @@ export default function AdminAnnouncementsPage() {
                     <div className="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-[#06111f]/70 p-2">
                       {loadingCustomers ? (
                         <div className="px-3 py-6 text-center text-xs font-bold text-slate-400">
-                          جاري تحميل العملاء...
+                          جارٍ تحميل العملاء...
                         </div>
                       ) : customers.length === 0 ? (
                         <div className="px-3 py-6 text-center text-xs font-bold text-slate-400">
@@ -1374,7 +1375,7 @@ export default function AdminAnnouncementsPage() {
                     disabled={!canSave || creating}
                     className="inline-flex h-12 min-w-[150px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {creating ? 'جاري الحفظ...' : 'حفظ'}
+                    {creating ? 'جارٍ الحفظ...' : 'حفظ'}
                   </button>
                 </div>
                 </form>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { PosStepIndicator } from '@/components/pos-step-indicator'
+import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import {
   clearClientResourcesByPrefix,
   loadClientResource,
@@ -277,7 +278,7 @@ export function InvoiceCustomerStep({
           peekClientResource<ExistingCustomer[]>(customerSearch.cacheKey) || []
         )
         setCustomerSearchError(
-          error instanceof Error ? error.message : 'فشل البحث عن العملاء'
+          getClientCaughtErrorMessage(error, 'فشل البحث عن العملاء')
         )
         setCustomerSearchLoading(false)
       } finally {
@@ -368,7 +369,7 @@ export function InvoiceCustomerStep({
 
         setRecentCustomers([])
         setRecentCustomersError(
-          error instanceof Error ? error.message : 'فشل تحميل العملاء'
+          getClientCaughtErrorMessage(error, 'فشل تحميل العملاء')
         )
         setRecentCustomersLoading(false)
       })
@@ -398,7 +399,12 @@ export function InvoiceCustomerStep({
         const result = await response.json().catch(() => null)
 
         if (!response.ok || !result) {
-          throw new Error(result?.details || result?.error || 'Failed to load categories')
+          throw new Error(
+            getClientErrorMessage(
+              result,
+              'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'
+            )
+          )
         }
 
         return Array.isArray(result.categories) ? result.categories : []
@@ -555,7 +561,7 @@ export function InvoiceCustomerStep({
       setAddCustomerOpen(false)
     } catch (error) {
       setNewCustomerError(
-        error instanceof Error ? error.message : 'تعذر حفظ العميل'
+        getClientCaughtErrorMessage(error, 'تعذر حفظ العميل')
       )
     } finally {
       setNewCustomerSaving(false)
@@ -760,7 +766,7 @@ export function InvoiceCustomerStep({
           <main className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[30px] bg-transparent p-1 [direction:rtl]">
             <header className="flex shrink-0 items-start justify-between gap-5 px-1">
               <div className="text-right">
-                <p className="text-sm font-black tracking-[0.28em] text-[#22D3EE]">CUSTOMER</p>
+                <p className="text-sm font-black text-[#22D3EE]">بيانات العميل</p>
                 <h2 className="mt-4 text-4xl font-black leading-tight text-white xl:text-[44px]">
                   بيانات العميل
                 </h2>
@@ -972,7 +978,7 @@ export function InvoiceCustomerStep({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-black tracking-[0.24em] text-[#22D3EE]">
-                    AFEX CUSTOMER
+                    عميل AFEX
                   </p>
                   <h3 className="mt-3 text-[26px] font-black text-white">
                     إضافة عميل جديد
@@ -1188,7 +1194,7 @@ export function InvoiceCustomerStep({
 
           {customerSearchLoading ? (
             <p className="mb-3 text-xs text-slate-500">
-              {customerMatches.length > 0 ? 'تحديث النتائج...' : 'جاري البحث عن العملاء...'}
+              {customerMatches.length > 0 ? 'تحديث النتائج...' : 'جارٍ البحث عن العملاء...'}
             </p>
           ) : null}
 

@@ -20,9 +20,15 @@ const PIN_RESPONSE_DELAY_MS = 300
 const PIN_RATE_LIMIT_MAX_ATTEMPTS = 5
 const PIN_RATE_LIMIT_WINDOW_MS = 60 * 1000
 const PIN_BRANCH_MISMATCH_MESSAGE =
-  'رمز PIN غير صحيح أو المستخدم غير مرتبط بهذا الفرع'
-const MISSING_POS_CONTEXT_MESSAGE = 'تعذر تحديد الفرع أو المنشأة'
-const DUPLICATE_PIN_MESSAGE = 'يوجد أكثر من موظف بنفس PIN، اختر الفرع أولًا'
+  'الرمز غير صحيح. تحقق من الرمز ثم حاول مرة أخرى.'
+const MISSING_POS_CONTEXT_MESSAGE =
+  'لا يمكن فتح نقطة البيع لأن الحساب غير مرتبط بفرع. تواصل مع مدير النظام.'
+const DUPLICATE_PIN_MESSAGE =
+  'يوجد أكثر من مستخدم بهذا الرمز. تواصل مع مدير النظام لتغيير أحد الرموز.'
+const PIN_RATE_LIMIT_MESSAGE =
+  'تم إيقاف المحاولات مؤقتًا بسبب تكرار الرمز الخاطئ. حاول مرة أخرى بعد قليل.'
+const PIN_INTERNAL_ERROR_MESSAGE =
+  'تعذر التحقق من رمز الموظف حاليًا. حاول مرة أخرى، وإذا استمرت المشكلة تواصل مع المسؤول.'
 
 type PosEmployeeRpcRow = {
   id?: string | null
@@ -209,8 +215,8 @@ export async function POST(request: NextRequest) {
 
     if (!/^[0-9]{4}$/.test(pin)) {
       const response = jsonResponse(
-        { error: 'PIN يجب أن يتكون من 4 أرقام' },
-        400
+        { error: 'يجب أن يتكون الرمز من أربعة أرقام.' },
+        422
       )
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
@@ -223,7 +229,7 @@ export async function POST(request: NextRequest) {
 
     if (!checkPinRateLimit(rateLimitKey)) {
       const response = jsonResponse(
-        { error: 'محاولات كثيرة، حاول مرة أخرى بعد دقيقة' },
+        { error: PIN_RATE_LIMIT_MESSAGE },
         429
       )
       return withFixedPinDelay(withAuthCookies(auth.response, response))
@@ -277,8 +283,8 @@ export async function POST(request: NextRequest) {
 
       const response = jsonResponse(
         {
-          error: 'تعذر التحقق من رمز PIN',
-          ...safeErrorDetails(error, 'تعذر التحقق من رمز PIN'),
+          error: PIN_INTERNAL_ERROR_MESSAGE,
+          ...safeErrorDetails(error, PIN_INTERNAL_ERROR_MESSAGE),
         },
         500
       )
@@ -299,7 +305,7 @@ export async function POST(request: NextRequest) {
     if (!employee) {
       const response = jsonResponse(
         { error: PIN_BRANCH_MISMATCH_MESSAGE },
-        401
+        422
       )
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
@@ -318,8 +324,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const response = jsonResponse(
       {
-        error: 'حدث خطأ أثناء التحقق من رمز PIN',
-        ...safeErrorDetails(error, 'حدث خطأ أثناء التحقق من رمز PIN'),
+        error: PIN_INTERNAL_ERROR_MESSAGE,
+        ...safeErrorDetails(error, PIN_INTERNAL_ERROR_MESSAGE),
       },
       500
     )

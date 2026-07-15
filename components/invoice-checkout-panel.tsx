@@ -5,6 +5,7 @@ import { AdminButton } from '@/components/admin-button'
 import { AdminInput, AdminTextarea } from '@/components/admin-input'
 import { AdminSelect } from '@/components/admin-select'
 import { SummaryRow } from '@/components/summary-row'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   loadClientResource,
   peekClientResource,
@@ -102,9 +103,7 @@ export function InvoiceCheckoutPanel({
             const result = await response.json().catch(() => null)
 
             if (!response.ok || !result?.success) {
-              throw new Error(
-                result?.details || result?.error || 'تعذر تحميل الخصومات'
-              )
+              throw new Error(getClientErrorMessage(result, 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
             }
 
             return Array.isArray(result.discounts) ? result.discounts : []
@@ -285,7 +284,7 @@ export function InvoiceCheckoutPanel({
           disabled={checkout.loading}
           className="w-full"
         >
-          {checkout.loading ? 'جاري إنشاء الفاتورة...' : actionLabel}
+          {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : actionLabel}
         </AdminButton>
       </div>
     </section>
@@ -346,7 +345,7 @@ function DiscountSelectorCard({
       </div>
 
       {loading ? (
-        <p className="mt-3 text-xs text-slate-500">جاري تحميل الخصومات...</p>
+        <p className="mt-3 text-xs text-slate-500">جارٍ تحميل الخصومات...</p>
       ) : null}
     </div>
   )

@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername } from '@/lib/usernames'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 const highlights = ['آمن وموثوق', 'سريع وفعال', 'تقارير ذكية']
 const miniBars = [42, 72, 54, 88, 62, 78]
@@ -101,7 +102,7 @@ export default function LoginPage() {
       const checkResult = await checkResponse.json()
 
       if (!checkResponse.ok) {
-        throw new Error(checkResult?.details || checkResult?.error || 'تعذر التحقق من المستخدم')
+        throw new Error(getClientErrorMessage(checkResult, 'تعذر التحقق من المستخدم'))
       }
 
       if (!checkResult?.exists) {
@@ -216,7 +217,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="h-14 w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-lg font-black text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(45,212,191,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'جاري تسجيل الدخول...' : 'دخول'}
+                {loading ? 'جارٍ تسجيل الدخول...' : 'دخول'}
               </button>
 
               <div className="text-center">
@@ -383,7 +384,7 @@ export default function LoginPage() {
                   disabled={resetLoading}
                   className="h-12 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_0_34px_rgba(34,211,238,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {resetLoading ? 'جاري الإرسال...' : 'إرسال رابط إعادة التعيين'}
+                  {resetLoading ? 'جارٍ الإرسال...' : 'إرسال رابط إعادة التعيين'}
                 </button>
               </div>
             </form>

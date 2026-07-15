@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useSystemSettings } from '@/hooks/use-system-settings'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   createProtectedResourceAuthError,
   markProtectedResourcesUnauthorized,
@@ -344,7 +345,7 @@ function getNextPosOrderStatus(
 }
 
 function getPosEmployeeDisplayName(employee: ActivePosEmployee | null) {
-  return employee?.full_name?.trim() || employee?.username?.trim() || 'غير محدد'
+  return employee?.full_name?.trim() || employee?.username?.trim() || 'لم يُسجل الموظف'
 }
 
 function formatOrderTime(createdAt: string) {
@@ -483,7 +484,7 @@ export default function PosPage() {
         const result = await response.json().catch(() => null)
 
         if (!response.ok || !result) {
-          throw new Error(result?.details || result?.error || 'Failed to load categories')
+          throw new Error(getClientErrorMessage(result, 'تعذر تحميل المنتجات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
         }
 
         return Array.isArray(result.categories) ? result.categories : []
@@ -695,7 +696,7 @@ export default function PosPage() {
     return (
       <div className="flex h-full w-full items-center justify-center bg-[#020817] text-white">
         <div className="rounded-[24px] border border-cyan-300/20 bg-[rgba(2,8,23,0.72)] px-6 py-4 text-sm font-bold text-slate-200 shadow-[0_0_40px_rgba(34,211,238,0.12)]">
-          جاري تحميل نقطة البيع...
+          جارٍ تحميل نقطة البيع...
         </div>
       </div>
     )
@@ -959,7 +960,7 @@ export default function PosPage() {
                     <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-[rgba(34,211,238,0.16)] bg-[rgba(34,211,238,0.06)] text-cyan-100">
                       <PosIcon name="clipboard" className="h-7 w-7" />
                     </span>
-                    <p className="mt-3 text-sm font-black text-slate-200">لا توجد طلبات حالياً</p>
+                    <p className="mt-3 text-sm font-black text-slate-200">لا توجد طلبات مطابقة للحالة الحالية.</p>
                   </div>
                 </div>
               ) : null}

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import type { AuthScopeType } from '@/lib/auth-profile'
 import type { AdminBranchRecord } from '@/lib/admin/branches'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   createProtectedResourceAuthError,
   isClientResourceFresh,
@@ -89,7 +90,7 @@ export function useAdminBranchFilter(
             const result = await response.json().catch(() => null)
 
             if (!response.ok || !result?.success) {
-              throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+              throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
             }
 
             return Array.isArray(result.branches) ? result.branches : []

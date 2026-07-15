@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 type AuditActor = {
   username: string | null
@@ -133,7 +134,7 @@ function resolveActorName(log: AuditLogRow) {
 }
 
 function getEventLabel(action: string) {
-  return EVENT_LABELS[action] || 'حدث في النظام'
+  return EVENT_LABELS[action] || 'عملية داخل النظام'
 }
 
 function getEntityTypeLabel(entityType: string) {
@@ -305,7 +306,7 @@ export default function AdminAuditLogsPage() {
       const result = (await response.json()) as AuditLogsResponse
 
       if (!response.ok) {
-        throw new Error(result.details || result.error || 'تعذر تحميل سجل النشاط')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل سجل النشاط حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       setLogs(result.logs || [])
@@ -459,7 +460,7 @@ export default function AdminAuditLogsPage() {
               ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
-                    لا توجد سجلات مطابقة.
+                    لا توجد عمليات مسجلة مطابقة للفلاتر الحالية.
                   </td>
                 </tr>
               ) : (

@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
         auth.response,
         utf8JsonResponse(
           {
-            error: 'تعذر تحميل الفئات',
+            error: 'تعذر تحميل الفئات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.',
             details: error.message,
           },
           500
@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر تحميل الفئات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
@@ -306,7 +306,7 @@ export async function POST(request: NextRequest) {
           auth.response,
           utf8JsonResponse(
             {
-              error: 'تعذر إعادة تفعيل الفئة',
+              error: 'تعذر حفظ الفئة. لم يتم حفظ التغييرات.',
               details: reactivateError?.message || 'Unknown error',
             },
             400
@@ -351,7 +351,7 @@ export async function POST(request: NextRequest) {
         auth.response,
         utf8JsonResponse(
           {
-            error: 'فشل إنشاء الفئة',
+            error: 'تعذر حفظ الفئة. لم يتم حفظ التغييرات.',
             details: error?.message || 'Unknown error',
           },
           400
@@ -375,7 +375,7 @@ export async function POST(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر حفظ الفئة. لم يتم حفظ التغييرات.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500
@@ -507,7 +507,7 @@ export async function DELETE(request: NextRequest) {
           auth.response,
           utf8JsonResponse(
             {
-              error: 'تعذر نقل العناصر إلى دون فئة',
+              error: 'تعذر حذف الفئة. لم يتم تنفيذ الحذف.',
               details: reassignError.message,
             },
             400
@@ -530,7 +530,7 @@ export async function DELETE(request: NextRequest) {
         auth.response,
         utf8JsonResponse(
           {
-            error: 'تعذر حذف الفئة',
+            error: 'تعذر حذف الفئة. لم يتم تنفيذ الحذف.',
             details: deleteError.message,
           },
           400
@@ -550,7 +550,7 @@ export async function DELETE(request: NextRequest) {
       auth.response,
       utf8JsonResponse(
         {
-          error: 'حدث خطأ غير متوقع',
+          error: 'تعذر حذف الفئة. لم يتم تنفيذ الحذف.',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
         500

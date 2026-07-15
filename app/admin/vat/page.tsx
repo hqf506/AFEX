@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput } from '@/components/admin-input'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   peekClientResource,
   writeClientResource,
@@ -143,7 +144,7 @@ export default function AdminVatPage() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       const nextBranches = Array.isArray(result.branches) ? result.branches : []
@@ -192,7 +193,7 @@ export default function AdminVatPage() {
 
       if (!response.ok || !result?.success) {
         throw new Error(
-          result?.details || result?.error || 'تعذر تحميل إعدادات الضريبة'
+          getClientErrorMessage(result, 'تعذر تحميل إعدادات الضريبة حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.')
         )
       }
 
@@ -262,7 +263,7 @@ export default function AdminVatPage() {
 
       if (!response.ok || !result?.success) {
         throw new Error(
-          result?.details || result?.error || 'تعذر حفظ إعدادات الضريبة'
+          getClientErrorMessage(result, 'تعذر حفظ إعدادات الضريبة. لم يتم حفظ التغييرات.')
         )
       }
 
@@ -430,7 +431,7 @@ export default function AdminVatPage() {
                 disabled={!canSave || saving || loadingSetting}
                 className="inline-flex h-14 min-w-[180px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition duration-150 hover:scale-[1.01] hover:shadow-[0_0_45px_rgba(34,211,238,0.3)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
               </button>
             </div>
           </form>

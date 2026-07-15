@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import { getRoleLabel } from '@/lib/app-roles'
 import { canAccessPos } from '@/lib/permissions'
 import {
@@ -123,7 +124,7 @@ export default function PosEmployeePinPage() {
     ? `فرع ${currentBranchId.slice(0, 8)}`
     : 'فرع نقطة البيع'
   const organizationLabel =
-    authState.profile?.tenant_name?.trim() || branchLabel || 'غير محدد'
+    authState.profile?.tenant_name?.trim() || branchLabel || 'لم يُحدد اسم المنشأة'
   const formattedTime = now.toLocaleTimeString('ar-SA', {
     hour: '2-digit',
     minute: '2-digit',
@@ -280,21 +281,23 @@ export default function PosEmployeePinPage() {
             })
           }
 
-          throw new Error(INVALID_PIN_MESSAGE)
+          throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
         }
 
         writeActivePosEmployee(result.employee as ActivePosEmployee)
         clearPosLoggedOut()
         setFailedAttempts(0)
         router.replace('/pos')
-      } catch {
+      } catch (verificationError) {
         const nextFailedAttempts = failedAttempts + 1
         const shouldLock = nextFailedAttempts >= PIN_LOCK_ATTEMPTS
         setFailedAttempts(shouldLock ? 0 : nextFailedAttempts)
         setError(
           shouldLock
-            ? 'تمت محاولات كثيرة، حاول بعد قليل'
-            : INVALID_PIN_MESSAGE
+            ? 'تم إيقاف المحاولات مؤقتًا بسبب تكرار الرمز الخاطئ. حاول مرة أخرى بعد قليل.'
+            : verificationError instanceof Error
+              ? verificationError.message
+              : INVALID_PIN_MESSAGE
         )
         setShakeCard(true)
         verifyingPinRef.current = ''

@@ -14,7 +14,9 @@
     "cap:open:ios": "cap open ios",
     "cap:open:android": "cap open android",
     "lint": "eslint",
-    "check:encoding": "node scripts/check-encoding.js"
+    "check:encoding": "node scripts/check-encoding.js",
+    "check:error-safety": "node scripts/check-error-safety.js",
+    "check:ui-language": "node scripts/check-ui-language.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

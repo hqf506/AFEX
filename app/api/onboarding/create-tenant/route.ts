@@ -169,15 +169,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (!tenantName) {
-      return jsonResponse({ error: 'tenantName is required' }, 400)
+      return jsonResponse({ error: 'اسم المؤسسة مطلوب.' }, 422)
     }
 
     if (!username) {
-      return jsonResponse({ error: 'username is required' }, 400)
+      return jsonResponse({ error: 'اسم المستخدم مطلوب.' }, 422)
     }
 
     if (!/^[a-z0-9._-]+$/.test(username)) {
-      return jsonResponse({ error: 'username is invalid' }, 400)
+      return jsonResponse(
+        { error: 'اسم المستخدم غير صالح. استخدم أحرفًا إنجليزية وأرقامًا فقط.' },
+        422
+      )
     }
 
     const { data: existingProfile, error: existingProfileError } =
@@ -216,11 +219,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (!password) {
-      return jsonResponse({ error: 'password is required' }, 400)
+      return jsonResponse({ error: 'كلمة المرور مطلوبة.' }, 422)
     }
 
     if (!email) {
-      return jsonResponse({ error: 'email is required' }, 400)
+      return jsonResponse({ error: 'البريد الإلكتروني مطلوب.' }, 422)
     }
 
     console.log(
@@ -252,7 +255,7 @@ export async function POST(request: NextRequest) {
 
       return jsonResponse(
         {
-          error: 'Failed to create owner auth user',
+          error: 'تعذر إنشاء المؤسسة. لم يتم إكمال التسجيل.',
           ...safeErrorDetails(
             createUserError?.message || 'No user returned',
             'تعذر إنشاء المستخدم'
@@ -344,7 +347,7 @@ export async function POST(request: NextRequest) {
 
       return jsonResponse(
         {
-          error: 'Failed to create tenant',
+          error: 'تعذر إنشاء المؤسسة. لم يتم إكمال التسجيل.',
           ...safeErrorDetails(rpcError, 'تعذر إنشاء المنشأة'),
           rollback: rollbackError ? 'failed' : 'completed',
         },
@@ -387,7 +390,7 @@ export async function POST(request: NextRequest) {
 
     return jsonResponse(
       {
-        error: 'Unexpected onboarding error',
+        error: 'تعذر إنشاء المؤسسة. لم يتم إكمال التسجيل.',
         ...safeErrorDetails(error, 'تعذر إكمال إنشاء الحساب'),
       },
       500

@@ -3,7 +3,7 @@ const PHONE_PATTERN = /(?<!\d)(?:\+?\d[\d\s().-]{6,}\d)(?!\d)/g
 const UUID_PATTERN =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi
 const SECRET_ASSIGNMENT_PATTERN =
-  /\b(token|secret|api[_-]?key|apikey|access[_-]?key|password|pin|instance[_-]?id|api[_-]?url|tenant[_-]?id|branch[_-]?id|user[_-]?id|raw)\b\s*[:=]\s*['"]?[^'",}\s]+/gi
+  /\b(token|secret|api[_-]?key|apikey|access[_-]?key|service[_-]?role[_-]?key|anon[_-]?key|database[_-]?url|password|pin|instance[_-]?id|api[_-]?url|tenant[_-]?id|branch[_-]?id|user[_-]?id|raw)\b\s*[:=]\s*['"]?[^'",}\s]+/gi
 
 const SENSITIVE_KEY_PARTS = [
   'email',
@@ -13,6 +13,9 @@ const SENSITIVE_KEY_PARTS = [
   'api_key',
   'apikey',
   'access_key',
+  'service_role_key',
+  'anon_key',
+  'database_url',
   'password',
   'pin',
   'instance_id',

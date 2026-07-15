@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { AdminAlert, AdminGlassSection, AdminLoadingState } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import { notifyAdminBranchOptionsChanged } from '@/lib/admin/branch-filter'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
 import { isFullAdmin } from '@/lib/permissions'
@@ -118,7 +119,7 @@ export default function AdminBranchesPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'تعذر تحميل الفروع')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الفروع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       const nextBranches = (result.branches || []) as AdminBranchRecord[]
@@ -193,7 +194,7 @@ export default function AdminBranchesPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل تحديث حالة الفرع')
+        throw new Error(getClientErrorMessage(result, 'تعذر تحديث حالة الفرع. لم يتم حفظ التغييرات.'))
       }
 
       setSuccessMessage('تم تحديث حالة الفرع بنجاح')
@@ -274,7 +275,7 @@ export default function AdminBranchesPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل إنشاء الفرع')
+        throw new Error(getClientErrorMessage(result, 'تعذر إنشاء الفرع. لم يتم حفظ البيانات.'))
       }
 
       setSuccessMessage('تم إنشاء الفرع بنجاح')
@@ -313,7 +314,7 @@ export default function AdminBranchesPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل حذف الفرع مؤقتًا')
+        throw new Error(getClientErrorMessage(result, 'تعذر حذف الفرع. لم يتم تنفيذ الحذف.'))
       }
 
       setSuccessMessage('تم حذف الفرع مؤقتًا لمدة 30 يوم')
@@ -350,7 +351,7 @@ export default function AdminBranchesPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل استرجاع الفرع')
+        throw new Error(getClientErrorMessage(result, 'تعذر استعادة الفرع. لم يتم حفظ التغيير.'))
       }
 
       setSuccessMessage('تم استرجاع الفرع بنجاح')

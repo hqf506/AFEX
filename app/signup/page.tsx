@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 type SignupFormState = {
   tenantName: string
@@ -155,19 +156,6 @@ const legalDocuments: Record<
       'العنوان: AFEX Commerce Ltd. 41 Lothbury, London, EC2R 7HF, United Kingdom',
     ],
   },
-}
-
-function getApiErrorMessage(value: unknown) {
-  if (!value || typeof value !== 'object') {
-    return 'تعذر إنشاء المنشأة. حاول مرة أخرى.'
-  }
-
-  const response = value as { error?: unknown; details?: unknown }
-  const details =
-    typeof response.details === 'string' ? response.details.trim() : ''
-  const error = typeof response.error === 'string' ? response.error.trim() : ''
-
-  return details || error || 'تعذر إنشاء المنشأة. حاول مرة أخرى.'
 }
 
 function normalizePhone(value: string) {
@@ -662,7 +650,12 @@ export default function SignupPage() {
           throw new Error('اسم المستخدم مستخدم بالفعل')
         }
 
-        throw new Error(getApiErrorMessage(result))
+        throw new Error(
+          getClientErrorMessage(
+            result,
+            'تعذر إنشاء المؤسسة. لم يتم إكمال التسجيل.'
+          )
+        )
       }
 
       setSuccess('تم إنشاء الحساب بنجاح. سيتم تحويلك إلى الصفحة الرئيسية خلال ثانيتين.')

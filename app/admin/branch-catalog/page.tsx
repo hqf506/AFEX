@@ -30,6 +30,7 @@ import {
 import type { AdminBranchRecord } from '@/lib/admin/branches'
 import { formatCurrency } from '@/lib/orders/format'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 
 function isArabicUserMessage(error: unknown): error is Error {
   return error instanceof Error && /[\u0600-\u06ff]/.test(error.message)
@@ -86,11 +87,7 @@ function AdminBranchCatalogPageContent() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok) {
-        throw new Error(
-          result?.details ||
-            result?.error ||
-            'تعذر تحميل إعدادات كتالوج الفروع'
-        )
+        throw new Error(getClientErrorMessage(result, 'تعذر تحميل إعدادات منتجات الفرع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
       }
 
       const nextItems = (result.items || []) as AdminBranchCatalogItemRecord[]
@@ -238,11 +235,7 @@ function AdminBranchCatalogPageContent() {
       const result = await response.json().catch(() => null)
 
       if (!response.ok) {
-        throw new Error(
-          result?.details ||
-            result?.error ||
-            'فشل حفظ إعدادات العنصر الخاصة بالفرع'
-        )
+        throw new Error(getClientErrorMessage(result, 'تعذر حفظ إعدادات المنتج للفرع. لم يتم حفظ التغييرات.'))
       }
 
       setSuccessMessage(

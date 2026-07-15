@@ -114,7 +114,7 @@ export default function ThermalInvoicePreviewPage() {
   if (access.loading || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#020817] text-sm font-black text-cyan-100">
-        جاري تحميل المعاينة...
+        جارٍ تحميل المعاينة...
       </div>
     )
   }

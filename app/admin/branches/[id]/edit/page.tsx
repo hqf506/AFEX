@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import { notifyAdminBranchOptionsChanged } from '@/lib/admin/branch-filter'
 import type { AdminBranchRecord } from '@/lib/admin/branches'
 
@@ -138,7 +139,7 @@ export default function EditBranchPage() {
 
         if (!response.ok) {
           throw new Error(
-            result?.details || result?.error || 'تعذر تحميل بيانات الفرع'
+            getClientErrorMessage(result, 'تعذر تحميل بيانات الفرع حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.')
           )
         }
 
@@ -214,7 +215,7 @@ export default function EditBranchPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'تعذر حفظ الفرع')
+        throw new Error(getClientErrorMessage(result, 'تعذر حفظ بيانات الفرع. لم يتم حفظ التغييرات.'))
       }
 
       notifyAdminBranchOptionsChanged()
@@ -420,7 +421,7 @@ export default function EditBranchPage() {
                 disabled={!canSubmit || saving}
                 className="inline-flex h-13 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01] hover:shadow-[0_0_45px_rgba(34,211,238,0.3)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? 'جاري حفظ التعديلات...' : 'حفظ التعديلات'}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ التعديلات'}
               </button>
             </div>
           </form>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { AdminInput } from '@/components/admin-input'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import {
   loadClientResource,
   peekClientResource,
@@ -156,7 +157,7 @@ export default function AdminCategoriesPage() {
           }
 
           if (!response.ok) {
-            throw new Error(json?.details || json?.error || 'تعذر تحميل الفئات')
+            throw new Error(getClientErrorMessage(json, 'تعذر تحميل الفئات'))
           }
 
           return {
@@ -186,7 +187,7 @@ export default function AdminCategoriesPage() {
       )
     } catch (error) {
       console.error('Load categories error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل الفئات')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر تحميل الفئات'))
     } finally {
       setLoadingCategories(false)
     }
@@ -223,7 +224,7 @@ export default function AdminCategoriesPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'فشل إنشاء الفئة')
+        throw new Error(getClientErrorMessage(result, 'تعذر حفظ الفئة. لم يتم حفظ التغييرات.'))
       }
 
       setSuccessMessage('تمت إضافة فئة جديدة بنجاح')
@@ -231,7 +232,7 @@ export default function AdminCategoriesPage() {
       await loadCategories(true)
     } catch (error) {
       console.error('Create category error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر إنشاء الفئة')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر إنشاء الفئة'))
     } finally {
       setCreating(false)
     }
@@ -256,14 +257,14 @@ export default function AdminCategoriesPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result?.details || result?.error || 'تعذر حذف الفئة')
+        throw new Error(getClientErrorMessage(result, 'تعذر حذف الفئة. لم يتم تنفيذ الحذف.'))
       }
 
       setSuccessMessage(result.message || 'تم حذف الفئة بنجاح')
       await loadCategories(true)
     } catch (error) {
       console.error('Delete category error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر حذف الفئة')
+      setErrorMessage(getClientCaughtErrorMessage(error, 'تعذر حذف الفئة'))
     } finally {
       setDeletingCategoryId(null)
     }
@@ -391,7 +392,7 @@ export default function AdminCategoriesPage() {
               disabled={!canCreate || creating}
               className="inline-flex h-14 min-w-[170px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition duration-150 hover:scale-[1.01] hover:shadow-[0_0_45px_rgba(34,211,238,0.3)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {creating ? 'جاري الإضافة...' : 'إضافة فئة'}
+              {creating ? 'جارٍ الحفظ...' : 'إضافة فئة'}
             </button>
           </form>
         </section>
@@ -414,7 +415,7 @@ export default function AdminCategoriesPage() {
 
           {loadingCategories ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/15 bg-black/20 px-4 py-10 text-center text-sm font-bold text-slate-400">
-              جاري تحميل الفئات...
+              جارٍ تحميل الفئات...
             </div>
           ) : categories.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-cyan-300/20 bg-black/20 px-4 py-12 text-center">
@@ -422,7 +423,7 @@ export default function AdminCategoriesPage() {
                 <CategoryIcon className="h-7 w-7" />
               </div>
               <h3 className="mt-4 text-lg font-black text-white">
-                لا توجد فئات مضافة حاليًا
+                لا توجد فئات مضافة حتى الآن.
               </h3>
               <p className="mt-2 text-sm text-slate-400">
                 أضف أول فئة لتنظيم العناصر والخدمات في الكتالوج.
