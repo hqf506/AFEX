@@ -428,7 +428,21 @@ export async function GET(request: NextRequest) {
       ordersQuery = ordersQuery.in('id', matchingOrderIds)
     }
 
-    const { data, error, count } = await ordersQuery.range(rangeFrom, rangeTo)
+    const ordersPagePromise = ordersQuery.range(rangeFrom, rangeTo)
+    const summaryPromise =
+      query.mode === 'full'
+        ? loadOrdersStatusSummary(
+            auth.supabase,
+            auth.profile,
+            query,
+            matchingOrderIds
+          )
+        : Promise.resolve(undefined)
+
+    const [{ data, error, count }, summary] = await Promise.all([
+      ordersPagePromise,
+      summaryPromise,
+    ])
 
     if (error) {
       return jsonWithAuthCookies(
@@ -446,25 +460,9 @@ export async function GET(request: NextRequest) {
       : []
     const totalCount = Number(count) || 0
     const comparisonSignature = buildOrdersComparisonSignature(items)
-    let summary: Record<string, number> | undefined
     let employeeNames: Record<string, string> | undefined
 
     if (query.mode === 'full') {
-      let summaryQuery = auth.supabase.from('orders').select('status')
-      summaryQuery = applyOrdersFilters(summaryQuery, auth.profile, query)
-      if (matchingOrderIds) summaryQuery = summaryQuery.in('id', matchingOrderIds)
-      const { data: summaryRows, error: summaryError } = await summaryQuery
-      if (summaryError) throw summaryError
-
-      summary = { in_progress: 0, ready: 0, delivered: 0, cancelled: 0 }
-      for (const row of summaryRows || []) {
-        const status = typeof row.status === 'string' ? row.status : ''
-        if (status === 'in_progress') summary.in_progress += 1
-        else if (status === 'ready') summary.ready += 1
-        else if (['closed', 'delivered', 'completed'].includes(status)) summary.delivered += 1
-        else if (['cancelled', 'canceled'].includes(status)) summary.cancelled += 1
-      }
-
       const employeeIds = [...new Set(items.map((row) => row.created_by_employee_id).filter((id): id is string => typeof id === 'string' && Boolean(id)))]
       employeeNames = {}
       if (employeeIds.length > 0) {
@@ -1932,6 +1930,52 @@ function applyOrdersListFilter<T extends OrdersFilterQuery>(query: T, filter: st
   if (filter === 'cancelled') return query.in('status', ['cancelled', 'canceled'])
   if (filter === 'all') return query.not('status', 'in', '(closed,delivered,completed)')
   return query
+}
+
+async function loadOrdersStatusSummary(
+  supabase: SupabaseServerClient,
+  profile: Pick<ApiAuthProfile, 'scope_type' | 'branch_id' | 'tenant_id'>,
+  filters: OrdersApiQuery,
+  matchingOrderIds: string[] | null
+) {
+  const buildCountQuery = (statuses: string[]) => {
+    let countQuery = supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+
+    countQuery = applyOrdersFilters(countQuery, profile, filters)
+    countQuery =
+      statuses.length === 1
+        ? countQuery.eq('status', statuses[0])
+        : countQuery.in('status', statuses)
+
+    if (matchingOrderIds) {
+      countQuery = countQuery.in('id', matchingOrderIds)
+    }
+
+    return countQuery
+  }
+
+  const [inProgress, ready, delivered, cancelled] = await Promise.all([
+    buildCountQuery(['in_progress']),
+    buildCountQuery(['ready']),
+    buildCountQuery(['closed', 'delivered', 'completed']),
+    buildCountQuery(['cancelled', 'canceled']),
+  ])
+
+  const summaryResults = [inProgress, ready, delivered, cancelled]
+  const summaryError = summaryResults.find((result) => result.error)?.error
+
+  if (summaryError) {
+    throw summaryError
+  }
+
+  return {
+    in_progress: Number(inProgress.count) || 0,
+    ready: Number(ready.count) || 0,
+    delivered: Number(delivered.count) || 0,
+    cancelled: Number(cancelled.count) || 0,
+  }
 }
 
 async function resolveMatchingOrderIds(

@@ -933,7 +933,12 @@ export default function OrdersPage() {
   const checkOrdersMetaAndReload = useCallback(async () => {
     if (isMetaFetchInFlightRef.current || isFetchInFlightRef.current) return
 
-    if (!tenantId || isBranchScopedWithoutBranchId(scopeType, branchId)) {
+    if (
+      document.hidden ||
+      orders.length === 0 ||
+      !tenantId ||
+      isBranchScopedWithoutBranchId(scopeType, branchId)
+    ) {
       return
     }
 
@@ -989,7 +994,7 @@ export default function OrdersPage() {
     } finally {
       isMetaFetchInFlightRef.current = false
     }
-  }, [branchId, currentPage, debouncedSearch, effectiveBranchId, fetchOrders, filter, scopeType, tenantId])
+  }, [branchId, currentPage, debouncedSearch, effectiveBranchId, fetchOrders, filter, orders.length, scopeType, tenantId])
 
   useEffect(() => {
     localStorage.setItem(
