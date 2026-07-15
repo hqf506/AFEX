@@ -100,15 +100,6 @@ export async function GET(request: NextRequest) {
     return auth.response
   }
 
-  console.warn('[api/admin/categories] auth profile', {
-    method: 'GET',
-    userId: auth.user.id,
-    role: auth.profile.role,
-    branchId: auth.profile.branch_id,
-    scopeType: auth.profile.scope_type,
-    tenantId: auth.profile.tenant_id,
-  })
-
   if (!isSystemScopedCatalogAdmin(auth.profile.scope_type)) {
     return withAuthCookies(
       auth.response,
@@ -141,15 +132,6 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error('[api/admin/categories] catalog_categories query failed', {
-        method: 'GET',
-        userId: auth.user.id,
-        tenantId,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      })
       return withAuthCookies(
         auth.response,
         utf8JsonResponse(
@@ -206,15 +188,6 @@ export async function POST(request: NextRequest) {
     return auth.response
   }
 
-  console.warn('[api/admin/categories] auth profile', {
-    method: 'POST',
-    userId: auth.user.id,
-    role: auth.profile.role,
-    branchId: auth.profile.branch_id,
-    scopeType: auth.profile.scope_type,
-    tenantId: auth.profile.tenant_id,
-  })
-
   if (!isSystemScopedCatalogAdmin(auth.profile.scope_type)) {
     return withAuthCookies(
       auth.response,
@@ -261,15 +234,6 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingCategoryError) {
-      console.error('[api/admin/categories] catalog_categories lookup failed', {
-        method: 'POST',
-        userId: auth.user.id,
-        tenantId,
-        message: existingCategoryError.message,
-        details: existingCategoryError.details,
-        hint: existingCategoryError.hint,
-        code: existingCategoryError.code,
-      })
       return withAuthCookies(
         auth.response,
         utf8JsonResponse(
@@ -338,15 +302,6 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !data) {
-      console.error('[api/admin/categories] catalog_categories insert failed', {
-        method: 'POST',
-        userId: auth.user.id,
-        tenantId,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-      })
       return withAuthCookies(
         auth.response,
         utf8JsonResponse(
@@ -395,15 +350,6 @@ export async function DELETE(request: NextRequest) {
     return auth.response
   }
 
-  console.warn('[api/admin/categories] auth profile', {
-    method: 'DELETE',
-    userId: auth.user.id,
-    role: auth.profile.role,
-    branchId: auth.profile.branch_id,
-    scopeType: auth.profile.scope_type,
-    tenantId: auth.profile.tenant_id,
-  })
-
   if (!isSystemScopedCatalogAdmin(auth.profile.scope_type)) {
     return withAuthCookies(
       auth.response,
@@ -442,15 +388,6 @@ export async function DELETE(request: NextRequest) {
       .maybeSingle()
 
     if (categoryError) {
-      console.error('[api/admin/categories] catalog_categories lookup failed', {
-        method: 'DELETE',
-        userId: auth.user.id,
-        tenantId,
-        message: categoryError.message,
-        details: categoryError.details,
-        hint: categoryError.hint,
-        code: categoryError.code,
-      })
       return withAuthCookies(
         auth.response,
         utf8JsonResponse(

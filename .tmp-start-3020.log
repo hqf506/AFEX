@@ -1,8 +1,0 @@
-
-> leather-fix-erp@0.1.0 start
-> next start --port 3020
-
-▲ Next.js 16.2.2
-- Local:         http://localhost:3020
-- Network:       http://192.168.8.56:3020
-✓ Ready in 140ms

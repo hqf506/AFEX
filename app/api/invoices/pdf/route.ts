@@ -21,6 +21,7 @@ import {
   normalizeDigitalInvoiceNote,
   normalizeDigitalInvoicePaymentMethod,
 } from '@/lib/invoices/digital-preview'
+import { redactSensitive } from '@/lib/security/redaction'
 
 export const runtime = 'nodejs'
 
@@ -40,15 +41,13 @@ function serializeError(error: unknown) {
     return {
       name: error.name,
       message: error.message,
-      stack: error.stack,
       cause:
         error.cause instanceof Error
           ? {
               name: error.cause.name,
               message: error.cause.message,
-              stack: error.cause.stack,
             }
-          : error.cause,
+          : undefined,
     }
   }
 
@@ -82,6 +81,8 @@ function logInvoicePdfInfo(
   stage: string,
   details?: Record<string, unknown>
 ) {
+  if (process.env.NODE_ENV === 'production') return
+
   console.info({
     scope: 'invoice-pdf-route',
     requestId,
@@ -100,8 +101,8 @@ function logInvoicePdfError(
     scope: 'invoice-pdf-route',
     requestId,
     stage,
-    error: serializeError(error),
-    ...details,
+    error: redactSensitive(serializeError(error)),
+    details: redactSensitive(details || {}),
   })
 }
 

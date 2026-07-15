@@ -25,10 +25,24 @@
 *.pem
 
 # debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# local databases, dumps, and signing material
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.dump
+*.key
+*.p12
+*.pfx
+*.mobileprovision
+*.dmp
+/.codex-artifacts/edge-profile/
 
 # env files (can opt-in for committing if needed)
 .env*

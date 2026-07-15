@@ -1,8 +1,0 @@
-⨯ Another next dev server is already running.
-
-- Local:        http://localhost:3000
-- PID:          14692
-- Dir:          C:\Users\NSC-LUA\Desktop\leather-fix-erp
-- Log:          .next\dev\logs\next-development.log
-
-Run taskkill /PID 14692 /F to stop it.

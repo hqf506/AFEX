@@ -137,15 +137,13 @@ function serializeWhatsAppError(error: unknown) {
     return {
       name: error.name,
       message: error.message,
-      stack: error.stack,
       cause:
         error.cause instanceof Error
           ? {
               name: error.cause.name,
               message: error.cause.message,
-              stack: error.cause.stack,
             }
-          : error.cause,
+          : undefined,
     }
   }
 
@@ -160,6 +158,8 @@ function logWhatsAppRouteInfo(
   stage: string,
   details?: Record<string, unknown>
 ) {
+  if (process.env.NODE_ENV === 'production') return
+
   console.info({
     scope: 'whatsapp-route',
     requestId,
@@ -178,8 +178,8 @@ function logWhatsAppRouteError(
     scope: 'whatsapp-route',
     requestId,
     stage,
-    error: serializeWhatsAppError(error),
-    ...details,
+    error: redactSensitive(serializeWhatsAppError(error)),
+    details: redactSensitive(details || {}),
   })
 }
 
@@ -896,8 +896,7 @@ export async function POST(req: NextRequest) {
           return rateLimitResponse()
         }
 
-        console.info({
-          scope: 'whatsapp-route-before-send',
+        logWhatsAppRouteInfo(requestId, 'before-send', {
           hasAuthUser: Boolean(auth?.user?.id),
           tenantIdMasked: maskOptionalId(auth?.profile?.tenant_id),
           profileBranchMasked: maskOptionalId(auth?.profile?.branch_id),
@@ -1033,8 +1032,7 @@ export async function POST(req: NextRequest) {
       return rateLimitResponse()
     }
 
-    console.info({
-      scope: 'whatsapp-route-before-send',
+    logWhatsAppRouteInfo(requestId, 'before-send', {
       hasAuthUser: Boolean(auth?.user?.id),
       tenantIdMasked: maskOptionalId(auth?.profile?.tenant_id),
       profileBranchMasked: maskOptionalId(auth?.profile?.branch_id),

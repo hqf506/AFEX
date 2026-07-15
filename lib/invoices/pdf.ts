@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { DigitalInvoiceTemplateSettings } from '@/lib/admin/settings'
 import type { InvoiceLineItem } from '@/lib/invoices/items'
 import { renderInvoiceHtmlFromPayload } from '@/lib/invoices/receipt-template'
+import { redactSensitive } from '@/lib/security/redaction'
 
 export type InvoicePdfPayload = {
   invoiceItems: InvoiceLineItem[]
@@ -44,15 +45,13 @@ function serializeInvoicePdfError(error: unknown) {
     return {
       name: error.name,
       message: error.message,
-      stack: error.stack,
       cause:
         error.cause instanceof Error
           ? {
               name: error.cause.name,
               message: error.cause.message,
-              stack: error.cause.stack,
             }
-          : error.cause,
+          : undefined,
     }
   }
 
@@ -85,6 +84,8 @@ function logInvoicePdfLibraryInfo(
   stage: string,
   details?: Record<string, unknown>
 ) {
+  if (process.env.NODE_ENV === 'production') return
+
   console.info({
     scope: 'invoice-pdf-library',
     stage,
@@ -100,8 +101,8 @@ function logInvoicePdfLibraryError(
   console.error({
     scope: 'invoice-pdf-library',
     stage,
-    error: serializeInvoicePdfError(error),
-    ...details,
+    error: redactSensitive(serializeInvoicePdfError(error)),
+    details: redactSensitive(details || {}),
   })
 }
 
