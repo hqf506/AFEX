@@ -1050,12 +1050,12 @@ export default function OrdersPage() {
       const orderIdList = buildPostgrestStringInList([...orderIds])
       let auditQuery = supabase
         .from('audit_logs')
-        .select('created_at, metadata')
-        .eq('action', 'whatsapp.message_sent')
+        .select('action, created_at, metadata')
+        .in('action', ['whatsapp.message_sent', 'whatsapp.message_failed'])
         .eq('entity_type', 'whatsapp_message')
         .filter('metadata->>order_id', 'in', orderIdList)
         .order('created_at', { ascending: false })
-        .limit(orderIds.size)
+        .limit(1000)
 
       auditQuery = applyTenantFilter(auditQuery, tenantId)
       const { data, error } = await auditQuery
@@ -1075,13 +1075,14 @@ export default function OrdersPage() {
           typeof metadata?.order_id === 'string' ? metadata.order_id : ''
 
         if (orderId && orderIds.has(orderId) && !nextStatuses[orderId]) {
-          nextStatuses[orderId] = 'sent'
+          nextStatuses[orderId] =
+            log.action === 'whatsapp.message_sent' ? 'sent' : 'failed'
         }
       }
 
       setWhatsappStatusByOrderId((current) => ({
-        ...nextStatuses,
         ...current,
+        ...nextStatuses,
       }))
     }
 

@@ -70,6 +70,9 @@ type ReceiptRecord = {
   refunds: number
   netTotal: number
   total: number
+  cashReceived: number
+  remainingFromCustomer: number
+  cashChange: number
   note: string
   items: ReportOrderItemRecord[]
 }
@@ -461,6 +464,9 @@ function buildReceiptRecords(
       refunds: 0,
       netTotal: order.total,
       total: order.total,
+      cashReceived: order.cash_received,
+      remainingFromCustomer: order.remaining_from_customer,
+      cashChange: order.cash_change,
       note: order.note,
       items: order.items,
     }
@@ -501,6 +507,9 @@ function buildThermalReceiptHtml(
     orderNumber: receipt.orderNumber,
     issuedAt: receipt.createdAt,
     paymentMethod: receipt.paymentType,
+    numericCashReceived: receipt.cashReceived,
+    remainingFromCustomer: receipt.remainingFromCustomer,
+    cashChange: receipt.cashChange,
     invoiceItems: receipt.items.map((item) => ({
       name: item.name,
       quantity: item.quantity,
