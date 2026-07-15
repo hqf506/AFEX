@@ -23,6 +23,11 @@ import {
 } from '@/lib/orders/orders-page'
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import {
+  buildWhatsAppStatusByOrderId,
+  mergePersistentWhatsAppStatuses,
+  type WhatsAppDeliveryStatus,
+} from '@/lib/orders/whatsapp-status'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { FeatureDisabledState } from '@/components/feature-disabled-state'
@@ -71,7 +76,6 @@ const INVALID_STATUS_SEQUENCE_MESSAGE = 'لا يمكن تغيير الحالة �
 type OrdersFilterKey = OrderFilter | 'new' | 'delivered' | 'cancelled'
 type AdminOrderStatus = 'in_progress' | 'ready' | 'closed' | 'cancelled'
 type StatusEditOptionKey = AdminOrderStatus | 'delivered_closed'
-type WhatsAppDeliveryStatus = 'sent' | 'failed' | 'not_sent' | 'pending'
 type NotificationChannel = 'whatsapp' | 'email' | 'sms' | 'push' | 'system'
 type NotificationAuditAction =
   | 'invoice.payment_snapshot_failed'
@@ -128,10 +132,6 @@ function mapOrderSourceRowToPageOrder(row: OrderSourceRow, index: number): PageO
     updated_at:
       typeof row.updated_at === 'string' ? row.updated_at : '',
   }
-}
-
-function buildPostgrestStringInList(values: string[]) {
-  return `(${values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(',')})`
 }
 
 const ORDER_STATUS_ACTIONS: Array<{
@@ -1047,43 +1047,31 @@ export default function OrdersPage() {
     let cancelled = false
 
     async function fetchWhatsAppDeliveryStatus() {
-      const orderIdList = buildPostgrestStringInList([...orderIds])
       let auditQuery = supabase
         .from('audit_logs')
         .select('action, created_at, metadata')
         .in('action', ['whatsapp.message_sent', 'whatsapp.message_failed'])
         .eq('entity_type', 'whatsapp_message')
-        .filter('metadata->>order_id', 'in', orderIdList)
+        .in('metadata->>order_id', [...orderIds])
         .order('created_at', { ascending: false })
         .limit(1000)
 
       auditQuery = applyTenantFilter(auditQuery, tenantId)
       const { data, error } = await auditQuery
 
-      if (cancelled || error || !Array.isArray(data)) {
+      if (cancelled) {
         return
       }
 
-      const nextStatuses: Record<string, WhatsAppDeliveryStatus> = {}
-
-      for (const log of data) {
-        const metadata =
-          log && typeof log.metadata === 'object' && log.metadata
-            ? (log.metadata as Record<string, unknown>)
-            : null
-        const orderId =
-          typeof metadata?.order_id === 'string' ? metadata.order_id : ''
-
-        if (orderId && orderIds.has(orderId) && !nextStatuses[orderId]) {
-          nextStatuses[orderId] =
-            log.action === 'whatsapp.message_sent' ? 'sent' : 'failed'
-        }
+      if (error || !Array.isArray(data)) {
+        console.error('[admin/orders] failed to load WhatsApp delivery status')
+        return
       }
 
-      setWhatsappStatusByOrderId((current) => ({
-        ...current,
-        ...nextStatuses,
-      }))
+      const persistentStatuses = buildWhatsAppStatusByOrderId(data, orderIds)
+      setWhatsappStatusByOrderId((current) =>
+        mergePersistentWhatsAppStatuses(current, persistentStatuses)
+      )
     }
 
     void fetchWhatsAppDeliveryStatus()
