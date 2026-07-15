@@ -1771,7 +1771,7 @@ export default function AdminUsersPage() {
                         const isBusy = updatingUserId === user.id
                         const isMainAdmin = isPrimaryAdminUsername(user.username)
                         const scopeLabel =
-                          resolveAuthScopeType(user.role, user.branch_id) === 'system'
+                          resolveAuthScopeType(user.role) === 'system'
                             ? 'نظام'
                             : 'فرع'
 

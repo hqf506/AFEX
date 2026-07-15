@@ -89,7 +89,7 @@ export async function requireApiAuth(
       ...(profile as Omit<ApiAuthProfile, 'branch_id' | 'scope_type'>),
       branch_id: branchId,
       tenant_id: tenantId,
-      scope_type: resolveAuthScopeType(profile.role as AppRole, branchId),
+      scope_type: resolveAuthScopeType(profile.role as AppRole),
     } as ApiAuthProfile
     const profileRole = String(typedProfile.role)
     const roleAllowed =

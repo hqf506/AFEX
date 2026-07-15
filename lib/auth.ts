@@ -146,7 +146,7 @@ async function fetchCurrentUserProfileForUser(
     tenant_id: tenantId,
     tenant_name: tenantName,
     branch_id: branchId,
-    scope_type: resolveAuthScopeType(profile.role as AppRole, branchId),
+    scope_type: resolveAuthScopeType(profile.role as AppRole),
   }
 
   currentUserProfileCache = nextProfile

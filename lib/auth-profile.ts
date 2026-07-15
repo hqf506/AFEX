@@ -6,8 +6,7 @@ export type BranchAwareProfileFields = {
 }
 
 export function resolveAuthScopeType(
-  role: string | null | undefined,
-  branchId: string | null | undefined
+  role: string | null | undefined
 ): AuthScopeType {
   if (role === 'admin' || role === 'manager' || role === 'owner') {
     return 'system'

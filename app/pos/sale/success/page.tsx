@@ -298,7 +298,6 @@ export default function PosSaleSuccessPage() {
 
   const runThermalPrint = useCallback(async () => {
     if (!snapshot) return
-    // TODO(iOS native): add Bluetooth printer integration for thermal receipts.
     if (runningInCapacitor) return
     if (!printingEnabled) return
 
