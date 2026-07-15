@@ -23,6 +23,10 @@ import {
   filterDashboardOrdersByRange,
 } from '@/lib/reports/dashboard-aggregation'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import {
+  createReportServerTiming,
+  type ReportServerTiming,
+} from '@/lib/reports/server-timing'
 
 type ReportOrderSummaryRow = Omit<ReportOrderRecord, 'items'> & {
   cost_total: number
@@ -41,7 +45,10 @@ const REPORTS_FEATURE_DISABLED_MESSAGE =
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee'])
+  const timing = createReportServerTiming()
+  const auth = await timing.measure('auth', () =>
+    requireApiAuth(request, ['admin', 'employee'])
+  )
 
   if (!auth.ok) {
     return auth.response
@@ -58,7 +65,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    if (!(await isReportsFeatureEnabled(auth.supabase, tenantId))) {
+    if (!(await timing.measure('settings', () =>
+      isReportsFeatureEnabled(auth.supabase, tenantId)
+    ))) {
       return jsonWithAuthCookies(
         auth.response,
         {
@@ -143,6 +152,7 @@ export async function GET(request: NextRequest) {
         dateTo,
         fromIso,
         toIso,
+        timing,
       })
     }
 
@@ -200,8 +210,8 @@ export async function GET(request: NextRequest) {
     catalogQuery = applyTenantFilter(catalogQuery, tenantId)
 
     const [ordersResult, catalogResult] = await Promise.all([
-      ordersQuery,
-      catalogQuery,
+      timing.measure('orders', () => ordersQuery),
+      timing.measure('catalog', () => catalogQuery),
     ])
 
     if (ordersResult.error) {
@@ -228,18 +238,18 @@ export async function GET(request: NextRequest) {
       normalized,
       ((catalogResult.data || []) as CatalogFinancialSource[]) || []
     )
-    const summary = buildReportOrderSummary(enrichedOrders)
-    const topServices = getReportTopServices(enrichedOrders)
-    const salesTrend = buildSalesTrend(enrichedOrders)
-    const orders = enrichedOrders.map(toSummaryRow)
-
-    return jsonWithAuthCookies(auth.response, {
+    const payload = await timing.measure('aggregate', async () => ({
       success: true,
-      summary,
-      topServices,
-      salesTrend,
-      orders,
-    })
+      summary: buildReportOrderSummary(enrichedOrders),
+      topServices: getReportTopServices(enrichedOrders),
+      salesTrend: buildSalesTrend(enrichedOrders),
+      orders: enrichedOrders.map(toSummaryRow),
+    }))
+
+    const response = await timing.measure('serialize', async () =>
+      jsonWithAuthCookies(auth.response, payload)
+    )
+    return timing.finish(response)
   } catch (error) {
     console.error('[reports-summary] unexpected failure', error)
     return jsonWithAuthCookies(
@@ -259,6 +269,7 @@ async function getDashboardResponse({
   dateTo,
   fromIso,
   toIso,
+  timing,
 }: {
   auth: Extract<Awaited<ReturnType<typeof requireApiAuth>>, { ok: true }>
   tenantId: string
@@ -268,6 +279,7 @@ async function getDashboardResponse({
   dateTo: string
   fromIso: string
   toIso: string
+  timing: ReportServerTiming
 }) {
   const previousRange = buildPreviousComparisonRange({
     start: fromIso,
@@ -303,7 +315,7 @@ async function getDashboardResponse({
     ordersQuery = ordersQuery.eq('branch_id', branchId)
   }
 
-  const { data, error } = await ordersQuery
+  const { data, error } = await timing.measure('orders', () => ordersQuery)
 
   if (error) {
     return jsonWithAuthCookies(
@@ -328,7 +340,7 @@ async function getDashboardResponse({
     previousRange.end
   )
 
-  return jsonWithAuthCookies(auth.response, {
+  const payload = await timing.measure('aggregate', async () => ({
     success: true,
     current: buildDashboardPeriodPayload(currentOrders, {
       range,
@@ -342,7 +354,11 @@ async function getDashboardResponse({
       dateTo,
       includeDetails: false,
     }),
-  })
+  }))
+  const response = await timing.measure('serialize', async () =>
+    jsonWithAuthCookies(auth.response, payload)
+  )
+  return timing.finish(response)
 }
 
 function parseReportRange(value: string | null): ReportRange {
@@ -382,9 +398,12 @@ async function isReportsFeatureEnabled(
 }
 
 function buildSalesTrend(orders: ReportOrderRecord[]) {
-  const grouped = orders.reduce<
-    Record<string, { key: string; label: string; total: number }>
-  >((acc, order) => {
+  const grouped = new Map<
+    string,
+    { key: string; label: string; total: number }
+  >()
+
+  for (const order of orders) {
     const createdAt = new Date(order.created_at)
     const key = Number.isNaN(createdAt.getTime())
       ? 'unknown'
@@ -396,17 +415,14 @@ function buildSalesTrend(orders: ReportOrderRecord[]) {
           month: 'short',
         })
 
-    return {
-      ...acc,
-      [key]: {
-        key,
-        label,
-        total: (acc[key]?.total ?? 0) + order.total,
-      },
-    }
-  }, {})
+    grouped.set(key, {
+      key,
+      label,
+      total: (grouped.get(key)?.total ?? 0) + order.total,
+    })
+  }
 
-  return Object.values(grouped)
+  return [...grouped.values()]
     .sort((first, second) => first.key.localeCompare(second.key))
     .slice(-8)
 }

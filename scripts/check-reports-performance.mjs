@@ -37,6 +37,15 @@ const reportPages = [
   'sales-by-customer/page.tsx',
   'sales-by-employee/page.tsx',
 ].map((file) => fs.readFileSync(path.join(process.cwd(), 'app/admin/reports', file), 'utf8'))
+const summaryRoute = fs.readFileSync(
+  path.join(process.cwd(), 'app/api/admin/reports/summary/route.ts'),
+  'utf8'
+)
+const section = (source, start, end) =>
+  source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)))
+const employeeSection = section(route, 'async function buildEmployeeReport', 'async function buildItemReport')
+const itemSection = section(route, 'async function buildItemReport', 'async function buildTrendReport')
+const trendSection = section(route, 'async function buildTrendReport', 'function applyBranchFilter')
 
 assert(!route.includes("select('*')"), 'Reports API must not use select(*).')
 assert(route.includes('applyTenantFilter(ordersQuery, tenantId)'), 'Tenant scope must remain.')
@@ -46,6 +55,21 @@ assert(route.includes(".select('id, created_at, invoices(invoice_items(quantity,
 assert(route.includes("type: true, itemRows:") || route.includes('itemRows: buildSalesByItemRows'), 'Item response contract must remain.')
 assert(route.includes('categoryRows: buildSalesByCategoryRows'), 'Category response contract must remain.')
 assert(route.includes('trendRows: buildSalesTrendRows'), 'Trend response contract must remain.')
+assert(!employeeSection.includes("from('catalog_items')"), 'Employee reports must not query Catalog.')
+assert(!trendSection.includes("from('catalog_items')"), 'Trend reports must not query Catalog.')
+assert(itemSection.includes("from('catalog_items')"), 'Item and Category reports require Catalog financial fallback.')
+assert(
+  route.includes("timing.measure('orders'") &&
+    route.includes("timing.measure('catalog'") &&
+    route.includes("timing.measure('aggregate'") &&
+    route.includes("timing.measure('serialize'"),
+  'Preview Server-Timing stages must remain available.'
+)
+assert(
+  summaryRoute.includes('const grouped = new Map<') &&
+    !section(summaryRoute, 'function buildSalesTrend', 'function toSummaryRow').includes('...acc'),
+  'Overview trend aggregation must remain linear.'
+)
 for (const page of reportPages.slice(0, 3)) {
   assert(!page.includes(".from('orders')"), 'Detailed orders must not be fetched by report clients.')
   assert(page.includes('/api/admin/reports/sales-performance?'), 'Report client must use the bounded API.')

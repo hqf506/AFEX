@@ -27,6 +27,10 @@ import {
   buildSalesTrendRows,
   type SalesTrendGrouping,
 } from '@/lib/reports/sales-trend'
+import {
+  createReportServerTiming,
+  type ReportServerTiming,
+} from '@/lib/reports/server-timing'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
 type SalesPerformanceReportType =
@@ -61,7 +65,10 @@ const REPORTS_FEATURE_DISABLED_MESSAGE =
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee'])
+  const timing = createReportServerTiming()
+  const auth = await timing.measure('auth', () =>
+    requireApiAuth(request, ['admin', 'employee'])
+  )
 
   if (!auth.ok) {
     return auth.response
@@ -78,7 +85,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    if (!(await isReportsFeatureEnabled(auth.supabase, tenantId))) {
+    if (!(await timing.measure('settings', () =>
+      isReportsFeatureEnabled(auth.supabase, tenantId)
+    ))) {
       return jsonWithAuthCookies(
         auth.response,
         {
@@ -154,10 +163,14 @@ export async function GET(request: NextRequest) {
       fromIso,
       toIso,
       branchId,
-      trendGrouping
+      trendGrouping,
+      timing
     )
 
-    return jsonWithAuthCookies(auth.response, payload)
+    const response = await timing.measure('serialize', async () =>
+      jsonWithAuthCookies(auth.response, payload)
+    )
+    return timing.finish(response)
   } catch (error) {
     console.error('[reports-sales-performance] unexpected failure', error)
     return jsonWithAuthCookies(
@@ -181,10 +194,11 @@ async function buildReport(
   fromIso: string,
   toIso: string,
   branchId: string,
-  trendGrouping: SalesTrendGrouping
+  trendGrouping: SalesTrendGrouping,
+  timing: ReportServerTiming
 ) {
   if (reportType === 'employee') {
-    return buildEmployeeReport(auth, tenantId, fromIso, toIso, branchId)
+    return buildEmployeeReport(auth, tenantId, fromIso, toIso, branchId, timing)
   }
   if (reportType === 'trend') {
     return buildTrendReport(
@@ -193,7 +207,8 @@ async function buildReport(
       fromIso,
       toIso,
       branchId,
-      trendGrouping
+      trendGrouping,
+      timing
     )
   }
   if (reportType === 'item' || reportType === 'category') {
@@ -203,10 +218,11 @@ async function buildReport(
       tenantId,
       fromIso,
       toIso,
-      branchId
+      branchId,
+      timing
     )
   }
-  return buildCustomerReport(auth, tenantId, fromIso, toIso, branchId)
+  return buildCustomerReport(auth, tenantId, fromIso, toIso, branchId, timing)
 }
 
 function parseReportType(value: string | null): SalesPerformanceReportType {
@@ -256,7 +272,8 @@ async function buildCustomerReport(
   tenantId: string,
   fromIso: string,
   toIso: string,
-  branchId: string
+  branchId: string,
+  timing: ReportServerTiming
 ) {
   let ordersQuery = auth.supabase
     .from('orders')
@@ -293,8 +310,8 @@ async function buildCustomerReport(
   catalogQuery = applyTenantFilter(catalogQuery, tenantId)
 
   const [ordersResult, catalogResult] = await Promise.all([
-    ordersQuery,
-    catalogQuery,
+    timing.measure('orders', () => ordersQuery),
+    timing.measure('catalog', () => catalogQuery),
   ])
 
   if (ordersResult.error) {
@@ -320,7 +337,9 @@ async function buildCustomerReport(
 
   return {
     success: true,
-    customerRows: buildSalesByCustomerRows(enrichedOrders),
+    customerRows: await timing.measure('aggregate', async () =>
+      buildSalesByCustomerRows(enrichedOrders)
+    ),
   }
 }
 
@@ -329,7 +348,8 @@ async function buildEmployeeReport(
   tenantId: string,
   fromIso: string,
   toIso: string,
-  branchId: string
+  branchId: string,
+  timing: ReportServerTiming
 ) {
   let ordersQuery = auth.supabase
     .from('orders')
@@ -355,7 +375,7 @@ async function buildEmployeeReport(
   ordersQuery = applyTenantFilter(ordersQuery, tenantId)
   ordersQuery = applyBranchFilter(ordersQuery, auth, branchId)
 
-  const { data, error } = await ordersQuery
+  const { data, error } = await timing.measure('orders', () => ordersQuery)
 
   if (error) {
     throw error
@@ -371,11 +391,15 @@ async function buildEmployeeReport(
         .filter((id): id is string => Boolean(id))
     )
   )
-  const employeeProfiles = await fetchEmployeeProfiles(auth, tenantId, employeeIds)
+  const employeeProfiles = await timing.measure('profiles', () =>
+    fetchEmployeeProfiles(auth, tenantId, employeeIds)
+  )
 
   return {
     success: true,
-    employeeRows: buildSalesByEmployeeRows(employeeOrders, employeeProfiles),
+    employeeRows: await timing.measure('aggregate', async () =>
+      buildSalesByEmployeeRows(employeeOrders, employeeProfiles)
+    ),
   }
 }
 
@@ -385,7 +409,8 @@ async function buildItemReport(
   tenantId: string,
   fromIso: string,
   toIso: string,
-  branchId: string
+  branchId: string,
+  timing: ReportServerTiming
 ) {
   let ordersQuery = auth.supabase
     .from('orders')
@@ -415,8 +440,8 @@ async function buildItemReport(
   catalogQuery = applyTenantFilter(catalogQuery, tenantId)
 
   const [ordersResult, catalogResult] = await Promise.all([
-    ordersQuery,
-    catalogQuery,
+    timing.measure('orders', () => ordersQuery),
+    timing.measure('catalog', () => catalogQuery),
   ])
   if (ordersResult.error) throw ordersResult.error
   if (catalogResult.error) throw catalogResult.error
@@ -428,9 +453,11 @@ async function buildItemReport(
     (catalogResult.data ?? []) as CatalogFinancialSource[]
   )
 
-  return reportType === 'item'
-    ? { success: true, itemRows: buildSalesByItemRows(orders) }
-    : { success: true, categoryRows: buildSalesByCategoryRows(orders) }
+  return timing.measure('aggregate', async () =>
+    reportType === 'item'
+      ? { success: true, itemRows: buildSalesByItemRows(orders) }
+      : { success: true, categoryRows: buildSalesByCategoryRows(orders) }
+  )
 }
 
 async function buildTrendReport(
@@ -439,7 +466,8 @@ async function buildTrendReport(
   fromIso: string,
   toIso: string,
   branchId: string,
-  grouping: SalesTrendGrouping
+  grouping: SalesTrendGrouping,
+  timing: ReportServerTiming
 ) {
   let query = auth.supabase
     .from('orders')
@@ -450,18 +478,18 @@ async function buildTrendReport(
   query = applyTenantFilter(query, tenantId)
   query = applyBranchFilter(query, auth, branchId)
 
-  const { data, error } = await query
+  const { data, error } = await timing.measure('orders', () => query)
   if (error) throw error
   const orders = ((data ?? []) as OrderSourceRow[]).map((row, index) =>
     mapOrderSourceRowToReportOrderRecord(row, index)
   )
-  return {
+  return timing.measure('aggregate', async () => ({
     success: true,
     trendRows: buildSalesTrendRows(orders, grouping, {
       start: fromIso,
       end: toIso,
     }),
-  }
+  }))
 }
 
 function applyBranchFilter<T>(
