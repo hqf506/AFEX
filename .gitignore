@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local Supabase backups, generated state, and manual migration packages
+/roles.sql
+/supabase/.temp/
+/supabase/auth_users_backup.sql
+/supabase/baseline-review/
+/supabase/config.toml
+/supabase/full_backup.sql
+/supabase/full_backup_auth_data.sql
+/supabase/full_backup_auth_schema.sql
+/supabase/full_backup_data.sql
+/supabase/full_backup_roles.sql
+/supabase/manual-migration/
