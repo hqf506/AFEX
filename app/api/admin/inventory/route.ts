@@ -2,34 +2,17 @@ import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { ADMIN_BRANCH_FILTER_ALL } from '@/lib/admin/branch-filter'
+import {
+  normalizeAndFilterInventoryRows,
+  runWithConcurrency,
+  sortInventoryRows,
+  type InventoryBranch,
+  type InventoryDataRow,
+  type InventoryRpcRow,
+} from '@/lib/inventory/data-loading'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-type BranchRecord = {
-  id: string
-  name: string
-}
-
-type InventoryRpcRow = {
-  catalog_item_id?: string | null
-  item_name?: string | null
-  item_type?: 'product' | 'service' | string | null
-  category_id?: string | null
-  quantity_on_hand?: number | string | null
-  low_stock_threshold?: number | string | null
-  is_low_stock?: boolean | null
-}
-
-type InventoryRow = {
-  branch_id: string
-  branch_name: string
-  catalog_item_id: string
-  item_name: string
-  item_type: 'product' | 'service' | string
-  category_id: string | null
-  quantity_on_hand: number
-  low_stock_threshold: number
-  is_low_stock: boolean
-}
+const INVENTORY_RPC_CONCURRENCY = 4
 
 function normalizeText(value: string | null) {
   return (value || '').trim()
@@ -38,66 +21,6 @@ function normalizeText(value: string | null) {
 function normalizePositiveInteger(value: string | null, fallback: number) {
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
-}
-
-function normalizeNumber(value: unknown) {
-  const numericValue = Number(value ?? 0)
-  return Number.isFinite(numericValue) ? numericValue : 0
-}
-
-function normalizeInventoryRow(row: InventoryRpcRow, branch: BranchRecord) {
-  const quantityOnHand = normalizeNumber(row.quantity_on_hand)
-  const lowStockThreshold = normalizeNumber(row.low_stock_threshold)
-
-  return {
-    branch_id: branch.id,
-    branch_name: branch.name,
-    catalog_item_id: String(row.catalog_item_id || ''),
-    item_name: String(row.item_name || ''),
-    item_type: row.item_type || 'product',
-    category_id: row.category_id || null,
-    quantity_on_hand: quantityOnHand,
-    low_stock_threshold: lowStockThreshold,
-    is_low_stock:
-      quantityOnHand <= 0 ||
-      (lowStockThreshold > 0 && quantityOnHand <= lowStockThreshold),
-  } satisfies InventoryRow
-}
-
-function getStockStatus(row: InventoryRow) {
-  if (row.quantity_on_hand <= 0) return 'out'
-  if (
-    row.low_stock_threshold > 0 &&
-    row.quantity_on_hand <= row.low_stock_threshold
-  ) {
-    return 'low'
-  }
-
-  return 'available'
-}
-
-function applyInventoryFilters(
-  rows: InventoryRow[],
-  filters: {
-    search: string
-    categoryId: string
-    stockStatus: string
-  }
-) {
-  return rows.filter((row) => {
-    const matchesSearch =
-      !filters.search ||
-      row.item_name.includes(filters.search) ||
-      row.branch_name.includes(filters.search)
-
-    const matchesCategory =
-      !filters.categoryId || row.category_id === filters.categoryId
-
-    const matchesStockStatus =
-      !filters.stockStatus || getStockStatus(row) === filters.stockStatus
-
-    return matchesSearch && matchesCategory && matchesStockStatus
-  })
 }
 
 export async function GET(request: NextRequest) {
@@ -171,6 +94,7 @@ export async function GET(request: NextRequest) {
       .from('branches')
       .select('id, name')
       .eq('tenant_id', tenantId)
+      .eq('is_active', true)
       .is('deleted_at', null)
       .order('name', { ascending: true })
 
@@ -187,7 +111,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const targetBranches = (branches || []) as BranchRecord[]
+    const targetBranches = (branches || []) as InventoryBranch[]
 
     if (targetBranches.length === 0) {
       return withAuthCookies(
@@ -208,8 +132,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const inventoryResponses = await Promise.all(
-      targetBranches.map(async (branch) => {
+    const filteredRows: InventoryDataRow[] = []
+    await runWithConcurrency(
+      targetBranches,
+      INVENTORY_RPC_CONCURRENCY,
+      async (branch) => {
         const { data, error } = await supabaseAdmin.rpc('get_branch_inventory', {
           p_tenant_id: tenantId,
           p_branch_id: branch.id,
@@ -219,28 +146,21 @@ export async function GET(request: NextRequest) {
           throw new Error(error.message || 'Failed to load inventory')
         }
 
-        return Array.isArray(data)
-          ? data.map((row) => normalizeInventoryRow(row as InventoryRpcRow, branch))
-          : []
-      })
-    )
+        if (!Array.isArray(data)) return
 
-    const mergedRows = inventoryResponses
-      .flat()
-      .sort((left, right) => {
-        const branchComparison = left.branch_name.localeCompare(
-          right.branch_name,
-          'ar'
+        const branchRows = normalizeAndFilterInventoryRows(
+          data as InventoryRpcRow[],
+          branch,
+          { search, categoryId, stockStatus }
         )
 
-        if (branchComparison !== 0) return branchComparison
-        return left.item_name.localeCompare(right.item_name, 'ar')
-      })
-    const filteredRows = applyInventoryFilters(mergedRows, {
-      search,
-      categoryId,
-      stockStatus,
-    })
+        for (const row of branchRows) {
+          filteredRows.push(row)
+        }
+      }
+    )
+
+    sortInventoryRows(filteredRows)
     const total = filteredRows.length
     const lowStockRows = filteredRows.filter((row) => row.is_low_stock)
     const from = (page - 1) * pageSize

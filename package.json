@@ -23,7 +23,8 @@
     "check:responsive-ux": "node scripts/check-responsive-ux.js",
     "check:whatsapp-status": "node scripts/check-whatsapp-status.mjs",
     "check:orders-performance": "node scripts/check-orders-performance.mjs",
-    "check:orders-correctness": "node scripts/check-orders-correctness.mjs"
+    "check:orders-correctness": "node scripts/check-orders-correctness.mjs",
+    "check:inventory-performance": "node scripts/check-inventory-performance.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
