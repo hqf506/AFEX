@@ -9,6 +9,10 @@ const sourcePath = path.join(
   'orders',
   'whatsapp-status.ts'
 )
+const ordersPageSource = fs.readFileSync(
+  path.join(process.cwd(), 'app', 'admin', 'orders', 'page.tsx'),
+  'utf8'
+)
 const source = fs.readFileSync(sourcePath, 'utf8')
 const compiled = ts.transpileModule(source, {
   compilerOptions: {
@@ -26,6 +30,7 @@ vm.runInNewContext(compiled, {
 })
 
 const {
+  buildWhatsAppAuditOrderIdAliases,
   buildWhatsAppStatusByOrderId,
   mergePersistentWhatsAppStatuses,
 } = moduleValue.exports
@@ -58,12 +63,32 @@ const logs = [
   },
 ]
 
+const redactedLogs = [
+  {
+    action: 'whatsapp.message_sent',
+    created_at: '2026-07-15T15:48:00.000Z',
+    metadata: {
+      order_id: '1111...1111',
+      provider_status: 'delivered',
+    },
+  },
+]
+
 const persistent = buildWhatsAppStatusByOrderId(logs, [
   currentOrderId,
   oldMonthlyOrderId,
 ])
 assert(persistent[currentOrderId] === 'sent', 'delivered must map to sent')
 assert(persistent[oldMonthlyOrderId] === 'failed', 'UUIDs must remain isolated')
+assert(
+  buildWhatsAppStatusByOrderId(redactedLogs, [currentOrderId])[currentOrderId] ===
+    'sent',
+  'A safely redacted audit order UUID must resolve to the visible UUID.'
+)
+assert(
+  buildWhatsAppAuditOrderIdAliases([currentOrderId]).includes('1111...1111'),
+  'The audit query must include the safely redacted UUID alias.'
+)
 
 const merged = mergePersistentWhatsAppStatuses(
   { [currentOrderId]: 'not_sent' },
@@ -72,6 +97,20 @@ const merged = mergePersistentWhatsAppStatuses(
 assert(
   merged[currentOrderId] === 'sent',
   'persistent status must override the default state after reload'
+)
+assert(
+  ordersPageSource.includes(
+    ".in('action', ['whatsapp.message_sent', 'whatsapp.message_failed'])"
+  ),
+  'Orders badge query must include the persisted WhatsApp actions.'
+)
+assert(
+  ordersPageSource.includes(".in('metadata->>order_id', orderIdAuditAliases)"),
+  'Orders badge query must be scoped by aliases derived from visible UUIDs.'
+)
+assert(
+  ordersPageSource.includes(".eq('entity_type', 'whatsapp_message')"),
+  'Orders badge query must keep the persisted WhatsApp entity type scope.'
 )
 
 console.log('WhatsApp status persistence checks passed.')

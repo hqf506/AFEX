@@ -9,6 +9,13 @@ type WhatsAppAuditLog = {
 const SUCCESS_STATUSES = new Set(['sent', 'delivered', 'success'])
 const FAILURE_STATUSES = new Set(['failed', 'error'])
 
+function getAuditOrderIdAlias(orderId: string) {
+  const normalized = orderId.trim()
+  return normalized.length <= 8
+    ? '[redacted-id]'
+    : `${normalized.slice(0, 4)}...${normalized.slice(-4)}`
+}
+
 function getMetadata(log: WhatsAppAuditLog) {
   return log.metadata && typeof log.metadata === 'object'
     ? (log.metadata as Record<string, unknown>)
@@ -39,6 +46,18 @@ export function buildWhatsAppStatusByOrderId(
   orderIds: Iterable<string>
 ) {
   const expectedOrderIds = new Set(orderIds)
+  const orderIdByAuditAlias = new Map<string, string | null>()
+
+  for (const orderId of expectedOrderIds) {
+    for (const alias of [orderId, getAuditOrderIdAlias(orderId)]) {
+      const existingOrderId = orderIdByAuditAlias.get(alias)
+      orderIdByAuditAlias.set(
+        alias,
+        existingOrderId && existingOrderId !== orderId ? null : orderId
+      )
+    }
+  }
+
   const statuses: Record<string, WhatsAppDeliveryStatus> = {}
   const sortedLogs = [...logs].sort((a, b) =>
     String(b.created_at || '').localeCompare(String(a.created_at || ''))
@@ -48,8 +67,9 @@ export function buildWhatsAppStatusByOrderId(
     const metadata = getMetadata(log)
     if (!metadata) continue
 
-    const orderId =
+    const storedOrderId =
       typeof metadata.order_id === 'string' ? metadata.order_id : ''
+    const orderId = orderIdByAuditAlias.get(storedOrderId) || ''
 
     if (!orderId || !expectedOrderIds.has(orderId) || statuses[orderId]) {
       continue
@@ -60,6 +80,17 @@ export function buildWhatsAppStatusByOrderId(
   }
 
   return statuses
+}
+
+export function buildWhatsAppAuditOrderIdAliases(orderIds: Iterable<string>) {
+  const aliases = new Set<string>()
+
+  for (const orderId of orderIds) {
+    aliases.add(orderId)
+    aliases.add(getAuditOrderIdAlias(orderId))
+  }
+
+  return [...aliases]
 }
 
 export function mergePersistentWhatsAppStatuses(

@@ -24,10 +24,12 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import {
+  buildWhatsAppAuditOrderIdAliases,
   buildWhatsAppStatusByOrderId,
   mergePersistentWhatsAppStatuses,
   type WhatsAppDeliveryStatus,
 } from '@/lib/orders/whatsapp-status'
+import { resolveEffectiveOrderStatus } from '@/lib/orders/effective-status'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { FeatureDisabledState } from '@/components/feature-disabled-state'
@@ -280,17 +282,11 @@ const CANCELLED_RECEIPT_WHATSAPP_UI = {
 }
 
 function isCancelledOrder(order: OrderRecord) {
-  const status = `${order.status || ''}`.toLowerCase()
-  const paymentStatus = `${order.payment_status || ''}`.toLowerCase()
-  const rawStatus = `${(order as PageOrderRecord).status_raw || ''}`.toLowerCase()
-
   return (
-    status === 'cancelled' ||
-    status === 'canceled' ||
-    paymentStatus === 'cancelled' ||
-    paymentStatus === 'canceled' ||
-    rawStatus === 'cancelled' ||
-    rawStatus === 'canceled'
+    resolveEffectiveOrderStatus(
+      (order as PageOrderRecord).status_raw || order.status,
+      order.payment_status
+    ) === 'cancelled'
   )
 }
 
@@ -1049,6 +1045,7 @@ export default function OrdersPage() {
     if (!allowed || !tenantId || orders.length === 0) return
 
     const orderIds = new Set(orders.map((order) => order.id))
+    const orderIdAuditAliases = buildWhatsAppAuditOrderIdAliases(orderIds)
     let cancelled = false
 
     async function fetchWhatsAppDeliveryStatus() {
@@ -1057,7 +1054,7 @@ export default function OrdersPage() {
         .select('action, created_at, metadata')
         .in('action', ['whatsapp.message_sent', 'whatsapp.message_failed'])
         .eq('entity_type', 'whatsapp_message')
-        .in('metadata->>order_id', [...orderIds])
+        .in('metadata->>order_id', orderIdAuditAliases)
         .order('created_at', { ascending: false })
         .limit(1000)
 

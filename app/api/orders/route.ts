@@ -30,6 +30,10 @@ import {
   POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
 import type { OrderStatus } from '@/lib/orders/normalize'
+import {
+  resolveEffectiveOrderStatus,
+  type EffectiveOrderStatus,
+} from '@/lib/orders/effective-status'
 import { maskId, maskPhone, redactSensitive } from '@/lib/security/redaction'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { isSendableWhatsAppPhone } from '@/lib/whatsapp/messages'
@@ -407,6 +411,9 @@ export async function GET(request: NextRequest) {
         pageSize: query.pageSize,
         hasMore: false,
         comparisonSignature: '',
+        summary:
+          query.mode === 'full' ? createEmptyOrdersStatusSummary() : undefined,
+        employeeNames: query.mode === 'full' ? {} : undefined,
       })
     }
 
@@ -415,6 +422,41 @@ export async function GET(request: NextRequest) {
 
     const selectClause =
       query.mode === 'meta' ? ORDERS_META_SELECT : ORDERS_SELECT
+    const needsEffectiveListFilter = isEffectiveStatusListFilter(
+      query.listFilter
+    )
+    const statusProjectionPromise =
+      query.mode === 'full' || needsEffectiveListFilter
+        ? loadOrdersEffectiveStatusProjection(
+            auth.supabase,
+            auth.profile,
+            query,
+            matchingOrderIds
+          )
+        : Promise.resolve(undefined)
+    const statusProjection = needsEffectiveListFilter
+      ? await statusProjectionPromise
+      : undefined
+
+    if (
+      needsEffectiveListFilter &&
+      statusProjection?.orderIds[query.listFilter as EffectiveOrderStatus]
+        .length === 0
+    ) {
+      return jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
+        success: true,
+        mode: query.mode,
+        items: [],
+        totalCount: 0,
+        page: query.page,
+        pageSize: query.pageSize,
+        hasMore: false,
+        comparisonSignature: '',
+        summary:
+          query.mode === 'full' ? statusProjection.summary : undefined,
+        employeeNames: query.mode === 'full' ? {} : undefined,
+      })
+    }
 
     let ordersQuery = auth.supabase
       .from('orders')
@@ -422,7 +464,14 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     ordersQuery = applyOrdersFilters(ordersQuery, auth.profile, query)
-    ordersQuery = applyOrdersListFilter(ordersQuery, query.listFilter)
+    ordersQuery = needsEffectiveListFilter
+      ? ordersQuery.in(
+          'id',
+          statusProjection?.orderIds[
+            query.listFilter as EffectiveOrderStatus
+          ] || []
+        )
+      : applyOrdersListFilter(ordersQuery, query.listFilter)
 
     if (matchingOrderIds) {
       ordersQuery = ordersQuery.in('id', matchingOrderIds)
@@ -431,12 +480,7 @@ export async function GET(request: NextRequest) {
     const ordersPagePromise = ordersQuery.range(rangeFrom, rangeTo)
     const summaryPromise =
       query.mode === 'full'
-        ? loadOrdersStatusSummary(
-            auth.supabase,
-            auth.profile,
-            query,
-            matchingOrderIds
-          )
+        ? statusProjectionPromise.then((projection) => projection?.summary)
         : Promise.resolve(undefined)
 
     const [{ data, error, count }, summary] = await Promise.all([
@@ -1932,50 +1976,69 @@ function applyOrdersListFilter<T extends OrdersFilterQuery>(query: T, filter: st
   return query
 }
 
-async function loadOrdersStatusSummary(
+function isEffectiveStatusListFilter(
+  filter: string | null
+): filter is Exclude<EffectiveOrderStatus, 'unknown'> {
+  return (
+    filter === 'in_progress' ||
+    filter === 'ready' ||
+    filter === 'delivered' ||
+    filter === 'cancelled'
+  )
+}
+
+function createEmptyOrdersStatusSummary() {
+  return { in_progress: 0, ready: 0, delivered: 0, cancelled: 0 }
+}
+
+async function loadOrdersEffectiveStatusProjection(
   supabase: SupabaseServerClient,
   profile: Pick<ApiAuthProfile, 'scope_type' | 'branch_id' | 'tenant_id'>,
   filters: OrdersApiQuery,
   matchingOrderIds: string[] | null
 ) {
-  const buildCountQuery = (statuses: string[]) => {
-    let countQuery = supabase
-      .from('orders')
-      .select('id', { count: 'exact', head: true })
+  let projectionQuery = supabase
+    .from('orders')
+    .select('id, status, invoices(payment_status)')
 
-    countQuery = applyOrdersFilters(countQuery, profile, filters)
-    countQuery =
-      statuses.length === 1
-        ? countQuery.eq('status', statuses[0])
-        : countQuery.in('status', statuses)
+  projectionQuery = applyOrdersFilters(projectionQuery, profile, filters)
 
-    if (matchingOrderIds) {
-      countQuery = countQuery.in('id', matchingOrderIds)
+  if (matchingOrderIds) {
+    projectionQuery = projectionQuery.in('id', matchingOrderIds)
+  }
+
+  const { data, error } = await projectionQuery
+
+  if (error) {
+    throw error
+  }
+
+  const summary = createEmptyOrdersStatusSummary()
+  const orderIds: Record<EffectiveOrderStatus, string[]> = {
+    in_progress: [],
+    ready: [],
+    delivered: [],
+    cancelled: [],
+    unknown: [],
+  }
+
+  for (const row of data || []) {
+    const invoice = normalizeInvoiceRecord(row.invoices)
+    const effectiveStatus = resolveEffectiveOrderStatus(
+      row.status,
+      invoice?.payment_status
+    )
+
+    if (effectiveStatus !== 'unknown') {
+      summary[effectiveStatus] += 1
     }
 
-    return countQuery
+    if (typeof row.id === 'string' && row.id) {
+      orderIds[effectiveStatus].push(row.id)
+    }
   }
 
-  const [inProgress, ready, delivered, cancelled] = await Promise.all([
-    buildCountQuery(['in_progress']),
-    buildCountQuery(['ready']),
-    buildCountQuery(['closed', 'delivered', 'completed']),
-    buildCountQuery(['cancelled', 'canceled']),
-  ])
-
-  const summaryResults = [inProgress, ready, delivered, cancelled]
-  const summaryError = summaryResults.find((result) => result.error)?.error
-
-  if (summaryError) {
-    throw summaryError
-  }
-
-  return {
-    in_progress: Number(inProgress.count) || 0,
-    ready: Number(ready.count) || 0,
-    delivered: Number(delivered.count) || 0,
-    cancelled: Number(cancelled.count) || 0,
-  }
+  return { summary, orderIds }
 }
 
 async function resolveMatchingOrderIds(
@@ -2058,12 +2121,20 @@ function buildOrdersComparisonSignature(items: unknown[]) {
 function normalizeInvoiceRecord(value: unknown) {
   if (Array.isArray(value)) {
     return (value[0] as
-      | { invoice_number?: string | null; total?: number | null }
+      | {
+          invoice_number?: string | null
+          total?: number | null
+          payment_status?: string | null
+        }
       | undefined) || null
   }
 
   if (value && typeof value === 'object') {
-    return value as { invoice_number?: string | null; total?: number | null }
+    return value as {
+      invoice_number?: string | null
+      total?: number | null
+      payment_status?: string | null
+    }
   }
 
   return null

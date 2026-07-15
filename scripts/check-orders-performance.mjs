@@ -15,8 +15,8 @@ const pageSource = fs.readFileSync(
 )
 
 assert(
-  routeSource.includes(".select('id', { count: 'exact', head: true })"),
-  'Orders status summary must use count-only queries.'
+  routeSource.includes(".select('id, status, invoices(payment_status)')"),
+  'Orders status summary must use the minimal effective-status projection.'
 )
 assert(
   !routeSource.includes("from('orders').select('status')"),
@@ -24,12 +24,12 @@ assert(
 )
 assert(
   routeSource.includes('ordersPagePromise') &&
-    routeSource.includes('summaryPromise') &&
+    routeSource.includes('statusProjectionPromise') &&
     routeSource.includes('await Promise.all(['),
   'Orders page and status summary must be loaded in parallel.'
 )
 assert(
-  pageSource.includes(".in('metadata->>order_id', [...orderIds])"),
+  pageSource.includes(".in('metadata->>order_id', orderIdAuditAliases)"),
   'WhatsApp audit lookup must be scoped to visible order UUIDs.'
 )
 assert(
