@@ -66,3 +66,4 @@ next-env.d.ts
 /supabase/full_backup_data.sql
 /supabase/full_backup_roles.sql
 /supabase/manual-migration/
+.env*.local
