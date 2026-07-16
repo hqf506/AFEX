@@ -194,16 +194,7 @@ export function useInvoiceCheckout({
   }
 
   const setCashReceived = (value: string) => {
-    if (normalizeUiPaymentMethod(paymentMethod) === 'cod' && value.trim()) {
-      const numericValue = Number(value)
-
-      if (Number.isFinite(numericValue)) {
-        setCashReceivedInput(
-          Math.min(Math.max(numericValue, 0), finalTotal).toString()
-        )
-        return
-      }
-    }
+    if (normalizeUiPaymentMethod(paymentMethod) !== 'cash') return
 
     setCashReceivedInput(value)
   }

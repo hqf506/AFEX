@@ -11,7 +11,10 @@ import {
   peekClientResource,
   prefetchClientResource,
 } from '@/lib/client-resource-cache'
-import { prefetchBranchInvoiceCatalog } from '@/lib/invoices/catalog'
+import {
+  clearAllInvoiceCatalogCache,
+  prefetchBranchInvoiceCatalog,
+} from '@/lib/invoices/catalog'
 import {
   INVOICE_CUSTOMER_STORAGE_KEY,
   isInvoiceCustomerDraftValid,
@@ -130,7 +133,6 @@ export function InvoiceCustomerStep({
     allowed,
     roleLabel,
     branchId,
-    scopeType,
     tenantId,
   } = usePageAccess(pageAccessOptions)
 
@@ -419,10 +421,10 @@ export function InvoiceCustomerStep({
       }
     )
 
-    if (scopeType === 'branch' && branchId) {
-      void prefetchBranchInvoiceCatalog(branchId, tenantId)
+    if (customerSearchBranchId && tenantId) {
+      void prefetchBranchInvoiceCatalog(customerSearchBranchId, tenantId)
     }
-  }, [allowed, branchId, router, scopeType, tenantId, variant])
+  }, [allowed, customerSearchBranchId, router, tenantId, variant])
 
   useEffect(() => {
     if (variant !== 'pos' || !allowed) {
@@ -599,6 +601,7 @@ export function InvoiceCustomerStep({
       )
     }
 
+    clearAllInvoiceCatalogCache()
     clearActivePosEmployee()
     markPosLoggedOut()
     router.replace('/pos/login')
@@ -699,6 +702,7 @@ export function InvoiceCustomerStep({
                 <button
                   type="button"
                   onClick={() => {
+                    clearAllInvoiceCatalogCache()
                     clearActivePosEmployee()
                     router.replace('/pos/employee-pin')
                   }}

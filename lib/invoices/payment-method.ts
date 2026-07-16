@@ -34,7 +34,7 @@ export function getPaymentMethodLabel(method?: string) {
 
 export function isReceivedAmountEditable(method?: string) {
   const normalizedMethod = normalizeUiPaymentMethod(method)
-  return normalizedMethod === 'cash' || normalizedMethod === 'cod'
+  return normalizedMethod === 'cash'
 }
 
 export function toApiPaymentMethod(

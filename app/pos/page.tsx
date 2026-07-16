@@ -12,7 +12,10 @@ import {
   prefetchClientResource,
 } from '@/lib/client-resource-cache'
 import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
-import { prefetchBranchInvoiceCatalog } from '@/lib/invoices/catalog'
+import {
+  clearAllInvoiceCatalogCache,
+  prefetchBranchInvoiceCatalog,
+} from '@/lib/invoices/catalog'
 import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
 import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
 import {
@@ -389,6 +392,9 @@ export default function PosPage() {
 
   const storeName = settings?.store_name?.trim() || 'AFEX POS'
   const employeeDisplayName = getPosEmployeeDisplayName(activePosEmployee)
+  const resolvedPosBranchId =
+    activePosEmployee?.branch_id ||
+    (access.scopeType === 'branch' ? access.branchId : null)
   const recentOrders = orders.slice(0, 6)
   const dayName = new Intl.DateTimeFormat('ar-SA', {
     weekday: 'long',
@@ -496,14 +502,15 @@ export default function PosPage() {
       }
     )
 
-    if (access.scopeType === 'branch' && access.branchId) {
-      void prefetchBranchInvoiceCatalog(access.branchId, access.tenantId)
+    if (resolvedPosBranchId && access.tenantId) {
+      void prefetchBranchInvoiceCatalog(resolvedPosBranchId, access.tenantId)
     }
   }, [
     access.allowed,
     access.branchId,
     access.scopeType,
     access.tenantId,
+    resolvedPosBranchId,
     isPosLoginPage,
     router,
   ])
@@ -653,6 +660,7 @@ export default function PosPage() {
 
     try {
       setLoggingOut(true)
+      clearAllInvoiceCatalogCache()
       clearActivePosEmployee()
       sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
       markPosLoggedOut()
@@ -665,6 +673,7 @@ export default function PosPage() {
   }
 
   const handleSwitchEmployee = () => {
+    clearAllInvoiceCatalogCache()
     clearActivePosEmployee()
     setActivePosEmployee(null)
     router.push('/pos/employee-pin')

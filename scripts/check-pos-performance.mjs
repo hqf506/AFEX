@@ -14,6 +14,11 @@ const checkoutPage = read('app/pos/sale/checkout/page.tsx')
 const itemsStep = read('components/invoice-items-step.tsx')
 const catalogHelper = read('lib/invoices/catalog.ts')
 const resourceCache = read('lib/client-resource-cache.ts')
+const posHome = read('app/pos/page.tsx')
+const customerStep = read('components/invoice-customer-step.tsx')
+const checkoutHook = read('hooks/use-invoice-checkout.ts')
+const paymentMethodsSource = read('lib/invoices/payment-method.ts')
+const orderPaymentSource = read('lib/invoices/order-payment.ts')
 
 assert(!catalogRoute.includes("select('*')"), 'POS Catalog must not use select(*).')
 assert(!runtimeRoute.includes("select('*')"), 'POS Runtime must not use select(*).')
@@ -48,9 +53,23 @@ assert(
   'Normal Items loading must not invalidate the prefetched Catalog page.'
 )
 assert(
-  catalogHelper.includes("params.tenantId || 'unknown'") &&
+  catalogHelper.includes('if (!params.tenantId || !params.branchId) return null') &&
     checkoutPage.includes("pos-runtime:${tenantId || 'unknown'}:${branchId || 'all'}"),
   'POS cache keys must include tenant and branch scope.'
+)
+assert(
+  posHome.includes('activePosEmployee?.branch_id ||') &&
+    posHome.includes('prefetchBranchInvoiceCatalog(resolvedPosBranchId, access.tenantId)'),
+  'System-scoped POS must prefetch the active employee branch.'
+)
+assert(
+  customerStep.includes('prefetchBranchInvoiceCatalog(customerSearchBranchId, tenantId)'),
+  'Customer and Home must prefetch the same resolved POS branch.'
+)
+assert(
+  posHome.includes('clearAllInvoiceCatalogCache()') &&
+    customerStep.includes('clearAllInvoiceCatalogCache()'),
+  'Employee switch/logout must invalidate employee-scoped Catalog data.'
 )
 assert(
   resourceCache.includes("'pos-runtime:'") &&
@@ -86,7 +105,20 @@ vm.runInNewContext(compiledCatalog, {
   Map, Math, Number, Set, String, URLSearchParams,
 })
 
-const { mapBranchCatalogToInvoiceProducts } = moduleValue.exports
+const { getInvoiceCatalogPageCacheKey, mapBranchCatalogToInvoiceProducts } =
+  moduleValue.exports
+const branchAKey = getInvoiceCatalogPageCacheKey({
+  tenantId: 'tenant-a', branchId: 'branch-a', page: 1, pageSize: 10,
+})
+const branchBKey = getInvoiceCatalogPageCacheKey({
+  tenantId: 'tenant-a', branchId: 'branch-b', page: 1, pageSize: 10,
+})
+assert(branchAKey !== branchBKey, 'Branch A must never reuse Branch B Catalog data.')
+assert(
+  getInvoiceCatalogPageCacheKey({ branchId: 'branch-a', page: 1, pageSize: 10 }) === null &&
+    getInvoiceCatalogPageCacheKey({ tenantId: 'tenant-a', branchId: null, page: 1, pageSize: 10 }) === null,
+  'Incomplete tenant/branch Catalog keys must not be created.'
+)
 const catalogItems = Array.from({ length: 22 }, (_, index) => ({
   id: `item-${index}`,
   name: `Item ${String(index).padStart(2, '0')}`,
@@ -125,6 +157,76 @@ for (const paymentMethod of ['cash', 'mada', 'visa', 'cod']) {
   assert(
     checkoutPage.includes(`'${paymentMethod}'`) || read('lib/invoices/payment-method.ts').includes(`'${paymentMethod}'`),
     `Payment method ${paymentMethod} must remain supported.`
+  )
+}
+
+function compilePureModule(source, context = {}) {
+  const moduleResult = { exports: {} }
+  const output = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+  vm.runInNewContext(output, {
+    exports: moduleResult.exports,
+    module: moduleResult,
+    Map, Math, Number, Object, Promise, Set, String,
+    ...context,
+  })
+  return moduleResult.exports
+}
+
+const cacheModule = compilePureModule(resourceCache, {
+  process: { env: { NODE_ENV: 'test' } },
+  console,
+})
+let pendingFetches = 0
+let resolvePending
+const pendingFetcher = () => {
+  pendingFetches += 1
+  return new Promise((resolve) => { resolvePending = resolve })
+}
+const pendingOne = cacheModule.loadClientResource(branchAKey, pendingFetcher, { ttlMs: 10 })
+const pendingTwo = cacheModule.loadClientResource(branchAKey, pendingFetcher, { ttlMs: 10 })
+assert(pendingFetches === 1, 'Pending Catalog prefetch must deduplicate the Items request.')
+resolvePending('catalog-a')
+assert(
+  (await pendingOne) === 'catalog-a' && (await pendingTwo) === 'catalog-a',
+  'Prefetch and Items must share the same pending result.'
+)
+await new Promise((resolve) => setTimeout(resolve, 15))
+await cacheModule.loadClientResource(branchAKey, async () => {
+  pendingFetches += 1
+  return 'catalog-a-fresh'
+}, { ttlMs: 10 })
+assert(pendingFetches === 2, 'Expired Catalog TTL must trigger a fresh request.')
+
+const paymentMethods = compilePureModule(paymentMethodsSource)
+assert(paymentMethods.isReceivedAmountEditable('cash'), 'Cash received must be editable.')
+assert(!paymentMethods.isReceivedAmountEditable('mada'), 'Mada received must be readonly.')
+assert(!paymentMethods.isReceivedAmountEditable('visa'), 'Visa received must be readonly.')
+assert(!paymentMethods.isReceivedAmountEditable('cod'), 'On Delivery received must be readonly.')
+assert(
+  checkoutHook.includes("if (normalizeUiPaymentMethod(paymentMethod) !== 'cash') return") &&
+    /if \(safePaymentMethod === 'cod'\) \{\s+return '0'/.test(checkoutHook),
+  'Checkout must reject non-cash manual input and reset On Delivery to zero.'
+)
+
+const orderPayment = compilePureModule(orderPaymentSource)
+const paymentFixtures = [
+  { paymentMethod: 'cash', cashReceived: 120, expectedReceived: 120, expectedRemaining: 0 },
+  { paymentMethod: 'mada', cashReceived: 100, expectedReceived: 100, expectedRemaining: 0 },
+  { paymentMethod: 'visa', cashReceived: 100, expectedReceived: 100, expectedRemaining: 0 },
+  { paymentMethod: 'cod', cashReceived: 0, expectedReceived: 0, expectedRemaining: 100 },
+]
+for (const fixture of paymentFixtures) {
+  const snapshot = orderPayment.buildPersistedInvoicePaymentSnapshot({
+    paymentMethod: fixture.paymentMethod,
+    invoiceTotal: 100,
+    cashReceived: fixture.cashReceived,
+  })
+  assert(
+    snapshot.cashReceived === fixture.expectedReceived &&
+      snapshot.remainingFromCustomer === fixture.expectedRemaining,
+    `${fixture.paymentMethod} persisted payment behavior changed.`
   )
 }
 

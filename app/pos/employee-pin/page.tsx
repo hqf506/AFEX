@@ -15,6 +15,7 @@ import {
   clearPosLoggedOut,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
+import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
 const PIN_LENGTH = 4
@@ -285,6 +286,7 @@ export default function PosEmployeePinPage() {
           throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
         }
 
+        clearAllInvoiceCatalogCache()
         writeActivePosEmployee(result.employee as ActivePosEmployee)
         clearPosLoggedOut()
         setFailedAttempts(0)
@@ -381,6 +383,7 @@ export default function PosEmployeePinPage() {
   }
 
   const handleLogout = () => {
+    clearAllInvoiceCatalogCache()
     clearActivePosEmployee()
     markPosLoggedOut()
     router.replace('/pos/login')
