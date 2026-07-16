@@ -1,4 +1,6 @@
 import { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import { withAuthCookies } from '@/lib/api-auth'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { sanitizeDiagnostics } from '@/lib/support/sanitize-diagnostics'
 import {
@@ -13,6 +15,22 @@ import {
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 const TICKET_SELECT = 'id, ticket_number, tenant_id, branch_id, category, priority, status, title, source, assigned_to, last_message_at, resolved_at, closed_at, created_at, updated_at'
+
+function developmentSupportError(
+  authResponse: NextResponse,
+  error: string,
+  details: unknown,
+  status: number
+) {
+  if (process.env.NODE_ENV !== 'development') {
+    return jsonWithAuthCookies(authResponse, { success: false, error }, status)
+  }
+
+  return withAuthCookies(
+    authResponse,
+    NextResponse.json({ success: false, error, details }, { status })
+  )
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireSupportAuth(request)
@@ -54,8 +72,25 @@ export async function POST(request: NextRequest) {
   const title = text(body?.title, 180)
   const description = text(body?.description, 5000)
   const source = ['manual', 'error_report', 'system'].includes(body?.source) ? body.source : 'manual'
-  if (!isOneOf(category, SUPPORT_CATEGORIES) || !isOneOf(priority, SUPPORT_PRIORITIES) || !title || !description) {
-    return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر إنشاء تذكرة الدعم.' }, 400)
+  const invalidFields = [
+    ...(!body ? ['body'] : []),
+    ...(!isOneOf(category, SUPPORT_CATEGORIES) ? ['category'] : []),
+    ...(!isOneOf(priority, SUPPORT_PRIORITIES) ? ['priority'] : []),
+    ...(!title ? ['title'] : []),
+    ...(!description ? ['description'] : []),
+  ]
+  if (invalidFields.length > 0) {
+    return developmentSupportError(
+      auth.response,
+      'تعذر إنشاء تذكرة الدعم.',
+      {
+        validation: 'invalid_request',
+        invalidFields,
+        allowedCategories: SUPPORT_CATEGORIES,
+        allowedPriorities: SUPPORT_PRIORITIES,
+      },
+      400
+    )
   }
   const diagnostics = sanitizeDiagnostics(body?.diagnostic_context)
   const { data, error } = await supabaseAdmin.rpc('create_support_ticket_atomic', {
@@ -74,6 +109,19 @@ export async function POST(request: NextRequest) {
     p_diagnostic_context: diagnostics,
   })
   const ticket = Array.isArray(data) ? data[0] : data
-  if (error || !ticket) return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر إنشاء تذكرة الدعم.' }, 500)
+  if (error || !ticket) {
+    return developmentSupportError(
+      auth.response,
+      'تعذر إنشاء تذكرة الدعم.',
+      {
+        validation: 'atomic_ticket_creation_failed',
+        code: error?.code || null,
+        message: error?.message || 'RPC returned no ticket',
+        details: error?.details || null,
+        hint: error?.hint || null,
+      },
+      500
+    )
+  }
   return jsonWithAuthCookies(auth.response, { success: true, ticket: { id: ticket.id, ticket_number: ticket.ticket_number } }, 201)
 }
