@@ -28,7 +28,8 @@
     "check:dashboard-performance": "node scripts/check-dashboard-performance.mjs",
     "check:reports-performance": "node scripts/check-reports-performance.mjs",
     "check:pos-performance": "node scripts/check-pos-performance.mjs",
-    "check:server-timing": "node scripts/check-server-timing.mjs"
+    "check:server-timing": "node scripts/check-server-timing.mjs",
+    "check:support-center": "node scripts/check-support-center.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
