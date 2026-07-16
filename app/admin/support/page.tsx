@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminAlert, AdminEmptyState, AdminGlassSection, AdminLoadingState } from '@/components/admin-ui'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
@@ -203,24 +204,42 @@ export default function SupportTicketsPage() {
           </label>
           <label className="space-y-2 text-xs font-bold text-slate-300">
             <span>الحالة</span>
-            <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }} className="h-11 w-full rounded-2xl border border-white/10 bg-[#06111f] px-3 text-sm text-white">
-              <option value="">كل الحالات</option>
-              {Object.entries(supportStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <AdminDarkSelect
+              value={status}
+              onChange={(value) => { setStatus(value); setPage(1) }}
+              options={[
+                { value: '', label: 'كل الحالات' },
+                ...Object.entries(supportStatusLabels).map(([value, label]) => ({ value, label })),
+              ]}
+              triggerClassName="h-11"
+              ariaLabel="تصفية حسب الحالة"
+            />
           </label>
           <label className="space-y-2 text-xs font-bold text-slate-300">
             <span>الأولوية</span>
-            <select value={priority} onChange={(event) => { setPriority(event.target.value); setPage(1) }} className="h-11 w-full rounded-2xl border border-white/10 bg-[#06111f] px-3 text-sm text-white">
-              <option value="">كل الأولويات</option>
-              {Object.entries(supportPriorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <AdminDarkSelect
+              value={priority}
+              onChange={(value) => { setPriority(value); setPage(1) }}
+              options={[
+                { value: '', label: 'كل الأولويات' },
+                ...Object.entries(supportPriorityLabels).map(([value, label]) => ({ value, label })),
+              ]}
+              triggerClassName="h-11"
+              ariaLabel="تصفية حسب الأولوية"
+            />
           </label>
           <label className="space-y-2 text-xs font-bold text-slate-300">
             <span>التصنيف</span>
-            <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1) }} className="h-11 w-full rounded-2xl border border-white/10 bg-[#06111f] px-3 text-sm text-white">
-              <option value="">كل التصنيفات</option>
-              {Object.entries(supportCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <AdminDarkSelect
+              value={category}
+              onChange={(value) => { setCategory(value); setPage(1) }}
+              options={[
+                { value: '', label: 'كل التصنيفات' },
+                ...Object.entries(supportCategoryLabels).map(([value, label]) => ({ value, label })),
+              ]}
+              triggerClassName="h-11"
+              ariaLabel="تصفية حسب التصنيف"
+            />
           </label>
           <button type="button" onClick={clearFilters} className="h-11 self-end rounded-2xl border border-white/10 px-4 text-sm font-bold text-slate-300 transition hover:border-cyan-300/30 hover:text-white">مسح</button>
         </div>
