@@ -23,7 +23,9 @@ const orderPaymentSource = read('lib/invoices/order-payment.ts')
 assert(!catalogRoute.includes("select('*')"), 'POS Catalog must not use select(*).')
 assert(!runtimeRoute.includes("select('*')"), 'POS Runtime must not use select(*).')
 assert(
-  catalogRoute.includes('Promise.all([\n      categoriesQuery,\n      catalogItemsQuery,'),
+  catalogRoute.includes('Promise.all([') &&
+    catalogRoute.includes("timing.measure('categories'") &&
+    catalogRoute.includes("timing.measure('catalog'"),
   'Independent category and catalog queries must run in parallel.'
 )
 assert(

@@ -4,6 +4,7 @@ import { requireApiAuth } from '@/lib/api-auth'
 import { shouldFilterByBranch } from '@/lib/branch-access'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import { createServerTiming } from '@/lib/performance/server-timing'
 
 const DEFAULT_PAGE_SIZE = 10
 const MAX_PAGE_SIZE = 50
@@ -21,12 +22,13 @@ function dateValue(value: string | null) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin'])
-  if (!auth.ok) return auth.response
+  const timing = createServerTiming()
+  const auth = await timing.measure('auth', () => requireApiAuth(request, ['admin']))
+  if (!auth.ok) return timing.finish(auth.response)
 
   const tenantId = auth.profile.tenant_id
   if (!tenantId) {
-    return jsonWithAuthCookies(auth.response, { success: false, error: 'Tenant context is required' }, 403)
+    return timing.finish(jsonWithAuthCookies(auth.response, { success: false, error: 'Tenant context is required' }, 403))
   }
 
   const params = request.nextUrl.searchParams
@@ -54,22 +56,11 @@ export async function GET(request: NextRequest) {
   if (search) query = query.ilike('item_name', `%${search}%`)
 
   const from = (page - 1) * pageSize
-  console.info('[inventory-movements] Supabase query', {
-    relation: 'inventory_movements_view',
-    select: INVENTORY_MOVEMENT_SELECT,
-    filters: {
-      tenant: true,
-      branch: Boolean(branchId),
-      movementType: Boolean(movementType),
-      dateFrom: dateFrom || null,
-      dateTo: dateTo || null,
-      search: Boolean(search),
-    },
-    range: { from, to: from + pageSize - 1 },
-  })
-  const { data, error, count } = await query.range(from, from + pageSize - 1)
+  const { data, error, count } = await timing.measure('items', () =>
+    query.range(from, from + pageSize - 1)
+  )
   if (error) {
-    return jsonWithAuthCookies(auth.response, { success: false, error: 'Failed to load inventory movements' }, 500)
+    return timing.finish(jsonWithAuthCookies(auth.response, { success: false, error: 'Failed to load inventory movements' }, 500))
   }
 
   const rows = Array.isArray(data) ? data : []
@@ -77,21 +68,25 @@ export async function GET(request: NextRequest) {
   const branchIds = [...new Set(rows.map((row) => row.branch_id).filter(Boolean))]
   const [catalogResult, branchResult] = await Promise.all([
     catalogItemIds.length
-      ? supabaseAdmin.from('catalog_items').select('id, name').eq('tenant_id', tenantId).in('id', catalogItemIds)
+      ? timing.measure('catalog', () =>
+          supabaseAdmin.from('catalog_items').select('id, name').eq('tenant_id', tenantId).in('id', catalogItemIds)
+        )
       : Promise.resolve({ data: [], error: null }),
     branchIds.length
-      ? supabaseAdmin.from('branches').select('id, name').eq('tenant_id', tenantId).in('id', branchIds)
+      ? timing.measure('branches', () =>
+          supabaseAdmin.from('branches').select('id, name').eq('tenant_id', tenantId).in('id', branchIds)
+        )
       : Promise.resolve({ data: [], error: null }),
   ])
 
   if (catalogResult.error || branchResult.error) {
-    return jsonWithAuthCookies(auth.response, { success: false, error: 'Failed to enrich inventory movements' }, 500)
+    return timing.finish(jsonWithAuthCookies(auth.response, { success: false, error: 'Failed to enrich inventory movements' }, 500))
   }
 
   const itemNames = new Map((catalogResult.data || []).map((row) => [row.id, row.name || '']))
   const branchNames = new Map((branchResult.data || []).map((row) => [row.id, row.name || '']))
 
-  return jsonWithAuthCookies(auth.response, {
+  const response = await timing.measure('serialize', async () => jsonWithAuthCookies(auth.response, {
     success: true,
     rows: rows.map((row) => ({
       ...row,
@@ -101,5 +96,6 @@ export async function GET(request: NextRequest) {
     total: count || 0,
     page,
     pageSize,
-  })
+  }))
+  return timing.finish(response)
 }

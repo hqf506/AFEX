@@ -7,6 +7,7 @@ import {
   normalizeCustomerSearchTerm,
 } from '@/lib/customers'
 import { applyTenantFilter } from '@/lib/tenant-filter'
+import { createServerTiming } from '@/lib/performance/server-timing'
 
 type CustomerListRow = {
   id: string | null
@@ -68,10 +69,13 @@ function normalizeCustomerText(value: unknown) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  const timing = createServerTiming()
+  const auth = await timing.measure('auth', () =>
+    requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  )
 
   if (!auth.ok) {
-    return auth.response
+    return timing.finish(auth.response)
   }
 
   const search = normalizeCustomerSearchTerm(
@@ -134,7 +138,7 @@ export async function GET(request: NextRequest) {
     ? query.range((page - 1) * pageSize, page * pageSize - 1)
     : query.limit(pageSize)
 
-  const { data, error, count } = await query
+  const { data, error, count } = await timing.measure('customers', () => query)
 
   if (error) {
     return jsonWithAuthCookies(
@@ -175,7 +179,8 @@ export async function GET(request: NextRequest) {
       activityQuery = activityQuery.eq('branch_id', profileBranchId)
     }
 
-    const { data: activityData, error: activityError } = await activityQuery
+    const { data: activityData, error: activityError } =
+      await timing.measure('invoices', () => activityQuery)
 
     if (activityError) {
       console.warn('[api/customers] unable to load customer activity', {
@@ -241,7 +246,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const customersWithActivity = customers.map((customer) => {
+  const customersWithActivity = timing.measureSync('map', () => customers.map((customer) => {
     const activity =
       typeof customer.id === 'string'
         ? activityByCustomerId.get(customer.id)
@@ -255,7 +260,7 @@ export async function GET(request: NextRequest) {
       visitsCount: activity?.visitsCount ?? 0,
       totalSpent: activity?.totalSpent ?? 0,
     }
-  })
+  }))
 
   if (recentRequested) {
     customersWithActivity.sort((left, right) => {
@@ -270,13 +275,14 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  return jsonWithAuthCookies(auth.response, {
+  const response = await timing.measure('serialize', async () => jsonWithAuthCookies(auth.response, {
     success: true,
     customers: customersWithActivity,
     total: paginated ? count || 0 : customersWithActivity.length,
     page,
     pageSize,
-  })
+  }))
+  return timing.finish(response)
 }
 
 export async function POST(request: NextRequest) {

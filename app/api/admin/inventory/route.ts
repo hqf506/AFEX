@@ -11,6 +11,7 @@ import {
   type InventoryRpcRow,
 } from '@/lib/inventory/data-loading'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createServerTiming } from '@/lib/performance/server-timing'
 
 const INVENTORY_RPC_CONCURRENCY = 4
 
@@ -24,20 +25,21 @@ function normalizePositiveInteger(value: string | null, fallback: number) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin'])
+  const timing = createServerTiming()
+  const auth = await timing.measure('auth', () => requireApiAuth(request, ['admin']))
 
   if (!auth.ok) {
-    return auth.response
+    return timing.finish(auth.response)
   }
 
   try {
     const tenantId = auth.profile.tenant_id
 
     if (!tenantId) {
-      return withAuthCookies(
+      return timing.finish(withAuthCookies(
         auth.response,
         jsonResponse({ error: 'tenant context missing' }, 403)
-      )
+      ))
     }
 
     const requestedBranchId = normalizeText(
@@ -61,10 +63,10 @@ export async function GET(request: NextRequest) {
     const isSystemScope = auth.profile.scope_type === 'system'
 
     if (!isSystemScope && !auth.profile.branch_id) {
-      return withAuthCookies(
+      return timing.finish(withAuthCookies(
         auth.response,
         jsonResponse({ error: 'A branch is required to load inventory' }, 400)
-      )
+      ))
     }
 
     if (
@@ -73,17 +75,17 @@ export async function GET(request: NextRequest) {
       requestedBranchId !== ADMIN_BRANCH_FILTER_ALL &&
       requestedBranchId !== auth.profile.branch_id
     ) {
-      return withAuthCookies(
+      return timing.finish(withAuthCookies(
         auth.response,
         jsonResponse({ error: 'Requested branch is not allowed' }, 403)
-      )
+      ))
     }
 
     if (!isSystemScope && requestedBranchId === ADMIN_BRANCH_FILTER_ALL) {
-      return withAuthCookies(
+      return timing.finish(withAuthCookies(
         auth.response,
         jsonResponse({ error: 'All branches inventory is not allowed' }, 403)
-      )
+      ))
     }
 
     const targetBranchId = isSystemScope
@@ -102,19 +104,20 @@ export async function GET(request: NextRequest) {
       branchQuery = branchQuery.eq('id', targetBranchId)
     }
 
-    const { data: branches, error: branchesError } = await branchQuery
+    const { data: branches, error: branchesError } =
+      await timing.measure('branches', () => branchQuery)
 
     if (branchesError) {
-      return withAuthCookies(
+      return timing.finish(withAuthCookies(
         auth.response,
         jsonResponse({ error: 'Failed to load branches' }, 500)
-      )
+      ))
     }
 
     const targetBranches = (branches || []) as InventoryBranch[]
 
     if (targetBranches.length === 0) {
-      return withAuthCookies(
+      return timing.finish(withAuthCookies(
         auth.response,
         jsonResponse({
           success: true,
@@ -129,11 +132,11 @@ export async function GET(request: NextRequest) {
             lowStockCount: 0,
           },
         })
-      )
+      ))
     }
 
     const filteredRows: InventoryDataRow[] = []
-    await runWithConcurrency(
+    await timing.measure('rpc', () => runWithConcurrency(
       targetBranches,
       INVENTORY_RPC_CONCURRENCY,
       async (branch) => {
@@ -158,15 +161,18 @@ export async function GET(request: NextRequest) {
           filteredRows.push(row)
         }
       }
-    )
+    ))
 
-    sortInventoryRows(filteredRows)
-    const total = filteredRows.length
-    const lowStockRows = filteredRows.filter((row) => row.is_low_stock)
-    const from = (page - 1) * pageSize
-    const pagedRows = filteredRows.slice(from, from + pageSize)
+    timing.measureSync('sort', () => sortInventoryRows(filteredRows))
+    const { total, lowStockRows, pagedRows } = timing.measureSync('pagination', () => {
+      const total = filteredRows.length
+      const lowStockRows = filteredRows.filter((row) => row.is_low_stock)
+      const from = (page - 1) * pageSize
+      const pagedRows = filteredRows.slice(from, from + pageSize)
+      return { total, lowStockRows, pagedRows }
+    })
 
-    const response = withAuthCookies(
+    const response = await timing.measure('serialize', async () => withAuthCookies(
       auth.response,
       jsonResponse({
         success: true,
@@ -181,14 +187,14 @@ export async function GET(request: NextRequest) {
           lowStockCount: lowStockRows.length,
         },
       })
-    )
+    ))
     response.headers.set('Cache-Control', 'no-store, max-age=0')
 
-    return response
+    return timing.finish(response)
   } catch {
-    return withAuthCookies(
+    return timing.finish(withAuthCookies(
       auth.response,
       jsonResponse({ error: 'Unexpected inventory error' }, 500)
-    )
+    ))
   }
 }

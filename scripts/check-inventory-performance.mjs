@@ -119,7 +119,8 @@ assert(
   'A selected branch must constrain the branch query before RPC loading.'
 )
 assert(
-  routeSource.includes('await runWithConcurrency('),
+  routeSource.includes('runWithConcurrency(') &&
+    routeSource.includes("timing.measure('rpc'"),
   'All-branches inventory must use bounded concurrency.'
 )
 assert(

@@ -12,6 +12,7 @@ import {
   disabledFeatureResponse,
   INVOICES_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
+import { createServerTiming } from '@/lib/performance/server-timing'
 
 function normalizeBranchId(value: string | null) {
   return typeof value === 'string' ? value.trim() : ''
@@ -34,10 +35,13 @@ function buildCatalogSearchFilter(search: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  const timing = createServerTiming()
+  const auth = await timing.measure('auth', () =>
+    requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  )
 
   if (!auth.ok) {
-    return auth.response
+    return timing.finish(auth.response)
   }
 
   try {
@@ -55,15 +59,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const featureDisabledResponse = await disabledFeatureResponse(
-      auth.response,
-      tenantId,
-      'enable_invoices',
-      INVOICES_FEATURE_DISABLED_MESSAGE
+    const featureDisabledResponse = await timing.measure(
+      'settings',
+      () => disabledFeatureResponse(
+        auth.response,
+        tenantId,
+        'enable_invoices',
+        INVOICES_FEATURE_DISABLED_MESSAGE
+      )
     )
 
     if (featureDisabledResponse) {
-      return featureDisabledResponse
+      return timing.finish(featureDisabledResponse)
     }
 
     const requestedBranchId = normalizeBranchId(
@@ -124,7 +131,7 @@ export async function GET(request: NextRequest) {
       .eq('tenant_id', tenantId)
 
     const { data: branch, error: branchError } =
-      await branchQuery.maybeSingle()
+      await timing.measure('branches', () => branchQuery.maybeSingle())
 
     if (branchError) {
       return withAuthCookies(
@@ -204,8 +211,8 @@ export async function GET(request: NextRequest) {
     }
 
     const [categoriesResult, catalogResult] = await Promise.all([
-      categoriesQuery,
-      catalogItemsQuery,
+      timing.measure('categories', () => categoriesQuery),
+      timing.measure('catalog', () => catalogItemsQuery),
     ])
     const { data: catalogItems, error: catalogError, count } = catalogResult
     const categories = (categoriesResult.data || [])
@@ -232,12 +239,12 @@ export async function GET(request: NextRequest) {
 
     if (catalogItemIds.length > 0) {
       const { data: overrideRows, error: branchOverridesError } =
-        await supabaseAdmin
+        await timing.measure('overrides', () => supabaseAdmin
           .from('branch_catalog_items')
           .select('id, catalog_item_id, price, is_active, display_order')
           .eq('branch_id', resolvedBranchId)
           .eq('tenant_id', tenantId)
-          .in('catalog_item_id', catalogItemIds)
+          .in('catalog_item_id', catalogItemIds))
 
       if (branchOverridesError) {
         return withAuthCookies(
@@ -265,11 +272,11 @@ export async function GET(request: NextRequest) {
 
     if (!hasPagingParams) {
       const { data: legacyOverrides, error: branchOverridesError } =
-        await supabaseAdmin
+        await timing.measure('overrides', () => supabaseAdmin
           .from('branch_catalog_items')
           .select('id, catalog_item_id, price, is_active, display_order')
           .eq('branch_id', resolvedBranchId)
-          .eq('tenant_id', tenantId)
+          .eq('tenant_id', tenantId))
 
       if (branchOverridesError) {
         return withAuthCookies(
@@ -293,12 +300,12 @@ export async function GET(request: NextRequest) {
     let inventoryStock: InventoryStockRow[] = []
 
     if (stockItemIds.length > 0) {
-      const { data: stockRows, error: stockError } = await supabaseAdmin
+      const { data: stockRows, error: stockError } = await timing.measure('stock', () => supabaseAdmin
         .from('inventory_stock')
         .select('catalog_item_id, quantity_on_hand, low_stock_threshold')
         .eq('tenant_id', tenantId)
         .eq('branch_id', resolvedBranchId)
-        .in('catalog_item_id', stockItemIds)
+        .in('catalog_item_id', stockItemIds))
 
       if (stockError) {
         return withAuthCookies(
@@ -315,12 +322,12 @@ export async function GET(request: NextRequest) {
       inventoryStock = (stockRows || []) as InventoryStockRow[]
     }
 
-    const items = mapBranchCatalogToInvoiceProducts(
+    const items = timing.measureSync('map', () => mapBranchCatalogToInvoiceProducts(
       (hasPagingParams ? visibleCatalogItems : catalogItems || []) as CatalogItemRow[],
       branchOverrides,
       inventoryStock,
       resolvedBranchId
-    )
+    ))
 
     const responsePayload: Record<string, unknown> = {
       success: true,
@@ -335,13 +342,13 @@ export async function GET(request: NextRequest) {
       responsePayload.pageSize = pageSize
     }
 
-    const response = withAuthCookies(
+    const response = await timing.measure('serialize', async () => withAuthCookies(
       auth.response,
       jsonResponse(responsePayload)
-    )
+    ))
     response.headers.set('Cache-Control', 'no-store, max-age=0')
 
-    return response
+    return timing.finish(response)
   } catch {
     return withAuthCookies(
       auth.response,

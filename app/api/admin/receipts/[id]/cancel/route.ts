@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
+import { createServerTiming } from '@/lib/performance/server-timing'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
 import {
@@ -205,10 +206,13 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiAuth(request, ['admin', 'employee'])
+  const timing = createServerTiming()
+  const auth = await timing.measure('auth', () =>
+    requireApiAuth(request, ['admin', 'employee'])
+  )
 
   if (!auth.ok) {
-    return auth.response
+    return timing.finish(auth.response)
   }
 
   try {
@@ -221,15 +225,18 @@ export async function POST(
       )
     }
 
-    const ordersDisabledResponse = await disabledFeatureResponse(
-      auth.response,
-      tenantId,
-      'enable_orders',
-      ORDERS_FEATURE_DISABLED_MESSAGE
+    const ordersDisabledResponse = await timing.measure(
+      'settings',
+      () => disabledFeatureResponse(
+        auth.response,
+        tenantId,
+        'enable_orders',
+        ORDERS_FEATURE_DISABLED_MESSAGE
+      )
     )
 
     if (ordersDisabledResponse) {
-      return ordersDisabledResponse
+      return timing.finish(ordersDisabledResponse)
     }
 
     const params = await context.params
@@ -245,7 +252,9 @@ export async function POST(
     let resolvedReceipt: ResolvedReceiptInvoice | null = null
 
     try {
-      resolvedReceipt = await resolveReceiptInvoice(receiptId, tenantId)
+      resolvedReceipt = await timing.measure('invoices', () =>
+        resolveReceiptInvoice(receiptId, tenantId)
+      )
     } catch (error) {
       return withAuthCookies(
         auth.response,
@@ -337,12 +346,14 @@ export async function POST(
       const {
         data: restoreInventoryResult,
         error: restoreInventoryError,
-      } = await supabaseAdmin.rpc(
-        'restore_inventory_for_cancelled_invoice',
-        {
-          p_tenant_id: tenantId,
-          p_invoice_id: invoice.id,
-        }
+      } = await timing.measure('rpc', () =>
+        supabaseAdmin.rpc(
+          'restore_inventory_for_cancelled_invoice',
+          {
+            p_tenant_id: tenantId,
+            p_invoice_id: invoice.id,
+          }
+        )
       )
 
       console.info('[cancel-receipt] restore inventory result', {
@@ -475,12 +486,14 @@ export async function POST(
     const {
       data: restoreInventoryResult,
       error: restoreInventoryError,
-    } = await supabaseAdmin.rpc(
-      'restore_inventory_for_cancelled_invoice',
-      {
-        p_tenant_id: tenantId,
-        p_invoice_id: updatedInvoice.id,
-      }
+    } = await timing.measure('rpc', () =>
+      supabaseAdmin.rpc(
+        'restore_inventory_for_cancelled_invoice',
+        {
+          p_tenant_id: tenantId,
+          p_invoice_id: updatedInvoice.id,
+        }
+      )
     )
 
     console.info('[cancel-receipt] restore inventory result', {
@@ -555,7 +568,7 @@ export async function POST(
       },
     })
 
-    return withAuthCookies(
+    const response = await timing.measure('serialize', async () => withAuthCookies(
       auth.response,
       utf8JsonResponse({
         success: true,
@@ -568,7 +581,8 @@ export async function POST(
           payment_status: updatedInvoice.payment_status,
         },
       }),
-    )
+    ))
+    return timing.finish(response)
   } catch (error) {
     console.error(
       '[admin-receipts-cancel] unexpected failure',

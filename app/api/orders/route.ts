@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth, type ApiAuthProfile } from '@/lib/api-auth'
+import { createServerTiming } from '@/lib/performance/server-timing'
 import { writeAuditLog } from '@/lib/audit-log'
 import {
   resolveDigitalInvoiceTemplateSettings,
@@ -292,10 +293,13 @@ const ORDERS_META_SELECT = `
 `
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  const timing = createServerTiming()
+  const auth = await timing.measure('auth', () =>
+    requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  )
 
   if (!auth.ok) {
-    return auth.response
+    return timing.finish(auth.response)
   }
 
   const query = parseOrdersQuery(request)
@@ -311,15 +315,18 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const featureDisabledResponse = await disabledFeatureResponse(
-    auth.response,
-    auth.profile.tenant_id,
-    'enable_orders',
-    ORDERS_FEATURE_DISABLED_MESSAGE
+  const featureDisabledResponse = await timing.measure(
+    'settings',
+    () => disabledFeatureResponse(
+      auth.response,
+      auth.profile.tenant_id as string,
+      'enable_orders',
+      ORDERS_FEATURE_DISABLED_MESSAGE
+    )
   )
 
   if (featureDisabledResponse) {
-    return featureDisabledResponse
+    return timing.finish(featureDisabledResponse)
   }
 
   if (
@@ -369,7 +376,9 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      const { data, error } = await detailsQuery.maybeSingle()
+      const { data, error } = await timing.measure('orders', () =>
+        detailsQuery.maybeSingle()
+      )
 
       if (error) {
         return jsonWithAuthCookies(
@@ -398,7 +407,9 @@ export async function GET(request: NextRequest) {
 
     const matchingOrderIds =
       query.search.length > 0
-        ? await resolveMatchingOrderIds(auth.supabase, auth.profile, query)
+        ? await timing.measure('orders', () =>
+            resolveMatchingOrderIds(auth.supabase, auth.profile, query)
+          )
         : null
 
     if (matchingOrderIds && matchingOrderIds.length === 0) {
@@ -427,12 +438,12 @@ export async function GET(request: NextRequest) {
     )
     const statusProjectionPromise =
       query.mode === 'full' || needsEffectiveListFilter
-        ? loadOrdersEffectiveStatusProjection(
+        ? timing.measure('aggregate', () => loadOrdersEffectiveStatusProjection(
             auth.supabase,
             auth.profile,
             query,
             matchingOrderIds
-          )
+          ))
         : Promise.resolve(undefined)
     const statusProjection = needsEffectiveListFilter
       ? await statusProjectionPromise
@@ -477,7 +488,9 @@ export async function GET(request: NextRequest) {
       ordersQuery = ordersQuery.in('id', matchingOrderIds)
     }
 
-    const ordersPagePromise = ordersQuery.range(rangeFrom, rangeTo)
+    const ordersPagePromise = timing.measure('orders', () =>
+      ordersQuery.range(rangeFrom, rangeTo)
+    )
     const summaryPromise =
       query.mode === 'full'
         ? statusProjectionPromise.then((projection) => projection?.summary)
@@ -529,8 +542,8 @@ export async function GET(request: NextRequest) {
         )
 
         const [profiles, posProfiles] = await Promise.all([
-          profilesQuery,
-          posProfilesQuery,
+          timing.measure('profiles', () => profilesQuery),
+          timing.measure('profiles', () => posProfilesQuery),
         ])
         if (profiles.error || posProfiles.error) throw profiles.error || posProfiles.error
         for (const row of [...(profiles.data || []), ...(posProfiles.data || [])]) {
@@ -540,7 +553,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
+    const response = await timing.measure('serialize', async () =>
+      jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
       success: true,
       mode: query.mode,
       items: query.mode === 'meta' ? [] : items,
@@ -551,7 +565,9 @@ export async function GET(request: NextRequest) {
       comparisonSignature,
       summary,
       employeeNames,
-    })
+      })
+    )
+    return timing.finish(response)
   } catch {
     return jsonWithAuthCookies(
       auth.response,
