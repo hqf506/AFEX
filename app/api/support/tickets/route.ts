@@ -1,8 +1,9 @@
-import { NextRequest } from 'next/server'
+import { after, NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { withAuthCookies } from '@/lib/api-auth'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { sanitizeDiagnostics } from '@/lib/support/sanitize-diagnostics'
+import { sendSupportEmailNotification } from '@/lib/support/email'
 import {
   SUPPORT_CATEGORIES,
   SUPPORT_PRIORITIES,
@@ -123,5 +124,6 @@ export async function POST(request: NextRequest) {
       500
     )
   }
+  after(() => sendSupportEmailNotification({ eventType: 'ticket_created', ticketId: ticket.id, sourceId: ticket.id }))
   return jsonWithAuthCookies(auth.response, { success: true, ticket: { id: ticket.id, ticket_number: ticket.ticket_number } }, 201)
 }
