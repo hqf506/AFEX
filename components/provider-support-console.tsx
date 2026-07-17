@@ -17,6 +17,7 @@ import {
 } from '@/lib/support/contracts'
 import { formatSupportDate, formatSupportDuration, supportCategoryLabels, supportOperationalClass, supportOperationalLabels, supportPriorityClass, supportPriorityLabels, supportStatusClass, supportStatusLabels } from '@/lib/support/ui'
 import { ProviderTicketDetails } from '@/components/provider-ticket-details'
+import { DeveloperSupportNotifications } from '@/components/developer-support-notifications'
 
 const PAGE_SIZE = 25
 
@@ -137,9 +138,23 @@ export function ProviderSupportConsole({ variant = 'provider' }: { variant?: 'pr
   return (
     <main dir="rtl" className={`mx-auto w-full min-w-0 space-y-5 ${variant === 'developer' ? 'max-w-none' : 'max-w-[1500px]'}`}>
       <header className="rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-emerald-300/10 via-cyan-300/[0.07] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:p-7">
-        <p className="text-xs font-black tracking-[0.18em] text-emerald-300">AFEX PROVIDER CONSOLE</p>
-        <h1 className="mt-2 text-2xl font-black text-white md:text-3xl">مركز دعم عملاء AFEX</h1>
-        <p className="mt-2 text-sm leading-7 text-slate-400">عرض مركزي وآمن لتذاكر منشآت العملاء.</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black tracking-[0.18em] text-emerald-300">AFEX PROVIDER CONSOLE</p>
+            <h1 className="mt-2 text-2xl font-black text-white md:text-3xl">مركز دعم عملاء AFEX</h1>
+            <p className="mt-2 text-sm leading-7 text-slate-400">عرض مركزي وآمن لتذاكر منشآت العملاء.</p>
+          </div>
+          {variant === 'developer' ? <div className="flex shrink-0 items-center gap-2 self-start" dir="rtl">
+            <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-[#07111f]/80 px-3 py-2 backdrop-blur-xl">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10 text-sm font-black text-emerald-200">AF</span>
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-xs font-black text-white">المطور</span>
+                <span className="mt-1 block text-[10px] font-bold text-slate-400">مالك المنصة</span>
+              </span>
+            </div>
+            <DeveloperSupportNotifications />
+          </div> : null}
+        </div>
       </header>
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}
       <section aria-label="ملخص تذاكر الدعم" className={`grid grid-cols-2 gap-3 md:grid-cols-3 ${variant === 'developer' ? 'xl:grid-cols-5 2xl:grid-cols-9' : 'xl:grid-cols-9'}`}>
@@ -177,7 +192,7 @@ export function ProviderSupportConsole({ variant = 'provider' }: { variant?: 'pr
             <table className={`w-full text-right text-sm ${variant === 'developer' ? 'min-w-[1280px] 2xl:min-w-0 2xl:table-fixed' : 'min-w-[1380px]'}`}>
               {variant === 'developer' ? <colgroup><col className="w-[9%]" /><col className="w-[25%]" /><col className="w-[12%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-[8%]" /><col className="w-[8%]" /><col className="w-[11%]" /><col className="w-[5%]" /></colgroup> : null}
               <thead className="border-b border-white/10 bg-white/[0.035] text-xs text-slate-400"><tr>{['رقم التذكرة', 'العنوان والمؤشر التشغيلي', 'المنشأة', 'المسؤول', 'التصنيف', 'الأولوية', 'الحالة', 'آخر نشاط عام', ''].map((label) => <th key={label} className="px-4 py-4 font-black">{label}</th>)}</tr></thead>
-              <tbody className="divide-y divide-white/[0.07]">{tickets.map((ticket) => <tr key={ticket.id} className="transition hover:bg-cyan-300/[0.035]">
+              <tbody className="divide-y divide-white/[0.07]">{tickets.map((ticket) => <tr key={ticket.id} className="bg-[#10141f] transition hover:bg-[#102229]">
                 <td className="px-4 py-4 font-black text-cyan-200">{ticket.ticket_number}</td>
                 <td className="max-w-[360px] px-4 py-4"><p className="min-w-0 whitespace-normal break-words font-bold text-white">{ticket.title}</p><div className="mt-2 flex min-w-0 flex-wrap items-center gap-2"><span className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${supportOperationalClass(ticket.operational_state)}`}>{supportOperationalLabels[ticket.operational_state]}</span>{ticket.is_overdue ? <span className="text-[11px] font-bold text-red-200">متأخرة</span> : ticket.is_attention_required ? <span className="text-[11px] font-bold text-amber-200">تحتاج انتباه</span> : null}</div><div className="mt-2 grid min-w-0 gap-1 text-[11px] leading-5 text-slate-400"><span>عمر التذكرة: {formatSupportDuration(ticket.age_minutes)}</span><span>مدة الانتظار: {formatSupportDuration(ticket.waiting_minutes)}</span><span title={ticket.operational_deadline_at ? formatSupportDate(ticket.operational_deadline_at) : undefined}>الموعد التشغيلي: {ticket.operational_deadline_at ? formatSupportDate(ticket.operational_deadline_at) : '—'}</span></div></td>
                 <td className="max-w-[220px] break-words px-4 py-4 text-slate-300">{ticket.organization_name}</td>
@@ -186,7 +201,7 @@ export function ProviderSupportConsole({ variant = 'provider' }: { variant?: 'pr
                 <td className="px-4 py-4"><span className={`rounded-full border px-3 py-1 text-xs font-black ${supportPriorityClass(ticket.priority)}`}>{supportPriorityLabels[ticket.priority]}</span></td>
                 <td className="px-4 py-4"><span className={`rounded-full border px-3 py-1 text-xs font-black ${supportStatusClass(ticket.status)}`}>{supportStatusLabels[ticket.status]}</span></td>
                 <td className="px-4 py-4 text-slate-400">{formatSupportDate(ticket.last_public_message_at || ticket.created_at)}</td>
-                <td className="sticky left-0 bg-[#07111d] px-4 py-4"><button type="button" onClick={(event) => openTicket(ticket.id, event.currentTarget)} className="inline-flex h-10 items-center rounded-xl border border-emerald-300/20 px-4 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/10">عرض</button></td>
+                <td className="sticky left-0 bg-inherit px-4 py-4"><button type="button" onClick={(event) => openTicket(ticket.id, event.currentTarget)} className="inline-flex h-10 items-center rounded-xl border border-emerald-300/20 px-4 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/10">عرض</button></td>
               </tr>)}</tbody>
             </table>
           </div>
