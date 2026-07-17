@@ -56,5 +56,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     return <AdminAccessDenied />
   }
 
-  return <AdminShellLayout>{children}</AdminShellLayout>
+  const { data: provider } = await supabase
+    .from('platform_admins')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .in('role', ['provider_owner', 'provider_support'])
+    .maybeSingle()
+
+  return <AdminShellLayout isProvider={Boolean(provider)}>{children}</AdminShellLayout>
 }

@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase/client'
 
 type AdminShellLayoutProps = {
   children: ReactNode
+  isProvider: boolean
 }
 
 const LOGOUT_REDIRECT_SECONDS = 5
@@ -35,6 +36,7 @@ type AdminNavItem = {
   roles: string[]
   exact?: boolean
   icon: ComponentType<{ className?: string }>
+  providerOnly?: boolean
   children?: NavChild[]
 }
 
@@ -169,6 +171,16 @@ function SupportIcon({ className }: { className?: string }) {
   )
 }
 
+function CustomerTicketsIcon({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <path d="M4 5h16v11H8l-4 4V5Z" />
+      <path d="M8 9h8" />
+      <path d="M8 13h5" />
+    </IconBase>
+  )
+}
+
 function BranchesIcon({ className }: { className?: string }) {
   return (
     <IconBase className={className}>
@@ -237,6 +249,13 @@ const adminNavItems: AdminNavItem[] = [
     href: '/admin/support',
     roles: ['admin', 'manager', 'employee'],
     icon: SupportIcon,
+  },
+  {
+    label: 'تذاكر العملاء',
+    href: '/provider/support',
+    roles: ['admin', 'manager', 'employee'],
+    icon: CustomerTicketsIcon,
+    providerOnly: true,
   },
   {
     label: 'التقارير',
@@ -408,7 +427,7 @@ function SidebarLink({
   )
 }
 
-export function AdminShellLayout({ children }: AdminShellLayoutProps) {
+export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [logoutOverlayVisible, setLogoutOverlayVisible] = useState(false)
@@ -431,14 +450,17 @@ export function AdminShellLayout({ children }: AdminShellLayoutProps) {
   const visibleNavItems = useMemo(() => {
     if (!userRole) return []
     return adminNavItems
-      .filter((item) => item.roles.includes(userRole))
+      .filter(
+        (item) =>
+          item.roles.includes(userRole) && (!item.providerOnly || isProvider)
+      )
       .map((item) => ({
         ...item,
         children: item.children?.filter((child) =>
           canAccessAdminPath(userRole, child.href)
         ),
       }))
-  }, [userRole])
+  }, [isProvider, userRole])
 
   useEffect(() => {
     if (authLoading || !allowed || !userRole || !pathname) {
