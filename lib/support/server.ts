@@ -1,12 +1,9 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { resolveAuthScopeType } from '@/lib/auth-profile'
+export { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES, SUPPORT_STATUSES } from '@/lib/support/contracts'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-
-export const SUPPORT_STATUSES = ['new', 'investigating', 'waiting_customer', 'resolved', 'closed'] as const
-export const SUPPORT_PRIORITIES = ['low', 'normal', 'high', 'critical'] as const
-export const SUPPORT_CATEGORIES = ['technical_error', 'orders', 'inventory', 'invoices', 'whatsapp', 'printing', 'users_permissions', 'performance', 'feature_request', 'other'] as const
 
 export async function requireSupportAuth(request: NextRequest) {
   void request

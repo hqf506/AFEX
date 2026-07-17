@@ -20,14 +20,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const nextStatus = auth.isProvider
     ? (isInternal ? ticket.status : 'waiting_customer')
     : (ticket.status === 'waiting_customer' ? 'investigating' : ticket.status)
-  const { error: messageError } = await supabaseAdmin.from('support_messages').insert({
+  const { data: savedMessage, error: messageError } = await supabaseAdmin.from('support_messages').insert({
     ticket_id: id,
     sender_id: auth.user.id,
     sender_type: auth.isProvider ? 'provider' : 'customer',
     message,
     is_internal: isInternal,
-  })
-  if (messageError) return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر إرسال الرسالة.' }, 500)
+  }).select('id').single()
+  if (messageError || !savedMessage) return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر إرسال الرسالة.' }, 500)
   const { error: updateError } = await supabaseAdmin.from('support_tickets').update({
     last_message_at: new Date().toISOString(),
     status: nextStatus,
@@ -40,5 +40,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     previous_value: { status: ticket.status },
     new_value: { status: nextStatus },
   })
-  return jsonWithAuthCookies(auth.response, { success: true })
+  return jsonWithAuthCookies(auth.response, { success: true, message_id: savedMessage.id })
 }

@@ -30,7 +30,10 @@
     "check:pos-performance": "node scripts/check-pos-performance.mjs",
     "check:server-timing": "node scripts/check-server-timing.mjs",
     "check:support-center": "node scripts/check-support-center.mjs",
-    "check:support-ui": "node scripts/check-support-ui.mjs"
+    "check:support-ui": "node scripts/check-support-ui.mjs",
+    "check:provider-support": "node scripts/check-provider-support.mjs",
+    "check:support-operational": "node scripts/check-support-operational.mjs",
+    "check:support-attachments": "node scripts/check-support-attachments.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

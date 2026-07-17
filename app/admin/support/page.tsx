@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminAlert, AdminEmptyState, AdminGlassSection, AdminLoadingState } from '@/components/admin-ui'
+import { SupportAttachmentPicker, uploadSupportAttachments } from '@/components/support-attachments'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
+import { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES } from '@/lib/support/contracts'
 import {
   supportCategoryLabels,
   supportPriorityClass,
@@ -30,8 +31,14 @@ type TicketsResponse = {
   error?: string
 }
 
+type CreateTicketResponse = {
+  success?: boolean
+  ticket?: { id?: string; ticket_number?: string }
+  error?: string
+}
+
 const emptyForm = {
-  category: 'technical' as SupportCategory,
+  category: 'technical_error' as SupportCategory,
   priority: 'normal' as SupportPriority,
   title: '',
   description: '',
@@ -47,7 +54,6 @@ function SummaryCard({ label, value, tone }: { label: string; value: number; ton
 }
 
 export default function SupportTicketsPage() {
-  const router = useRouter()
   const access = usePageAccess([...allowedRoles])
   const [tickets, setTickets] = useState<SupportTicketListItem[]>([])
   const [total, setTotal] = useState(0)
@@ -60,9 +66,14 @@ export default function SupportTicketsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [attachmentWarning, setAttachmentWarning] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [createFiles, setCreateFiles] = useState<File[]>([])
+  const [createdTicketId, setCreatedTicketId] = useState<string | null>(null)
+  const [refreshSequence, setRefreshSequence] = useState(0)
   const requestSequence = useRef(0)
 
   useEffect(() => {
@@ -111,12 +122,12 @@ export default function SupportTicketsPage() {
 
     void loadTickets()
     return () => controller.abort()
-  }, [access.allowed, category, debouncedSearch, page, priority, status])
+  }, [access.allowed, category, debouncedSearch, page, priority, refreshSequence, status])
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const summary = useMemo(() => {
     const counts: Record<SupportStatus, number> = {
-      open: 0,
+      new: 0,
       investigating: 0,
       waiting_customer: 0,
       resolved: 0,
@@ -141,11 +152,15 @@ export default function SupportTicketsPage() {
     event.preventDefault()
     if (creating) return
     setCreating(true)
-    setError(null)
+    setCreateError(null)
+    setAttachmentWarning(null)
+    const createController = new AbortController()
+    const createTimeout = window.setTimeout(() => createController.abort(), 30_000)
     try {
       const response = await fetch('/api/support/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: createController.signal,
         body: JSON.stringify({
           category: form.category,
           priority: form.priority,
@@ -154,17 +169,28 @@ export default function SupportTicketsPage() {
           source: 'manual',
         }),
       })
-      const result = await response.json().catch(() => null)
+      const result = (await response.json().catch(() => null)) as CreateTicketResponse | null
       if (!response.ok || !result?.success || !result?.ticket?.id) {
         throw new Error(getClientErrorMessage(result, 'تعذر إنشاء التذكرة. لم يتم حفظ الطلب.'))
       }
+      window.clearTimeout(createTimeout)
+      const ticketId = result.ticket.id
+      const filesToUpload = createFiles
       setCreateOpen(false)
       setForm(emptyForm)
-      setNotice(`تم إنشاء التذكرة ${result.ticket.ticket_number} بنجاح.`)
-      router.push(`/admin/support/${result.ticket.id}`)
+      setCreateFiles([])
+      setCreatedTicketId(ticketId)
+      setNotice('تم إنشاء التذكرة بنجاح.')
+      setRefreshSequence((value) => value + 1)
+      try {
+        await uploadSupportAttachments(ticketId, filesToUpload, { creation: true, timeoutMs: 60_000 })
+      } catch {
+        setAttachmentWarning('تم إنشاء التذكرة بنجاح، لكن تعذر رفع بعض المرفقات. يمكنك إضافتها مع رد جديد.')
+      }
     } catch (caughtError) {
-      setError(getClientCaughtErrorMessage(caughtError, 'تعذر إنشاء التذكرة. لم يتم حفظ الطلب.'))
+      setCreateError(getClientCaughtErrorMessage(caughtError, 'تعذر إنشاء التذكرة. لم يتم حفظ الطلب.'))
     } finally {
+      window.clearTimeout(createTimeout)
       setCreating(false)
     }
   }
@@ -179,17 +205,26 @@ export default function SupportTicketsPage() {
           <h1 className="mt-2 text-2xl font-black text-white md:text-3xl">الدعم الفني</h1>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-400">تابع طلبات الدعم وتواصل مع الفريق الفني من مكان واحد.</p>
         </div>
-        <button type="button" onClick={() => setCreateOpen(true)} className="h-11 rounded-2xl bg-cyan-300 px-5 text-sm font-black text-slate-950 transition hover:bg-cyan-200">
+        <button type="button" onClick={() => { setCreateError(null); setCreateOpen(true) }} className="h-11 rounded-2xl bg-cyan-300 px-5 text-sm font-black text-slate-950 transition hover:bg-cyan-200">
           إنشاء تذكرة
         </button>
       </header>
 
-      {notice ? <AdminAlert tone="success">{notice}</AdminAlert> : null}
+      {notice ? (
+        <div className="fixed left-4 top-4 z-[60] w-[min(24rem,calc(100vw-2rem))]">
+          <AdminAlert tone="success">{notice}</AdminAlert>
+        </div>
+      ) : null}
+      {attachmentWarning ? (
+        <div className="fixed left-4 top-24 z-[60] w-[min(24rem,calc(100vw-2rem))]">
+          <AdminAlert tone="warning">{attachmentWarning}</AdminAlert>
+        </div>
+      ) : null}
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}
 
       <section aria-label="ملخص التذاكر في الصفحة الحالية" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <SummaryCard label="إجمالي النتائج" value={total} tone="border-cyan-300/20 bg-cyan-400/10 text-cyan-100" />
-        <SummaryCard label={supportStatusLabels.open} value={summary.open} tone="border-cyan-300/15 bg-white/[0.045] text-white" />
+        <SummaryCard label={supportStatusLabels.new} value={summary.new} tone="border-cyan-300/15 bg-white/[0.045] text-white" />
         <SummaryCard label={supportStatusLabels.investigating} value={summary.investigating} tone="border-violet-300/15 bg-white/[0.045] text-white" />
         <SummaryCard label={supportStatusLabels.waiting_customer} value={summary.waiting_customer} tone="border-amber-300/15 bg-white/[0.045] text-white" />
         <SummaryCard label={supportStatusLabels.resolved} value={summary.resolved} tone="border-emerald-300/15 bg-white/[0.045] text-white" />
@@ -222,7 +257,7 @@ export default function SupportTicketsPage() {
               onChange={(value) => { setPriority(value); setPage(1) }}
               options={[
                 { value: '', label: 'كل الأولويات' },
-                ...Object.entries(supportPriorityLabels).map(([value, label]) => ({ value, label })),
+                ...SUPPORT_PRIORITIES.map((value) => ({ value, label: supportPriorityLabels[value] })),
               ]}
               triggerClassName="h-11"
               ariaLabel="تصفية حسب الأولوية"
@@ -235,7 +270,7 @@ export default function SupportTicketsPage() {
               onChange={(value) => { setCategory(value); setPage(1) }}
               options={[
                 { value: '', label: 'كل التصنيفات' },
-                ...Object.entries(supportCategoryLabels).map(([value, label]) => ({ value, label })),
+                ...SUPPORT_CATEGORIES.map((value) => ({ value, label: supportCategoryLabels[value] })),
               ]}
               triggerClassName="h-11"
               ariaLabel="تصفية حسب التصنيف"
@@ -256,9 +291,9 @@ export default function SupportTicketsPage() {
               </thead>
               <tbody className="divide-y divide-white/[0.07]">
                 {tickets.map((ticket) => (
-                  <tr key={ticket.id} className="transition hover:bg-cyan-300/[0.035]">
+                  <tr key={ticket.id} className={`transition hover:bg-cyan-300/[0.035] ${ticket.id === createdTicketId ? 'bg-cyan-300/[0.08]' : ''}`}>
                     <td className="px-4 py-4 font-black text-cyan-200">{ticket.ticket_number}</td>
-                    <td className="max-w-[300px] px-4 py-4"><p className="truncate font-bold text-white">{ticket.title}</p></td>
+                    <td className="max-w-[300px] px-4 py-4"><p className="min-w-0 whitespace-normal break-words font-bold text-white">{ticket.title}</p></td>
                     <td className="px-4 py-4 text-slate-300">{supportCategoryLabels[ticket.category]}</td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${supportPriorityClass(ticket.priority)}`}>{supportPriorityLabels[ticket.priority]}</span></td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${supportStatusClass(ticket.status)}`}>{supportStatusLabels[ticket.status]}</span></td>
@@ -288,11 +323,31 @@ export default function SupportTicketsPage() {
               <div><h2 id="create-support-title" className="text-xl font-black text-white">إنشاء تذكرة دعم</h2><p className="mt-2 text-sm text-slate-400">صف المشكلة بوضوح وسيتابعها فريق الدعم.</p></div>
               <button type="button" onClick={() => setCreateOpen(false)} className="h-10 rounded-xl border border-white/10 px-3 text-sm font-black text-slate-300">إغلاق</button>
             </div>
+            {createError ? <AdminAlert tone="error" className="mt-5">{createError}</AdminAlert> : null}
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <label className="space-y-2 text-sm font-bold text-slate-300"><span>التصنيف</span><select required value={form.category} onChange={(event) => setForm((value) => ({ ...value, category: event.target.value as SupportCategory }))} className="h-11 w-full rounded-2xl border border-white/10 bg-[#040b14] px-3 text-white">{Object.entries(supportCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label className="space-y-2 text-sm font-bold text-slate-300"><span>الأولوية</span><select required value={form.priority} onChange={(event) => setForm((value) => ({ ...value, priority: event.target.value as SupportPriority }))} className="h-11 w-full rounded-2xl border border-white/10 bg-[#040b14] px-3 text-white">{Object.entries(supportPriorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+              <label className="space-y-2 text-sm font-bold text-slate-300">
+                <span>التصنيف</span>
+                <AdminDarkSelect
+                  value={form.category}
+                  onChange={(value) => setForm((current) => ({ ...current, category: value as SupportCategory }))}
+                  options={SUPPORT_CATEGORIES.map((value) => ({ value, label: supportCategoryLabels[value] }))}
+                  triggerClassName="h-11"
+                  ariaLabel="تصنيف التذكرة"
+                />
+              </label>
+              <label className="space-y-2 text-sm font-bold text-slate-300">
+                <span>الأولوية</span>
+                <AdminDarkSelect
+                  value={form.priority}
+                  onChange={(value) => setForm((current) => ({ ...current, priority: value as SupportPriority }))}
+                  options={SUPPORT_PRIORITIES.map((value) => ({ value, label: supportPriorityLabels[value] }))}
+                  triggerClassName="h-11"
+                  ariaLabel="أولوية التذكرة"
+                />
+              </label>
               <label className="space-y-2 text-sm font-bold text-slate-300 sm:col-span-2"><span>العنوان</span><input required minLength={3} maxLength={180} value={form.title} onChange={(event) => setForm((value) => ({ ...value, title: event.target.value }))} className="h-11 w-full rounded-2xl border border-white/10 bg-[#040b14] px-4 text-white outline-none focus:border-cyan-300/50" /></label>
               <label className="space-y-2 text-sm font-bold text-slate-300 sm:col-span-2"><span>وصف المشكلة</span><textarea required minLength={5} maxLength={5000} rows={7} value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} className="w-full resize-y rounded-2xl border border-white/10 bg-[#040b14] px-4 py-3 leading-7 text-white outline-none focus:border-cyan-300/50" /></label>
+              <div className="sm:col-span-2"><SupportAttachmentPicker files={createFiles} onChange={setCreateFiles} disabled={creating} /></div>
             </div>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setCreateOpen(false)} className="h-11 rounded-2xl border border-white/10 px-5 text-sm font-black text-slate-300">إلغاء</button>
