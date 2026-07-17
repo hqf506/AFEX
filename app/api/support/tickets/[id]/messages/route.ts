@@ -2,7 +2,7 @@ import { after, NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { maskId } from '@/lib/security/redaction'
 import { requireSupportAuth, text } from '@/lib/support/server'
-import { sendSupportEmailNotification } from '@/lib/support/email'
+import { sendCustomerSupportEmailNotification, sendSupportEmailNotification } from '@/lib/support/email'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,6 +46,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     after(async () => {
       console.info('[support-email] diagnostics', { afterCallbackStarted: true, eventType: 'customer_reply', ticket: maskId(id) })
       await sendSupportEmailNotification({ eventType: 'customer_reply', ticketId: id, sourceId: savedMessage.id })
+    })
+  } else if (auth.isProvider && !isInternal) {
+    after(async () => {
+      console.info('[support-email] diagnostics', { afterCallbackStarted: true, eventType: 'provider_reply', ticket: maskId(id) })
+      await sendCustomerSupportEmailNotification({ eventType: 'provider_reply', ticketId: id, sourceId: savedMessage.id })
     })
   }
   return jsonWithAuthCookies(auth.response, { success: true, message_id: savedMessage.id })

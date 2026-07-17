@@ -1,5 +1,7 @@
-import { NextRequest } from 'next/server'
+import { after, NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
+import { maskId } from '@/lib/security/redaction'
+import { sendCustomerSupportEmailNotification } from '@/lib/support/email'
 import { getActiveProviderAgents, resolveProviderAssignment } from '@/lib/support/provider-agents'
 import { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES, SUPPORT_STATUSES, isOneOf, requireSupportAuth } from '@/lib/support/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -136,7 +138,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         ? { assigned: value ? assignmentAgents?.some((agent) => agent.userId === value) : false }
         : { [field]: value },
     }))
-  const { error: eventError } = await supabaseAdmin.from('support_ticket_events').insert(events)
+  const { data: savedEvents, error: eventError } = await supabaseAdmin.from('support_ticket_events').insert(events).select('id, event_type')
   if (eventError) {
     const rollback: Record<string, unknown> = {}
     if (Object.hasOwn(changes, 'status')) {
@@ -149,6 +151,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (Object.hasOwn(changes, 'assigned_to')) rollback.assigned_to = ticket.assigned_to
     await supabaseAdmin.from('support_tickets').update(rollback).eq('id', id)
     return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر تحديث تذكرة الدعم.' }, 500)
+  }
+  if (changes.status === 'resolved' || changes.status === 'closed') {
+    const statusEvent = savedEvents?.find((event) => event.event_type === 'status_changed')
+    if (statusEvent) {
+      const eventType = changes.status === 'resolved' ? 'status_resolved' : 'status_closed'
+      after(async () => {
+        console.info('[support-email] diagnostics', { afterCallbackStarted: true, eventType, ticket: maskId(id) })
+        await sendCustomerSupportEmailNotification({ eventType, ticketId: id, sourceId: statusEvent.id })
+      })
+    }
   }
   return jsonWithAuthCookies(auth.response, { success: true })
 }

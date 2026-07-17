@@ -4,6 +4,7 @@ const read = (path) => fs.readFileSync(path, 'utf8')
 const email = read('lib/support/email.ts')
 const tickets = read('app/api/support/tickets/route.ts')
 const messages = read('app/api/support/tickets/[id]/messages/route.ts')
+const providerTicket = read('app/api/provider/support/tickets/[id]/route.ts')
 const assert = (condition, message) => { if (!condition) throw new Error(message) }
 
 assert(email.includes("import 'server-only'"), 'Support email service must remain server-only.')
@@ -20,5 +21,11 @@ assert(!messages.includes("eventType: 'ticket_reopened'") && !email.includes("'t
 assert(tickets.indexOf('await sendSupportEmailNotification') > tickets.indexOf('after(async () => {') && messages.indexOf('await sendSupportEmailNotification') > messages.indexOf('after(async () => {'), 'Email delivery may only be awaited inside managed after() callbacks.')
 assert(!tickets.includes('void sendSupportEmailNotification') && !messages.includes('void sendSupportEmailNotification'), 'Email delivery must use managed after(), not a floating promise.')
 assert(!email.includes('storage_path') && !email.includes('signedUrl') && !email.includes('diagnostic_context'), 'Email content must exclude attachments and diagnostics.')
+assert(email.includes('CUSTOMER_EMAIL_NOTIFICATIONS_ENABLED') && email.includes('CUSTOMER_EMAIL_PROVIDER_REPLY_ENABLED') && email.includes('CUSTOMER_EMAIL_STATUS_ENABLED'), 'Customer email notifications must remain independently feature-flagged.')
+assert(email.includes(".select('contact_email')") && email.includes(".eq('id', ticket.created_by)") && email.includes(".eq('tenant_id', ticket.tenant_id)"), 'Customer email must be resolved server-side from the ticket owner profile.')
+assert(email.includes(".eq('sender_type', 'provider')") && email.includes(".eq('is_internal', false)"), 'Customer reply email must verify a public provider message.')
+assert(messages.includes('auth.isProvider && !isInternal') && messages.includes("eventType: 'provider_reply'"), 'Only public provider replies may schedule customer email.')
+assert(providerTicket.includes("changes.status === 'resolved' || changes.status === 'closed'") && providerTicket.includes("event.event_type === 'status_changed'"), 'Customer status email must follow a successful resolved or closed audit event.')
+assert(!email.includes('attachment') && !email.includes('assignment'), 'Customer email content must not expose attachments or assignments.')
 
 console.log('Support direct email notification checks passed.')

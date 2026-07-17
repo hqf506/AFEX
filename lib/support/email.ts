@@ -1,14 +1,21 @@
 import 'server-only'
 
 import { maskId, safeErrorMessage } from '@/lib/security/redaction'
-import type { NotificationEventType, SupportCategory, SupportPriority } from '@/lib/support/contracts'
-import { supportCategoryLabels, supportPriorityLabels } from '@/lib/support/ui'
+import type { NotificationEventType, SupportCategory, SupportPriority, SupportStatus } from '@/lib/support/contracts'
+import { supportCategoryLabels, supportPriorityLabels, supportStatusLabels } from '@/lib/support/ui'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type SupportEmailEvent = Extract<NotificationEventType, 'ticket_created' | 'customer_reply'>
+type CustomerSupportEmailEvent = 'provider_reply' | 'status_resolved' | 'status_closed'
 
 type SupportEmailInput = {
   eventType: SupportEmailEvent
+  ticketId: string
+  sourceId: string
+}
+
+type CustomerSupportEmailInput = {
+  eventType: CustomerSupportEmailEvent
   ticketId: string
   sourceId: string
 }
@@ -56,6 +63,16 @@ function resolveBaseUrl() {
   return url.origin
 }
 
+function resolveTransportConfig() {
+  const apiKey = process.env.RESEND_API_KEY?.trim() || ''
+  const from = process.env.SUPPORT_EMAIL_FROM?.trim() || ''
+  const replyTo = process.env.SUPPORT_EMAIL_REPLY_TO?.trim() || ''
+  if (!apiKey || !validMailbox(from, true) || (replyTo && !validMailbox(replyTo))) {
+    throw new Error('Support email configuration is invalid')
+  }
+  return { apiKey, from, replyTo: replyTo || undefined, baseUrl: resolveBaseUrl() }
+}
+
 function resolveConfig(eventType: SupportEmailEvent) {
   const notificationsEnabled = enabled(process.env.SUPPORT_EMAIL_NOTIFICATIONS_ENABLED)
   console.info('[support-email] diagnostics', { notificationsEnabled, eventType })
@@ -71,13 +88,25 @@ function resolveConfig(eventType: SupportEmailEvent) {
     return null
   }
 
-  const apiKey = process.env.RESEND_API_KEY?.trim() || ''
-  const from = process.env.SUPPORT_EMAIL_FROM?.trim() || ''
-  const replyTo = process.env.SUPPORT_EMAIL_REPLY_TO?.trim() || ''
-  if (!apiKey || !validMailbox(from, true) || (replyTo && !validMailbox(replyTo))) {
-    throw new Error('Support email configuration is invalid')
+  return resolveTransportConfig()
+}
+
+function resolveCustomerConfig(eventType: CustomerSupportEmailEvent) {
+  const notificationsEnabled = enabled(process.env.CUSTOMER_EMAIL_NOTIFICATIONS_ENABLED)
+  console.info('[support-email] diagnostics', { customerNotificationsEnabled: notificationsEnabled, eventType })
+  if (!notificationsEnabled) {
+    console.info('[support-email] early-return', { category: 'customer_notifications_disabled', eventType })
+    return null
   }
-  return { apiKey, from, replyTo: replyTo || undefined, baseUrl: resolveBaseUrl() }
+  const eventEnabled = eventType === 'provider_reply'
+    ? enabled(process.env.CUSTOMER_EMAIL_PROVIDER_REPLY_ENABLED, true)
+    : enabled(process.env.CUSTOMER_EMAIL_STATUS_ENABLED, true)
+  if (!eventEnabled) {
+    console.info('[support-email] early-return', { category: 'customer_event_disabled', eventType })
+    return null
+  }
+
+  return resolveTransportConfig()
 }
 
 function emailContent(input: {
@@ -111,6 +140,38 @@ function emailContent(input: {
   ].join('\n')
   const htmlRows = rows.map(([label, value]) => `<tr><td style="padding:8px;color:#94a3b8">${escapeHtml(label)}</td><td style="padding:8px;font-weight:700;color:#e2e8f0">${escapeHtml(value)}</td></tr>`).join('')
   const html = `<div dir="rtl" style="font-family:Arial,sans-serif;background:#030714;color:#e2e8f0;padding:24px"><div style="max-width:640px;margin:auto;border:1px solid #164e63;border-radius:24px;background:#07111f;padding:24px"><p style="color:#67e8f9;font-weight:800">AFEX SUPPORT</p><h1 style="font-size:24px;color:#fff">${escapeHtml(eventLabel)}</h1><table style="width:100%;border-collapse:collapse">${htmlRows}</table>${input.preview ? `<div style="margin-top:20px;padding:16px;border-radius:16px;background:#0f172a"><strong>معاينة الرد</strong><p style="line-height:1.8">${escapeHtml(input.preview)}</p></div>` : ''}<a href="${escapeHtml(ticketUrl)}" style="display:inline-block;margin-top:24px;border-radius:12px;background:#67e8f9;color:#082f49;padding:12px 20px;text-decoration:none;font-weight:800">فتح التذكرة في Developer Support</a></div></div>`
+  return { subject, text, html }
+}
+
+function customerEmailContent(input: {
+  eventType: CustomerSupportEmailEvent
+  ticketId: string
+  ticketNumber: string
+  title: string
+  status: SupportStatus
+  preview: string | null
+  baseUrl: string
+}) {
+  const eventLabel = input.eventType === 'provider_reply'
+    ? 'رد جديد من فريق AFEX'
+    : input.eventType === 'status_resolved'
+      ? 'تم حل تذكرة الدعم'
+      : 'تم إغلاق تذكرة الدعم'
+  const ticketUrl = `${input.baseUrl}/admin/support/${encodeURIComponent(input.ticketId)}`
+  const rows = [
+    ['رقم التذكرة', input.ticketNumber],
+    ['العنوان', input.title],
+    ['الحالة الحالية', supportStatusLabels[input.status]],
+  ]
+  const subject = `${eventLabel} — ${input.ticketNumber}`
+  const text = [
+    'AFEX SUPPORT', eventLabel, '',
+    ...rows.map(([label, value]) => `${label}: ${value}`),
+    ...(input.preview ? ['', 'معاينة الرد:', input.preview] : []),
+    '', `عرض التذكرة: ${ticketUrl}`,
+  ].join('\n')
+  const htmlRows = rows.map(([label, value]) => `<tr><td style="padding:8px;color:#94a3b8">${escapeHtml(label)}</td><td style="padding:8px;font-weight:700;color:#e2e8f0">${escapeHtml(value)}</td></tr>`).join('')
+  const html = `<div dir="rtl" style="font-family:Arial,sans-serif;background:#030714;color:#e2e8f0;padding:24px"><div style="max-width:640px;margin:auto;border:1px solid #164e63;border-radius:24px;background:#07111f;padding:24px"><p style="color:#67e8f9;font-weight:800">AFEX SUPPORT</p><h1 style="font-size:24px;color:#fff">${escapeHtml(eventLabel)}</h1><table style="width:100%;border-collapse:collapse">${htmlRows}</table>${input.preview ? `<div style="margin-top:20px;padding:16px;border-radius:16px;background:#0f172a"><strong>معاينة الرد</strong><p style="line-height:1.8">${escapeHtml(input.preview)}</p></div>` : ''}<a href="${escapeHtml(ticketUrl)}" style="display:inline-block;margin-top:24px;border-radius:12px;background:#67e8f9;color:#082f49;padding:12px 20px;text-decoration:none;font-weight:800">عرض التذكرة</a></div></div>`
   return { subject, text, html }
 }
 
@@ -227,5 +288,78 @@ export async function sendSupportEmailNotification(input: SupportEmailInput) {
         ? 'network_or_runtime'
         : 'support_email_flow'
     console.error('[support-email] failed', { eventType: input.eventType, ticket: maskId(input.ticketId), errorCategory, error: safeErrorMessage(error, 'Support email delivery failed') })
+  }
+}
+
+export async function sendCustomerSupportEmailNotification(input: CustomerSupportEmailInput) {
+  console.info('[support-email] diagnostics', { eventTypeReceived: input.eventType, ticket: maskId(input.ticketId) })
+  try {
+    const config = resolveCustomerConfig(input.eventType)
+    if (!config) return
+
+    const { data: ticket, error: ticketError } = await supabaseAdmin
+      .from('support_tickets')
+      .select('id, ticket_number, tenant_id, created_by, status, title')
+      .eq('id', input.ticketId)
+      .maybeSingle()
+    if (ticketError || !ticket) throw ticketError || new Error('Support ticket was not found')
+
+    let preview: string | null = null
+    if (input.eventType === 'provider_reply') {
+      const { data: message, error: messageError } = await supabaseAdmin
+        .from('support_messages')
+        .select('message')
+        .eq('id', input.sourceId)
+        .eq('ticket_id', ticket.id)
+        .eq('sender_type', 'provider')
+        .eq('is_internal', false)
+        .maybeSingle()
+      if (messageError || !message) throw messageError || new Error('Eligible provider reply was not found')
+      preview = supportEmailPreview(message.message)
+    } else {
+      const expectedStatus = input.eventType === 'status_resolved' ? 'resolved' : 'closed'
+      if (ticket.status !== expectedStatus) {
+        console.info('[support-email] early-return', { category: 'customer_status_no_longer_matches', eventType: input.eventType, ticket: maskId(ticket.id) })
+        return
+      }
+    }
+
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('contact_email')
+      .eq('id', ticket.created_by)
+      .eq('tenant_id', ticket.tenant_id)
+      .maybeSingle()
+    if (profileError) throw profileError
+    const recipient = profile?.contact_email?.trim() || ''
+    if (!validMailbox(recipient)) {
+      console.info('[support-email] early-return', { category: 'customer_email_missing_or_invalid', eventType: input.eventType, customer: maskId(ticket.created_by) })
+      return
+    }
+
+    const content = customerEmailContent({
+      eventType: input.eventType,
+      ticketId: ticket.id,
+      ticketNumber: ticket.ticket_number,
+      title: ticket.title,
+      status: ticket.status as SupportStatus,
+      preview,
+      baseUrl: config.baseUrl,
+    })
+    console.info('[support-email] diagnostics', { sendEmailCalled: true, customer: maskId(ticket.created_by) })
+    const providerMessageId = await sendWithResend({
+      ...config,
+      recipient,
+      idempotencyKey: `customer-support/${input.eventType}/${input.sourceId}/${ticket.created_by}`,
+      ...content,
+    })
+    console.info('[support-email] sent', { eventType: input.eventType, ticket: maskId(ticket.id), customer: maskId(ticket.created_by), providerMessageId: providerMessageId ? maskId(providerMessageId) : null })
+  } catch (error) {
+    const errorCategory = error instanceof DOMException && error.name === 'AbortError'
+      ? 'request_timeout'
+      : error instanceof TypeError
+        ? 'network_or_runtime'
+        : 'customer_support_email_flow'
+    console.error('[support-email] failed', { eventType: input.eventType, ticket: maskId(input.ticketId), errorCategory, error: safeErrorMessage(error, 'Customer support email delivery failed') })
   }
 }

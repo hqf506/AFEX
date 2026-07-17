@@ -46,5 +46,8 @@ Direct Support email alerts use Resend from server route handlers. Configure the
 - `SUPPORT_EMAIL_NOTIFICATIONS_ENABLED` (defaults to disabled)
 - `SUPPORT_EMAIL_NEW_TICKET_ENABLED` (defaults to enabled when the master switch is enabled)
 - `SUPPORT_EMAIL_CUSTOMER_REPLY_ENABLED` (defaults to enabled when the master switch is enabled)
+- `CUSTOMER_EMAIL_NOTIFICATIONS_ENABLED` (defaults to disabled)
+- `CUSTOMER_EMAIL_PROVIDER_REPLY_ENABLED` (defaults to enabled when customer notifications are enabled)
+- `CUSTOMER_EMAIL_STATUS_ENABLED` (defaults to enabled when customer notifications are enabled)
 
 Do not expose these variables through `NEXT_PUBLIC_` names. Email delivery is best-effort after the customer response and does not change a successful ticket or reply result.
