@@ -3,8 +3,8 @@ import { jsonWithAuthCookies } from '@/lib/api/responses'
 import {
   SUPPORT_CATEGORIES,
   SUPPORT_OPERATIONAL_FILTERS,
+  SUPPORT_LIFECYCLE_SCOPES,
   SUPPORT_PRIORITIES,
-  SUPPORT_STATUSES,
   type ProviderOperationalDashboard,
 } from '@/lib/support/contracts'
 import { isOneOf, positiveInteger, requireSupportAuth, text } from '@/lib/support/server'
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         p_page: page,
         p_page_size: pageSize,
         p_search: search || null,
-        p_status: isOneOf(status, SUPPORT_STATUSES) ? status : null,
+        p_status: isOneOf(status, SUPPORT_LIFECYCLE_SCOPES) ? status : 'active',
         p_priority: isOneOf(priority, SUPPORT_PRIORITIES) ? priority : null,
         p_category: isOneOf(category, SUPPORT_CATEGORIES) ? category : null,
         p_organization: organization || null,

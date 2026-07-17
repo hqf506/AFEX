@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { isFullAdmin } from '@/lib/permissions'
@@ -190,6 +190,19 @@ export default function LandingPage() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [protectedNavLoading, setProtectedNavLoading] = useState(false)
   const [protectedNavMessage, setProtectedNavMessage] = useState('')
+  const [developerAllowed, setDeveloperAllowed] = useState(false)
+
+  useEffect(() => {
+    if (authState.status !== 'authenticated') {
+      return
+    }
+    const controller = new AbortController()
+    void fetch('/api/developer/access', { cache: 'no-store', signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => setDeveloperAllowed(result?.allowed === true))
+      .catch(() => setDeveloperAllowed(false))
+    return () => controller.abort()
+  }, [authState.status])
 
   const profileName = authState.profile?.full_name?.trim() || ''
   const profileRole = authState.profile?.role || ''
@@ -389,6 +402,11 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2 text-xs font-bold">
+            {authState.status === 'authenticated' && developerAllowed ? (
+              <Link href="/developer" className="hidden rounded-2xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-3 text-cyan-100 transition hover:bg-cyan-300/15 sm:inline-flex">
+                مركز المطور
+              </Link>
+            ) : null}
             {displayFirstName ? (
               <div className="relative z-[90]">
                 <button

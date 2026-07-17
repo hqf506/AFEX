@@ -1,0 +1,28 @@
+import fs from 'node:fs'
+
+const read = (path) => fs.readFileSync(path, 'utf8')
+const helper = read('lib/developer/server.ts')
+const layout = read('app/developer/layout.tsx')
+const access = read('app/api/developer/access/route.ts')
+const tools = read('app/developer/tools/page.tsx')
+const landing = read('app/page.tsx')
+const statusRoute = read('app/api/developer/users/status/route.ts')
+const tenantRoute = read('app/api/developer/tenants/[id]/route.ts')
+const developerSupport = read('app/developer/support/page.tsx')
+const notifications = read('components/developer-support-notifications.tsx')
+const notificationRoute = read('app/api/provider/support/notifications/route.ts')
+const notificationReadRoute = read('app/api/provider/support/notifications/read/route.ts')
+const fail = (message) => { throw new Error(message) }
+
+if (!helper.includes("DEVELOPER_ROLES = ['provider_owner']")) fail('Developer access must remain provider_owner-only.')
+for (const token of ["auth.getUser()", ".from('platform_admins')", ".eq('user_id', user.id)", ".eq('is_active', true)"]) if (!helper.includes(token)) fail(`Missing developer authorization guard: ${token}`)
+if (!layout.includes('requireDeveloperAccess()') || !access.includes('requireDeveloperAccess()')) fail('Developer pages and access API must share server authorization.')
+if (!landing.includes("fetch('/api/developer/access'")) fail('Landing entry must use verified access.')
+if (!tools.includes('noopener noreferrer') || /service.role|access.token|password=/i.test(tools)) fail('Developer tools link is not safely externalized.')
+for (const token of ['requireDeveloperAccess()', 'userId === access.user.id', "role === 'provider_owner'", "(count || 0) <= 1", ".from('audit_logs').insert"]) if (!statusRoute.includes(token)) fail(`Missing protected account action safeguard: ${token}`)
+for (const token of ['requireDeveloperAccess()', 'UUID.test(id)', ".eq('tenant_id', id)"]) if (!tenantRoute.includes(token)) fail(`Missing protected tenant detail safeguard: ${token}`)
+if (!developerSupport.includes('ProviderSupportConsole') || /iframe|href="\/provider\/support"/.test(developerSupport)) fail('Developer support must reuse the provider console directly.')
+for (const token of ["auth.providerRole !== 'provider_owner'", "auth.user.id", "get_developer_support_notifications"]) if (!notificationRoute.includes(token)) fail(`Missing Developer notification authorization: ${token}`)
+if (!notificationReadRoute.includes('DEVELOPER_NOTIFICATION_EVENT_TYPES') || !notificationReadRoute.includes('UUID.test')) fail('Notification reads must validate event type and UUID.')
+for (const token of ['60_000', 'visibilitychange', 'AbortController', '/developer/support?ticket=', 'markingAll']) if (!notifications.includes(token)) fail(`Missing notification client safeguard: ${token}`)
+console.log('Developer center foundation checks passed.')

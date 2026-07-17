@@ -3,12 +3,37 @@ export const SUPPORT_PRIORITIES = ['low', 'normal', 'high', 'critical'] as const
 export const SUPPORT_CATEGORIES = ['technical_error', 'orders', 'inventory', 'invoices', 'whatsapp', 'printing', 'users_permissions', 'performance', 'feature_request', 'other'] as const
 export const SUPPORT_OPERATIONAL_STATES = ['awaiting_first_response', 'within_time', 'attention', 'overdue', 'waiting_customer', 'resolved', 'closed'] as const
 export const SUPPORT_OPERATIONAL_FILTERS = ['all', 'awaiting_first_response', 'needs_follow_up', 'attention', 'overdue', 'waiting_customer'] as const
+export const SUPPORT_LIFECYCLE_SCOPES = ['active', 'all', ...SUPPORT_STATUSES] as const
+export const DEVELOPER_NOTIFICATION_EVENT_TYPES = ['ticket_created', 'customer_reply'] as const
 
 export type SupportStatus = (typeof SUPPORT_STATUSES)[number]
 export type SupportPriority = (typeof SUPPORT_PRIORITIES)[number]
 export type SupportCategory = (typeof SUPPORT_CATEGORIES)[number]
 export type SupportOperationalState = (typeof SUPPORT_OPERATIONAL_STATES)[number]
 export type SupportOperationalFilter = (typeof SUPPORT_OPERATIONAL_FILTERS)[number]
+export type LifecycleStatusScope = (typeof SUPPORT_LIFECYCLE_SCOPES)[number]
+export type NotificationEventType = (typeof DEVELOPER_NOTIFICATION_EVENT_TYPES)[number]
+
+export type DeveloperSupportNotification = {
+  event_type: NotificationEventType
+  event_key: string
+  event_id: string
+  ticket_id: string
+  ticket_number: string
+  title: string
+  organization_name: string
+  activity_at: string
+  preview: string | null
+  unread: boolean
+}
+
+export type DeveloperSupportNotificationResponse = {
+  items: DeveloperSupportNotification[]
+  unreadCount: number
+  calculatedAt: string
+}
+
+export type MarkAllNotificationsResponse = { insertedCount: number; through: string }
 
 export type ProviderOperationalTicket = {
   id: string

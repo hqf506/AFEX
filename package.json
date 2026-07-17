@@ -33,7 +33,8 @@
     "check:support-ui": "node scripts/check-support-ui.mjs",
     "check:provider-support": "node scripts/check-provider-support.mjs",
     "check:support-operational": "node scripts/check-support-operational.mjs",
-    "check:support-attachments": "node scripts/check-support-attachments.mjs"
+    "check:support-attachments": "node scripts/check-support-attachments.mjs",
+    "check:developer-center": "node scripts/check-developer-center.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

@@ -3,6 +3,7 @@ import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { getActiveProviderAgents, resolveProviderAssignment } from '@/lib/support/provider-agents'
 import { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES, SUPPORT_STATUSES, isOneOf, requireSupportAuth } from '@/lib/support/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { INTERNAL_USERS_EMAIL_DOMAIN } from '@/lib/usernames'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireSupportAuth(request)
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ticket.branch_id
         ? supabaseAdmin.from('branches').select('name').eq('id', ticket.branch_id).eq('tenant_id', ticket.tenant_id).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
-      supabaseAdmin.from('profiles').select('full_name').eq('id', ticket.created_by).eq('tenant_id', ticket.tenant_id).maybeSingle(),
+      supabaseAdmin.from('profiles').select('full_name, username, contact_email, phone').eq('id', ticket.created_by).eq('tenant_id', ticket.tenant_id).maybeSingle(),
       supabaseAdmin.from('support_messages').select('sender_type, message, created_at').eq('ticket_id', ticket.id).eq('is_internal', false).order('created_at'),
       supabaseAdmin.from('support_messages').select('sender_id, message, created_at').eq('ticket_id', ticket.id).eq('is_internal', true).order('created_at', { ascending: false }),
       supabaseAdmin.from('support_ticket_events').select('actor_id, event_type, previous_value, new_value, created_at').eq('ticket_id', ticket.id).order('created_at'),
@@ -36,6 +37,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
     const agentNames = new Map(agents.map((agent) => [agent.userId, agent.name]))
     const assignedAgent = agents.find((agent) => agent.userId === ticket.assigned_to)
+    let customerEmail = customerResult.data?.contact_email?.trim() || null
+    if (!customerEmail) {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(ticket.created_by)
+      const authEmail = authUser.user?.email?.trim() || ''
+      if (authEmail && !authEmail.endsWith(`@${INTERNAL_USERS_EMAIL_DOMAIN}`)) customerEmail = authEmail
+    }
 
     return jsonWithAuthCookies(auth.response, {
       success: true,
@@ -43,7 +50,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         ticket_number: ticket.ticket_number,
         tenant_name: tenantResult.data?.name || 'منشأة عميل',
         branch_name: branchResult.data?.name || null,
-        customer_name: customerResult.data?.full_name || 'عميل AFEX',
+        customer_name: customerResult.data?.full_name?.trim() || null,
+        customer_username: customerResult.data?.username?.trim() || null,
+        customer_email: customerEmail,
+        customer_phone: customerResult.data?.phone?.trim() || null,
         category: ticket.category,
         priority: ticket.priority,
         status: ticket.status,
