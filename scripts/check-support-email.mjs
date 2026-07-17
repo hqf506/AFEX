@@ -14,10 +14,10 @@ assert(email.includes('supportEmailPreview') && email.includes('PREVIEW_LIMIT = 
 assert(email.includes('Idempotency-Key') && email.includes('support/${input.eventType}/${input.sourceId}/${recipient.userId}'), 'Resend requests must use a stable per-recipient idempotency key.')
 assert(email.includes('AFEX_APP_BASE_URL') && !email.includes("headers().get('host')"), 'Ticket links must use a configured origin, not Host headers.')
 assert(email.includes("fetch('https://api.resend.com/emails'") && email.includes('AbortController'), 'Resend calls must be server-side and timeout-bounded.')
-assert(tickets.includes("after(() => sendSupportEmailNotification({ eventType: 'ticket_created'") && tickets.indexOf('after(() => sendSupportEmailNotification') > tickets.indexOf('if (error || !ticket)'), 'Ticket email must be scheduled only after atomic creation succeeds.')
+assert(tickets.includes('after(async () => {') && tickets.includes("await sendSupportEmailNotification({ eventType: 'ticket_created'") && tickets.indexOf('after(async () => {') > tickets.indexOf('if (error || !ticket)'), 'Ticket email must be scheduled only after atomic creation succeeds.')
 assert(messages.includes("eventType: 'customer_reply'") && messages.includes("if (!auth.isProvider && ticket.status !== 'closed')"), 'Only eligible non-closed customer replies may schedule email.')
 assert(!messages.includes("eventType: 'ticket_reopened'") && !email.includes("'ticket_reopened'"), 'Ticket reopened email is out of scope.')
-assert(!tickets.includes('await sendSupportEmailNotification') && !messages.includes('await sendSupportEmailNotification'), 'Customer responses must not wait for email delivery.')
+assert(tickets.indexOf('await sendSupportEmailNotification') > tickets.indexOf('after(async () => {') && messages.indexOf('await sendSupportEmailNotification') > messages.indexOf('after(async () => {'), 'Email delivery may only be awaited inside managed after() callbacks.')
 assert(!tickets.includes('void sendSupportEmailNotification') && !messages.includes('void sendSupportEmailNotification'), 'Email delivery must use managed after(), not a floating promise.')
 assert(!email.includes('storage_path') && !email.includes('signedUrl') && !email.includes('diagnostic_context'), 'Email content must exclude attachments and diagnostics.')
 

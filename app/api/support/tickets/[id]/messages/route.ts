@@ -1,5 +1,6 @@
 import { after, NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
+import { maskId } from '@/lib/security/redaction'
 import { requireSupportAuth, text } from '@/lib/support/server'
 import { sendSupportEmailNotification } from '@/lib/support/email'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -42,7 +43,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     new_value: { status: nextStatus },
   })
   if (!auth.isProvider && ticket.status !== 'closed') {
-    after(() => sendSupportEmailNotification({ eventType: 'customer_reply', ticketId: id, sourceId: savedMessage.id }))
+    after(async () => {
+      console.info('[support-email] diagnostics', { afterCallbackStarted: true, eventType: 'customer_reply', ticket: maskId(id) })
+      await sendSupportEmailNotification({ eventType: 'customer_reply', ticketId: id, sourceId: savedMessage.id })
+    })
   }
   return jsonWithAuthCookies(auth.response, { success: true, message_id: savedMessage.id })
 }
