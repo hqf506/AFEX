@@ -163,7 +163,7 @@ export function AdminDarkSelect({
                 width: menuPosition.width,
                 maxHeight: menuPosition.maxHeight,
               }}
-              className={`z-[9999] overflow-y-auto rounded-2xl border border-cyan-300/15 bg-[#06111f] p-1 text-right shadow-[0_24px_70px_rgba(0,0,0,0.42)] backdrop-blur-xl ${menuClassName}`}
+              className={`z-[11000] overflow-y-auto rounded-2xl border border-cyan-300/15 bg-[#06111f] p-1 text-right shadow-[0_24px_70px_rgba(0,0,0,0.42)] backdrop-blur-xl ${menuClassName}`}
             >
               {options.map((option) => {
                 const selected = option.value === value
