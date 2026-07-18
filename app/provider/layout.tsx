@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { ProviderNotificationsShell } from '@/components/developer-support-notifications'
 
 export default async function ProviderLayout({ children }: { children: ReactNode }) {
   const supabase = await createSupabaseServerClient()
@@ -29,5 +30,5 @@ export default async function ProviderLayout({ children }: { children: ReactNode
     )
   }
 
-  return <div className="min-h-screen overflow-x-hidden bg-[#020817] px-3 py-4 text-white sm:px-5 lg:px-7">{children}</div>
+  return <div className="min-h-screen overflow-x-hidden bg-[#020817] px-3 py-4 text-white sm:px-5 lg:px-7"><ProviderNotificationsShell notificationsEnabled={provider.role === 'provider_owner'}>{children}</ProviderNotificationsShell></div>
 }

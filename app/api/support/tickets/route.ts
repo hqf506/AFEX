@@ -1,10 +1,10 @@
 import { after, NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import packageMetadata from '@/package.json'
 import { withAuthCookies } from '@/lib/api-auth'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
-import { maskId } from '@/lib/security/redaction'
+import { isTrustedErrorReportRequest } from '@/lib/support/error-report-request'
 import { sanitizeDiagnostics } from '@/lib/support/sanitize-diagnostics'
 import { sendSupportEmailNotification } from '@/lib/support/email'
 import {
@@ -18,7 +18,7 @@ import {
 } from '@/lib/support/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-const TICKET_SELECT = 'id, ticket_number, tenant_id, branch_id, category, priority, status, title, source, assigned_to, last_message_at, resolved_at, closed_at, created_at, updated_at'
+const TICKET_SELECT = 'id, ticket_number, category, priority, status, title, source, last_message_at, resolved_at, closed_at, created_at, updated_at'
 
 function developmentSupportError(
   authResponse: NextResponse,
@@ -98,11 +98,14 @@ export async function POST(request: NextRequest) {
     return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر إنشاء تذكرة الدعم.' }, 403)
   }
   const body = await request.json().catch(() => null)
-  const isErrorReport = body?.source === 'error_report'
+  const isErrorReport = isTrustedErrorReportRequest(request) && body?.source === 'error_report'
   const reportComment = text(body?.comment, 1000)
   const pagePath = errorReportPage(request)
-  const occurrence = text(body?.error_occurrence, 100) || randomUUID()
-  const errorReference = `ERR-${createHash('sha256').update(`${auth.user.id}:${pagePath}:${occurrence}`).digest('hex').slice(0, 16).toUpperCase()}`
+  const feature = text(body?.feature, 100).match(/^[a-zA-Z0-9._/-]+$/)?.[0] || 'error-boundary'
+  const errorCode = text(body?.error_code, 100).match(/^[a-zA-Z0-9._/-]+$/)?.[0] || 'unknown'
+  const httpStatus = Number.isInteger(body?.http_status) && body.http_status >= 400 && body.http_status <= 599 ? String(body.http_status) : 'unknown'
+  const errorFingerprint = `ERR-${createHash('sha256').update(`${pagePath}|${feature}|${errorCode}|${httpStatus}`).digest('hex').slice(0, 16).toUpperCase()}`
+  const errorReference = errorFingerprint
   const userAgent = request.headers.get('user-agent')?.slice(0, 500) || ''
   const platform = safeClientPlatform(userAgent)
   const timestamp = new Date().toISOString()
@@ -122,6 +125,7 @@ export async function POST(request: NextRequest) {
     generatedDiagnostics = sanitizeDiagnostics({
       page_path: pagePath,
       route: pagePath,
+      feature,
       timestamp,
       app_version: packageMetadata.version,
       browser: platform.browser,
@@ -132,26 +136,35 @@ export async function POST(request: NextRequest) {
       branch: branchName,
       authenticated_user: authenticatedUser,
       error_reference: errorReference,
+      error_fingerprint: errorFingerprint,
+      error_code: errorCode,
+      http_status: httpStatus,
     })
     generatedDescription = [
-      `Error Reference: ${errorReference}`,
-      `Page: ${pagePath}`,
-      `Time: ${timestamp}`,
-      `Browser: ${platform.browser}`,
-      `OS: ${platform.operatingSystem}`,
-      `Device: ${platform.deviceType}`,
-      `Version: ${packageMetadata.version}`,
-      `Tenant: ${tenantName}`,
-      `Branch: ${branchName}`,
-      `User: ${authenticatedUser}`,
-      ...(reportComment ? [`Comment: ${reportComment}`] : []),
+      'وصف المستخدم:',
+      reportComment || 'لم يضف المستخدم وصفًا.',
+      '',
+      'السياق التقني الآمن:',
+      `الصفحة: ${pagePath}`,
+      `الميزة: ${feature}`,
+      `رمز الخطأ: ${errorCode}`,
+      `حالة HTTP: ${httpStatus}`,
+      `الوقت: ${timestamp}`,
+      `المتصفح: ${platform.browser}`,
+      `نظام التشغيل: ${platform.operatingSystem}`,
+      `نوع الجهاز: ${platform.deviceType}`,
+      `إصدار التطبيق: ${packageMetadata.version}`,
+      `المنشأة: ${tenantName}`,
+      `الفرع: ${branchName}`,
+      `المستخدم: ${authenticatedUser}`,
+      `بصمة الخطأ: ${errorFingerprint}`,
     ].join('\n')
   }
   const category = isErrorReport ? 'technical_error' : body?.category
   const priority = isErrorReport ? 'normal' : body?.priority || 'normal'
   const title = isErrorReport ? 'بلاغ عطل تلقائي' : text(body?.title, 180)
   const description = isErrorReport ? generatedDescription : text(body?.description, 5000)
-  const source = ['manual', 'error_report', 'system'].includes(body?.source) ? body.source : 'manual'
+  const source = isErrorReport ? 'error_report' : 'manual'
   const invalidFields = [
     ...(!body ? ['body'] : []),
     ...(!isOneOf(category, SUPPORT_CATEGORIES) ? ['category'] : []),
@@ -175,21 +188,31 @@ export async function POST(request: NextRequest) {
   const diagnostics = generatedDiagnostics || sanitizeDiagnostics(body?.diagnostic_context)
   if (isErrorReport) {
     const duplicateSince = new Date(Date.now() - 10 * 60 * 1000).toISOString()
-    const { data: previousReport, error: duplicateError } = await supabaseAdmin
-      .from('support_tickets')
-      .select('id, ticket_number')
-      .eq('created_by', auth.user.id)
-      .eq('tenant_id', auth.profile.tenant_id)
-      .eq('source', 'error_report')
-      .eq('page_path', pagePath)
-      .eq('error_reference', errorReference)
-      .gte('created_at', duplicateSince)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (duplicateError) {
+    const [duplicateResult, rateResult] = await Promise.all([
+      supabaseAdmin
+        .from('support_tickets')
+        .select('id, ticket_number')
+        .eq('created_by', auth.user.id)
+        .eq('tenant_id', auth.profile.tenant_id)
+        .eq('source', 'error_report')
+        .eq('page_path', pagePath)
+        .eq('error_reference', errorReference)
+        .gte('created_at', duplicateSince)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('support_tickets')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', auth.user.id)
+        .eq('tenant_id', auth.profile.tenant_id)
+        .eq('source', 'error_report')
+        .gte('created_at', duplicateSince),
+    ])
+    if (duplicateResult.error || rateResult.error) {
       return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر إرسال بلاغ الدعم.' }, 500)
     }
+    const previousReport = duplicateResult.data
     if (previousReport) {
       return jsonWithAuthCookies(auth.response, {
         success: true,
@@ -197,6 +220,9 @@ export async function POST(request: NextRequest) {
         error_reference: errorReference,
         reused: true,
       })
+    }
+    if ((rateResult.count || 0) >= 5) {
+      return jsonWithAuthCookies(auth.response, { success: false, error: 'تم إرسال عدة بلاغات مؤخرًا. حاول مرة أخرى لاحقًا.' }, 429)
     }
   }
   const { data, error } = await supabaseAdmin.rpc('create_support_ticket_atomic', {
@@ -233,7 +259,6 @@ export async function POST(request: NextRequest) {
     )
   }
   after(async () => {
-    console.info('[support-email] diagnostics', { afterCallbackStarted: true, eventType: 'ticket_created', ticket: maskId(ticket.id) })
     await sendSupportEmailNotification({ eventType: 'ticket_created', ticketId: ticket.id, sourceId: ticket.id })
   })
   return jsonWithAuthCookies(auth.response, {

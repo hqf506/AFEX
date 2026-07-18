@@ -1,6 +1,5 @@
 import { after, NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
-import { maskId } from '@/lib/security/redaction'
 import { sendCustomerSupportEmailNotification } from '@/lib/support/email'
 import { getActiveProviderAgents, resolveProviderAssignment } from '@/lib/support/provider-agents'
 import { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES, SUPPORT_STATUSES, isOneOf, requireSupportAuth } from '@/lib/support/server'
@@ -157,7 +156,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (statusEvent) {
       const eventType = changes.status === 'resolved' ? 'status_resolved' : 'status_closed'
       after(async () => {
-        console.info('[support-email] diagnostics', { afterCallbackStarted: true, eventType, ticket: maskId(id) })
         await sendCustomerSupportEmailNotification({ eventType, ticketId: id, sourceId: statusEvent.id })
       })
     }

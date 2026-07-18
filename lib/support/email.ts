@@ -75,36 +75,22 @@ function resolveTransportConfig() {
 
 function resolveConfig(eventType: SupportEmailEvent) {
   const notificationsEnabled = enabled(process.env.SUPPORT_EMAIL_NOTIFICATIONS_ENABLED)
-  console.info('[support-email] diagnostics', { notificationsEnabled, eventType })
-  if (!notificationsEnabled) {
-    console.info('[support-email] early-return', { category: 'notifications_disabled', eventType })
-    return null
-  }
+  if (!notificationsEnabled) return null
   const eventEnabled = eventType === 'ticket_created'
     ? enabled(process.env.SUPPORT_EMAIL_NEW_TICKET_ENABLED, true)
     : enabled(process.env.SUPPORT_EMAIL_CUSTOMER_REPLY_ENABLED, true)
-  if (!eventEnabled) {
-    console.info('[support-email] early-return', { category: 'event_disabled', eventType })
-    return null
-  }
+  if (!eventEnabled) return null
 
   return resolveTransportConfig()
 }
 
 function resolveCustomerConfig(eventType: CustomerSupportEmailEvent) {
   const notificationsEnabled = enabled(process.env.CUSTOMER_EMAIL_NOTIFICATIONS_ENABLED)
-  console.info('[support-email] diagnostics', { customerNotificationsEnabled: notificationsEnabled, eventType })
-  if (!notificationsEnabled) {
-    console.info('[support-email] early-return', { category: 'customer_notifications_disabled', eventType })
-    return null
-  }
+  if (!notificationsEnabled) return null
   const eventEnabled = eventType === 'provider_reply'
     ? enabled(process.env.CUSTOMER_EMAIL_PROVIDER_REPLY_ENABLED, true)
     : enabled(process.env.CUSTOMER_EMAIL_STATUS_ENABLED, true)
-  if (!eventEnabled) {
-    console.info('[support-email] early-return', { category: 'customer_event_disabled', eventType })
-    return null
-  }
+  if (!eventEnabled) return null
 
   return resolveTransportConfig()
 }
@@ -178,21 +164,15 @@ function customerEmailContent(input: {
 async function activeOwnerRecipients() {
   const { data, error } = await supabaseAdmin.from('platform_admins').select('user_id').eq('role', 'provider_owner').eq('is_active', true).limit(MAX_RECIPIENTS + 1)
   if (error) throw error
-  console.info('[support-email] diagnostics', { activeProviderOwners: (data || []).length })
   if ((data || []).length > MAX_RECIPIENTS) throw new Error('Active provider owner recipient limit exceeded')
 
   const resolved = await Promise.all((data || []).map(async ({ user_id }) => {
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(user_id)
     if (authError) throw authError
     const email = authUser.user?.email?.trim() || ''
-    return {
-      authUserResolved: Boolean(authUser.user),
-      recipient: authUser.user?.email_confirmed_at && EMAIL_PATTERN.test(email) ? { userId: user_id, email } : null,
-    }
+    return authUser.user?.email_confirmed_at && EMAIL_PATTERN.test(email) ? { userId: user_id, email } : null
   }))
-  const resolvedAuthUsers = resolved.filter(({ authUserResolved }) => authUserResolved).length
-  const recipients = resolved.map(({ recipient }) => recipient).filter((recipient): recipient is { userId: string; email: string } => Boolean(recipient))
-  console.info('[support-email] diagnostics', { resolvedAuthUsers, validRecipientEmails: recipients.length })
+  const recipients = resolved.filter((recipient): recipient is { userId: string; email: string } => Boolean(recipient))
   return recipients
 }
 
@@ -209,7 +189,6 @@ async function sendWithResend(input: {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
-    console.info('[support-email] diagnostics', { resendHttpRequestStarted: true })
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -220,17 +199,13 @@ async function sendWithResend(input: {
       body: JSON.stringify({ from: input.from, to: [input.recipient], subject: input.subject, text: input.text, html: input.html, ...(input.replyTo ? { reply_to: input.replyTo } : {}) }),
       signal: controller.signal,
     })
-    console.info('[support-email] diagnostics', { resendHttpStatus: response.status })
     if (!response.ok) throw new Error(`Resend request failed with status ${response.status}`)
-    const result = await response.json().catch(() => null) as { id?: unknown } | null
-    return typeof result?.id === 'string' ? result.id : null
   } finally {
     clearTimeout(timeout)
   }
 }
 
 export async function sendSupportEmailNotification(input: SupportEmailInput) {
-  console.info('[support-email] diagnostics', { eventTypeReceived: input.eventType, ticket: maskId(input.ticketId) })
   try {
     const config = resolveConfig(input.eventType)
     if (!config) return
@@ -266,20 +241,17 @@ export async function sendSupportEmailNotification(input: SupportEmailInput) {
     })
 
     if (recipients.length === 0) {
-      console.info('[support-email] diagnostics', { sendEmailCalled: false })
-      console.info('[support-email] early-return', { category: 'no_valid_recipients', eventType: input.eventType })
+      console.warn('[support-email] skipped', { category: 'no_valid_recipients', eventType: input.eventType })
       return
     }
 
     await Promise.all(recipients.map(async (recipient) => {
-      console.info('[support-email] diagnostics', { sendEmailCalled: true, recipient: maskId(recipient.userId) })
-      const providerMessageId = await sendWithResend({
+      await sendWithResend({
         ...config,
         recipient: recipient.email,
         idempotencyKey: `support/${input.eventType}/${input.sourceId}/${recipient.userId}`,
         ...content,
       })
-      console.info('[support-email] sent', { eventType: input.eventType, ticket: maskId(ticket.id), recipient: maskId(recipient.userId), providerMessageId: providerMessageId ? maskId(providerMessageId) : null })
     }))
   } catch (error) {
     const errorCategory = error instanceof DOMException && error.name === 'AbortError'
@@ -292,7 +264,6 @@ export async function sendSupportEmailNotification(input: SupportEmailInput) {
 }
 
 export async function sendCustomerSupportEmailNotification(input: CustomerSupportEmailInput) {
-  console.info('[support-email] diagnostics', { eventTypeReceived: input.eventType, ticket: maskId(input.ticketId) })
   try {
     const config = resolveCustomerConfig(input.eventType)
     if (!config) return
@@ -318,10 +289,7 @@ export async function sendCustomerSupportEmailNotification(input: CustomerSuppor
       preview = supportEmailPreview(message.message)
     } else {
       const expectedStatus = input.eventType === 'status_resolved' ? 'resolved' : 'closed'
-      if (ticket.status !== expectedStatus) {
-        console.info('[support-email] early-return', { category: 'customer_status_no_longer_matches', eventType: input.eventType, ticket: maskId(ticket.id) })
-        return
-      }
+      if (ticket.status !== expectedStatus) return
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -333,7 +301,7 @@ export async function sendCustomerSupportEmailNotification(input: CustomerSuppor
     if (profileError) throw profileError
     const recipient = profile?.contact_email?.trim() || ''
     if (!validMailbox(recipient)) {
-      console.info('[support-email] early-return', { category: 'customer_email_missing_or_invalid', eventType: input.eventType, customer: maskId(ticket.created_by) })
+      console.warn('[support-email] skipped', { category: 'customer_email_missing_or_invalid', eventType: input.eventType })
       return
     }
 
@@ -346,14 +314,12 @@ export async function sendCustomerSupportEmailNotification(input: CustomerSuppor
       preview,
       baseUrl: config.baseUrl,
     })
-    console.info('[support-email] diagnostics', { sendEmailCalled: true, customer: maskId(ticket.created_by) })
-    const providerMessageId = await sendWithResend({
+    await sendWithResend({
       ...config,
       recipient,
       idempotencyKey: `customer-support/${input.eventType}/${input.sourceId}/${ticket.created_by}`,
       ...content,
     })
-    console.info('[support-email] sent', { eventType: input.eventType, ticket: maskId(ticket.id), customer: maskId(ticket.created_by), providerMessageId: providerMessageId ? maskId(providerMessageId) : null })
   } catch (error) {
     const errorCategory = error instanceof DOMException && error.name === 'AbortError'
       ? 'request_timeout'

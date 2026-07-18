@@ -1,6 +1,7 @@
 const ALLOWED_KEYS = new Set([
   'page_path',
   'route',
+  'feature',
   'timestamp',
   'environment',
   'app_version',
@@ -12,7 +13,9 @@ const ALLOWED_KEYS = new Set([
   'branch',
   'authenticated_user',
   'error_reference',
+  'error_fingerprint',
   'error_code',
+  'http_status',
   'request_method',
   'safe_message',
 ])

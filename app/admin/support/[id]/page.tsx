@@ -156,6 +156,7 @@ export default function SupportTicketDetailsPage() {
             <p className="mt-3 text-sm text-slate-400">أُنشئت في {formatSupportDate(ticket.created_at)}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {ticket.source === 'error_report' ? <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-black text-amber-100">بلاغ عطل تلقائي</span> : null}
             <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${supportPriorityClass(ticket.priority)}`}>{supportPriorityLabels[ticket.priority]}</span>
             <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${supportStatusClass(ticket.status)}`}>{supportStatusLabels[ticket.status]}</span>
           </div>

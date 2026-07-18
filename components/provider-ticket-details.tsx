@@ -228,7 +228,7 @@ export function ProviderTicketDetails({ ticketId, mode = 'page', onMutated }: { 
       <header className="rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-emerald-300/10 via-cyan-300/[0.07] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:p-7">
         <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0"><p className="text-sm font-black text-cyan-200">{ticket.ticket_number}</p><h1 className="mt-2 break-words text-2xl font-black text-white md:text-3xl">{ticket.title}</h1><p className="mt-3 text-sm text-slate-400">{ticket.tenant_name} · أُنشئت في {formatSupportDate(ticket.created_at)}</p></div>
-          <div className="flex flex-wrap gap-2"><span className={`rounded-full border px-3 py-1.5 text-xs font-black ${supportPriorityClass(ticket.priority)}`}>{supportPriorityLabels[ticket.priority]}</span><span className={`rounded-full border px-3 py-1.5 text-xs font-black ${supportStatusClass(ticket.status)}`}>{supportStatusLabels[ticket.status]}</span></div>
+          <div className="flex flex-wrap gap-2">{ticket.source === 'error_report' ? <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-black text-amber-100">بلاغ عطل تلقائي</span> : null}<span className={`rounded-full border px-3 py-1.5 text-xs font-black ${supportPriorityClass(ticket.priority)}`}>{supportPriorityLabels[ticket.priority]}</span><span className={`rounded-full border px-3 py-1.5 text-xs font-black ${supportStatusClass(ticket.status)}`}>{supportStatusLabels[ticket.status]}</span></div>
         </div>
       </header>
       {notice ? <AdminAlert tone="success">{notice}</AdminAlert> : null}

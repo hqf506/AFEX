@@ -17,7 +17,6 @@ import {
 } from '@/lib/support/contracts'
 import { formatSupportDate, formatSupportDuration, supportCategoryLabels, supportOperationalClass, supportOperationalLabels, supportPriorityClass, supportPriorityLabels, supportStatusClass, supportStatusLabels } from '@/lib/support/ui'
 import { ProviderTicketDetails } from '@/components/provider-ticket-details'
-import { DeveloperSupportNotifications } from '@/components/developer-support-notifications'
 
 const PAGE_SIZE = 25
 
@@ -144,16 +143,6 @@ export function ProviderSupportConsole({ variant = 'provider' }: { variant?: 'pr
             <h1 className="mt-2 text-2xl font-black text-white md:text-3xl">مركز دعم عملاء AFEX</h1>
             <p className="mt-2 text-sm leading-7 text-slate-400">عرض مركزي وآمن لتذاكر منشآت العملاء.</p>
           </div>
-          {variant === 'developer' ? <div className="flex shrink-0 items-center gap-2 self-start" dir="rtl">
-            <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-[#07111f]/80 px-3 py-2 backdrop-blur-xl">
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10 text-sm font-black text-emerald-200">AF</span>
-              <span className="min-w-0 leading-tight">
-                <span className="block truncate text-xs font-black text-white">المطور</span>
-                <span className="mt-1 block text-[10px] font-bold text-slate-400">مالك المنصة</span>
-              </span>
-            </div>
-            <DeveloperSupportNotifications />
-          </div> : null}
         </div>
       </header>
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}

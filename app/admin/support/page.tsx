@@ -293,7 +293,7 @@ export default function SupportTicketsPage() {
                 {tickets.map((ticket) => (
                   <tr key={ticket.id} className={`transition hover:bg-cyan-300/[0.035] ${ticket.id === createdTicketId ? 'bg-cyan-300/[0.08]' : ''}`}>
                     <td className="px-4 py-4 font-black text-cyan-200">{ticket.ticket_number}</td>
-                    <td className="max-w-[300px] px-4 py-4"><p className="min-w-0 whitespace-normal break-words font-bold text-white">{ticket.title}</p></td>
+                    <td className="max-w-[300px] px-4 py-4"><p className="min-w-0 whitespace-normal break-words font-bold text-white">{ticket.title}</p>{ticket.source === 'error_report' ? <span className="mt-2 inline-flex rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black text-amber-100">بلاغ عطل تلقائي</span> : null}</td>
                     <td className="px-4 py-4 text-slate-300">{supportCategoryLabels[ticket.category]}</td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${supportPriorityClass(ticket.priority)}`}>{supportPriorityLabels[ticket.priority]}</span></td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${supportStatusClass(ticket.status)}`}>{supportStatusLabels[ticket.status]}</span></td>

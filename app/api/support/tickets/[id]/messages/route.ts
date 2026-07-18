@@ -1,6 +1,5 @@
 import { after, NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
-import { maskId } from '@/lib/security/redaction'
 import { requireSupportAuth, text } from '@/lib/support/server'
 import { sendCustomerSupportEmailNotification, sendSupportEmailNotification } from '@/lib/support/email'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -18,6 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!auth.isProvider) ticketQuery = ticketQuery.eq('tenant_id', auth.profile.tenant_id || '')
   const { data: ticket } = await ticketQuery.maybeSingle()
   if (!ticket) return jsonWithAuthCookies(auth.response, { success: false, error: 'لا تملك صلاحية الوصول إلى هذه التذكرة.' }, 403)
+  if (ticket.status === 'closed') return jsonWithAuthCookies(auth.response, { success: false, error: 'لا يمكن الرد على تذكرة مغلقة.' }, 400)
 
   const nextStatus = auth.isProvider
     ? (isInternal ? ticket.status : 'waiting_customer')
@@ -42,14 +42,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     previous_value: { status: ticket.status },
     new_value: { status: nextStatus },
   })
-  if (!auth.isProvider && ticket.status !== 'closed') {
+  if (!auth.isProvider) {
     after(async () => {
-      console.info('[support-email] diagnostics', { afterCallbackStarted: true, eventType: 'customer_reply', ticket: maskId(id) })
       await sendSupportEmailNotification({ eventType: 'customer_reply', ticketId: id, sourceId: savedMessage.id })
     })
   } else if (auth.isProvider && !isInternal) {
     after(async () => {
-      console.info('[support-email] diagnostics', { afterCallbackStarted: true, eventType: 'provider_reply', ticket: maskId(id) })
       await sendCustomerSupportEmailNotification({ eventType: 'provider_reply', ticketId: id, sourceId: savedMessage.id })
     })
   }

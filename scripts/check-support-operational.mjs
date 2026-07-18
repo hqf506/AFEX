@@ -5,7 +5,7 @@ const sql = fs.readFileSync(migrationPath, 'utf8')
 const providerListApi = fs.readFileSync('app/api/provider/support/tickets/route.ts', 'utf8')
 const customerListApi = fs.readFileSync('app/api/support/tickets/route.ts', 'utf8')
 const customerDetailApi = fs.readFileSync('app/api/support/tickets/[id]/route.ts', 'utf8')
-const providerPage = fs.readFileSync('app/provider/support/page.tsx', 'utf8')
+const providerPage = fs.readFileSync('components/provider-support-console.tsx', 'utf8')
 const supportUi = fs.readFileSync('lib/support/ui.ts', 'utf8')
 
 const required = [

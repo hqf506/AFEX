@@ -17,7 +17,7 @@ export function SupportErrorFallback({
   error: Error & { digest?: string }
   retry: () => void
 }) {
-  const occurrenceRef = useRef<string | null>(null)
+  const lastAttemptAt = useRef(0)
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState('')
@@ -25,21 +25,28 @@ export function SupportErrorFallback({
 
   async function reportError() {
     if (submitting || result?.success) return
+    if (Date.now() - lastAttemptAt.current < 5000) {
+      setFailure('يرجى الانتظار قليلًا قبل إعادة إرسال البلاغ.')
+      return
+    }
+    lastAttemptAt.current = Date.now()
     setSubmitting(true)
     setFailure('')
-    occurrenceRef.current ||= error.digest || globalThis.crypto?.randomUUID?.() || `${Date.now()}`
     try {
-      const response = await fetch('/api/support/tickets', {
+      const response = await fetch('/api/support/error-reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          source: 'error_report',
-          error_occurrence: occurrenceRef.current,
           comment: comment.trim().slice(0, 1000),
+          feature: 'error-boundary',
+          error_code: error.digest || '',
         }),
       })
       const data = await response.json().catch(() => null) as ErrorReportResponse | null
-      if (!response.ok || !data?.success) throw new Error(data?.error || 'تعذر إرسال بلاغ الدعم.')
+      if (!response.ok || !data?.success) {
+        setFailure(data?.error || 'تعذر إرسال بلاغ الدعم.')
+        return
+      }
       setResult(data)
     } catch {
       setFailure('تعذر إرسال البلاغ الآن. يمكنك إعادة المحاولة لاحقًا.')
@@ -76,6 +83,7 @@ export function SupportErrorFallback({
             <p className="font-black">{result.reused ? 'تم العثور على بلاغ سابق لنفس الخطأ.' : 'تم إرسال البلاغ إلى فريق الدعم.'}</p>
             {result.ticket?.ticket_number && <p className="mt-1 text-emerald-200">رقم التذكرة: {result.ticket.ticket_number}</p>}
             {result.error_reference && <p className="mt-1 break-all text-xs text-emerald-300/80">مرجع الخطأ: {result.error_reference}</p>}
+            {result.ticket?.id && <a href={`/admin/support/${encodeURIComponent(result.ticket.id)}`} className="mt-3 inline-flex h-10 items-center rounded-xl border border-emerald-300/25 px-4 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/10">فتح التذكرة</a>}
           </div>
         )}
 
