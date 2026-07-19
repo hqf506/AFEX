@@ -14,6 +14,14 @@ type ResetPasswordRateLimitEntry = {
   resetAt: number
 }
 
+type AuthRecoveryFailureCategory =
+  | 'RATE_LIMITED'
+  | 'SMTP_FAILURE'
+  | 'REDIRECT_NOT_ALLOWED'
+  | 'EMAIL_DELIVERY_FAILURE'
+  | 'AUTH_PROVIDER_FAILURE'
+  | 'UNKNOWN_AUTH_FAILURE'
+
 const RESET_PASSWORD_MESSAGE =
   'إذا كان البريد الإلكتروني مرتبطًا بحساب، فسيتم إرسال رابط إعادة تعيين كلمة المرور.'
 const RESET_PASSWORD_VALIDATION_MESSAGE =
@@ -27,6 +35,45 @@ const resetPasswordRateLimitStore = new Map<
   ResetPasswordRateLimitEntry
 >()
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function categorizeAuthRecoveryFailure(error: unknown): AuthRecoveryFailureCategory {
+  if (!error || typeof error !== 'object') return 'UNKNOWN_AUTH_FAILURE'
+
+  const code = 'code' in error && typeof error.code === 'string' ? error.code : ''
+  const status = 'status' in error && typeof error.status === 'number' ? error.status : undefined
+
+  if (
+    status === 429 ||
+    ['over_request_rate_limit', 'over_email_send_rate_limit'].includes(code)
+  ) {
+    return 'RATE_LIMITED'
+  }
+
+  if (['smtp_failure', 'smtp_error', 'email_send_failed'].includes(code)) {
+    return 'SMTP_FAILURE'
+  }
+
+  if (['redirect_not_allowed', 'redirect_to_not_allowed'].includes(code)) {
+    return 'REDIRECT_NOT_ALLOWED'
+  }
+
+  if (['email_address_not_authorized', 'email_address_invalid'].includes(code)) {
+    return 'EMAIL_DELIVERY_FAILURE'
+  }
+
+  if (['email_provider_disabled', 'provider_disabled'].includes(code)) {
+    return 'AUTH_PROVIDER_FAILURE'
+  }
+
+  return 'UNKNOWN_AUTH_FAILURE'
+}
+
+function logAuthRecoveryFailure(error: unknown) {
+  console.warn(
+    '[auth-recovery] supabase request failed:',
+    categorizeAuthRecoveryFailure(error)
+  )
+}
 
 function getClientIp(request: NextRequest) {
   const forwardedFor = request.headers.get('x-forwarded-for')
@@ -114,10 +161,20 @@ export async function POST(request: NextRequest) {
     redirectUrl.searchParams.set('next', '/reset-password')
     redirectUrl.searchParams.set('state', createRecoveryCallbackState(email))
 
-    await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl.toString(),
     })
-  } catch {
+
+    if (error) {
+      logAuthRecoveryFailure(error)
+      return resetPasswordResponse()
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[auth-recovery] AUTH_RECOVERY_REQUEST_ACCEPTED')
+    }
+  } catch (error) {
+    logAuthRecoveryFailure(error)
     return resetPasswordResponse()
   }
 
