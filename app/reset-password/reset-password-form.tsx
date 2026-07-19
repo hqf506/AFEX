@@ -82,7 +82,7 @@ export function ResetPasswordForm() {
       </div>
       <div>
         <label htmlFor="recovery-password-confirmation" className="mb-2 block text-sm font-bold text-slate-200">
-          تأكيد كلمة المرور
+          تأكيد كلمة المرور الجديدة
         </label>
         <input
           id="recovery-password-confirmation"

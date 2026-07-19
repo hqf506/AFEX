@@ -1368,6 +1368,7 @@ export default function AdminUsersPage() {
                               value={editContactEmail}
                               onChange={(e) => setEditContactEmail(e.target.value)}
                               placeholder="إجباري"
+                              maxLength={254}
                               className={DRAWER_INPUT_LTR_CLASS}
                               autoComplete="email"
                               dir="rtl"

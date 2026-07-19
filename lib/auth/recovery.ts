@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 
 const RECOVERY_COOKIE_NAME = 'afex-password-recovery'
 const RECOVERY_MAX_AGE_SECONDS = 10 * 60
-const CALLBACK_STATE_MAX_AGE_SECONDS = 30 * 60
+const CALLBACK_STATE_MAX_AGE_SECONDS = 15 * 60
 
 function recoverySecret() {
   const secret = process.env.AUTH_RECOVERY_STATE_SECRET?.trim() || ''

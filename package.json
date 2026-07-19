@@ -38,7 +38,9 @@
     "check:support-email": "node scripts/check-support-email.mjs",
     "check:auth-welcome-email": "node scripts/check-auth-welcome-email.mjs",
     "check:auth-forgot-password": "node scripts/check-auth-forgot-password.mjs",
-    "check:auth-reset-password": "node scripts/check-auth-reset-password.mjs"
+    "check:auth-reset-password": "node scripts/check-auth-reset-password.mjs",
+    "check:auth-email-sync": "node scripts/check-auth-email-sync.mjs",
+    "check:auth-recovery-prefetch": "node scripts/check-auth-recovery-prefetch.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

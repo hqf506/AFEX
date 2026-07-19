@@ -170,9 +170,6 @@ export async function POST(request: NextRequest) {
       return resetPasswordResponse()
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.info('[auth-recovery] AUTH_RECOVERY_REQUEST_ACCEPTED')
-    }
   } catch (error) {
     logAuthRecoveryFailure(error)
     return resetPasswordResponse()
