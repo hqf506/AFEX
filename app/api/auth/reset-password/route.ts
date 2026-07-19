@@ -1,5 +1,8 @@
 import { NextRequest } from 'next/server'
+import { createHash } from 'node:crypto'
 import { jsonResponse } from '@/lib/api/responses'
+import { createRecoveryCallbackState } from '@/lib/auth/recovery'
+import { resolveTrustedAppBaseUrl } from '@/lib/email/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 type ResetPasswordBody = {
@@ -12,9 +15,13 @@ type ResetPasswordRateLimitEntry = {
 }
 
 const RESET_PASSWORD_MESSAGE =
-  'إذا كان البريد مسجلًا، سيتم إرسال رابط إعادة التعيين'
+  'إذا كان البريد الإلكتروني مرتبطًا بحساب، فسيتم إرسال رابط إعادة تعيين كلمة المرور.'
+const RESET_PASSWORD_VALIDATION_MESSAGE =
+  'أدخل بريدًا إلكترونيًا صالحًا.'
 const RESET_PASSWORD_RATE_LIMIT_MAX_ATTEMPTS = 3
 const RESET_PASSWORD_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
+const RESET_PASSWORD_CALLBACK_PATH = '/auth/callback'
+const MAX_EMAIL_LENGTH = 254
 const resetPasswordRateLimitStore = new Map<
   string,
   ResetPasswordRateLimitEntry
@@ -34,7 +41,8 @@ function getClientIp(request: NextRequest) {
 }
 
 function buildResetPasswordRateLimitKey(request: NextRequest, email: string) {
-  return [getClientIp(request), email || 'unknown'].join(':')
+  const emailDigest = createHash('sha256').update(email).digest('hex')
+  return [getClientIp(request), emailDigest].join(':')
 }
 
 function checkResetPasswordRateLimit(key: string) {
@@ -67,25 +75,47 @@ function resetPasswordResponse(status = 200) {
   )
 }
 
-export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => ({}))) as ResetPasswordBody
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
-  const rateLimitKey = buildResetPasswordRateLimitKey(request, email)
+function validationResponse() {
+  return jsonResponse(
+    {
+      success: false,
+      error: RESET_PASSWORD_VALIDATION_MESSAGE,
+    },
+    400
+  )
+}
 
+export async function POST(request: NextRequest) {
+  const body = (await request.json().catch(() => null)) as ResetPasswordBody | null
+
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    Array.isArray(body) ||
+    Object.keys(body).some((key) => key !== 'email')
+  ) {
+    return validationResponse()
+  }
+
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+
+  if (!email || email.length > MAX_EMAIL_LENGTH || !emailPattern.test(email)) {
+    return validationResponse()
+  }
+
+  const rateLimitKey = buildResetPasswordRateLimitKey(request, email)
   if (!checkResetPasswordRateLimit(rateLimitKey)) {
     return resetPasswordResponse(429)
   }
 
-  if (!emailPattern.test(email)) {
-    return resetPasswordResponse()
-  }
-
   try {
     const supabase = await createSupabaseServerClient()
-    const redirectTo = `${request.nextUrl.origin}/reset-password`
+    const redirectUrl = new URL(RESET_PASSWORD_CALLBACK_PATH, resolveTrustedAppBaseUrl())
+    redirectUrl.searchParams.set('next', '/reset-password')
+    redirectUrl.searchParams.set('state', createRecoveryCallbackState(email))
 
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo,
+      redirectTo: redirectUrl.toString(),
     })
   } catch {
     return resetPasswordResponse()

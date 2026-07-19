@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { after } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
@@ -21,6 +22,7 @@ import { type AppRole } from '@/lib/app-roles'
 import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
+import { sendWelcomeEmail } from '@/lib/auth/email'
 
 type CreateUserBody = {
   username?: string
@@ -705,6 +707,17 @@ export async function POST(request: NextRequest) {
         has_pos_pin: Boolean(posPin),
       },
     })
+
+    if (isEmailLoginRole(role)) {
+      after(async () => {
+        await sendWelcomeEmail({
+          accountId: userId,
+          recipient: loginEmail,
+          displayName: fullName || username,
+          role,
+        })
+      })
+    }
 
     const response = jsonResponse({
       success: true,

@@ -1,0 +1,27 @@
+import fs from 'node:fs'
+
+const read = (path) => fs.readFileSync(path, 'utf8')
+const api = read('app/api/auth/reset-password/route.ts')
+const landing = read('app/page.tsx')
+const login = read('app/login/page.tsx')
+const posLogin = read('app/pos/login/page.tsx')
+const welcomeEmail = read('lib/auth/email.ts')
+const baseUrl = read('lib/email/server.ts')
+const assert = (condition, message) => { if (!condition) throw new Error(message) }
+
+assert(baseUrl.includes("import 'server-only'") && baseUrl.includes('AFEX_APP_BASE_URL'), 'Recovery redirect must use server-only trusted configuration.')
+assert(baseUrl.includes("process.env.NODE_ENV === 'production'") && baseUrl.includes("url.protocol !== 'https:'") && baseUrl.includes('url.username') && baseUrl.includes('url.password'), 'Trusted base URL must require safe HTTPS configuration in Production.')
+assert(api.includes('resolveTrustedAppBaseUrl()') && !api.includes('request.nextUrl.origin'), 'Recovery redirect must not trust the request origin.')
+assert(api.includes("Object.keys(body).some((key) => key !== 'email')"), 'Reset request must reject browser-controlled fields other than email.')
+assert(api.includes('MAX_EMAIL_LENGTH = 254') && api.includes('.trim().toLowerCase()'), 'Email must be safely normalized and bounded.')
+assert(api.includes("createHash('sha256').update(email)") && !api.includes("console.log") && !api.includes("console.error"), 'Rate-limit keys and logs must not expose full email addresses.')
+assert(api.includes('resetPasswordResponse(429)') && api.includes('RESET_PASSWORD_MESSAGE'), 'Rate limiting must retain the generic accepted response contract.')
+assert(!api.includes("from('profiles')") && !api.includes('auth.admin'), 'Forgot Password must not look up account existence.')
+assert(login.includes('resetSubmittingRef.current') && login.includes('disabled={resetLoading}'), 'Forgot Password UI must prevent duplicate submissions.')
+assert(login.includes("get('forgot') === 'password'") && posLogin.includes('href="/login?forgot=password"'), 'POS Forgot Password must open the request flow instead of the reset form.')
+assert(landing.includes('href="/login?forgot=password"') && landing.includes('نسيت كلمة المرور؟'), 'The active landing login dialog must expose the existing Forgot Password flow.')
+assert(!posLogin.includes('href="/reset-password"'), 'POS login must not link directly to the password update page.')
+assert(login.includes('مستخدمو رمز PIN فقط') && !api.includes('pos_pin'), 'PIN-only users must be directed to an administrator, not an email recovery API.')
+assert(welcomeEmail.includes('sendWelcomeEmail') && welcomeEmail.includes('WELCOME_EMAIL_NOTIFICATIONS_ENABLED'), 'A1.2 Welcome Email must remain intact.')
+
+console.log('AFEX Forgot Password hardening checks passed.')

@@ -49,5 +49,7 @@ Direct Support email alerts use Resend from server route handlers. Configure the
 - `CUSTOMER_EMAIL_NOTIFICATIONS_ENABLED` (defaults to disabled)
 - `CUSTOMER_EMAIL_PROVIDER_REPLY_ENABLED` (defaults to enabled when customer notifications are enabled)
 - `CUSTOMER_EMAIL_STATUS_ENABLED` (defaults to enabled when customer notifications are enabled)
+- `WELCOME_EMAIL_NOTIFICATIONS_ENABLED` (defaults to disabled; enables eligible new-account welcome emails)
+- `AUTH_RECOVERY_STATE_SECRET` (server-only, at least 32 random characters; signs short-lived password-recovery context)
 
 Do not expose these variables through `NEXT_PUBLIC_` names. Email delivery is best-effort after the customer response and does not change a successful ticket or reply result.

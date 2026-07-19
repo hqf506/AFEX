@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server'
+import { after } from 'next/server'
 import { jsonResponse } from '@/lib/api/responses'
 import { redactSensitive, safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { normalizeUsername } from '@/lib/usernames'
+import { sendWelcomeEmail } from '@/lib/auth/email'
 
 type CreateTenantBody = {
   tenantName?: string
@@ -366,6 +368,19 @@ export async function POST(request: NextRequest) {
         user_id: userId,
       })
     )
+
+    if (userId) {
+      after(async () => {
+        await sendWelcomeEmail({
+          accountId: userId,
+          recipient: email,
+          displayName: fullName,
+          role: 'admin',
+          organizationName: tenantName,
+          branchName: branchName || 'Main Branch',
+        })
+      })
+    }
 
     return jsonResponse({
       success: true,

@@ -769,6 +769,15 @@ export default function LandingPage() {
                 />
               </div>
 
+              <div className="text-center">
+                <Link
+                  href="/login?forgot=password"
+                  className="text-sm font-black text-cyan-200/85 underline decoration-cyan-300/30 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-200/60"
+                >
+                  نسيت كلمة المرور؟
+                </Link>
+              </div>
+
               <div className="flex justify-end gap-3 pt-1">
                 <button
                   type="button"

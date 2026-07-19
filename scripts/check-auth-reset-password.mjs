@@ -1,0 +1,33 @@
+import fs from 'node:fs'
+
+const read = (path) => fs.readFileSync(path, 'utf8')
+const callback = read('app/auth/callback/route.ts')
+const request = read('app/api/auth/reset-password/route.ts')
+const complete = read('app/api/auth/recovery/complete/route.ts')
+const recovery = read('lib/auth/recovery.ts')
+const page = read('app/reset-password/page.tsx')
+const form = read('app/reset-password/reset-password-form.tsx')
+const login = read('app/login/page.tsx')
+const welcome = read('lib/auth/email.ts')
+const assert = (condition, message) => { if (!condition) throw new Error(message) }
+
+assert(callback.includes('exchangeCodeForSession(code)') && callback.includes('createSupabaseServerClient()'), 'Callback must exchange the code with the cookie-aware server client.')
+assert(callback.includes("value === RECOVERY_DESTINATION") && callback.includes("RECOVERY_DESTINATION = '/reset-password'"), 'Callback next destination must use a strict allowlist.')
+assert(!callback.includes('console.') && !callback.includes('error.message'), 'Callback must not log codes or expose raw errors.')
+assert(request.includes("RESET_PASSWORD_CALLBACK_PATH = '/auth/callback'") && request.includes("searchParams.set('next', '/reset-password')") && !request.includes('request.nextUrl.origin'), 'Forgot Password must redirect through the trusted callback.')
+assert(request.includes('createRecoveryCallbackState(email)') && callback.includes('isValidRecoveryCallbackState(state, data.user.email)'), 'Callback exchange must be bound to a signed recovery request for the same email.')
+assert(callback.includes('hasValidRecoveryCallbackStateSignature(state)') && callback.indexOf('hasValidRecoveryCallbackStateSignature(state)') < callback.indexOf('exchangeCodeForSession(code)'), 'Unsigned or expired callback state must be rejected before code exchange.')
+assert(callback.includes("signOut({ scope: 'local' })"), 'A post-exchange recovery-state mismatch must clean up the created session.')
+assert(callback.includes('resolveTrustedAppBaseUrl()') && !callback.includes('new URL(next, request.url)'), 'Callback redirects must use the trusted configured origin.')
+assert(recovery.includes('httpOnly: true') && recovery.includes('maxAge: RECOVERY_MAX_AGE_SECONDS') && recovery.includes("createHmac('sha256'"), 'Recovery context must be signed, HttpOnly, and short-lived.')
+assert(!recovery.includes('localStorage') && !recovery.includes('sessionStorage'), 'Recovery state must not use browser storage.')
+assert(page.includes('hasValidRecoveryContext(user.id)') && page.includes('supabase.auth.getUser()'), 'Reset form must require both a session user and valid recovery context.')
+assert(!page.includes('getSession()') && !page.includes('PASSWORD_RECOVERY'), 'A generic client session must not authorize the reset form.')
+assert(complete.includes('hasValidRecoveryContext(user.id)') && complete.includes('supabase.auth.updateUser({ password })'), 'Password update must be enforced server-side behind recovery context.')
+assert(complete.includes('clearRecoveryContext()') && complete.includes("signOut({ scope: 'local' })"), 'Successful reset must clear recovery context and the temporary session.')
+assert(form.includes("router.replace('/login?password_reset=success')") && login.includes("get('password_reset') === 'success'"), 'Successful reset must return to a fixed safe login state.')
+assert(login.includes("get('recovery') === 'invalid'") && !login.includes('searchParams.get("message")'), 'Invalid recovery UI must use a fixed state, not arbitrary query text.')
+assert(welcome.includes('WELCOME_EMAIL_NOTIFICATIONS_ENABLED'), 'A1.2 Welcome Email must remain intact.')
+assert(request.includes('RESET_PASSWORD_MESSAGE') && request.includes('resetPasswordResponse'), 'A1.3 generic Forgot Password response must remain intact.')
+
+console.log('AFEX secure password recovery checks passed.')

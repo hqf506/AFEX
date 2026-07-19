@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { after } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
@@ -20,6 +21,7 @@ import { type AppRole } from '@/lib/app-roles'
 import { type AuthScopeType } from '@/lib/auth-profile'
 import { safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { sendWelcomeEmail } from '@/lib/auth/email'
 
 type UpdatePosUserBody = {
   userId?: string
@@ -1292,6 +1294,17 @@ export async function POST(request: NextRequest) {
           new_branch_id: branchId,
         },
       })
+
+      if (!existingSameIdAuthUser) {
+        after(async () => {
+          await sendWelcomeEmail({
+            accountId: nextProfileId,
+            recipient: contactEmail,
+            displayName: fullName,
+            role,
+          })
+        })
+      }
 
       const response = jsonResponse({ success: true })
       return withAuthCookies(auth.response, response)

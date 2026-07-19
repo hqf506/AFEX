@@ -35,7 +35,10 @@
     "check:support-operational": "node scripts/check-support-operational.mjs",
     "check:support-attachments": "node scripts/check-support-attachments.mjs",
     "check:developer-center": "node scripts/check-developer-center.mjs",
-    "check:support-email": "node scripts/check-support-email.mjs"
+    "check:support-email": "node scripts/check-support-email.mjs",
+    "check:auth-welcome-email": "node scripts/check-auth-welcome-email.mjs",
+    "check:auth-forgot-password": "node scripts/check-auth-forgot-password.mjs",
+    "check:auth-reset-password": "node scripts/check-auth-reset-password.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
