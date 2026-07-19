@@ -60,7 +60,7 @@ export function RecoveryContinuation() {
             <form method="post" action="/auth/recovery/continue" className="space-y-5">
               <input type="hidden" name="confirmation" value={confirmationUrl} />
               <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-4 text-sm font-bold leading-7 text-emerald-100">
-                اضغط «متابعة آمنة» للانتقال إلى التحقق الرسمي من Supabase.
+                اضغط «متابعة آمنة» لإكمال التحقق ومتابعة إعادة تعيين كلمة المرور.
               </div>
               <button
                 type="submit"
