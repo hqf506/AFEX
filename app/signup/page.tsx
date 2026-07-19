@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { getClientErrorMessage } from '@/lib/api/client-error'
+import { supabase } from '@/lib/supabase/client'
 
 type SignupFormState = {
   tenantName: string
@@ -193,20 +194,20 @@ function AvailabilityDropdown({
   suggestions?: string[]
 }) {
   return (
-    <div className="absolute right-0 top-full z-50 mt-2 w-full rounded-2xl border border-cyan-300/15 bg-[#07111f]/95 px-3 py-2.5 text-right shadow-[0_18px_70px_rgba(0,0,0,0.42),0_0_34px_rgba(34,211,238,0.12)] backdrop-blur-xl">
-      <p className="text-[11px] font-black text-rose-100">{message}</p>
+    <div className="mt-2 w-full min-w-0 max-w-full rounded-2xl border border-cyan-300/15 bg-[#07111f]/95 px-3 py-2.5 text-right shadow-[0_18px_70px_rgba(0,0,0,0.42),0_0_34px_rgba(34,211,238,0.12)] backdrop-blur-xl">
+      <p className="break-words text-[11px] font-black text-rose-100">{message}</p>
       {suggestions.length > 0 ? (
         <>
           <p className="mt-2 text-[11px] font-black text-cyan-100/80">
             اقتراحات متاحة
           </p>
-          <div className="mt-2 grid max-h-28 gap-1.5 overflow-hidden">
+          <div className="mt-2 grid min-w-0 max-w-full max-h-28 gap-1.5 overflow-hidden">
             {suggestions.map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
                 onClick={() => onSuggestionClick?.(suggestion)}
-                className="w-full rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-left text-xs font-black text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition hover:border-cyan-200/45 hover:bg-cyan-300/18"
+                className="w-full min-w-0 max-w-full break-all whitespace-normal rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-left text-xs font-black text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition hover:border-cyan-200/45 hover:bg-cyan-300/18"
                 dir="ltr"
               >
                 {suggestion}
@@ -290,6 +291,10 @@ export default function SignupPage() {
     useState<FieldAvailability>('idle')
   const [phoneAvailability, setPhoneAvailability] =
     useState<FieldAvailability>('idle')
+  const [signupStep, setSignupStep] = useState<'form' | 'otp'>('form')
+  const [otp, setOtp] = useState('')
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
   const normalizedTenantName = form.tenantName.trim()
   const normalizedUsername = form.username.trim().toLowerCase()
   const normalizedEmail = form.email.trim().toLowerCase()
@@ -321,6 +326,14 @@ export default function SignupPage() {
     isEmailFormatValid && emailAvailability === 'taken'
   const showPhoneTakenDropdown =
     isPhoneFormatValid && phoneAvailability === 'taken'
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = window.setInterval(() => {
+      setResendCooldown((current) => Math.max(0, current - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [resendCooldown])
 
   function updateField(field: keyof SignupFormState, value: string) {
     if (field === 'tenantName') {
@@ -616,53 +629,33 @@ export default function SignupPage() {
       setUsernameSuggestions([])
 
       const payload = validateForm()
-      const response = await fetch('/api/onboarding/create-tenant', {
+      const response = await fetch('/api/auth/signup-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          email: payload.email,
+          password: payload.password,
+          action: 'request',
+        }),
       })
 
       const result = await response.json().catch(() => null)
-
-      if (process.env.NODE_ENV !== 'production') {
-        console.info('[signup] create tenant response', {
-          username: payload.username,
-          ok: response.ok,
-          status: response.status,
-          available: response.ok,
-          hasSuggestions: Array.isArray(result?.suggestions),
-        })
-      }
-
       if (!response.ok || !result?.success) {
-        const suggestions = Array.isArray(result?.suggestions)
-          ? result.suggestions.filter(
-              (suggestion: unknown): suggestion is string =>
-                typeof suggestion === 'string'
-            )
-          : []
-
-        if (response.status === 409 && suggestions.length > 0) {
-          setUsernameSuggestions(suggestions)
-          setUsernameAvailability('taken')
-          throw new Error('اسم المستخدم مستخدم بالفعل')
-        }
-
         throw new Error(
           getClientErrorMessage(
             result,
-            'تعذر إنشاء المؤسسة. لم يتم إكمال التسجيل.'
+            'تعذر إرسال رمز التحقق حاليًا. حاول مرة أخرى.'
           )
         )
       }
 
-      setSuccess('تم إنشاء الحساب بنجاح. سيتم تحويلك إلى الصفحة الرئيسية خلال ثانيتين.')
-
-      window.setTimeout(() => {
-        router.replace('/')
-      }, 2000)
+      setOtp('')
+      setOtpVerified(false)
+      setResendCooldown(60)
+      setSignupStep('otp')
+      setSuccess('أرسلنا رمز تحقق مكوّنًا من 6 أرقام إلى بريدك الإلكتروني.')
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -672,6 +665,127 @@ export default function SignupPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function completeOnboarding() {
+    const payload = validateForm()
+    const response = await fetch('/api/onboarding/create-tenant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenantName: payload.tenantName,
+        username: payload.username,
+        fullName: payload.fullName,
+        phone: payload.phone,
+        email: payload.email,
+        branchName: payload.branchName,
+      }),
+    })
+    const result = await response.json().catch(() => null)
+
+    if (!response.ok || !result?.success) {
+      const suggestions = Array.isArray(result?.suggestions)
+        ? result.suggestions.filter(
+            (suggestion: unknown): suggestion is string =>
+              typeof suggestion === 'string'
+          )
+        : []
+      if (response.status === 409 && suggestions.length > 0) {
+        setUsernameSuggestions(suggestions)
+        setUsernameAvailability('taken')
+      }
+      throw new Error(
+        getClientErrorMessage(
+          result,
+          'تم التحقق من البريد، لكن تعذر إكمال إنشاء المؤسسة. حاول مرة أخرى.'
+        )
+      )
+    }
+
+    setSuccess('تم إنشاء الحساب بنجاح. سيتم تحويلك إلى الصفحة الرئيسية خلال ثانيتين.')
+    window.setTimeout(() => router.replace('/'), 2000)
+  }
+
+  async function handleVerifyOtp(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!/^\d{6}$/.test(otp)) {
+      setError('أدخل رمز التحقق المكوّن من 6 أرقام.')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError('')
+      setSuccess('')
+
+      if (!otpVerified) {
+        const response = await fetch('/api/auth/signup-otp/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: normalizedEmail, token: otp }),
+        })
+        const result = await response.json().catch(() => null)
+        if (!response.ok || !result?.success) {
+          throw new Error(
+            getClientErrorMessage(
+              result,
+              'رمز التحقق غير صالح أو انتهت صلاحيته.'
+            )
+          )
+        }
+        setOtpVerified(true)
+      }
+
+      await completeOnboarding()
+    } catch (verifyError) {
+      setError(
+        verifyError instanceof Error
+          ? verifyError.message
+          : 'تعذر إكمال التسجيل. حاول مرة أخرى.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResendOtp() {
+    if (loading || resendCooldown > 0) return
+    try {
+      setLoading(true)
+      setError('')
+      const response = await fetch('/api/auth/signup-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, action: 'resend' }),
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok || !result?.success) {
+        throw new Error(
+          getClientErrorMessage(result, 'تعذر إعادة إرسال رمز التحقق حاليًا.')
+        )
+      }
+      setOtp('')
+      setResendCooldown(60)
+      setSuccess('تم إرسال رمز تحقق جديد إلى بريدك الإلكتروني.')
+    } catch (resendError) {
+      setError(
+        resendError instanceof Error
+          ? resendError.message
+          : 'تعذر إعادة إرسال رمز التحقق حاليًا.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleEditEmail() {
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+    setSignupStep('form')
+    setOtp('')
+    setOtpVerified(false)
+    setResendCooldown(0)
+    setError('')
+    setSuccess('')
   }
 
   const fieldClass =
@@ -697,9 +811,15 @@ export default function SignupPage() {
                 ابدأ منشأتك الآن
               </div>
               <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
-                إنشاء حساب جديد
+                {signupStep === 'form'
+                  ? 'إنشاء حساب جديد'
+                  : 'تحقق من بريدك الإلكتروني'}
               </h1>
-              <p className="mt-2 text-sm text-slate-400">AFEX</p>
+              <p className="mt-2 text-sm text-slate-400">
+                {signupStep === 'form'
+                  ? 'AFEX'
+                  : 'أرسلنا رمز تحقق إلى بريدك الإلكتروني'}
+              </p>
             </div>
 
             {error ? (
@@ -714,9 +834,10 @@ export default function SignupPage() {
               </div>
             ) : null}
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="relative z-30 block">
+            {signupStep === 'form' ? (
+            <form onSubmit={handleSubmit} noValidate autoComplete="on" className="space-y-4">
+              <div className="grid items-start gap-4 md:grid-cols-2">
+                <label className="relative flex min-w-0 flex-col">
                   <span className={labelClass}>اسم المؤسسة / الشركة *</span>
                   <input
                     type="text"
@@ -726,7 +847,8 @@ export default function SignupPage() {
                     }
                     className={`${fieldClass} pl-11`}
                     placeholder="مثال: Leather Fix"
-                    autoComplete="organization"
+                    name="organization"
+                    autoComplete="section-signup organization"
                     required
                   />
                   {showTenantNameAvailableCheck ? <AvailableCheckIcon /> : null}
@@ -741,7 +863,7 @@ export default function SignupPage() {
                   ) : null}
                 </label>
 
-                <label className="relative z-20 block">
+                <label className="relative flex min-w-0 flex-col">
                   <span className={labelClass}>اسم المستخدم *</span>
                   <input
                     type="text"
@@ -751,7 +873,8 @@ export default function SignupPage() {
                     }
                     className={`${fieldClass} pl-11 text-left`}
                     placeholder="owner"
-                    autoComplete="username"
+                    name="username"
+                    autoComplete="section-signup username"
                     autoCapitalize="none"
                     inputMode="text"
                     lang="en"
@@ -762,20 +885,20 @@ export default function SignupPage() {
                   />
                   {showUsernameAvailableCheck ? <AvailableCheckIcon /> : null}
                   {showUsernameTakenDropdown ? (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-full rounded-2xl border border-cyan-300/15 bg-[#07111f]/95 px-3 py-2.5 text-right shadow-[0_18px_70px_rgba(0,0,0,0.42),0_0_34px_rgba(34,211,238,0.12)] backdrop-blur-xl">
-                      <p className="text-[11px] font-black text-rose-100">
+                    <div className="mt-2 w-full min-w-0 max-w-full rounded-2xl border border-cyan-300/15 bg-[#07111f]/95 px-3 py-2.5 text-right shadow-[0_18px_70px_rgba(0,0,0,0.42),0_0_34px_rgba(34,211,238,0.12)] backdrop-blur-xl">
+                      <p className="break-words text-[11px] font-black text-rose-100">
                         اسم المستخدم مستخدم بالفعل
                       </p>
                       <p className="text-[11px] font-black text-cyan-100/80">
                         اقتراحات متاحة
                       </p>
-                      <div className="mt-2 grid max-h-28 gap-1.5 overflow-hidden">
+                      <div className="mt-2 grid min-w-0 max-w-full max-h-28 gap-1.5 overflow-hidden">
                         {usernameSuggestions.map((suggestion) => (
                           <button
                             key={suggestion}
                             type="button"
                             onClick={() => updateField('username', suggestion)}
-                            className="w-full rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-left text-xs font-black text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition hover:border-cyan-200/45 hover:bg-cyan-300/18"
+                            className="w-full min-w-0 max-w-full break-all whitespace-normal rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-left text-xs font-black text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition hover:border-cyan-200/45 hover:bg-cyan-300/18"
                             dir="ltr"
                           >
                             {suggestion}
@@ -786,7 +909,7 @@ export default function SignupPage() {
                   ) : null}
                 </label>
 
-                <label className="relative z-20 block">
+                <label className="relative flex min-w-0 flex-col">
                   <span className={labelClass}>البريد الإلكتروني *</span>
                   <input
                     type="email"
@@ -794,7 +917,8 @@ export default function SignupPage() {
                     onChange={(event) => updateField('email', event.target.value)}
                     className={`${fieldClass} pl-11 text-left`}
                     placeholder="owner@example.com"
-                    autoComplete="email"
+                    name="email"
+                    autoComplete="section-signup email"
                     required
                     dir="ltr"
                   />
@@ -804,7 +928,7 @@ export default function SignupPage() {
                   ) : null}
                 </label>
 
-                <label className="relative z-20 block">
+                <label className="relative flex min-w-0 flex-col">
                   <span className={labelClass}>رقم الجوال *</span>
                   <input
                     type="tel"
@@ -812,7 +936,8 @@ export default function SignupPage() {
                     onChange={(event) => updateField('phone', event.target.value)}
                     className={`${fieldClass} pl-11 text-left`}
                     placeholder="05xxxxxxxx"
-                    autoComplete="tel"
+                    name="tel"
+                    autoComplete="section-signup tel"
                     required
                     dir="ltr"
                   />
@@ -822,7 +947,7 @@ export default function SignupPage() {
                   ) : null}
                 </label>
 
-                <label className="block">
+                <label className="block min-w-0">
                   <span className={labelClass}>الاسم الأول *</span>
                   <input
                     type="text"
@@ -832,12 +957,13 @@ export default function SignupPage() {
                     }
                     className={fieldClass}
                     placeholder="مثال: فيصل"
-                    autoComplete="given-name"
+                    name="given-name"
+                    autoComplete="section-signup given-name"
                     required
                   />
                 </label>
 
-                <label className="block">
+                <label className="block min-w-0">
                   <span className={labelClass}>الاسم الأخير</span>
                   <input
                     type="text"
@@ -847,11 +973,12 @@ export default function SignupPage() {
                     }
                     className={fieldClass}
                     placeholder="مثال: أحمد"
-                    autoComplete="family-name"
+                    name="family-name"
+                    autoComplete="section-signup family-name"
                   />
                 </label>
 
-                <label className="block">
+                <label className="block min-w-0">
                   <span className={labelClass}>
                     كلمة المرور *
                     <span className="group relative mr-2 inline-flex align-middle">
@@ -886,7 +1013,8 @@ export default function SignupPage() {
                       updateField('password', event.target.value)
                     }
                     className={`${fieldClass} text-left`}
-                    autoComplete="new-password"
+                    name="new-password"
+                    autoComplete="section-signup new-password"
                     autoCapitalize="none"
                     inputMode="text"
                     lang="en"
@@ -896,7 +1024,7 @@ export default function SignupPage() {
                   />
                 </label>
 
-                <label className="block">
+                <label className="block min-w-0">
                   <span className={labelClass}>تأكيد كلمة المرور *</span>
                   <input
                     type="password"
@@ -905,7 +1033,8 @@ export default function SignupPage() {
                       updateField('confirmPassword', event.target.value)
                     }
                     className={`${fieldClass} text-left`}
-                    autoComplete="new-password"
+                    name="new-password-confirmation"
+                    autoComplete="section-signup new-password"
                     autoCapitalize="none"
                     inputMode="text"
                     lang="en"
@@ -915,7 +1044,7 @@ export default function SignupPage() {
                   />
                 </label>
 
-                <label className="block md:col-span-2">
+                <label className="block min-w-0 md:col-span-2">
                   <span className={labelClass}>اسم الفرع</span>
                   <input
                     type="text"
@@ -925,7 +1054,8 @@ export default function SignupPage() {
                     }
                     className={fieldClass}
                     placeholder="اختياري، مثال: الفرع الرئيسي"
-                    autoComplete="organization-title"
+                    name="branchName"
+                    autoComplete="off"
                   />
                 </label>
               </div>
@@ -934,6 +1064,7 @@ export default function SignupPage() {
                 <label className="flex items-start gap-3">
                   <input
                     type="checkbox"
+                    name="termsAccepted"
                     checked={termsAccepted}
                     onChange={(event) => setTermsAccepted(event.target.checked)}
                     className="mt-1 h-5 w-5 shrink-0 rounded border-cyan-300/35 bg-[#07111f] text-cyan-300 accent-cyan-300"
@@ -974,6 +1105,65 @@ export default function SignupPage() {
                 العودة إلى القائمة الرئيسية
               </Link>
             </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} noValidate className="space-y-5">
+                <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-4 text-sm font-bold leading-7 text-cyan-100">
+                  أرسلنا رمز تحقق مكوّنًا من 6 أرقام إلى بريدك الإلكتروني. أدخل الرمز لإكمال إنشاء الحساب.
+                </div>
+
+                <label className="block min-w-0">
+                  <span className={labelClass}>رمز التحقق</span>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(event) =>
+                      setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
+                    }
+                    className={`${fieldClass} h-16 text-center text-2xl font-black tracking-[0.55em]`}
+                    inputMode="numeric"
+                    name="one-time-code"
+                    autoComplete="section-signup one-time-code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    dir="ltr"
+                    autoFocus
+                    required
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={loading || (!otpVerified && otp.length !== 6)}
+                  className="h-[52px] w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 text-base font-black text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.24)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading
+                    ? 'جارٍ إكمال التسجيل...'
+                    : otpVerified
+                      ? 'إعادة محاولة إكمال التسجيل'
+                      : 'تأكيد الرمز'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={loading || resendCooldown > 0 || otpVerified}
+                  className="h-12 w-full rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-sm font-black text-cyan-100 transition hover:border-cyan-300/35 hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  {resendCooldown > 0
+                    ? `إعادة إرسال الرمز بعد ${resendCooldown} ثانية`
+                    : 'إعادة إرسال الرمز'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleEditEmail}
+                  disabled={loading}
+                  className="h-12 w-full rounded-2xl border border-white/12 bg-white/[0.04] text-sm font-black text-slate-200 transition hover:border-cyan-300/25 hover:text-cyan-100 disabled:opacity-55"
+                >
+                  تعديل البريد الإلكتروني
+                </button>
+              </form>
+            )}
 
             <p className="mt-5 text-center text-sm text-slate-400">
               لديك حساب بالفعل؟{' '}

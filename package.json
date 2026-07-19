@@ -40,7 +40,8 @@
     "check:auth-forgot-password": "node scripts/check-auth-forgot-password.mjs",
     "check:auth-reset-password": "node scripts/check-auth-reset-password.mjs",
     "check:auth-email-sync": "node scripts/check-auth-email-sync.mjs",
-    "check:auth-recovery-prefetch": "node scripts/check-auth-recovery-prefetch.mjs"
+    "check:auth-recovery-prefetch": "node scripts/check-auth-recovery-prefetch.mjs",
+    "check:auth-signup-otp": "node scripts/check-auth-signup-otp.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
