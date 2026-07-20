@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { AdminAlert } from '@/components/admin-ui'
 import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import {
@@ -32,6 +33,7 @@ function getArabicErrorMessage(error: unknown, fallback: string) {
 
 type SettingsTab =
   | 'status'
+  | 'account'
   | 'organization'
   | 'invoice'
   | 'communication'
@@ -47,12 +49,23 @@ type InvoicePreviewFrame = {
 
 const tabs: Array<{ key: SettingsTab; label: string }> = [
   { key: 'status', label: 'حالة النظام' },
+  { key: 'account', label: 'بيانات الحساب' },
   { key: 'organization', label: 'معلومات المنشأة' },
   { key: 'invoice', label: 'إعدادات الفاتورة' },
   { key: 'communication', label: 'إعدادات التواصل' },
   { key: 'features', label: 'المميزات' },
   { key: 'notes', label: 'ملاحظات' },
 ]
+
+type CurrentAccountInfo = {
+  username: string | null
+  fullName: string | null
+  email: string | null
+  phone: string | null
+  branchName: string | null
+  role: string
+  isActive: boolean
+}
 
 const cardClassName =
   'rounded-[28px] border border-cyan-300/15 bg-[#07111d]/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl'
@@ -91,6 +104,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<SystemSettings | null>(null)
+  const [currentAccount, setCurrentAccount] = useState<CurrentAccountInfo | null>(null)
   const [form, setForm] = useState<SystemSettingsPayload>(() =>
     createDefaultSystemSettingsPayload()
   )
@@ -139,6 +153,7 @@ export default function AdminSettingsPage() {
       const settingsData = result.settings as SystemSettings | null
 
       setSettings(settingsData)
+      setCurrentAccount((result.currentAccount as CurrentAccountInfo | null) || null)
       setForm(createSystemSettingsPayload(settingsData))
       setLoading(false)
     } catch (error) {
@@ -569,6 +584,36 @@ export default function AdminSettingsPage() {
           </Panel>
         ) : null}
 
+        {activeTab === 'account' ? (
+          <Panel
+            icon={<AccountIcon />}
+            title="بيانات الحساب"
+            description="بيانات الحساب الحالي للعرض فقط. يمكنك تعديلها من صفحة الحساب."
+          >
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
+              <InfoCard label="اسم المستخدم" value={safeValue(currentAccount?.username)} icon={<AccountIcon />} />
+              <InfoCard label="الاسم الكامل" value={safeValue(currentAccount?.fullName)} icon={<AccountIcon />} />
+              <InfoCard label="البريد الإلكتروني" value={safeValue(currentAccount?.email)} icon={<MessageIcon />} />
+              <InfoCard label="رقم الجوال" value={safeValue(currentAccount?.phone)} icon={<PhoneIcon />} />
+              <InfoCard label="اسم الفرع" value={safeValue(currentAccount?.branchName)} icon={<BuildingIcon />} />
+              <InfoCard label="الدور" value={roleLabel} icon={<ShieldIcon />} />
+              <InfoCard
+                label="حالة الحساب"
+                value={currentAccount ? (currentAccount.isActive ? 'نشط' : 'غير نشط') : 'غير محدد'}
+                icon={<ShieldIcon />}
+              />
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Link
+                href="/account"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-3 text-sm font-black text-[#04131d] shadow-[0_0_30px_rgba(34,211,238,0.18)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 sm:w-auto"
+              >
+                تعديل بيانات الحساب
+              </Link>
+            </div>
+          </Panel>
+        ) : null}
+
         {activeTab === 'organization' ? (
           <Panel
             icon={<StoreIcon />}
@@ -580,7 +625,6 @@ export default function AdminSettingsPage() {
               <InfoCard label="اسم الفرع" value={safeValue(settings?.branch_name)} icon={<BuildingIcon />} />
               <InfoCard label="رقم واتساب" value={safeValue(form.whatsapp_phone)} icon={<PhoneIcon />} />
               <InfoCard label="مزود واتساب" value={providerMeta.title} icon={<MessageIcon />} />
-              <InfoCard label="رابط الشعار" value={safeValue(form.logo_url)} icon={<LinkIcon />} wide />
             </div>
           </Panel>
         ) : null}
@@ -1476,19 +1520,13 @@ function InfoCard({
   label,
   value,
   icon,
-  wide = false,
 }: {
   label: string
   value: string
   icon: ReactNode
-  wide?: boolean
 }) {
   return (
-    <div
-      className={`min-w-0 rounded-3xl border border-cyan-300/15 bg-[#091522]/80 p-4 transition hover:border-cyan-300/30 hover:bg-cyan-300/5 ${
-        wide ? 'md:col-span-2' : ''
-      }`}
-    >
+    <div className="min-w-0 rounded-3xl border border-cyan-300/15 bg-[#091522]/80 p-4 transition hover:border-cyan-300/30 hover:bg-cyan-300/5">
       <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
           {icon}
@@ -1570,6 +1608,15 @@ function ShieldIcon() {
   )
 }
 
+function AccountIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  )
+}
+
 function StoreIcon() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1602,15 +1649,6 @@ function MessageIcon() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" />
-    </svg>
-  )
-}
-
-function LinkIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15" />
-      <path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15" />
     </svg>
   )
 }

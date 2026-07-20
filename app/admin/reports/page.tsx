@@ -374,7 +374,7 @@ export default function ReportsPage() {
       }
 
       if (lowerName.includes('leather-fix') || lowerName.includes('leather fix')) {
-        return 'فرع Leather-Fix'
+        return 'فرع AFEX'
       }
 
       return name

@@ -28,6 +28,16 @@ type VatSettingInfo = {
   branchId: string | null
 }
 
+type CurrentAccountInfo = {
+  username: string | null
+  fullName: string | null
+  email: string | null
+  phone: string | null
+  branchName: string | null
+  role: string
+  isActive: boolean
+}
+
 const SENSITIVE_SETTINGS_FIELDS = new Set([
   'ultramsg_token',
   'ultramsg_instance_id',
@@ -230,9 +240,20 @@ export async function GET(request: NextRequest) {
         }
       : null
 
+    const currentAccount: CurrentAccountInfo = {
+      username: auth.profile.username || null,
+      fullName: auth.profile.full_name || null,
+      email: auth.profile.contact_email || auth.user.email || null,
+      phone: auth.profile.phone || null,
+      branchName: branchResult.data?.name || null,
+      role: auth.profile.role,
+      isActive: auth.profile.is_active,
+    }
+
     const response = await timing.measure('serialize', async () => jsonResponse({
       success: true,
       settings: sanitizeSystemSettings(data),
+      currentAccount,
       organizationInfo: minimizeOrganizationInfoForRole(
         organizationInfo,
         auth.profile.role

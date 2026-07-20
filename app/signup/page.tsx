@@ -846,7 +846,7 @@ export default function SignupPage() {
                       updateField('tenantName', event.target.value)
                     }
                     className={`${fieldClass} pl-11`}
-                    placeholder="مثال: Leather Fix"
+                    placeholder="مثال: AFEX"
                     name="organization"
                     autoComplete="section-signup organization"
                     required

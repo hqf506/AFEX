@@ -58,7 +58,7 @@ const ADMIN_SHARED_CACHE_TTL_MS = 60_000
 
 const BRANCH_OPTIONS_FALLBACK = [
   { id: 'main', code: 'main', name: 'الفرع الرئيسي', is_active: true },
-  { id: 'leather-fix', code: 'leather-fix', name: 'فرع Leather-Fix', is_active: true },
+  { id: 'leather-fix', code: 'leather-fix', name: 'فرع AFEX', is_active: true },
 ] satisfies BranchRecord[]
 
 const POS_COLORS = ['#111827', '#0F766E', '#B45309', '#9F1239', '#1D4ED8', '#7C3AED']
