@@ -339,7 +339,7 @@ export default function AdminDigitalInvoiceSettingsPage() {
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-[1200px] px-6">
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
         <div className={darkPanelClassName}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -368,10 +368,10 @@ export default function AdminDigitalInvoiceSettingsPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1200px] px-6">
-        <div className={`${darkPanelClassName} space-y-6`}>
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+        <div data-responsive-admin-form className={`${darkPanelClassName} min-w-0 space-y-6`}>
           <div className="border-b border-cyan-300/10 pb-4">
-            <div className="flex flex-wrap gap-2">
+            <div data-responsive-settings-tabs className="flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1">
               {DIGITAL_INVOICE_TABS.map((tab) => {
                 const isActive = activeTab === tab.id
 
@@ -380,7 +380,7 @@ export default function AdminDigitalInvoiceSettingsPage() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                    className={`min-h-11 shrink-0 snap-start rounded-full border px-4 py-2 text-sm font-bold transition ${
                       isActive
                         ? 'border-cyan-300/50 bg-gradient-to-l from-cyan-300 to-emerald-300 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.22)]'
                         : 'border-cyan-300/10 bg-[#091522]/80 text-slate-300 hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-white'
@@ -801,7 +801,7 @@ export default function AdminDigitalInvoiceSettingsPage() {
 
       {previewOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-          <div className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]">
+          <div data-admin-preview className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]">
             <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
               <div className="text-right">
                 <h3 className="text-lg font-black text-white">معاينة الفاتورة</h3>

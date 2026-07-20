@@ -2138,7 +2138,7 @@ export default function OrdersPage() {
           </div>
 
           <div className="rounded-[22px] border border-cyan-300/10 bg-[#07111d]/90 p-3 backdrop-blur-xl">
-            <div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_minmax(360px,1.4fr)_minmax(190px,0.65fr)_auto]">
+            <div data-responsive-filters className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_minmax(360px,1.4fr)_minmax(190px,0.65fr)_auto]">
               <div className="relative">
                 <label className="mb-1.5 block text-xs font-bold text-slate-400">
                   بحث
@@ -2235,7 +2235,7 @@ export default function OrdersPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] table-fixed text-right" dir="rtl">
+                <table data-responsive-table="orders" className="responsive-admin-table w-full min-w-[760px] table-fixed text-right" dir="rtl">
                   <colgroup>
                     <col className="w-[150px]" />
                     <col className="w-[180px]" />
@@ -2346,7 +2346,7 @@ export default function OrdersPage() {
             )}
           </div>
           {totalOrders > ORDERS_PAGE_SIZE ? (
-            <div className="flex items-center justify-center gap-3 py-4" dir="rtl">
+            <div data-responsive-pagination className="flex items-center justify-center gap-3 py-4" dir="rtl">
               <button
                 type="button"
                 disabled={currentPage <= 1}
@@ -2373,7 +2373,7 @@ export default function OrdersPage() {
               className="fixed inset-0 z-[110] flex justify-end bg-slate-950/70 backdrop-blur-sm"
               onClick={() => setDetailsDrawerOrderId(null)}
             >
-              <aside
+              <aside data-admin-drawer
                 dir="rtl"
                 className="flex h-full w-full max-w-[560px] animate-[ordersDrawerSlideIn_180ms_ease-out] flex-col border-r border-cyan-300/20 bg-[#06101c]/95 text-right text-white shadow-[0_0_90px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:w-[92vw]"
                 onClick={(event) => event.stopPropagation()}
@@ -2873,7 +2873,7 @@ export default function OrdersPage() {
           ) : null}
           {invoicePreviewFrame ? (
             <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-              <div className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] sm:max-h-[88dvh] ${
+              <div data-admin-preview className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] sm:max-h-[88dvh] ${
                 invoicePreviewFrame.srcDoc ? 'max-w-[520px]' : 'max-w-[1180px]'
               }`}>
                 <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
@@ -2934,7 +2934,7 @@ export default function OrdersPage() {
           ) : null}
           {statusModalOrder ? (
             <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-              <div className="w-full max-w-md rounded-[28px] border border-cyan-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
+              <div data-admin-dialog className="w-full max-w-md rounded-[28px] border border-cyan-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-200/70">
@@ -3095,7 +3095,7 @@ export default function OrdersPage() {
           ) : null}
           {cancelModalOrder ? (
             <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-              <div className="w-full max-w-md rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
+              <div data-admin-dialog className="w-full max-w-md rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.25em] text-rose-200/70">

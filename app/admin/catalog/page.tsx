@@ -383,7 +383,7 @@ function CatalogRichTextEditor({
     >
       {showLinkDialog ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
+          <div data-admin-dialog className="w-full max-w-md rounded-3xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-white">{'\u0625\u0636\u0627\u0641\u0629 \u0631\u0627\u0628\u0637'}</h2>
               <label className="block text-sm font-medium text-slate-300">
@@ -2308,7 +2308,7 @@ export default function AdminCatalogPage() {
 
   const removeImageDialog = showRemoveImageDialog ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-3xl border border-rose-300/25 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
+      <div data-admin-dialog className="w-full max-w-md rounded-3xl border border-rose-300/25 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-white">إزالة الصورة؟</h2>
           <p className="text-sm text-slate-500">
@@ -2854,7 +2854,7 @@ export default function AdminCatalogPage() {
             onClick={requestCloseEditModal}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div className="max-h-[85vh] w-full max-w-[600px] overflow-y-auto rounded-[28px] border border-white/10 bg-[#07111f] p-6 shadow-[0_28px_110px_rgba(0,0,0,0.45)]">
+            <div data-admin-dialog className="max-h-[85vh] w-full max-w-[600px] overflow-y-auto rounded-[28px] border border-white/10 bg-[#07111f] p-6 shadow-[0_28px_110px_rgba(0,0,0,0.45)]">
               <div className="mb-6 flex items-center justify-between gap-3">
                 <button
                   type="button"
@@ -2890,7 +2890,7 @@ export default function AdminCatalogPage() {
       ) : null}
       {showUnsavedModal ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-center shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
+          <div data-admin-dialog className="w-full max-w-md rounded-2xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-center shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
             <h2 className="mb-2 text-lg font-semibold text-white">تغييرات غير محفوظة</h2>
             <p className="mb-6 text-sm text-slate-500">
               هل أنت متأكد أنك تريد مغادرة هذه الصفحة وتجاهل التغييرات؟
@@ -2979,7 +2979,7 @@ export default function AdminCatalogPage() {
 
         {showRemoveImageDialog ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-3xl border border-rose-300/25 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
+            <div data-admin-dialog className="w-full max-w-md rounded-3xl border border-rose-300/25 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">إزالة الصورة؟</h2>
                 <p className="text-sm text-slate-500">
@@ -3009,7 +3009,7 @@ export default function AdminCatalogPage() {
 
         {showImportPanel ? (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-xl rounded-3xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
+            <div data-admin-dialog className="w-full max-w-xl rounded-3xl border border-cyan-300/20 bg-[#07111f]/95 p-6 text-right shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
               <div className="flex items-start justify-between gap-4">
                 <button
                   type="button"
@@ -3125,7 +3125,7 @@ export default function AdminCatalogPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 items-center gap-3 rounded-[24px] border border-cyan-500/15 bg-white/[0.035] p-3 md:grid-cols-2 xl:grid-cols-[minmax(320px,1fr)_190px_190px_190px_auto]">
+              <div data-responsive-filters className="grid grid-cols-1 items-center gap-3 rounded-[24px] border border-cyan-500/15 bg-white/[0.035] p-3 md:grid-cols-2 xl:grid-cols-[minmax(320px,1fr)_190px_190px_190px_auto]">
                 <AdminInput
                   type="text"
                   value={searchQuery}
@@ -3345,7 +3345,7 @@ export default function AdminCatalogPage() {
               </div>
             ) : (
               <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                <table className="w-full min-w-[1180px] table-fixed border-separate border-spacing-0 text-right">
+                <table data-responsive-table="catalog" className="responsive-admin-table w-full min-w-[1180px] table-fixed border-separate border-spacing-0 text-right">
                   <colgroup>
                     <col className="w-[48px]" />
                     <col className="w-[80px]" />
@@ -3808,7 +3808,7 @@ export default function AdminCatalogPage() {
                   </tbody>
                 </table>
                 {totalPages > 1 ? (
-                  <div className="flex flex-wrap items-center justify-center gap-3 border-t border-cyan-500/10 bg-[#050d18]/35 px-4 py-4 text-sm">
+                  <div data-responsive-pagination className="flex flex-wrap items-center justify-center gap-3 border-t border-cyan-500/10 bg-[#050d18]/35 px-4 py-4 text-sm">
                     <button
                       type="button"
                       onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}

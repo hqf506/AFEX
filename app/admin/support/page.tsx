@@ -222,7 +222,7 @@ export default function SupportTicketsPage() {
       ) : null}
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}
 
-      <section aria-label="ملخص التذاكر في الصفحة الحالية" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <section aria-label="ملخص التذاكر في الصفحة الحالية" className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         <SummaryCard label="إجمالي النتائج" value={total} tone="border-cyan-300/20 bg-cyan-400/10 text-cyan-100" />
         <SummaryCard label={supportStatusLabels.new} value={summary.new} tone="border-cyan-300/15 bg-white/[0.045] text-white" />
         <SummaryCard label={supportStatusLabels.investigating} value={summary.investigating} tone="border-violet-300/15 bg-white/[0.045] text-white" />
@@ -232,7 +232,7 @@ export default function SupportTicketsPage() {
       </section>
 
       <AdminGlassSection>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1.6fr)_repeat(3,minmax(150px,1fr))_auto]">
+        <div data-responsive-filters className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1.6fr)_repeat(3,minmax(150px,1fr))_auto]">
           <label className="space-y-2 text-xs font-bold text-slate-300">
             <span>البحث</span>
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="رقم التذكرة أو العنوان" className="h-11 w-full rounded-2xl border border-white/10 bg-[#06111f] px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50" />
@@ -284,7 +284,19 @@ export default function SupportTicketsPage() {
         <AdminEmptyState title="لا توجد تذاكر مطابقة" description="غيّر معايير البحث أو أنشئ تذكرة دعم جديدة." />
       ) : (
         <AdminGlassSection className="overflow-hidden p-0 md:p-0">
-          <div className="overflow-x-auto">
+          <div data-responsive-support-cards="admin" className="grid gap-3 p-3 xl:hidden">
+            {tickets.map((ticket) => (
+              <article key={ticket.id} className={`min-w-0 rounded-2xl border p-4 ${ticket.id === createdTicketId ? 'border-cyan-300/35 bg-cyan-300/[0.08]' : 'border-white/10 bg-[#07111d]'}`}>
+                <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0"><p className="text-xs font-black text-cyan-200">{ticket.ticket_number}</p><h2 className="mt-2 break-words text-base font-black text-white">{ticket.title}</h2></div>
+                  {ticket.source === 'error_report' ? <span className="shrink-0 rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black text-amber-100">بلاغ عطل تلقائي</span> : null}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${supportPriorityClass(ticket.priority)}`}>{supportPriorityLabels[ticket.priority]}</span><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${supportStatusClass(ticket.status)}`}>{supportStatusLabels[ticket.status]}</span><span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-slate-300">{supportCategoryLabels[ticket.category]}</span></div>
+                <div className="mt-4 flex flex-col gap-3 border-t border-white/[0.07] pt-3 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between"><p className="text-xs text-slate-400">آخر نشاط: {formatSupportDate(ticket.updated_at)}</p><Link href={`/admin/support/${ticket.id}`} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-cyan-300/20 px-4 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/10 min-[390px]:w-auto">عرض</Link></div>
+              </article>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto xl:block">
             <table className="min-w-[980px] w-full text-right text-sm">
               <thead className="border-b border-white/10 bg-white/[0.035] text-xs text-slate-400">
                 <tr>{['رقم التذكرة', 'العنوان', 'التصنيف', 'الأولوية', 'الحالة', 'آخر تحديث', ''].map((label) => <th key={label} className="px-4 py-4 font-black">{label}</th>)}</tr>
@@ -306,7 +318,7 @@ export default function SupportTicketsPage() {
               </tbody>
             </table>
           </div>
-          <div className="flex flex-col gap-3 border-t border-white/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div data-responsive-pagination className="flex flex-col gap-3 border-t border-white/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-slate-400">الصفحة {page.toLocaleString('ar-SA')} من {pageCount.toLocaleString('ar-SA')}</p>
             <div className="flex gap-2">
               <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))} className="h-10 rounded-xl border border-white/10 px-4 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40">السابق</button>
@@ -318,7 +330,7 @@ export default function SupportTicketsPage() {
 
       {createOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 p-3 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="create-support-title">
-          <form onSubmit={submitTicket} className="max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-cyan-300/20 bg-[#07111d] p-5 shadow-2xl md:p-7">
+          <form data-admin-dialog onSubmit={submitTicket} className="max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-cyan-300/20 bg-[#07111d] p-5 shadow-2xl md:p-7">
             <div className="flex items-start justify-between gap-4">
               <div><h2 id="create-support-title" className="text-xl font-black text-white">إنشاء تذكرة دعم</h2><p className="mt-2 text-sm text-slate-400">صف المشكلة بوضوح وسيتابعها فريق الدعم.</p></div>
               <button type="button" onClick={() => setCreateOpen(false)} className="h-10 rounded-xl border border-white/10 px-3 text-sm font-black text-slate-300">إغلاق</button>

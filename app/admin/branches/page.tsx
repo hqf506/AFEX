@@ -473,7 +473,7 @@ export default function AdminBranchesPage() {
           </div>
 
           <div className="mb-5 rounded-2xl border border-cyan-300/10 bg-[#07111d]/80 p-3 shadow-[0_0_40px_rgba(0,255,255,0.05)]">
-            <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div data-responsive-filters className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
               <label className="relative block">
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-cyan-200/75">
                   <svg
@@ -579,7 +579,7 @@ export default function AdminBranchesPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full table-fixed text-right">
+              <table data-responsive-table="branches-active" className="responsive-admin-table w-full table-fixed text-right">
                 <colgroup>
                   <col className="w-[16%]" />
                   <col className="w-[7%]" />
@@ -727,7 +727,7 @@ export default function AdminBranchesPage() {
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full table-fixed text-right">
+              <table data-responsive-table="branches-inactive" className="responsive-admin-table w-full table-fixed text-right">
                 <colgroup>
                   <col className="w-[22%]" />
                   <col className="w-[12%]" />
@@ -818,7 +818,7 @@ export default function AdminBranchesPage() {
 
       {deleteModalBranch ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]">
+          <div data-admin-dialog className="w-full max-w-lg rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]">
             <div className="mb-4 inline-flex rounded-full border border-rose-300/20 bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-200">
               حذف مؤقت لمدة 30 يوم
             </div>
@@ -856,7 +856,7 @@ export default function AdminBranchesPage() {
       {isCreateDrawerOpen ? (
         <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
           <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-            <form
+            <form data-admin-drawer
               onSubmit={handleSaveBranch}
               className="animate-[branch-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6"
             >

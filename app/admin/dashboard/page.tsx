@@ -662,7 +662,7 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
             {isSystemAdmin ? (
               <AdminBranchFilter
                 branches={branches}
@@ -671,7 +671,7 @@ export default function DashboardPage() {
                 onChange={setSelectedBranchId}
                 label="الفرع"
                 allLabel="كل الفروع"
-                className="min-w-[220px]"
+                className="w-full min-w-0 sm:min-w-[220px]"
               />
             ) : null}
 
@@ -680,14 +680,14 @@ export default function DashboardPage() {
               onClick={() => void fetchDashboardData(true)}
               disabled={refreshing}
               aria-label="تحديث بيانات لوحة التحكم"
-              className="rounded-xl border border-white/10 bg-white/[0.045] px-4 py-2 text-sm font-bold text-white transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-60"
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.045] px-4 py-2 text-sm font-bold text-white transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-60 sm:w-auto"
             >
               تحديث البيانات
             </button>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div data-responsive-dashboard-kpis className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
           {statCards.map((card) => (
             <KpiCard
               key={card.title}
@@ -700,7 +700,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.9fr_0.95fr]">
-          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur xl:col-span-1">
+          <div data-responsive-chart className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur sm:p-6 xl:col-span-1">
             <div className="mb-5 text-right">
               <h2 className="text-xl font-black text-white">نظرة الأداء</h2>
               <p className="mt-1 text-sm text-slate-400">
@@ -708,14 +708,14 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            <div className="mb-4 grid grid-cols-3 gap-3">
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
               {performanceChartData.items.map((item) => (
                 <div
                   key={item.key}
                   className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-3 py-2"
                 >
-                  <p className="truncate text-xs text-slate-500">{item.label}</p>
-                  <p className="mt-1 truncate text-sm font-black text-white">
+                  <p className="break-words text-xs text-slate-500">{item.label}</p>
+                  <p className="mt-1 break-words text-sm font-black text-white">
                     {item.displayValue}
                   </p>
                 </div>

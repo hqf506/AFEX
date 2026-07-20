@@ -161,7 +161,7 @@ export function DeveloperSupportNotifications() {
       const width = Math.min(390, window.innerWidth - edge * 2)
       const left = Math.min(Math.max(edge, rect.right - width), window.innerWidth - width - edge)
       const top = rect.bottom + gap
-      setPosition({ top, left, width, maxHeight: Math.max(280, Math.min(640, window.innerHeight - top - edge)) })
+      setPosition({ top, left, width, maxHeight: Math.max(160, Math.min(640, window.innerHeight - top - edge)) })
     }
     updatePosition()
     const close = (event: MouseEvent) => {
@@ -199,7 +199,7 @@ export function DeveloperSupportNotifications() {
   </section>, document.body) : null
 
   return <div className="relative" ref={wrapperRef}>
-    <button ref={bellRef} type="button" aria-label="إشعارات الدعم" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((value) => !value)} className="relative grid size-10 place-items-center rounded-xl border border-cyan-300/15 bg-[#07111f] text-lg focus:outline-none focus:ring-2 focus:ring-cyan-300/25">
+    <button ref={bellRef} type="button" aria-label="إشعارات الدعم" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((value) => !value)} className="relative grid size-11 place-items-center rounded-xl border border-cyan-300/15 bg-[#07111f] text-lg focus:outline-none focus:ring-2 focus:ring-cyan-300/25">
       🔔
       {unreadCount > 0 ? <span className="absolute -left-2 -top-2 min-w-5 rounded-full bg-cyan-300 px-1.5 py-0.5 text-[10px] font-black text-slate-950">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}
     </button>
@@ -231,7 +231,7 @@ export function DeveloperNotificationsPage() {
     if (!normalizedSearch) return true
     return [item.title, item.ticket_number, item.organization_name, item.preview || ''].some((value) => value.toLocaleLowerCase('ar').includes(normalizedSearch))
   })
-  return <section dir="rtl" className="min-w-0 space-y-5">
+  return <section data-responsive-developer-notifications dir="rtl" className="min-w-0 space-y-5">
     <header className="rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-cyan-300/10 to-transparent p-5 sm:p-6"><div className="flex items-center gap-3"><span aria-hidden="true" className="grid size-11 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-xl">🔔</span><div className="min-w-0"><p className="text-xs font-black tracking-[0.18em] text-cyan-200">AFEX DEVELOPER CENTER</p><h1 className="mt-1 text-2xl font-black md:text-3xl">الإشعارات</h1></div></div><p className="mt-3 text-sm text-slate-400">آخر {items.length.toLocaleString('ar-SA')} إشعارًا — غير المقروءة {unreadCount.toLocaleString('ar-SA')}</p></header>
     <div className="grid min-w-0 gap-3 rounded-[24px] border border-white/10 bg-[#07111f]/80 p-4 backdrop-blur-xl md:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_190px_170px_auto] xl:items-end">
       <label className="min-w-0 space-y-2 text-xs font-bold text-slate-300"><span>بحث</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث بالعنوان أو رقم التذكرة أو المنشأة" className="h-11 w-full min-w-0 rounded-xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15" /></label>

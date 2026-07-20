@@ -5,6 +5,7 @@ import Image from 'next/image'
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
   type ReactNode,
@@ -433,6 +434,9 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
   const [logoutOverlayVisible, setLogoutOverlayVisible] = useState(false)
   const [logoutSignedOut, setLogoutSignedOut] = useState(false)
   const [logoutCountdown, setLogoutCountdown] = useState(LOGOUT_REDIRECT_SECONDS)
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const mobileNavigationRef = useRef<HTMLElement | null>(null)
 
   const authState = useAuthState()
   const access = usePageAccess([], logoutOverlayVisible ? pathname : '/')
@@ -471,6 +475,32 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
       router.replace('/')
     }
   }, [allowed, authLoading, pathname, router, userRole])
+
+  useEffect(() => {
+    if (!mobileNavigationOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    const menuTrigger = mobileMenuTriggerRef.current
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileNavigationOpen(false)
+      if (event.key !== 'Tab') return
+      const focusable = mobileNavigationRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
+      if (!focusable?.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', closeOnEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+      menuTrigger?.focus()
+    }
+  }, [mobileNavigationOpen])
 
   const reportsItem = useMemo(
     () => visibleNavItems.find((item) => item.href === '/admin/reports'),
@@ -561,16 +591,22 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#030714] text-white">
+    <div className="min-h-screen bg-[#030714] text-white">
       <div className="pointer-events-none fixed inset-0 -z-0">
         <div className="absolute right-[-10rem] top-[-10rem] h-[32rem] w-[32rem] rounded-full bg-cyan-400/14 blur-[120px]" />
         <div className="absolute left-[-12rem] bottom-[-12rem] h-[34rem] w-[34rem] rounded-full bg-emerald-400/10 blur-[130px]" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
       </div>
-      <div className="relative z-10 w-full px-3 py-4 sm:px-4 sm:py-5 lg:px-6 lg:py-6 xl:px-8">
-        <div className="grid min-w-0 gap-5 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
-          <aside className="min-w-0 max-lg:max-h-[34dvh] max-lg:overflow-y-auto lg:w-[260px] lg:min-w-[260px] xl:w-[300px] xl:min-w-[300px]">
-            <div className="rounded-[30px] border border-white/10 bg-[#07111f]/86 p-4 text-right shadow-[0_28px_110px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
+      <div className="relative z-10 w-full px-3 pb-4 pt-3 sm:px-4 sm:pb-5 xl:px-8 xl:py-6">
+        <header className="mb-4 flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111f]/90 px-3 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl xl:hidden">
+          <Image src="/brand/afex-logo.png" alt="AFEX" width={720} height={260} priority className="h-9 w-auto object-contain" />
+          <button ref={mobileMenuTriggerRef} type="button" aria-label="فتح قائمة التنقل" aria-expanded={mobileNavigationOpen} aria-controls="admin-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid size-11 shrink-0 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-100"><svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+        </header>
+        {mobileNavigationOpen ? <button type="button" aria-label="إغلاق قائمة التنقل" className="fixed inset-0 z-[11999] h-full w-full bg-slate-950/75 backdrop-blur-sm xl:hidden" onClick={() => setMobileNavigationOpen(false)} /> : null}
+        <div className="grid min-w-0 gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+          <aside ref={mobileNavigationRef} id="admin-mobile-navigation" role={mobileNavigationOpen ? 'dialog' : undefined} aria-modal={mobileNavigationOpen ? true : undefined} aria-label="قائمة التنقل" onClick={(event) => { if (mobileNavigationOpen && (event.target as HTMLElement).closest('a')) setMobileNavigationOpen(false) }} className={`${mobileNavigationOpen ? 'fixed inset-y-0 right-0 z-[12000] block h-[100dvh] w-[min(88vw,360px)] overflow-y-auto overscroll-contain border-l border-cyan-300/15 bg-[#07111f] p-3 shadow-[-24px_0_90px_rgba(0,0,0,0.5)]' : 'hidden'} min-w-0 xl:static xl:block xl:h-auto xl:w-[300px] xl:min-w-[300px] xl:overflow-visible xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none`}>
+            <div className="rounded-[30px] border border-white/10 bg-[#07111f]/86 p-4 text-right shadow-[0_28px_110px_rgba(0,0,0,0.35)] backdrop-blur-xl xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto">
+              {mobileNavigationOpen ? <div className="mb-2 flex justify-end xl:hidden"><button type="button" autoFocus onClick={() => setMobileNavigationOpen(false)} aria-label="إغلاق قائمة التنقل" className="grid size-11 place-items-center rounded-xl border border-white/10 bg-white/[0.045] text-2xl text-slate-200">×</button></div> : null}
               <div className="mb-7 space-y-4">
                 <Image
                   src="/brand/afex-logo.png"
@@ -701,7 +737,10 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
                 </Link>
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={() => {
+                    setMobileNavigationOpen(false)
+                    void handleLogout()
+                  }}
                   disabled={logoutOverlayVisible}
                   className="mt-4 flex w-full flex-row-reverse items-center justify-between gap-2.5 rounded-2xl border border-red-400/25 bg-red-500/10 px-3.5 py-3 text-sm font-black text-red-300 transition-all duration-150 hover:bg-red-500/15"
                 >
@@ -712,7 +751,7 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
             </div>
           </aside>
 
-          <main className="min-w-0 text-right">{children}</main>
+          <main className="min-w-0 w-full text-right">{children}</main>
         </div>
       </div>
 

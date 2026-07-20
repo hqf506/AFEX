@@ -894,7 +894,7 @@ export default function ReportsPage() {
           </div>
         </section>
 
-        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <section data-responsive-report-cards className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {kpiCards.map((card) => (
             <ReportKpiCard
               key={card.title}

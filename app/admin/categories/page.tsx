@@ -437,7 +437,7 @@ export default function AdminCategoriesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[620px] text-right">
+              <table data-responsive-table="categories" className="responsive-admin-table w-full min-w-[620px] text-right">
                 <thead className="bg-white/[0.035]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-5 py-4">الفئة</th>
@@ -498,7 +498,7 @@ export default function AdminCategoriesPage() {
         <>
           <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 text-right text-white shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+            <div data-admin-dialog className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 text-right text-white shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
               <div className="flex items-center gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-300/20 bg-red-500/10 text-red-200">
                   <TrashIcon className="h-5 w-5" />

@@ -577,7 +577,7 @@ export default function AdminDiscountsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[820px] text-right">
+              <table data-responsive-table="discounts" className="responsive-admin-table w-full min-w-[820px] text-right">
                 <thead className="bg-white/[0.035]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-5 py-4">الخصم</th>

@@ -18,7 +18,7 @@ export default async function ProviderLayout({ children }: { children: ReactNode
 
   if (!provider) {
     return (
-      <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#020817] px-4 py-8 text-white sm:px-6">
+      <main dir="rtl" className="min-h-screen min-w-0 bg-[#020817] px-3 py-6 text-white sm:px-5 sm:py-8">
         <section className="mx-auto flex min-h-[70vh] max-w-xl items-center justify-center">
           <div className="rounded-[28px] border border-red-300/20 bg-red-500/10 p-7 text-center shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
             <p className="text-sm font-black text-red-200">غير مصرح لك بالدخول</p>
@@ -30,5 +30,5 @@ export default async function ProviderLayout({ children }: { children: ReactNode
     )
   }
 
-  return <div className="min-h-screen overflow-x-hidden bg-[#020817] px-3 py-4 text-white sm:px-5 lg:px-7"><ProviderNotificationsShell notificationsEnabled={provider.role === 'provider_owner'}>{children}</ProviderNotificationsShell></div>
+  return <div className="min-h-screen min-w-0 w-full bg-[#020817] px-3 py-4 text-white sm:px-5 xl:px-7"><ProviderNotificationsShell notificationsEnabled={provider.role === 'provider_owner'}>{children}</ProviderNotificationsShell></div>
 }

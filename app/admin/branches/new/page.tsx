@@ -216,7 +216,7 @@ export default function NewBranchPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div data-responsive-admin-form className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="block text-right">
                 <span className="mb-2 block text-sm font-bold text-slate-200">
                   كود الفرع

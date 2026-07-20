@@ -762,7 +762,7 @@ export default function AdminInventoryPage() {
           ) : (
             <>
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[820px] table-fixed text-right">
+              <table data-responsive-table="inventory" className="responsive-admin-table w-full min-w-[820px] table-fixed text-right">
                 <colgroup>
                   <col className="w-[24%]" />
                   <col className="w-[12%]" />
@@ -854,7 +854,7 @@ export default function AdminInventoryPage() {
               </table>
             </div>
             {totalPages > 1 ? (
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-cyan-300/10 pt-4">
+              <div data-responsive-pagination className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-cyan-300/10 pt-4">
                 <button
                   type="button"
                   onClick={() =>
@@ -958,7 +958,7 @@ export default function AdminInventoryPage() {
       {drawerOpen && selectedItem ? (
         <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
           <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-            <aside className="animate-[branch-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6">
+            <aside data-admin-drawer className="animate-[branch-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6">
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
                   <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">

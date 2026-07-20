@@ -501,7 +501,7 @@ export default function AdminSettingsPage() {
         {successMessage ? <AdminAlert tone="success">{successMessage}</AdminAlert> : null}
         {errorMessage ? <AdminAlert tone="error">{errorMessage}</AdminAlert> : null}
 
-        <nav className="flex gap-2 overflow-x-auto rounded-[24px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl">
+        <nav data-responsive-settings-tabs className="flex snap-x snap-mandatory gap-2 overflow-x-auto rounded-[24px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl">
           {tabs.map((tab) => {
             const active = activeTab === tab.key
 
@@ -510,7 +510,7 @@ export default function AdminSettingsPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`shrink-0 rounded-2xl px-4 py-3 text-sm font-black transition ${
+                className={`min-h-11 shrink-0 snap-start rounded-2xl px-4 py-3 text-sm font-black transition ${
                   active
                     ? 'bg-gradient-to-l from-cyan-300 to-emerald-300 text-[#04131d] shadow-[0_0_24px_rgba(34,211,238,0.16)]'
                     : 'text-slate-300 hover:bg-cyan-300/10 hover:text-white'
@@ -1203,7 +1203,7 @@ export default function AdminSettingsPage() {
 
       {invoicePreviewFrame ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-          <div
+          <div data-admin-preview
             role="dialog"
             aria-modal="true"
             aria-labelledby="settings-invoice-preview-title"

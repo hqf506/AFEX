@@ -1152,7 +1152,7 @@ export default function AdminReceiptsPage() {
         </section>
 
         <section className="rounded-3xl border border-cyan-500/15 bg-[#07111d]/90 p-4 shadow-[0_0_35px_rgba(34,211,238,0.06)] backdrop-blur-xl">
-          <div className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_1.3fr] xl:items-end">
+          <div data-responsive-filters className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_1.3fr] xl:items-end">
             <div>
               <span className="mb-2 block text-xs font-bold text-slate-400">الفترة الزمنية</span>
               <div className="flex rounded-2xl border border-cyan-500/15 bg-white/[0.03] p-1">
@@ -1232,7 +1232,7 @@ export default function AdminReceiptsPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-right">
+            <table data-responsive-table="receipts" className="responsive-admin-table w-full min-w-[1100px] text-right">
               <thead className="bg-[#091424]">
                 <tr className="border-b border-cyan-500/10 text-xs font-bold text-slate-300">
                   <th className="w-[150px] px-5 py-4">رقم الإيصال</th>
@@ -1328,7 +1328,7 @@ export default function AdminReceiptsPage() {
             </table>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-cyan-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div data-responsive-pagination className="flex flex-col gap-3 border-t border-cyan-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-400">الصفحة {currentPage} من {totalPages}</p>
             <div className="flex items-center gap-2">
               <button
@@ -1484,7 +1484,7 @@ function ReceiptDrawer({
           receipt ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
         }`}
       />
-      <aside
+      <aside data-admin-drawer
         dir="rtl"
         className={`fixed left-0 top-0 z-[90] h-[100dvh] w-[min(380px,calc(100vw-24px))] border-r border-cyan-400/25 bg-[#06111f]/95 shadow-[0_0_70px_rgba(34,211,238,0.18)] backdrop-blur-2xl transition-transform duration-300 ${
           receipt ? 'translate-x-0' : '-translate-x-full'
@@ -1631,7 +1631,7 @@ function ReceiptDrawer({
 
       {receipt && showCancelConfirm ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
-          <div
+          <div data-admin-dialog
             dir="rtl"
             role="dialog"
             aria-modal="true"

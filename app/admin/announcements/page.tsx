@@ -815,7 +815,7 @@ export default function AdminAnnouncementsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[920px] text-right">
+              <table data-responsive-table="announcements" className="responsive-admin-table w-full min-w-[920px] text-right">
                 <thead className="bg-white/[0.035]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-5 py-4">الإعلان</th>
@@ -905,7 +905,7 @@ export default function AdminAnnouncementsPage() {
       {detailsOpen && announcementDetail ? (
         <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
           <div className="flex min-h-full justify-end">
-            <aside className="animate-[announcement-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-screen w-full max-w-2xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8">
+            <aside data-admin-drawer className="animate-[announcement-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-[100dvh] w-full max-w-2xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8">
               <div className="mb-6 flex items-center justify-between gap-4">
                 <button
                   type="button"
@@ -1107,7 +1107,7 @@ export default function AdminAnnouncementsPage() {
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
           <div className="flex min-h-full justify-end">
-            <aside className="animate-[announcement-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-screen w-full max-w-6xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-7 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8">
+            <aside data-admin-drawer className="animate-[announcement-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-[100dvh] w-full max-w-6xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-8">
               <div className="mb-6 flex items-center justify-between gap-4">
                 <button
                   type="button"

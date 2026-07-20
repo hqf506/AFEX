@@ -634,8 +634,8 @@ export default function InventoryMovementsPage() {
         <AdminAlert tone="error">{errorMessage}</AdminAlert>
       ) : null}
 
-      <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#07111f]/90 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
-        <div className="grid gap-3 border-b border-white/10 px-5 py-5 md:grid-cols-2 md:px-7 xl:grid-cols-5">
+      <section className="overflow-visible rounded-[1.75rem] border border-white/10 bg-[#07111f]/90 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+        <div data-responsive-filters className="grid gap-3 border-b border-white/10 px-5 py-5 md:grid-cols-2 md:px-7 xl:grid-cols-5">
           <label className="relative block">
             <span className="mb-2 block text-xs font-black text-slate-400">
               الفرع
@@ -801,7 +801,7 @@ export default function InventoryMovementsPage() {
         </div>
 
         <div className="overflow-x-auto px-5 py-5 md:px-7">
-          <table className="w-full min-w-[900px] border-separate border-spacing-y-2 text-right">
+          <table data-responsive-table="movements" className="responsive-admin-table w-full min-w-[900px] border-separate border-spacing-y-2 text-right">
             <thead className="bg-[#091424]">
               <tr className="text-xs font-black text-slate-300">
                 <th className="px-3 py-2">التاريخ</th>
@@ -911,7 +911,7 @@ export default function InventoryMovementsPage() {
           </table>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-white/10 px-5 py-4 text-sm font-black text-slate-300 md:flex-row md:items-center md:justify-between md:px-7">
+        <div data-responsive-pagination className="flex flex-col gap-3 border-t border-white/10 px-5 py-4 text-sm font-black text-slate-300 md:flex-row md:items-center md:justify-between md:px-7">
           <div
             dir="ltr"
             className="flex flex-wrap items-center justify-center gap-2 md:justify-start"

@@ -648,7 +648,7 @@ export default function SalesByItemPage() {
         </section>
 
         <section className="rounded-[28px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.20)] backdrop-blur">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,180px)_minmax(0,180px)_auto] xl:items-end">
+          <div data-responsive-filters className="grid gap-4 xl:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,180px)_minmax(0,180px)_auto] xl:items-end">
             <div className="space-y-2">
               <label className="text-xs font-black text-slate-400">الفرع</label>
               {isSystemAdmin ? (
@@ -776,7 +776,7 @@ export default function SalesByItemPage() {
             <EmptyItemsState />
           ) : (
             <>
-              <div className="grid gap-3 xl:grid-cols-5">
+              <div data-responsive-report-cards className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 {visibleTopSellingRows.map((row, index) => {
                   const rank = index + 1
                   const share = getItemShare(row.grossSales)
@@ -856,7 +856,7 @@ export default function SalesByItemPage() {
           {itemRows.length === 0 ? (
             <EmptyItemsState />
           ) : (
-            <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#07111f]/80">
+            <div className="hidden overflow-hidden rounded-[24px] border border-white/10 bg-[#07111f]/80 xl:block">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[980px] text-[15px]">
                   <thead className="border-b border-white/10 bg-[#091424]">

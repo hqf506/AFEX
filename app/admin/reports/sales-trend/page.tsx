@@ -732,7 +732,7 @@ export default function SalesTrendPage() {
         </section>
 
         <section className="rounded-[26px] border border-cyan-300/15 bg-white/[0.035] p-5 shadow-[0_22px_80px_rgba(0,0,0,0.2)]">
-          <div className="grid gap-4 xl:grid-cols-[minmax(180px,0.9fr)_minmax(360px,1.5fr)_minmax(170px,0.75fr)_minmax(165px,0.7fr)_minmax(165px,0.7fr)_auto] xl:items-end">
+          <div data-responsive-filters className="grid gap-4 xl:grid-cols-[minmax(180px,0.9fr)_minmax(360px,1.5fr)_minmax(170px,0.75fr)_minmax(165px,0.7fr)_minmax(165px,0.7fr)_auto] xl:items-end">
             <div>
               <label className="mb-2 block text-xs font-bold text-slate-400">
                 الفرع
@@ -875,8 +875,8 @@ export default function SalesTrendPage() {
             </div>
 
             {hasChartData ? (
-              <div className="overflow-x-auto">
-                <div className="min-w-[720px]">
+              <div data-responsive-chart className="min-w-0 overflow-hidden">
+                <div className="w-full min-w-0">
                   <div className="relative flex h-72 items-end gap-2 overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#040c18] px-4 py-5">
                     <div className="pointer-events-none absolute inset-x-4 top-6 h-px bg-white/10" />
                     <div className="pointer-events-none absolute inset-x-4 top-1/3 h-px bg-white/10" />
@@ -1058,7 +1058,7 @@ export default function SalesTrendPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-[24px] border border-white/10">
+            <div className="hidden overflow-x-auto rounded-[24px] border border-white/10 xl:block">
               <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-white/[0.045] text-xs font-black text-slate-400">

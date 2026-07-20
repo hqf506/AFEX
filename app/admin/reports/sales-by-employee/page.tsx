@@ -551,7 +551,7 @@ export default function SalesByEmployeeReportPage() {
           onSubmit={handleExport}
           className="rounded-3xl border border-cyan-500/15 bg-[#07111d]/90 p-5 shadow-[0_0_35px_rgba(34,211,238,0.06)] backdrop-blur-xl"
         >
-          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:items-end">
+          <div data-responsive-filters className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_auto] xl:items-end">
             <div>
               <label className="mb-2 block text-xs font-bold text-slate-400">الفترة الزمنية</label>
               <div className="flex rounded-2xl border border-cyan-500/15 bg-white/[0.03] p-1">
@@ -657,7 +657,61 @@ export default function SalesByEmployeeReportPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div data-responsive-report-cards className="grid gap-3 p-4 xl:hidden">
+            {loading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-40 animate-pulse rounded-2xl bg-white/[0.04]" />
+              ))
+            ) : pageRows.length > 0 ? (
+              pageRows.map((row) => (
+                <article
+                  key={row.employeeKey}
+                  className="min-w-0 rounded-2xl border border-cyan-500/15 bg-white/[0.035] p-4"
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0 text-right">
+                      <h3 className="break-words text-base font-black text-white">{row.employeeName}</h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${getRoleBadgeClassName(row.role)}`}>
+                          {getRoleLabel(row.role)}
+                        </span>
+                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                          {getPerformanceLabel(row)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-500/10 text-cyan-300">
+                      <UserIcon className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="min-w-0 rounded-xl bg-black/20 p-3">
+                      <dt className="text-xs text-slate-500">صافي المبيعات</dt>
+                      <dd className="mt-1 break-words font-black text-cyan-200">{formatSarCurrency(row.netSales)}</dd>
+                    </div>
+                    <div className="min-w-0 rounded-xl bg-black/20 p-3">
+                      <dt className="text-xs text-slate-500">الإيصالات</dt>
+                      <dd className="mt-1 font-black text-white">{row.receiptsCount.toLocaleString('ar-SA')}</dd>
+                    </div>
+                    <div className="min-w-0 rounded-xl bg-black/20 p-3">
+                      <dt className="text-xs text-slate-500">متوسط البيع</dt>
+                      <dd className="mt-1 break-words font-bold text-slate-100">{formatSarCurrency(row.averageSale)}</dd>
+                    </div>
+                    <div className="min-w-0 rounded-xl bg-black/20 p-3">
+                      <dt className="text-xs text-slate-500">العملاء</dt>
+                      <dd className="mt-1 font-black text-white">{row.registeredCustomersCount.toLocaleString('ar-SA')}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-cyan-500/15 p-6 text-center text-sm text-slate-400">
+                لا توجد بيانات موظفين خلال الفترة الحالية.
+              </div>
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto xl:block">
             <table className="w-full min-w-[1180px] text-right">
               <thead className="sticky top-0 z-10 bg-[#091424]">
                 <tr className="border-b border-cyan-500/10 text-xs font-bold text-slate-300">

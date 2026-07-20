@@ -941,7 +941,7 @@ export default function AdminUsersPage() {
           {showCreateForm ? (
           <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
             <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-          <form
+          <form data-admin-drawer
             id="create-user-form"
             role="dialog"
             aria-modal="true"
@@ -1278,7 +1278,7 @@ export default function AdminUsersPage() {
           {editDrawer.open && editDrawer.user ? (
             <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
               <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-                <form
+              <form data-admin-drawer
                   id="edit-user-form"
                   role="dialog"
                   aria-modal="true"
@@ -1646,7 +1646,7 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="mb-5 rounded-2xl border border-cyan-300/10 bg-[#07111d]/80 p-3 shadow-[0_0_40px_rgba(0,255,255,0.05)]">
-              <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div data-responsive-filters className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
                 <label className="relative block">
                   <input
                     type="search"
@@ -1747,7 +1747,7 @@ export default function AdminUsersPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-                  <table className="w-full min-w-[980px] table-fixed text-right">
+                  <table data-responsive-table="users" className="responsive-admin-table w-full min-w-[980px] table-fixed text-right">
                     <colgroup>
                       <col className="w-[24%]" />
                       <col className="w-[20%]" />
@@ -1874,7 +1874,7 @@ export default function AdminUsersPage() {
 
       {resetModal.open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-          <div
+          <div data-admin-dialog
             role="dialog"
             aria-modal="true"
             aria-labelledby="reset-password-title"
@@ -1941,7 +1941,7 @@ export default function AdminUsersPage() {
 
       {deleteModal.open && deleteModal.user ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-          <div
+          <div data-admin-dialog
             dir="rtl"
             role="dialog"
             aria-modal="true"

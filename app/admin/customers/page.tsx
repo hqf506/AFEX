@@ -583,7 +583,7 @@ export default async function AdminCustomersPage({
             />
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[1120px] table-fixed text-right">
+              <table data-responsive-table="customers" className="responsive-admin-table w-full min-w-[1120px] table-fixed text-right">
                 <colgroup>
                   <col className="w-[20%]" />
                   <col className="w-[16%]" />
@@ -680,7 +680,7 @@ export default async function AdminCustomersPage({
             </div>
           )}
           {totalCustomers > CUSTOMER_PAGE_SIZE ? (
-            <div className="mt-5 flex items-center justify-center gap-3" dir="rtl">
+            <div data-responsive-pagination className="mt-5 flex items-center justify-center gap-3" dir="rtl">
               <Link
                 href={`/admin/customers?page=${Math.max(1, currentPage - 1)}`}
                 aria-disabled={currentPage <= 1}
@@ -711,7 +711,7 @@ export default async function AdminCustomersPage({
             aria-label="إغلاق"
           />
           <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-            <form
+            <form data-admin-drawer
               action={updateCustomer}
               className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6 lg:p-8"
             >
