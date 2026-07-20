@@ -212,10 +212,15 @@ export default function LandingPage() {
   const isAuthReadyForProtectedNav =
     authState.status === 'authenticated' && Boolean(authState.profile)
   const visibleQuickLinks = isSignedInForUi
-    ? quickLinks.filter((link) =>
-        link.href === '/pos' ||
-        (link.href === '/admin/dashboard' && Boolean(adminEntryPath))
-      )
+    ? [
+        ...(adminEntryPath
+          ? [{ href: '/admin/dashboard', label: 'لوحة التحكم' }]
+          : []),
+        { href: '/pos', label: 'نقطة البيع POS' },
+        ...(developerAllowed
+          ? [{ href: '/developer', label: 'مركز المطور' }]
+          : []),
+      ]
     : quickLinks
 
   function openLoginModal() {
@@ -402,11 +407,6 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2 text-xs font-bold">
-            {authState.status === 'authenticated' && developerAllowed ? (
-              <Link href="/developer" className="hidden rounded-2xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-3 text-cyan-100 transition hover:bg-cyan-300/15 sm:inline-flex">
-                مركز المطور
-              </Link>
-            ) : null}
             {displayFirstName ? (
               <div className="relative z-[90]">
                 <button

@@ -24,7 +24,6 @@ import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 type AdminShellLayoutProps = {
   children: ReactNode
   isProvider: boolean
-  isDeveloper: boolean
 }
 
 const LOGOUT_REDIRECT_SECONDS = 5
@@ -432,7 +431,7 @@ function SidebarLink({
   )
 }
 
-export function AdminShellLayout({ children, isProvider, isDeveloper }: AdminShellLayoutProps) {
+export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [logoutOverlayVisible, setLogoutOverlayVisible] = useState(false)
@@ -765,15 +764,6 @@ export function AdminShellLayout({ children, isProvider, isDeveloper }: AdminShe
 
               <div className="mt-5 space-y-1">
                 <NavSectionTitle>اختصارات</NavSectionTitle>
-                {isDeveloper ? (
-                  <Link
-                    href="/developer"
-                    className="flex flex-row-reverse items-center justify-between gap-2.5 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] px-3.5 py-3 text-sm font-black text-cyan-100 transition-all duration-150 hover:bg-cyan-300/12"
-                  >
-                    <span className="flex-1 text-right">مركز المطور</span>
-                    <CustomerTicketsIcon className="h-5 w-5 shrink-0 text-cyan-200" />
-                  </Link>
-                ) : null}
                 <Link
                   href="/pos"
                   className="flex flex-row-reverse items-center justify-between gap-2.5 rounded-2xl border border-transparent px-3.5 py-3 text-sm font-bold text-slate-400 transition-all duration-150 hover:bg-white/[0.055] hover:text-white"

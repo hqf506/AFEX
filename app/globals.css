@@ -379,8 +379,14 @@ input[type='number'] {
 
 body:has([data-admin-drawer]),
 body:has([data-admin-dialog]),
-body:has([data-admin-preview]) {
+body:has([data-admin-preview]),
+body:has([data-mobile-blocking-overlay]) {
   overflow: hidden;
+}
+
+body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-mobile-blocking-overlay]) [data-mobile-bottom-nav] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 @media (max-width: 1279px) {

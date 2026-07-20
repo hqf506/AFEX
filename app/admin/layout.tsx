@@ -58,11 +58,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   const { data: provider } = await supabase
     .from('platform_admins')
-    .select('user_id, role')
+    .select('user_id')
     .eq('user_id', user.id)
     .eq('is_active', true)
     .in('role', ['provider_owner', 'provider_support'])
     .maybeSingle()
 
-  return <AdminShellLayout isProvider={Boolean(provider)} isDeveloper={provider?.role === 'provider_owner'}>{children}</AdminShellLayout>
+  return <AdminShellLayout isProvider={Boolean(provider)}>{children}</AdminShellLayout>
 }
