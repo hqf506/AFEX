@@ -17,6 +17,7 @@ import {
   text,
 } from '@/lib/support/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createServerTiming } from '@/lib/performance/server-timing'
 
 const TICKET_SELECT = 'id, ticket_number, category, priority, status, title, source, last_message_at, resolved_at, closed_at, created_at, updated_at'
 
@@ -64,10 +65,11 @@ function safeClientPlatform(userAgent: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireSupportAuth(request)
-  if (!auth.ok) return auth.response
+  const timing = createServerTiming('admin-support')
+  const auth = await requireSupportAuth(request, timing)
+  if (!auth.ok) return timing.finish(auth.response)
   if (!auth.isProvider && !auth.profile.tenant_id) {
-    return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر تحميل تذاكر الدعم.' }, 403)
+    return timing.finish(jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر تحميل تذاكر الدعم.' }, 403))
   }
 
   const params = request.nextUrl.searchParams
@@ -86,9 +88,14 @@ export async function GET(request: NextRequest) {
   if (isOneOf(category, SUPPORT_CATEGORIES)) query = query.eq('category', category)
   if (search) query = query.or(`ticket_number.ilike.%${search}%,title.ilike.%${search}%`)
 
-  const { data, error, count } = await query.range(from, from + pageSize - 1)
-  if (error) return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر تحميل تذاكر الدعم.' }, 500)
-  return jsonWithAuthCookies(auth.response, { success: true, tickets: data || [], total: count || 0, page, pageSize })
+  const { data, error, count } = await timing.measure('tickets', () =>
+    query.range(from, from + pageSize - 1)
+  )
+  if (error) return timing.finish(jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر تحميل تذاكر الدعم.' }, 500))
+  const response = await timing.measure('serialize', async () =>
+    jsonWithAuthCookies(auth.response, { success: true, tickets: data || [], total: count || 0, page, pageSize })
+  )
+  return timing.finish(response)
 }
 
 export async function POST(request: NextRequest) {

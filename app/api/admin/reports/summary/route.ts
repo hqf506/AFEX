@@ -45,7 +45,7 @@ const REPORTS_FEATURE_DISABLED_MESSAGE =
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  const timing = createReportServerTiming()
+  const timing = createReportServerTiming('reports-summary')
   const auth = await timing.measure('auth', () =>
     requireApiAuth(request, ['admin', 'employee'])
   )

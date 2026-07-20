@@ -3,26 +3,56 @@ import { NextResponse } from 'next/server'
 import { resolveAuthScopeType } from '@/lib/auth-profile'
 export { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES, SUPPORT_STATUSES } from '@/lib/support/contracts'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import type { ServerTiming } from '@/lib/performance/server-timing'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
-export async function requireSupportAuth(request: NextRequest) {
+export async function requireSupportAuth(
+  request: NextRequest,
+  timing?: ServerTiming
+) {
   void request
   const response = NextResponse.next()
   const supabase = await createSupabaseServerClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const { data: { user }, error: userError } = await (timing
+    ? timing.measure('auth', () => supabase.auth.getUser())
+    : supabase.auth.getUser())
   if (userError || !user) {
     return {
       ok: false as const,
       response: NextResponse.json({ error: 'غير مصرح' }, { status: 401 }),
     }
   }
-  const { data } = await supabaseAdmin
-    .from('platform_admins')
-    .select('role')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .maybeSingle()
-  if (data) {
+  const [providerResult, profileResult] = await Promise.all([
+    timing
+      ? timing.measure('platform_admin', () =>
+          supabaseAdmin
+            .from('platform_admins')
+            .select('role')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .maybeSingle()
+        )
+      : supabaseAdmin
+          .from('platform_admins')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .maybeSingle(),
+    timing
+      ? timing.measure('profile', () =>
+          supabase
+            .from('profiles')
+            .select('id, role, is_active, username, full_name, branch_id, tenant_id')
+            .eq('id', user.id)
+            .maybeSingle()
+        )
+      : supabase
+          .from('profiles')
+          .select('id, role, is_active, username, full_name, branch_id, tenant_id')
+          .eq('id', user.id)
+          .maybeSingle(),
+  ])
+  if (providerResult.data) {
     return {
       ok: true as const,
       response,
@@ -39,14 +69,10 @@ export async function requireSupportAuth(request: NextRequest) {
         scope_type: 'system' as const,
       },
       isProvider: true,
-      providerRole: data.role,
+      providerRole: providerResult.data.role,
     }
   }
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id, role, is_active, username, full_name, branch_id, tenant_id')
-    .eq('id', user.id)
-    .single()
+  const { data: profile, error: profileError } = profileResult
   if (profileError || !profile || !profile.is_active) {
     return {
       ok: false as const,

@@ -15,7 +15,7 @@ const layout = read('app/provider/layout.tsx')
 const customerPage = read('app/admin/support/[id]/page.tsx')
 const customerRoute = read('app/api/support/tickets/[id]/route.ts')
 
-assert(route.includes('requireSupportAuth(request)') && route.includes('if (!auth.isProvider)'), 'Provider API must use trusted S1 provider authorization.')
+assert(/requireSupportAuth\(request(?:,\s*timing)?\)/.test(route) && route.includes('if (!auth.isProvider)'), 'Provider API must use trusted S1 provider authorization.')
 assert(layout.includes("from('platform_admins')") && layout.includes(".eq('user_id', user.id)") && layout.includes(".eq('is_active', true)"), 'Provider layout must verify an active platform admin server-side.')
 assert(pageEntry.includes('ProviderSupportConsole'), 'Provider route must render the shared console component.')
 assert(!route.includes("params.get('tenant_id')") && !route.includes("params.get('provider')") && !route.includes("params.get('assigned_to')"), 'Provider API must not trust client identifiers.')

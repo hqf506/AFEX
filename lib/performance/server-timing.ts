@@ -1,8 +1,14 @@
 const SAFE_TIMING_NAMES = new Set([
   'auth',
+  'profile',
+  'platform_admin',
+  'tenant',
+  'owner',
+  'organizations',
   'scope',
   'settings',
   'branches',
+  'vat',
   'orders',
   'invoices',
   'items',
@@ -19,6 +25,8 @@ const SAFE_TIMING_NAMES = new Set([
   'sort',
   'pagination',
   'serialize',
+  'summary_query',
+  'tickets',
   'total',
 ])
 
@@ -29,11 +37,12 @@ export type ServerTiming = ReturnType<typeof createServerTiming>
 export function isServerTimingEnabled() {
   return (
     process.env.VERCEL_ENV === 'preview' ||
-    process.env.NODE_ENV === 'development'
+    process.env.NODE_ENV === 'development' ||
+    process.env.AFEX_SERVER_TIMING_ENABLED === 'true'
   )
 }
 
-export function createServerTiming() {
+export function createServerTiming(debugLabel = '') {
   const enabled = isServerTimingEnabled()
   const startedAt = performance.now()
   const entries: TimingEntry[] = []
@@ -70,12 +79,16 @@ export function createServerTiming() {
       if (!enabled) return response
       try {
         record('total', performance.now() - startedAt)
-        response.headers.set(
-          'Server-Timing',
-          entries
-            .map(({ name, duration }) => `${name};dur=${duration.toFixed(1)}`)
-            .join(', ')
-        )
+        const headerValue = entries
+          .map(({ name, duration }) => `${name};dur=${duration.toFixed(1)}`)
+          .join(', ')
+        response.headers.set('Server-Timing', headerValue)
+        if (
+          debugLabel &&
+          process.env.AFEX_SERVER_TIMING_LOGS === 'true'
+        ) {
+          console.info(`[server-timing:${debugLabel}] ${headerValue}`)
+        }
       } catch {
         // Instrumentation must never change the route response.
       }

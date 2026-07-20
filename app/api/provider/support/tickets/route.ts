@@ -9,6 +9,7 @@ import {
 } from '@/lib/support/contracts'
 import { isOneOf, positiveInteger, requireSupportAuth, text } from '@/lib/support/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createServerTiming } from '@/lib/performance/server-timing'
 
 const ASSIGNMENT_FILTERS = ['all', 'me', 'unassigned', 'assigned'] as const
 
@@ -25,10 +26,11 @@ function isOperationalDashboard(value: unknown): value is ProviderOperationalDas
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireSupportAuth(request)
-  if (!auth.ok) return auth.response
+  const timing = createServerTiming('provider-support')
+  const auth = await requireSupportAuth(request, timing)
+  if (!auth.ok) return timing.finish(auth.response)
   if (!auth.isProvider) {
-    return jsonWithAuthCookies(auth.response, { success: false, error: 'لا تملك صلاحية الوصول إلى لوحة دعم AFEX.' }, 403)
+    return timing.finish(jsonWithAuthCookies(auth.response, { success: false, error: 'لا تملك صلاحية الوصول إلى لوحة دعم AFEX.' }, 403))
   }
 
   const params = request.nextUrl.searchParams
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const [dashboardResult, organizationsResult] = await Promise.all([
-      supabaseAdmin.rpc('get_provider_support_operational_dashboard', {
+      timing.measure('rpc', () => supabaseAdmin.rpc('get_provider_support_operational_dashboard', {
         p_provider_user_id: auth.user.id,
         p_page: page,
         p_page_size: pageSize,
@@ -55,8 +57,10 @@ export async function GET(request: NextRequest) {
         p_organization: organization || null,
         p_assignment: isOneOf(assignment, ASSIGNMENT_FILTERS) ? assignment : 'all',
         p_operational_filter: isOneOf(operationalFilter, SUPPORT_OPERATIONAL_FILTERS) ? operationalFilter : 'all',
-      }),
-      supabaseAdmin.from('tenants').select('name').not('name', 'is', null).order('name').limit(500),
+      })),
+      timing.measure('organizations', () =>
+        supabaseAdmin.from('tenants').select('name').not('name', 'is', null).order('name').limit(500)
+      ),
     ])
     if (dashboardResult.error || organizationsResult.error) throw dashboardResult.error || organizationsResult.error
     if (!isOperationalDashboard(dashboardResult.data)) throw new Error('Invalid provider operational dashboard contract')
@@ -67,12 +71,13 @@ export async function GET(request: NextRequest) {
         .filter((name): name is string => Boolean(name)),
     )]
 
-    return jsonWithAuthCookies(auth.response, {
+    const response = await timing.measure('serialize', async () => jsonWithAuthCookies(auth.response, {
       success: true,
       ...dashboardResult.data,
       organizations,
-    })
+    }))
+    return timing.finish(response)
   } catch {
-    return jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر تحميل لوحة دعم AFEX.' }, 500)
+    return timing.finish(jsonWithAuthCookies(auth.response, { success: false, error: 'تعذر تحميل لوحة دعم AFEX.' }, 500))
   }
 }
