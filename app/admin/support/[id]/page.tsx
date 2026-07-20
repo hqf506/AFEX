@@ -143,7 +143,7 @@ export default function SupportTicketDetailsPage() {
   const hasProviderReply = messages.some((message) => message.sender_type === 'provider')
 
   return (
-    <main dir="rtl" className="mx-auto w-full max-w-7xl space-y-5">
+    <main dir="rtl" className="mx-auto w-full max-w-7xl min-w-0 space-y-5 overflow-x-hidden pb-[max(1rem,env(safe-area-inset-bottom))]">
       <MobilePageHeader title={ticket.ticket_number} subtitle={ticket.title} leading={<Link href="/admin/support" aria-label="العودة إلى التذاكر" className="grid size-10 place-items-center rounded-xl border border-white/10 text-lg text-slate-200">‹</Link>} />
       <Link href="/admin/support" className="hidden h-10 items-center rounded-xl border border-white/10 px-4 text-xs font-black text-slate-300 transition hover:border-cyan-300/30 hover:text-white md:inline-flex">العودة إلى التذاكر</Link>
       <header className="hidden rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-cyan-400/10 via-white/[0.055] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:block md:p-7">
@@ -171,7 +171,7 @@ export default function SupportTicketDetailsPage() {
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.75fr)]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <AdminGlassSection>
             <h2 className="text-lg font-black text-white">وصف المشكلة</h2>
             <p className="mt-4 min-w-0 whitespace-pre-wrap break-words text-sm leading-8 text-slate-300">{ticket.description}</p>
@@ -216,7 +216,7 @@ export default function SupportTicketDetailsPage() {
           <AdminGlassSection><h2 className="mb-4 text-lg font-black text-white">المرفقات</h2><SupportAttachmentList attachments={attachments} /></AdminGlassSection>
         </div>
 
-        <aside className="space-y-5">
+        <aside className="min-w-0 space-y-5">
           <AdminGlassSection>
             <h2 className="text-lg font-black text-white">بيانات التذكرة</h2>
             <dl className="mt-4 divide-y divide-white/[0.07] text-sm">

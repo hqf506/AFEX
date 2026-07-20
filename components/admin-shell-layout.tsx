@@ -459,7 +459,7 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
     return adminNavItems
       .filter(
         (item) =>
-          item.roles.includes(userRole) && (!item.providerOnly || isProvider)
+          canAccessAdminPath(userRole, item.href) && (!item.providerOnly || isProvider)
       )
       .map((item) => ({
         ...item,
@@ -563,6 +563,7 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
     })
     .filter((item, index, items) => items.findIndex((entry) => entry.href === item.href) === index)
     .slice(0, 4)
+  const mobileSettingsItem = visibleNavItems.find((item) => item.href === '/admin/settings')
 
   const openMobileNavigation = (trigger: HTMLButtonElement) => {
     mobileMenuTriggerRef.current = trigger
@@ -807,13 +808,13 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
             icon: createElement(item.icon, { className: 'size-5' }),
             active: isPathActive(pathname, item.href, item.exact),
           })),
-          {
-            key: 'more',
-            label: 'المزيد',
-            icon: <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>,
-            active: mobileNavigationOpen,
-            onSelect: openMobileNavigation,
-          },
+          ...(mobileSettingsItem ? [{
+            key: mobileSettingsItem.href,
+            label: mobileSettingsItem.label,
+            href: mobileSettingsItem.href,
+            icon: createElement(mobileSettingsItem.icon, { className: 'size-5' }),
+            active: isPathActive(pathname, mobileSettingsItem.href, mobileSettingsItem.exact),
+          }] : []),
         ]}
       />
 

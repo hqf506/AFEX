@@ -3523,7 +3523,7 @@ export default function AdminCatalogPage() {
                       return (
                       <tr
                         key={item.id}
-                        className="h-[78px] border-b border-white/[0.08] bg-[#07111d]/70 transition-all duration-200 hover:bg-cyan-500/5 hover:shadow-[inset_-3px_0_0_rgba(34,211,238,0.35)]"
+                        className="h-[78px] border-b border-white/[0.08] bg-[#07111d]/70 transition-all duration-200 hover:bg-cyan-500/5 hover:shadow-[inset_-3px_0_0_rgba(34,211,238,0.35)] max-md:!h-auto"
                       >
                         <td className="px-3 py-3 text-center align-middle max-md:!hidden">
                           <div className="flex justify-center">
@@ -3573,7 +3573,7 @@ export default function AdminCatalogPage() {
                                 <div><p className="text-[10px] font-bold text-slate-500">سعر البيع</p><p className="mt-1 text-base font-black text-cyan-100">{formatCurrency(item.default_price ?? 0)}</p></div>
                                 <div className="flex gap-2">
                                   <button type="button" onClick={() => toggleItemSelection(item.id)} disabled={isBulkDeleting} aria-pressed={selectedItemIds.includes(item.id)} className={`min-h-11 rounded-xl border px-3 text-xs font-black disabled:opacity-50 ${selectedItemIds.includes(item.id) ? 'border-red-300/30 bg-red-500/15 text-red-100' : 'border-white/10 bg-white/[0.05] text-slate-300'}`}>تحديد</button>
-                                  <button type="button" onClick={() => startEdit(item)} disabled={isBulkDeleting} className="min-h-11 rounded-xl bg-cyan-300 px-4 text-xs font-black text-slate-950 disabled:opacity-50">تعديل</button>
+                                  <button type="button" onClick={(event) => { event.stopPropagation(); startEdit(item) }} disabled={isBulkDeleting} className="relative z-10 min-h-11 rounded-xl bg-cyan-300 px-4 text-xs font-black text-slate-950 disabled:opacity-50">تعديل</button>
                                 </div>
                               </div>
                             </div>

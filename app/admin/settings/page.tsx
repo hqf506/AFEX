@@ -575,7 +575,7 @@ export default function AdminSettingsPage() {
             title="معلومات المنشأة"
             description="البيانات التي تظهر في الفواتير والتقارير العامة."
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <InfoCard label="اسم النشاط" value={safeValue(settings?.store_name)} icon={<StoreIcon />} />
               <InfoCard label="اسم الفرع" value={safeValue(settings?.branch_name)} icon={<BuildingIcon />} />
               <InfoCard label="رقم واتساب" value={safeValue(form.whatsapp_phone)} icon={<PhoneIcon />} />
@@ -1485,17 +1485,17 @@ function InfoCard({
 }) {
   return (
     <div
-      className={`rounded-3xl border border-cyan-300/15 bg-[#091522]/80 p-4 transition hover:border-cyan-300/30 hover:bg-cyan-300/5 ${
+      className={`min-w-0 rounded-3xl border border-cyan-300/15 bg-[#091522]/80 p-4 transition hover:border-cyan-300/30 hover:bg-cyan-300/5 ${
         wide ? 'md:col-span-2' : ''
       }`}
     >
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
           {icon}
         </div>
         <div className="min-w-0 text-right">
           <p className="text-xs font-black text-slate-400">{label}</p>
-          <p className="mt-1 truncate text-base font-black text-white">{value}</p>
+          <p className="mt-1 break-words text-sm font-black leading-6 text-white sm:text-base">{value}</p>
         </div>
       </div>
     </div>

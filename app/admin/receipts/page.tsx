@@ -1491,9 +1491,9 @@ function ReceiptDrawer({
           receipt ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
         }`}
       />
-      <aside data-admin-drawer
+      <aside data-admin-drawer={receipt ? '' : undefined}
         dir="rtl"
-        className={`fixed left-0 top-0 z-[90] h-[100dvh] w-[min(380px,calc(100vw-24px))] border-r border-cyan-400/25 bg-[#06111f]/95 shadow-[0_0_70px_rgba(34,211,238,0.18)] backdrop-blur-2xl transition-transform duration-300 ${
+        className={`fixed left-0 top-0 z-[90] flex h-[100dvh] w-[min(380px,calc(100vw-24px))] min-h-0 flex-col border-r border-cyan-400/25 bg-[#06111f]/95 shadow-[0_0_70px_rgba(34,211,238,0.18)] backdrop-blur-2xl transition-transform duration-300 ${
           receipt ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -1527,7 +1527,7 @@ function ReceiptDrawer({
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
               <div className="mb-4 text-center">
                 <p className="text-2xl font-black text-white">{formatSar(receipt.total)}</p>
                 <p className="mt-1 text-xs font-bold text-slate-400">الإجمالي</p>

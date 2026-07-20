@@ -378,7 +378,7 @@ export default function AdminAuditLogsPage() {
 
       <div className="rounded-[28px] border border-cyan-300/15 bg-[#07111f]/88 p-4 shadow-[0_18px_70px_rgba(0,0,0,0.26)] backdrop-blur-xl">
         <div data-responsive-filters className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <label className="space-y-2">
+          <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">الحدث</span>
             <input
               value={action}
@@ -387,7 +387,7 @@ export default function AdminAuditLogsPage() {
               className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
             />
           </label>
-          <label className="space-y-2">
+          <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">النوع</span>
             <input
               value={entityType}
@@ -396,7 +396,7 @@ export default function AdminAuditLogsPage() {
               className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
             />
           </label>
-          <label className="space-y-2">
+          <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">من تاريخ</span>
             <input
               type="date"
@@ -405,7 +405,7 @@ export default function AdminAuditLogsPage() {
               className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
             />
           </label>
-          <label className="space-y-2">
+          <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">إلى تاريخ</span>
             <input
               type="date"

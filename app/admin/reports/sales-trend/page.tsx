@@ -351,6 +351,7 @@ export default function SalesTrendPage() {
   const [dateTo, setDateTo] = useState(initialPeriod.dateTo)
   const [trendGrouping, setTrendGrouping] =
     useState<SalesTrendGrouping>('day')
+  const [chartType, setChartType] = useState<'line' | 'bar'>('bar')
   const [sortKey, setSortKey] = useState<SalesTrendSortKey>('period')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [trendRows, setTrendRows] = useState<SalesTrendRow[]>([])
@@ -478,6 +479,15 @@ export default function SalesTrendPage() {
       0
     )
   }, [visibleChartRows])
+
+  const lineChartPoints = useMemo(() => {
+    return visibleChartRows.map((row, index) => ({
+      key: row.periodKey,
+      label: `${row.periodLabel}: ${formatCurrency(row.grossSales)}`,
+      x: visibleChartRows.length === 1 ? 50 : (index / (visibleChartRows.length - 1)) * 100,
+      y: 95 - (maxChartValue > 0 ? (row.grossSales / maxChartValue) * 85 : 0),
+    }))
+  }, [maxChartValue, visibleChartRows])
 
   const highestChartRow = useMemo(() => {
     if (visibleChartRows.length === 0) return null
@@ -869,21 +879,24 @@ export default function SalesTrendPage() {
                 </p>
               </div>
               <div className="flex rounded-2xl border border-white/10 bg-black/20 p-1 text-xs font-bold text-slate-400">
-                <span className="rounded-xl px-4 py-2">خطي</span>
-                <span className="rounded-xl border border-cyan-300/40 bg-cyan-300/15 px-4 py-2 text-cyan-100">
-                  أعمدة
-                </span>
+                <button type="button" aria-pressed={chartType === 'line'} onClick={() => setChartType('line')} className={`min-h-11 rounded-xl px-4 py-2 ${chartType === 'line' ? 'border border-cyan-300/40 bg-cyan-300/15 text-cyan-100' : ''}`}>خطي</button>
+                <button type="button" aria-pressed={chartType === 'bar'} onClick={() => setChartType('bar')} className={`min-h-11 rounded-xl px-4 py-2 ${chartType === 'bar' ? 'border border-cyan-300/40 bg-cyan-300/15 text-cyan-100' : ''}`}>أعمدة</button>
               </div>
             </div>
 
             {hasChartData ? (
               <div data-responsive-chart className="min-w-0 overflow-hidden">
                 <div className="w-full min-w-0">
-                  <div className="relative flex h-72 items-end gap-2 overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#040c18] px-4 py-5">
+                  <div className="relative flex h-72 min-w-0 items-end gap-2 overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#040c18] px-3 py-5 sm:px-4">
                     <div className="pointer-events-none absolute inset-x-4 top-6 h-px bg-white/10" />
                     <div className="pointer-events-none absolute inset-x-4 top-1/3 h-px bg-white/10" />
                     <div className="pointer-events-none absolute inset-x-4 top-2/3 h-px bg-white/10" />
-                    {visibleChartRows.map((row) => {
+                    {chartType === 'line' ? (
+                      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="relative z-10 h-full min-w-0 flex-1 overflow-visible" role="img" aria-label="الرسم الخطي لاتجاه المبيعات">
+                        <polyline points={lineChartPoints.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="rgb(103 232 249)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                        {lineChartPoints.map((point) => <circle key={point.key} cx={point.x} cy={point.y} r="1.5" fill="rgb(165 243 252)" stroke="rgb(8 145 178)" strokeWidth="1" vectorEffect="non-scaling-stroke"><title>{point.label}</title></circle>)}
+                      </svg>
+                    ) : visibleChartRows.map((row) => {
                       const heightPercentage =
                         maxChartValue > 0
                           ? Math.max((row.grossSales / maxChartValue) * 100, 0)

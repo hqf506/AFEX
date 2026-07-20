@@ -744,10 +744,10 @@ export default async function AdminCustomersPage({
             className="absolute inset-0"
             aria-label="إغلاق"
           />
-          <div className="absolute inset-y-0 right-0 flex w-full justify-end">
+          <div className="absolute inset-y-0 right-0 flex min-h-0 w-full justify-end">
             <form data-admin-drawer data-mobile-customer-drawer
               action={updateCustomer}
-              className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6 lg:p-8"
+              className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative h-full min-h-0 w-full max-w-xl overflow-y-auto overscroll-contain border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6 lg:p-8"
             >
               <input type="hidden" name="customerId" value={selectedCustomer.id} />
 
@@ -1035,7 +1035,7 @@ export default async function AdminCustomersPage({
 
                     <div
                       dir="ltr"
-                      className="flex justify-start gap-2 border-t border-white/10 pt-4"
+                      className="sticky bottom-0 z-10 flex justify-start gap-2 border-t border-white/10 bg-[#050b16]/95 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl"
                     >
                       <button
                         type="submit"
