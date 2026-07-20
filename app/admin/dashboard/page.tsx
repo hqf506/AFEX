@@ -18,6 +18,7 @@ import {
 import { type ExecutiveDashboardSummary } from '@/lib/reports/executive-dashboard'
 import { type SalesTrendRow } from '@/lib/reports/sales-trend'
 import { formatCurrency, getDateInputValue } from '@/lib/orders/format'
+import { MobileDataCard, MobileSection } from '@/components/mobile/mobile-primitives'
 
 type DashboardRecentOrder = Pick<
   ReportOrderRecord,
@@ -597,14 +598,14 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-full">
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
         {errorMessage ? (
           <div className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-100">
             {errorMessage}
           </div>
         ) : null}
 
-        <div className="rounded-[30px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_28px_110px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-7">
+        <div className="hidden rounded-[30px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_28px_110px_rgba(0,0,0,0.28)] backdrop-blur-xl md:block md:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="text-right">
             <h1 className="text-3xl font-black text-white sm:text-4xl">لوحة التحكم</h1>
@@ -650,7 +651,59 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-[24px] border border-white/10 bg-white/[0.035] p-4 backdrop-blur lg:flex-row lg:items-center lg:justify-between">
+        <MobileSection
+          title="ملخص اليوم"
+          description={`آخر تحديث: ${lastUpdated || '—'}${refreshing ? ' • جارٍ التحديث...' : ''}`}
+          action={
+            <button
+              type="button"
+              onClick={() => void fetchDashboardData(true)}
+              disabled={refreshing}
+              aria-label="تحديث بيانات لوحة التحكم"
+              className="grid size-11 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-100 disabled:cursor-wait disabled:opacity-60"
+            >
+              <svg viewBox="0 0 24 24" className={`size-5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M18.3 9A7 7 0 0 0 6.4 6.4L4 9M5.7 15A7 7 0 0 0 17.6 17.6L20 15" /></svg>
+            </button>
+          }
+          className="md:hidden"
+        >
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { key: 'today' as const, label: 'اليوم' },
+              { key: 'this-week' as const, label: 'الأسبوع' },
+              { key: 'this-month' as const, label: 'الشهر' },
+            ].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                aria-pressed={period === option.key}
+                onClick={() => {
+                  const nextState = resolvePeriodPreset(option.key)
+                  setPeriod(option.key)
+                  setRange(nextState.range)
+                  setDateFrom(nextState.dateFrom)
+                  setDateTo(nextState.dateTo)
+                }}
+                className={`min-h-11 rounded-xl border px-2 text-xs font-black ${period === option.key ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-100' : 'border-white/10 bg-black/15 text-slate-400'}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {isSystemAdmin ? (
+            <AdminBranchFilter
+              branches={branches}
+              selectedBranchId={selectedBranchId}
+              loading={loadingBranches}
+              onChange={setSelectedBranchId}
+              label="الفرع"
+              allLabel="كل الفروع"
+              className="mt-3 w-full min-w-0"
+            />
+          ) : null}
+        </MobileSection>
+
+        <div className="hidden flex-col gap-3 rounded-[24px] border border-white/10 bg-white/[0.035] p-4 backdrop-blur md:flex lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
             <span className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1 text-slate-200">
               الفترة: {getPeriodLabel(period)}
@@ -687,7 +740,20 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div data-responsive-dashboard-kpis className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
+        <div data-mobile-dashboard-kpis className="grid grid-cols-2 gap-3 md:hidden">
+          {statCards.map((card, index) => (
+            <MobileDataCard
+              key={card.title}
+              title={card.title}
+              metric={card.value}
+              status={<span className={`grid size-9 place-items-center rounded-xl border ${index === 0 ? 'border-cyan-300/25 bg-cyan-300/10 text-cyan-200' : index === 3 ? 'border-amber-300/25 bg-amber-300/10 text-amber-200' : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'}`}><svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><DashboardIcon type={card.icon} /></svg></span>}
+              metadata={<span className="font-bold text-emerald-300">{card.growth} عن الفترة السابقة</span>}
+              className={index === 0 ? 'col-span-2 border-cyan-300/25 bg-cyan-300/[0.07]' : ''}
+            />
+          ))}
+        </div>
+
+        <div data-responsive-dashboard-kpis className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
           {statCards.map((card) => (
             <KpiCard
               key={card.title}
@@ -700,7 +766,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.9fr_0.95fr]">
-          <div data-responsive-chart className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur sm:p-6 xl:col-span-1">
+          <div data-responsive-chart className="order-2 min-w-0 overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur md:order-none md:rounded-[28px] sm:p-6 xl:col-span-1">
             <div className="mb-5 text-right">
               <h2 className="text-xl font-black text-white">نظرة الأداء</h2>
               <p className="mt-1 text-sm text-slate-400">
@@ -722,7 +788,7 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            <div className="relative h-[300px] overflow-hidden rounded-3xl border border-white/[0.08] bg-[#07111f] p-5">
+            <div className="relative h-[230px] overflow-hidden rounded-3xl border border-white/[0.08] bg-[#07111f] p-5 md:h-[300px]">
               <div className="absolute inset-x-5 top-10 h-px bg-white/[0.08]" />
               <div className="absolute inset-x-5 top-24 h-px bg-white/[0.08]" />
               <div className="absolute inset-x-5 top-40 h-px bg-white/[0.08]" />
@@ -730,7 +796,7 @@ export default function DashboardPage() {
               {salesTrendPoints ? (
                 <svg
                   viewBox="0 0 100 100"
-                  className="absolute inset-x-5 top-10 h-[210px] w-[calc(100%-2.5rem)]"
+                  className="absolute inset-x-5 top-10 h-[150px] w-[calc(100%-2.5rem)] md:h-[210px]"
                   preserveAspectRatio="none"
                   aria-hidden="true"
                 >
@@ -763,7 +829,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur">
+          <div className="hidden min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur md:block">
             <div className="mb-5 text-right">
               <h2 className="text-xl font-black text-white">توزيع المبيعات حسب الفئة</h2>
               <p className="mt-1 text-sm text-slate-400">
@@ -806,7 +872,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur">
+          <div className="order-1 min-w-0 overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur md:order-none md:rounded-[28px] md:p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <Link
                 href="/admin/orders"
@@ -861,7 +927,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] backdrop-blur md:rounded-[28px] md:p-6">
           <div className="mb-5 text-right">
             <h2 className="text-xl font-black text-white">إجراءات سريعة</h2>
             <p className="mt-1 text-sm text-slate-400">

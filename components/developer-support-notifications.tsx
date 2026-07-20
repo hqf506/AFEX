@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
+import { ProviderMobileBottomNavigation } from '@/components/mobile/provider-mobile-bottom-nav'
 import type { DeveloperSupportNotification, DeveloperSupportNotificationResponse } from '@/lib/support/contracts'
 
 const POPOVER_LIMIT = 10
@@ -153,6 +155,9 @@ export function DeveloperSupportNotifications() {
 
   useEffect(() => {
     if (!open) return
+    const previousOverflow = document.body.style.overflow
+    const mobilePanel = window.matchMedia('(max-width: 767px)').matches
+    if (mobilePanel) document.body.style.overflow = 'hidden'
     const updatePosition = () => {
       const rect = bellRef.current?.getBoundingClientRect()
       if (!rect) return
@@ -164,6 +169,7 @@ export function DeveloperSupportNotifications() {
       setPosition({ top, left, width, maxHeight: Math.max(160, Math.min(640, window.innerHeight - top - edge)) })
     }
     updatePosition()
+    if (mobilePanel) window.setTimeout(() => popoverRef.current?.focus(), 0)
     const close = (event: MouseEvent) => {
       const target = event.target as Node
       if (!popoverRef.current?.contains(target) && !wrapperRef.current?.contains(target)) setOpen(false)
@@ -172,13 +178,22 @@ export function DeveloperSupportNotifications() {
       if (event.key === 'Escape') {
         setOpen(false)
         bellRef.current?.focus()
+        return
       }
+      if (!mobilePanel || event.key !== 'Tab' || !popoverRef.current) return
+      const focusable = [...popoverRef.current.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
     }
     document.addEventListener('mousedown', close)
     document.addEventListener('keydown', escape)
     window.addEventListener('resize', updatePosition)
     window.addEventListener('scroll', updatePosition, true)
     return () => {
+      document.body.style.overflow = previousOverflow
       document.removeEventListener('mousedown', close)
       document.removeEventListener('keydown', escape)
       window.removeEventListener('resize', updatePosition)
@@ -186,10 +201,10 @@ export function DeveloperSupportNotifications() {
     }
   }, [open])
 
-  const popover = open && position && typeof document !== 'undefined' ? createPortal(<section ref={popoverRef} id={panelId} aria-label="قائمة إشعارات الدعم" style={{ position: 'fixed', top: position.top, left: position.left, width: position.width, maxHeight: position.maxHeight }} className="z-[9500] flex flex-col overflow-hidden rounded-[24px] border border-cyan-300/15 bg-[#07111f] p-4 shadow-2xl">
+  const popover = open && position && typeof document !== 'undefined' ? createPortal(<section ref={popoverRef} tabIndex={-1} id={panelId} role="dialog" aria-label="قائمة إشعارات الدعم" data-mobile-notification-panel style={{ position: 'fixed', top: position.top, left: position.left, width: position.width, maxHeight: position.maxHeight }} className="z-[9500] flex flex-col overflow-hidden rounded-[24px] border border-cyan-300/15 bg-[#07111f] p-4 shadow-2xl outline-none max-md:!inset-0 max-md:!h-[100dvh] max-md:!max-h-none max-md:!w-full max-md:!rounded-none max-md:!z-[12000] max-md:pt-[max(1rem,env(safe-area-inset-top))] max-md:pb-[max(1rem,env(safe-area-inset-bottom))]">
     <header className="flex shrink-0 items-center justify-between gap-3">
       <h2 className="font-black">إشعارات الدعم</h2>
-      <button type="button" disabled={!unreadCount || markingAll} onClick={() => void markAll()} className="text-xs font-bold text-cyan-200 disabled:opacity-40">تحديد الكل كمقروء</button>
+      <div className="flex items-center gap-2"><button type="button" disabled={!unreadCount || markingAll} onClick={() => void markAll()} className="min-h-11 text-xs font-bold text-cyan-200 disabled:opacity-40">تحديد الكل كمقروء</button><button type="button" aria-label="إغلاق إشعارات الدعم" onClick={() => { setOpen(false); bellRef.current?.focus() }} className="grid size-11 place-items-center rounded-xl border border-white/10 text-xl text-slate-200 md:hidden">×</button></div>
     </header>
     {error ? <p className="mt-3 shrink-0 rounded-xl border border-red-300/15 bg-red-300/[0.06] p-3 text-xs text-red-200">{error}</p> : null}
     <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
@@ -209,11 +224,13 @@ export function DeveloperSupportNotifications() {
 
 export function ProviderNotificationsShell({ children, notificationsEnabled }: { children: ReactNode; notificationsEnabled: boolean }) {
   const content = <>
-    <header className="mb-4 flex items-center justify-end gap-2 rounded-[20px] border border-white/10 bg-[#07111f]/80 px-3 py-2 backdrop-blur-xl">
+    <MobilePageHeader title="تذاكر العملاء" subtitle="دعم المنصة" notification={notificationsEnabled ? <DeveloperSupportNotifications /> : undefined} action={<span className="grid size-9 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10 text-xs font-black text-emerald-200">AF</span>} className="mb-3" />
+    <header className="mb-4 hidden items-center justify-end gap-2 rounded-[20px] border border-white/10 bg-[#07111f]/80 px-3 py-2 backdrop-blur-xl md:flex">
       <div className="flex min-w-0 items-center gap-2"><span className="grid size-9 shrink-0 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10 text-sm font-black text-emerald-200">AF</span><span className="min-w-0 leading-tight"><span className="block truncate text-xs font-black text-white">فريق AFEX</span><span className="mt-1 block text-[10px] font-bold text-slate-400">دعم المنصة</span></span></div>
       {notificationsEnabled ? <DeveloperSupportNotifications /> : null}
     </header>
-    {children}
+    <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+    <ProviderMobileBottomNavigation />
   </>
   return notificationsEnabled ? <DeveloperSupportNotificationsProvider>{content}</DeveloperSupportNotificationsProvider> : content
 }

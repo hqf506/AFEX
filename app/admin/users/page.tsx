@@ -941,7 +941,7 @@ export default function AdminUsersPage() {
           {showCreateForm ? (
           <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
             <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-          <form data-admin-drawer
+          <form data-admin-drawer data-mobile-user-editor
             id="create-user-form"
             role="dialog"
             aria-modal="true"
@@ -1278,7 +1278,7 @@ export default function AdminUsersPage() {
           {editDrawer.open && editDrawer.user ? (
             <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
               <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-              <form data-admin-drawer
+              <form data-admin-drawer data-mobile-user-editor
                   id="edit-user-form"
                   role="dialog"
                   aria-modal="true"
@@ -1781,8 +1781,8 @@ export default function AdminUsersPage() {
                             key={`${user.account_type || 'user'}-${user.id}`}
                             className="border-b border-white/[0.08] bg-slate-500/[0.045] align-middle transition hover:bg-slate-500/[0.075] last:border-b-0"
                           >
-                            <td className="px-3 py-4">
-                              <div className="flex min-w-0 items-center gap-3">
+                            <td className="px-3 py-4 max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                              <div className="hidden min-w-0 items-center gap-3 md:flex">
                                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-sm font-black text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.13)]">
                                   {(user.full_name || user.username || '?').slice(0, 1)}
                                 </div>
@@ -1795,9 +1795,18 @@ export default function AdminUsersPage() {
                                   </p>
                                 </div>
                               </div>
+                              <div data-mobile-user-card className="min-w-0 p-4 md:hidden">
+                                <div className="flex min-w-0 items-start gap-3">
+                                  <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-sm font-black text-cyan-100">{(user.full_name || user.username || '?').slice(0, 1)}</div>
+                                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-white">{user.full_name || 'بدون اسم'}</p><p className="mt-1 truncate text-xs font-bold text-slate-400">{user.username || '-'}</p></div>
+                                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${user.is_active ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-rose-300/25 bg-rose-500/10 text-rose-100'}`}>{user.is_active ? 'نشط' : 'غير نشط'}</span>
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2"><span className={`rounded-full border px-3 py-1 text-xs font-black ${getRoleBadgeClassName(user.role)}`}>{getRoleDisplayLabel(user.role)}</span><span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black text-slate-300">{getBranchName(branches, user.branch_id)}</span></div>
+                                <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => openEditDrawer(user)} disabled={isBusy || isMainAdmin || !user.account_type} className="min-h-11 rounded-xl bg-cyan-300 text-xs font-black text-slate-950 disabled:opacity-40">تعديل</button><button type="button" onClick={() => openDeleteModal(user)} disabled={isBusy || isMainAdmin} className="min-h-11 rounded-xl border border-red-300/20 bg-red-500/10 text-xs font-black text-red-100 disabled:opacity-40">حذف</button></div>
+                              </div>
                             </td>
 
-                            <td className="px-3 py-4">
+                            <td className="px-3 py-4 max-md:!hidden">
                               <p className="truncate text-sm font-black text-slate-200">
                                 {user.username || '-'}
                               </p>
@@ -1808,7 +1817,7 @@ export default function AdminUsersPage() {
                               ) : null}
                             </td>
 
-                            <td className="px-3 py-4">
+                            <td className="px-3 py-4 max-md:!hidden">
                               <span
                                 className={`inline-flex max-w-full rounded-full border px-3 py-1 text-xs font-black ${getRoleBadgeClassName(user.role)}`}
                               >
@@ -1816,13 +1825,13 @@ export default function AdminUsersPage() {
                               </span>
                             </td>
 
-                            <td className="px-3 py-4">
+                            <td className="px-3 py-4 max-md:!hidden">
                               <span className="block truncate text-sm font-bold text-slate-200">
                                 {getBranchName(branches, user.branch_id)}
                               </span>
                             </td>
 
-                            <td className="px-3 py-4">
+                            <td className="px-3 py-4 max-md:!hidden">
                               <span
                                 className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
                                   user.is_active
@@ -1834,7 +1843,7 @@ export default function AdminUsersPage() {
                               </span>
                             </td>
 
-                            <td className="sticky left-0 bg-[#06111f] px-3 py-4">
+                            <td className="sticky left-0 bg-[#06111f] px-3 py-4 max-md:!hidden">
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import { useAuthState } from '@/components/auth-state-provider'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
@@ -691,14 +692,15 @@ export default function SalesTrendPage() {
         <div className="absolute bottom-[-18%] left-[-10%] h-[520px] w-[520px] rounded-full bg-teal-300/10 blur-[150px]" />
       </div>
 
-      <div className="w-full max-w-none space-y-5 rounded-[32px] border border-white/10 bg-white/[0.025] p-4 shadow-[0_28px_140px_rgba(0,0,0,0.34)] backdrop-blur sm:p-6">
+      <div className="w-full max-w-none space-y-4 rounded-[24px] border border-white/10 bg-white/[0.025] p-3 shadow-[0_28px_140px_rgba(0,0,0,0.34)] backdrop-blur sm:p-6 md:space-y-5 md:rounded-[32px]">
+        <MobilePageHeader title="اتجاه المبيعات" subtitle={`${getPeriodLabel(period)} · ${getGroupingLabel(trendGrouping)}`} />
         {errorMessage ? (
           <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-100">
             {errorMessage}
           </div>
         ) : null}
 
-        <section className="rounded-[28px] border border-cyan-300/15 bg-gradient-to-br from-white/[0.07] via-white/[0.035] to-cyan-300/[0.035] p-5 shadow-[0_24px_100px_rgba(0,0,0,0.25)]">
+        <section className="hidden rounded-[28px] border border-cyan-300/15 bg-gradient-to-br from-white/[0.07] via-white/[0.035] to-cyan-300/[0.035] p-5 shadow-[0_24px_100px_rgba(0,0,0,0.25)] md:block">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">
               <IconFrame type="sales" />

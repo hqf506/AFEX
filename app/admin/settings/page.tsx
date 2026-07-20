@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { AdminAlert } from '@/components/admin-ui'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import {
   useCallback,
   useEffect,
@@ -453,7 +454,11 @@ export default function AdminSettingsPage() {
       <div className="pointer-events-none absolute -left-24 bottom-10 h-96 w-96 rounded-full bg-emerald-400/10 blur-3xl" />
 
       <div className="relative mx-auto max-w-[1440px] space-y-5">
-        <section className="rounded-[30px] border border-cyan-300/15 bg-[#07111d]/95 p-5 shadow-[0_28px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:p-7">
+        <MobilePageHeader
+          title="إعدادات النظام"
+          subtitle={tabs.find((tab) => tab.key === activeTab)?.label}
+        />
+        <section className="hidden rounded-[30px] border border-cyan-300/15 bg-[#07111d]/95 p-5 shadow-[0_28px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:block md:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4 text-right">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-200">
@@ -501,7 +506,29 @@ export default function AdminSettingsPage() {
         {successMessage ? <AdminAlert tone="success">{successMessage}</AdminAlert> : null}
         {errorMessage ? <AdminAlert tone="error">{errorMessage}</AdminAlert> : null}
 
-        <nav data-responsive-settings-tabs className="flex snap-x snap-mandatory gap-2 overflow-x-auto rounded-[24px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl">
+        <nav aria-label="أقسام الإعدادات" data-mobile-settings-navigation className="grid grid-cols-2 gap-2 rounded-[22px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl md:hidden">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.key
+
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                aria-current={active ? 'page' : undefined}
+                onClick={() => setActiveTab(tab.key)}
+                className={`min-h-12 rounded-2xl px-3 py-2 text-sm font-black transition ${
+                  active
+                    ? 'bg-gradient-to-l from-cyan-300 to-emerald-300 text-[#04131d] shadow-[0_0_24px_rgba(34,211,238,0.16)]'
+                    : 'border border-white/10 bg-white/[0.035] text-slate-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        <nav data-responsive-settings-tabs className="hidden snap-x snap-mandatory gap-2 overflow-x-auto rounded-[24px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl md:flex">
           {tabs.map((tab) => {
             const active = activeTab === tab.key
 
@@ -1202,12 +1229,12 @@ export default function AdminSettingsPage() {
       </div>
 
       {invoicePreviewFrame ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-0 backdrop-blur-md sm:p-5">
           <div data-admin-preview
             role="dialog"
             aria-modal="true"
             aria-labelledby="settings-invoice-preview-title"
-            className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]"
+            className="flex h-[100dvh] w-full max-w-[1180px] flex-col overflow-hidden border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] sm:h-[88vh] sm:rounded-[28px]"
           >
             <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
               <div className="text-right">

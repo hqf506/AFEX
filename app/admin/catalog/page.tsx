@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminInput } from '@/components/admin-input'
 import { AdminAlert } from '@/components/admin-ui'
+import { MobileFilterSheet } from '@/components/mobile/mobile-overlays'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import {
@@ -662,6 +663,7 @@ export default function AdminCatalogPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [branchFilter, setBranchFilter] = useState('all')
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [nameSort, setNameSort] = useState<'none' | 'desc' | 'asc'>('none')
   const [categorySort, setCategorySort] = useState<'none' | 'desc' | 'asc'>('none')
   const [salePriceSort, setSalePriceSort] = useState<'none' | 'desc' | 'asc'>('none')
@@ -2337,7 +2339,7 @@ export default function AdminCatalogPage() {
   ) : null
 
   const catalogFormContent = (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 max-md:pb-24">
       <section className="overflow-visible rounded-3xl border border-cyan-300/15 bg-[#07111f]/90 p-6 shadow-[0_24px_90px_rgba(0,0,0,0.24)] md:p-8">
         <div className="space-y-6">
           <input type="hidden" value={form.category} readOnly />
@@ -2758,7 +2760,7 @@ export default function AdminCatalogPage() {
         </div>
       </section>
 
-      <div className="flex flex-wrap justify-end gap-3">
+      <div className="flex flex-wrap justify-end gap-3 max-md:sticky max-md:bottom-0 max-md:z-20 max-md:-mx-4 max-md:border-t max-md:border-cyan-300/15 max-md:bg-[#07111f]/95 max-md:px-4 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:pt-3 max-md:backdrop-blur-xl">
         <button
           type="submit"
           disabled={!canSubmit || saving}
@@ -2853,8 +2855,8 @@ export default function AdminCatalogPage() {
             className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
             onClick={requestCloseEditModal}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div data-admin-dialog className="max-h-[85vh] w-full max-w-[600px] overflow-y-auto rounded-[28px] border border-white/10 bg-[#07111f] p-6 shadow-[0_28px_110px_rgba(0,0,0,0.45)]">
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 max-md:p-0">
+            <div data-admin-dialog data-mobile-catalog-editor className="max-h-[85vh] w-full max-w-[600px] overflow-y-auto rounded-[28px] border border-white/10 bg-[#07111f] p-6 shadow-[0_28px_110px_rgba(0,0,0,0.45)] max-md:!h-[100dvh] max-md:!max-h-none max-md:!max-w-none max-md:!rounded-none max-md:!p-4">
               <div className="mb-6 flex items-center justify-between gap-3">
                 <button
                   type="button"
@@ -3077,6 +3079,25 @@ export default function AdminCatalogPage() {
           </div>
         ) : null}
 
+        <MobileFilterSheet
+          open={mobileFiltersOpen}
+          onClose={() => setMobileFiltersOpen(false)}
+          title="فلاتر الكتالوج"
+          description="تُطبق الخيارات على نفس قائمة العناصر الحالية."
+          footer={
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => { setBranchFilter('all'); setCategoryFilter('all'); setStatusFilter('all') }} className="min-h-11 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-black text-slate-200">مسح الفلاتر</button>
+              <button type="button" onClick={() => setMobileFiltersOpen(false)} className="min-h-11 rounded-xl bg-cyan-300 px-3 text-xs font-black text-slate-950">عرض النتائج</button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <AdminDarkSelect value={branchFilter} onChange={setBranchFilter} options={[{ value: 'all', label: 'كل الفروع' }, ...branchOptions.map((branch) => ({ value: branch.id, label: branch.name }))]} ariaLabel="فلتر الفرع" triggerClassName="h-12 w-full rounded-2xl border-white/10 bg-[#0a1424]" />
+            <AdminDarkSelect value={categoryFilter} onChange={setCategoryFilter} options={[{ value: 'all', label: 'كل التصنيفات' }, ...categoryOptions.map((category) => ({ value: category, label: category }))]} ariaLabel="فلتر التصنيف" triggerClassName="h-12 w-full rounded-2xl border-white/10 bg-[#0a1424]" />
+            <AdminDarkSelect value={statusFilter} onChange={(value) => setStatusFilter(value as 'all' | 'active' | 'inactive')} options={[{ value: 'all', label: 'كل الحالات' }, { value: 'active', label: 'نشط' }, { value: 'inactive', label: 'معطل' }]} ariaLabel="فلتر الحالة" triggerClassName="h-12 w-full rounded-2xl border-white/10 bg-[#0a1424]" />
+          </div>
+        </MobileFilterSheet>
+
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {catalogMetricCards.map((card) => (
             <CatalogMetricCard
@@ -3125,7 +3146,19 @@ export default function AdminCatalogPage() {
                 </div>
               </div>
 
-              <div data-responsive-filters className="grid grid-cols-1 items-center gap-3 rounded-[24px] border border-cyan-500/15 bg-white/[0.035] p-3 md:grid-cols-2 xl:grid-cols-[minmax(320px,1fr)_190px_190px_190px_auto]">
+              <div data-mobile-catalog-search className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:hidden">
+                <AdminInput
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="ابحث بالاسم أو الكود"
+                  disabled={isBulkDeleting}
+                  className="h-12 min-w-0 rounded-2xl !border-cyan-500/15 !bg-[rgba(255,255,255,0.04)] px-4 text-right text-sm font-bold !text-white !placeholder:text-slate-500"
+                />
+                <button type="button" onClick={() => setMobileFiltersOpen(true)} className="h-12 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100" aria-haspopup="dialog">الفلاتر</button>
+              </div>
+
+              <div data-responsive-filters className="hidden grid-cols-1 items-center gap-3 rounded-[24px] border border-cyan-500/15 bg-white/[0.035] p-3 md:grid md:grid-cols-2 xl:grid-cols-[minmax(320px,1fr)_190px_190px_190px_auto]">
                 <AdminInput
                   type="text"
                   value={searchQuery}
@@ -3492,7 +3525,7 @@ export default function AdminCatalogPage() {
                         key={item.id}
                         className="h-[78px] border-b border-white/[0.08] bg-[#07111d]/70 transition-all duration-200 hover:bg-cyan-500/5 hover:shadow-[inset_-3px_0_0_rgba(34,211,238,0.35)]"
                       >
-                        <td className="px-3 py-3 text-center align-middle">
+                        <td className="px-3 py-3 text-center align-middle max-md:!hidden">
                           <div className="flex justify-center">
                             <input
                               type="checkbox"
@@ -3504,8 +3537,8 @@ export default function AdminCatalogPage() {
                             />
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
-                          <div className="flex justify-center">
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                          <div data-mobile-catalog-card className="flex min-w-0 justify-center max-md:items-start max-md:gap-3 max-md:p-4 max-md:text-right">
                             {item.image_url ? (
                               <div
                                 className="h-14 w-14 shrink-0 rounded-2xl border border-cyan-300/10 bg-cover bg-center bg-no-repeat shadow-[0_10px_28px_rgba(0,0,0,0.18)]"
@@ -3528,9 +3561,25 @@ export default function AdminCatalogPage() {
                                 </svg>
                               </div>
                             )}
+                            <div className="min-w-0 flex-1 md:hidden">
+                              <div className="flex min-w-0 items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-black text-white">{item.name}</p>
+                                  <p className="mt-1 truncate text-xs font-bold text-slate-400">{getDisplayCategoryLabel(item)}</p>
+                                </div>
+                                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${item.is_active ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-rose-300/25 bg-rose-500/10 text-rose-100'}`}>{item.is_active ? 'نشط' : 'غير نشط'}</span>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-3">
+                                <div><p className="text-[10px] font-bold text-slate-500">سعر البيع</p><p className="mt-1 text-base font-black text-cyan-100">{formatCurrency(item.default_price ?? 0)}</p></div>
+                                <div className="flex gap-2">
+                                  <button type="button" onClick={() => toggleItemSelection(item.id)} disabled={isBulkDeleting} aria-pressed={selectedItemIds.includes(item.id)} className={`min-h-11 rounded-xl border px-3 text-xs font-black disabled:opacity-50 ${selectedItemIds.includes(item.id) ? 'border-red-300/30 bg-red-500/15 text-red-100' : 'border-white/10 bg-white/[0.05] text-slate-300'}`}>تحديد</button>
+                                  <button type="button" onClick={() => startEdit(item)} disabled={isBulkDeleting} className="min-h-11 rounded-xl bg-cyan-300 px-4 text-xs font-black text-slate-950 disabled:opacity-50">تعديل</button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right align-middle font-semibold leading-tight">
+                        <td className="px-4 py-3 text-right align-middle font-semibold leading-tight max-md:!hidden">
                           <button
                             type="button"
                             onClick={() => startEdit(item)}
@@ -3543,7 +3592,7 @@ export default function AdminCatalogPage() {
                             {item.code || 'بدون باركود'}
                           </p>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle leading-tight">
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle leading-tight max-md:!hidden">
                           <div
                             ref={openCategoryMenuItemId === item.id ? tableCategoryDropdownRef : null}
                             className="relative"
@@ -3594,7 +3643,7 @@ export default function AdminCatalogPage() {
                             ) : null}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle max-md:!hidden">
                           {inlinePriceEdit?.itemId === item.id &&
                           inlinePriceEdit.field === 'default_price' ? (
                             <div className="flex items-center justify-center gap-2">
@@ -3643,7 +3692,7 @@ export default function AdminCatalogPage() {
                             </button>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle max-md:!hidden">
                           {inlinePriceEdit?.itemId === item.id &&
                           inlinePriceEdit.field === 'cost_price' ? (
                             <div className="flex items-center justify-center gap-2">
@@ -3692,7 +3741,7 @@ export default function AdminCatalogPage() {
                             </button>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle max-md:!hidden">
                           <span
                             className={`inline-flex min-w-[74px] items-center justify-center rounded-full border px-3 py-1.5 text-sm font-semibold tabular-nums ${
                               profitMargin > 0
@@ -3703,12 +3752,12 @@ export default function AdminCatalogPage() {
                             {profitMarginLabel}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle leading-tight">
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle leading-tight max-md:!hidden">
                           <span className="inline-flex max-w-full items-center justify-center rounded-full border border-slate-500/20 bg-slate-500/10 px-3 py-1 text-xs font-black text-slate-300">
                             غير متتبع
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle max-md:!hidden">
                           <span
                             className={`inline-flex min-w-[74px] items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black leading-tight ${
                               item.is_active
@@ -3724,7 +3773,7 @@ export default function AdminCatalogPage() {
                             {item.is_active ? 'نشط' : 'غير نشط'}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle max-md:!hidden">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"

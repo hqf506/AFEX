@@ -366,7 +366,7 @@ function AdminBranchCatalogPageContent() {
         ) : null}
 
         <AdminGlassSection className="bg-[#07111f]/90 md:p-7">
-          <div data-responsive-admin-form className="grid min-w-0 gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div data-responsive-admin-form data-mobile-branch-catalog className="grid min-w-0 gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
             <div className="space-y-4">
               <div>
                 <h2 className="text-2xl font-black text-slate-900">اختيار الفرع</h2>

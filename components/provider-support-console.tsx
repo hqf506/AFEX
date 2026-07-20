@@ -17,6 +17,7 @@ import {
 } from '@/lib/support/contracts'
 import { formatSupportDate, formatSupportDuration, supportCategoryLabels, supportOperationalClass, supportOperationalLabels, supportPriorityClass, supportPriorityLabels, supportStatusClass, supportStatusLabels } from '@/lib/support/ui'
 import { ProviderTicketDetails } from '@/components/provider-ticket-details'
+import { MobileFilterSheet } from '@/components/mobile/mobile-overlays'
 
 const PAGE_SIZE = 25
 
@@ -59,12 +60,14 @@ export function ProviderSupportConsole({ variant = 'provider' }: { variant?: 'pr
   const [error, setError] = useState<string | null>(null)
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [showMobileSummary, setShowMobileSummary] = useState(false)
   const requestSequence = useRef(0)
   const lastTrigger = useRef<HTMLButtonElement | null>(null)
   const dialogRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
-    const syncFromUrl = () => { const params = new URLSearchParams(window.location.search); const id = params.get('ticket'); const scope = params.get('status'); setSelectedTicketId(id); setStatus(SUPPORT_LIFECYCLE_SCOPES.includes(scope as LifecycleStatusScope) ? scope as LifecycleStatusScope : 'active'); if (!id) window.setTimeout(() => lastTrigger.current?.focus(), 0) }
+    const syncFromUrl = () => { const params = new URLSearchParams(window.location.search); const id = params.get('ticket'); const scope = params.get('status'); const assignmentScope = params.get('assignment'); const priorityScope = params.get('priority'); setSelectedTicketId(id); setStatus(SUPPORT_LIFECYCLE_SCOPES.includes(scope as LifecycleStatusScope) ? scope as LifecycleStatusScope : 'active'); setAssignment(['me', 'unassigned', 'assigned'].includes(assignmentScope || '') ? assignmentScope || '' : ''); setPriority(SUPPORT_PRIORITIES.includes(priorityScope as (typeof SUPPORT_PRIORITIES)[number]) ? priorityScope || '' : ''); if (!id) window.setTimeout(() => lastTrigger.current?.focus(), 0) }
     const openFromNotification = (event: Event) => { const ticketId = (event as CustomEvent<{ ticketId?: string }>).detail?.ticketId; if (ticketId) setSelectedTicketId(ticketId) }
     syncFromUrl()
     window.addEventListener('popstate', syncFromUrl)
@@ -136,7 +139,7 @@ export function ProviderSupportConsole({ variant = 'provider' }: { variant?: 'pr
 
   return (
     <main dir="rtl" className={`mx-auto w-full min-w-0 space-y-5 ${variant === 'developer' ? 'max-w-none' : 'max-w-[1500px]'}`}>
-      <header className="rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-emerald-300/10 via-cyan-300/[0.07] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:p-7">
+      <header className="hidden rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-emerald-300/10 via-cyan-300/[0.07] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:block md:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-black tracking-[0.18em] text-emerald-300">AFEX PROVIDER CONSOLE</p>
@@ -146,24 +149,34 @@ export function ProviderSupportConsole({ variant = 'provider' }: { variant?: 'pr
         </div>
       </header>
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}
-      <section data-responsive-support-summary aria-label="ملخص تذاكر الدعم" className={`grid grid-cols-1 gap-3 min-[390px]:grid-cols-2 md:grid-cols-3 ${variant === 'developer' ? 'xl:grid-cols-5 2xl:grid-cols-9' : 'xl:grid-cols-9'}`}>
+      <section data-mobile-provider-summary data-responsive-support-summary aria-label="ملخص تذاكر الدعم" className={`grid grid-cols-2 gap-3 md:grid-cols-3 ${variant === 'developer' ? 'xl:grid-cols-5 2xl:grid-cols-9' : 'xl:grid-cols-9'}`}>
         <SummaryCard label="التذاكر النشطة" value={summary.total_active} selected={status === 'active'} onClick={() => selectStatus('active')} className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100" />
         <SummaryCard label="جديدة" value={summary.new} selected={status === 'new'} onClick={() => selectStatus('new')} className="border-cyan-300/15 bg-white/[0.045] text-white" />
-        <SummaryCard label="قيد المعالجة" value={summary.investigating} selected={status === 'investigating'} onClick={() => selectStatus('investigating')} className="border-violet-300/15 bg-white/[0.045] text-white" />
-        <SummaryCard label="بانتظار العميل" value={summary.waiting_customer} selected={status === 'waiting_customer'} onClick={() => selectStatus('waiting_customer')} className="border-amber-300/15 bg-white/[0.045] text-white" />
-        <SummaryCard label="تم الحل" value={summary.resolved} selected={status === 'resolved'} onClick={() => selectStatus('resolved')} className="border-emerald-300/15 bg-white/[0.045] text-white" />
-        <SummaryCard label="مغلقة" value={summary.closed} selected={status === 'closed'} onClick={() => selectStatus('closed')} className="border-slate-400/15 bg-white/[0.045] text-white" />
+        <SummaryCard label="قيد المعالجة" value={summary.investigating} selected={status === 'investigating'} onClick={() => selectStatus('investigating')} className={`${showMobileSummary ? '' : 'max-md:hidden'} border-violet-300/15 bg-white/[0.045] text-white`} />
+        <SummaryCard label="بانتظار العميل" value={summary.waiting_customer} selected={status === 'waiting_customer'} onClick={() => selectStatus('waiting_customer')} className={`${showMobileSummary ? '' : 'max-md:hidden'} border-amber-300/15 bg-white/[0.045] text-white`} />
+        <SummaryCard label="تم الحل" value={summary.resolved} selected={status === 'resolved'} onClick={() => selectStatus('resolved')} className={`${showMobileSummary ? '' : 'max-md:hidden'} border-emerald-300/15 bg-white/[0.045] text-white`} />
+        <SummaryCard label="مغلقة" value={summary.closed} selected={status === 'closed'} onClick={() => selectStatus('closed')} className={`${showMobileSummary ? '' : 'max-md:hidden'} border-slate-400/15 bg-white/[0.045] text-white`} />
         <SummaryCard label="حرجة" value={summary.critical} className="border-red-300/20 bg-red-400/[0.08] text-red-100" />
         <SummaryCard label="مسندة إليّ" value={summary.assigned_to_me} className="border-emerald-300/20 bg-emerald-300/[0.08] text-emerald-100" />
-        <SummaryCard label="غير مسندة" value={summary.unassigned} className="border-amber-300/20 bg-amber-300/[0.08] text-amber-100" />
+        <SummaryCard label="غير مسندة" value={summary.unassigned} className={`${showMobileSummary ? '' : 'max-md:hidden'} border-amber-300/20 bg-amber-300/[0.08] text-amber-100`} />
       </section>
-      <section data-responsive-support-summary aria-label="ملخص مؤشرات التشغيل" className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+      <button type="button" aria-expanded={showMobileSummary} onClick={() => setShowMobileSummary((value) => !value)} className="h-11 w-full rounded-2xl border border-white/10 bg-white/[0.035] text-xs font-black text-slate-200 md:hidden">{showMobileSummary ? 'عرض أقل' : 'عرض بقية المؤشرات'}</button>
+      <section data-responsive-support-summary aria-label="ملخص مؤشرات التشغيل" className={`${showMobileSummary ? 'grid' : 'hidden'} grid-cols-2 gap-3 md:grid md:grid-cols-3 xl:grid-cols-4`}>
         <SummaryCard label="بانتظار أول رد" value={summary.awaiting_first_response} className="border-cyan-300/20 bg-cyan-300/[0.08] text-cyan-100" />
         <SummaryCard label="تحتاج انتباه" value={summary.attention} className="border-amber-300/20 bg-amber-300/[0.08] text-amber-100" />
         <SummaryCard label="متأخرة" value={summary.overdue} className="border-red-300/20 bg-red-400/[0.08] text-red-100" />
         <SummaryCard label="بانتظار العميل تشغيلياً" value={summary.operational_waiting_customer} className="border-violet-300/20 bg-violet-300/[0.08] text-violet-100" />
       </section>
-      <AdminGlassSection>
+      <div data-mobile-provider-filters className="space-y-3 md:hidden">
+        <label className="block space-y-2 text-xs font-bold text-slate-300"><span>البحث</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="رقم التذكرة أو العنوان" className="h-11 w-full min-w-0 rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/50" /></label>
+        <div className="grid grid-cols-2 gap-2 min-[390px]:grid-cols-4">
+          <button type="button" aria-pressed={status === 'active'} onClick={() => selectStatus('active')} className={`min-h-11 rounded-xl border px-2 text-xs font-black ${status === 'active' ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-100' : 'border-white/10 text-slate-300'}`}>النشطة</button>
+          <button type="button" aria-pressed={assignment === 'me'} onClick={() => { setAssignment(assignment === 'me' ? '' : 'me'); setPage(1) }} className={`min-h-11 rounded-xl border px-2 text-xs font-black ${assignment === 'me' ? 'border-emerald-300/40 bg-emerald-300/15 text-emerald-100' : 'border-white/10 text-slate-300'}`}>مسندة إليّ</button>
+          <button type="button" aria-pressed={priority === 'critical'} onClick={() => { setPriority(priority === 'critical' ? '' : 'critical'); setPage(1) }} className={`min-h-11 rounded-xl border px-2 text-xs font-black ${priority === 'critical' ? 'border-red-300/40 bg-red-300/15 text-red-100' : 'border-white/10 text-slate-300'}`}>حرجة</button>
+          <button type="button" onClick={() => setMobileFiltersOpen(true)} className="min-h-11 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-2 text-xs font-black text-cyan-100">كل الفلاتر</button>
+        </div>
+      </div>
+      <AdminGlassSection className="hidden md:block">
         <div data-responsive-filters className={`grid gap-3 md:grid-cols-2 ${variant === 'developer' ? 'xl:grid-cols-4 2xl:grid-cols-[minmax(260px,1.8fr)_repeat(6,minmax(130px,1fr))_auto]' : 'xl:grid-cols-[minmax(210px,1.5fr)_repeat(6,minmax(135px,1fr))_auto]'}`}>
           <label className="space-y-2 text-xs font-bold text-slate-300"><span>البحث</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="رقم التذكرة أو العنوان" className="h-11 w-full min-w-0 rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/50" /></label>
           <label className="space-y-2 text-xs font-bold text-slate-300"><span>الحالة</span><AdminDarkSelect value={status} onChange={(value) => { if (SUPPORT_LIFECYCLE_SCOPES.includes(value as LifecycleStatusScope)) selectStatus(value as LifecycleStatusScope) }} options={[{ value: 'active', label: 'التذاكر النشطة' }, { value: 'all', label: 'كل الحالات' }, ...SUPPORT_STATUSES.map((value) => ({ value, label: supportStatusLabels[value] }))]} triggerClassName="h-11" ariaLabel="تصفية حسب الحالة" /></label>
@@ -175,6 +188,16 @@ export function ProviderSupportConsole({ variant = 'provider' }: { variant?: 'pr
           <button type="button" onClick={clearFilters} className="h-11 self-end rounded-2xl border border-white/10 px-4 text-sm font-bold text-slate-300 transition hover:border-cyan-300/30 hover:text-white">مسح</button>
         </div>
       </AdminGlassSection>
+      <MobileFilterSheet open={mobileFiltersOpen} onClose={() => setMobileFiltersOpen(false)} title="فلاتر تذاكر الدعم" description="تُطبق على قائمة التذاكر الحالية" footer={<div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { clearFilters(); setMobileFiltersOpen(false) }} className="h-11 rounded-xl border border-white/10 text-xs font-black text-slate-200">مسح</button><button type="button" onClick={() => setMobileFiltersOpen(false)} className="h-11 rounded-xl bg-cyan-300 text-xs font-black text-slate-950">عرض النتائج</button></div>}>
+        <div className="grid gap-4">
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>الحالة</span><AdminDarkSelect value={status} onChange={(value) => { if (SUPPORT_LIFECYCLE_SCOPES.includes(value as LifecycleStatusScope)) selectStatus(value as LifecycleStatusScope) }} options={[{ value: 'active', label: 'التذاكر النشطة' }, { value: 'all', label: 'كل الحالات' }, ...SUPPORT_STATUSES.map((value) => ({ value, label: supportStatusLabels[value] }))]} ariaLabel="تصفية حسب الحالة" /></label>
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>الأولوية</span><AdminDarkSelect value={priority} onChange={(value) => { setPriority(value); setPage(1) }} options={[{ value: '', label: 'كل الأولويات' }, ...SUPPORT_PRIORITIES.map((value) => ({ value, label: supportPriorityLabels[value] }))]} ariaLabel="تصفية حسب الأولوية" /></label>
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>التصنيف</span><AdminDarkSelect value={category} onChange={(value) => { setCategory(value); setPage(1) }} options={[{ value: '', label: 'كل التصنيفات' }, ...SUPPORT_CATEGORIES.map((value) => ({ value, label: supportCategoryLabels[value] }))]} ariaLabel="تصفية حسب التصنيف" /></label>
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>المنشأة</span><AdminDarkSelect value={tenant} onChange={(value) => { setTenant(value); setPage(1) }} options={[{ value: '', label: 'كل المنشآت' }, ...organizations.map((value) => ({ value, label: value }))]} ariaLabel="تصفية حسب المنشأة" /></label>
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>الإسناد</span><AdminDarkSelect value={assignment} onChange={(value) => { setAssignment(value); setPage(1) }} options={[{ value: '', label: 'كل التذاكر' }, { value: 'me', label: 'مسندة إليّ' }, { value: 'unassigned', label: 'غير مسندة' }, { value: 'assigned', label: 'مسندة' }]} ariaLabel="تصفية حسب الإسناد" /></label>
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>مؤشر التشغيل</span><AdminDarkSelect value={operationalFilter} onChange={(value) => { setOperationalFilter(value); setPage(1) }} options={SUPPORT_OPERATIONAL_FILTERS.map((value) => ({ value, label: operationalFilterLabels[value] }))} ariaLabel="تصفية حسب مؤشر التشغيل" /></label>
+        </div>
+      </MobileFilterSheet>
       {loading ? <AdminLoadingState /> : tickets.length === 0 ? <AdminEmptyState title="لا توجد تذاكر مطابقة" description="غيّر معايير البحث أو الفلاتر." /> : (
         <AdminGlassSection className="overflow-hidden p-0 md:p-0">
           <div data-responsive-support-cards={variant} className="grid gap-3 p-3 xl:hidden">

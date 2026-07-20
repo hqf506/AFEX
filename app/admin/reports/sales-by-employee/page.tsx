@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import { useAuthState } from '@/components/auth-state-provider'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
@@ -512,7 +513,8 @@ export default function SalesByEmployeeReportPage() {
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_80%_0%,rgba(20,184,166,0.12),transparent_24%)]" />
 
       <section className="space-y-5 p-4 sm:p-6">
-        <header className="rounded-3xl border border-cyan-500/15 bg-[#07111d]/90 p-6 shadow-[0_0_45px_rgba(34,211,238,0.08)] backdrop-blur-xl">
+        <MobilePageHeader title="المبيعات حسب الموظف" subtitle="أداء فريق المبيعات" />
+        <header className="hidden rounded-3xl border border-cyan-500/15 bg-[#07111d]/90 p-6 shadow-[0_0_45px_rgba(34,211,238,0.08)] backdrop-blur-xl md:block">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/25 bg-cyan-500/10 text-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.18)]">

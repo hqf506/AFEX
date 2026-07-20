@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import {
+  createElement,
   useEffect,
   useMemo,
   useRef,
@@ -17,6 +18,8 @@ import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { canAccessAdminPath } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
+import { MobileBottomNav } from '@/components/mobile/mobile-bottom-nav'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 
 type AdminShellLayoutProps = {
   children: ReactNode
@@ -536,6 +539,36 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
     ? profileFullName.split(/\s+/)[0]
     : profileUsername || 'مستخدم'
 
+  const activeNavItem = visibleNavItems.find((item) =>
+    isPathActive(pathname, item.href, item.exact)
+  )
+  const activeNavChild = visibleNavItems
+    .flatMap((item) => item.children || [])
+    .find((item) => pathname === item.href)
+  const mobilePageTitle = activeNavChild?.label || activeNavItem?.label || 'AFEX'
+  const preferredMobileNavPaths = [
+    '/admin/dashboard',
+    '/admin/orders',
+    '/admin/customers',
+    '/admin/inventory',
+  ]
+  const fallbackMobileNavPaths = ['/admin/support', '/admin/reports']
+  const mobilePrimaryNavItems = [
+    ...preferredMobileNavPaths,
+    ...fallbackMobileNavPaths,
+  ]
+    .flatMap((href) => {
+      const item = visibleNavItems.find((entry) => entry.href === href)
+      return item ? [item] : []
+    })
+    .filter((item, index, items) => items.findIndex((entry) => entry.href === item.href) === index)
+    .slice(0, 4)
+
+  const openMobileNavigation = (trigger: HTMLButtonElement) => {
+    mobileMenuTriggerRef.current = trigger
+    setMobileNavigationOpen(true)
+  }
+
   useEffect(() => {
     if (!logoutSignedOut) {
       return
@@ -597,10 +630,19 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
         <div className="absolute left-[-12rem] bottom-[-12rem] h-[34rem] w-[34rem] rounded-full bg-emerald-400/10 blur-[130px]" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
       </div>
-      <div className="relative z-10 w-full px-3 pb-4 pt-3 sm:px-4 sm:pb-5 xl:px-8 xl:py-6">
-        <header className="mb-4 flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111f]/90 px-3 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl xl:hidden">
+      <div className="relative z-10 w-full px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 md:pb-5 xl:px-8 xl:py-6">
+        <MobilePageHeader
+          title={mobilePageTitle}
+          subtitle={`مرحباً، ${firstName}`}
+          leading={
+            <button type="button" aria-label="فتح قائمة التنقل" aria-expanded={mobileNavigationOpen} aria-controls="admin-mobile-navigation" onClick={(event) => openMobileNavigation(event.currentTarget)} className="grid size-11 shrink-0 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-100 outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/40"><svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+          }
+          action={<Image src="/brand/afex-logo.png" alt="AFEX" width={720} height={260} priority className="h-8 w-auto object-contain" />}
+          className="mb-3"
+        />
+        <header className="mb-4 hidden min-h-14 items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111f]/90 px-3 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:flex xl:hidden">
           <Image src="/brand/afex-logo.png" alt="AFEX" width={720} height={260} priority className="h-9 w-auto object-contain" />
-          <button ref={mobileMenuTriggerRef} type="button" aria-label="فتح قائمة التنقل" aria-expanded={mobileNavigationOpen} aria-controls="admin-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid size-11 shrink-0 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-100"><svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+          <button type="button" aria-label="فتح قائمة التنقل" aria-expanded={mobileNavigationOpen} aria-controls="admin-mobile-navigation" onClick={(event) => openMobileNavigation(event.currentTarget)} className="grid size-11 shrink-0 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-100 outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/40"><svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
         </header>
         {mobileNavigationOpen ? <button type="button" aria-label="إغلاق قائمة التنقل" className="fixed inset-0 z-[11999] h-full w-full bg-slate-950/75 backdrop-blur-sm xl:hidden" onClick={() => setMobileNavigationOpen(false)} /> : null}
         <div className="grid min-w-0 gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
@@ -754,6 +796,26 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
           <main className="min-w-0 w-full text-right">{children}</main>
         </div>
       </div>
+
+      <MobileBottomNav
+        ariaLabel="التنقل الرئيسي للوحة الإدارة"
+        items={[
+          ...mobilePrimaryNavItems.map((item) => ({
+            key: item.href,
+            label: item.href === '/admin/dashboard' ? 'الرئيسية' : item.label,
+            href: item.href,
+            icon: createElement(item.icon, { className: 'size-5' }),
+            active: isPathActive(pathname, item.href, item.exact),
+          })),
+          {
+            key: 'more',
+            label: 'المزيد',
+            icon: <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>,
+            active: mobileNavigationOpen,
+            onSelect: openMobileNavigation,
+          },
+        ]}
+      />
 
       {logoutOverlayVisible ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 text-right backdrop-blur-md">

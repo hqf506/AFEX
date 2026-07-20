@@ -35,7 +35,7 @@ if (providerConsole.includes('DeveloperSupportNotifications') || providerConsole
 if (!providerLayout.includes('ProviderNotificationsShell') || !providerLayout.includes("provider.role === 'provider_owner'")) fail('Provider shell notifications must remain provider_owner-only.')
 for (const token of ['POPOVER_LIMIT = 10', 'items.slice(0, POPOVER_LIMIT)', 'createPortal(', 'z-[9500]', 'overflow-hidden', '/developer/notifications', 'عرض جميع الإشعارات']) if (!notifications.includes(token)) fail(`Missing bounded notification UX: ${token}`)
 if ((notifications.match(/overflow-y-auto/g) || []).length !== 1) fail('The compact notification popover must have exactly one internal vertical scroller.')
-if (!providerConsole.includes('z-[10000]') || !adminSelect.includes('z-[11000]')) fail('Drawer and AdminDarkSelect portal layering must remain above the notification popover.')
+if (!providerConsole.includes('z-[10000]') || !adminSelect.includes('z-[13000]') || !notifications.includes('max-md:!z-[12000]')) fail('Drawer, mobile notifications, and AdminDarkSelect portal layering must remain ordered safely.')
 for (const token of ['ابحث بالعنوان أو رقم التذكرة أو المنشأة', 'جميع الأنواع', 'غير مقروءة', 'إظهار المزيد', 'visibleItems']) if (!notifications.includes(token)) fail(`Missing full notification page UX: ${token}`)
 if (!notificationsPage.includes('DeveloperNotificationsPage') || !notifications.includes('أحدث 20 إشعارًا')) fail('The authorized full notifications page must reuse the shared notification state and bounded backend result.')
 console.log('Developer center foundation checks passed.')

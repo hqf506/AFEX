@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { AdminAlert, AdminEmptyState, AdminGlassSection, AdminLoadingState } from '@/components/admin-ui'
 import { SupportAttachmentList, SupportAttachmentPicker, uploadSupportAttachments } from '@/components/support-attachments'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import {
@@ -143,8 +144,9 @@ export default function SupportTicketDetailsPage() {
 
   return (
     <main dir="rtl" className="mx-auto w-full max-w-7xl space-y-5">
-      <Link href="/admin/support" className="inline-flex h-10 items-center rounded-xl border border-white/10 px-4 text-xs font-black text-slate-300 transition hover:border-cyan-300/30 hover:text-white">العودة إلى التذاكر</Link>
-      <header className="rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-cyan-400/10 via-white/[0.055] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:p-7">
+      <MobilePageHeader title={ticket.ticket_number} subtitle={ticket.title} leading={<Link href="/admin/support" aria-label="العودة إلى التذاكر" className="grid size-10 place-items-center rounded-xl border border-white/10 text-lg text-slate-200">‹</Link>} />
+      <Link href="/admin/support" className="hidden h-10 items-center rounded-xl border border-white/10 px-4 text-xs font-black text-slate-300 transition hover:border-cyan-300/30 hover:text-white md:inline-flex">العودة إلى التذاكر</Link>
+      <header className="hidden rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-cyan-400/10 via-white/[0.055] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:block md:p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -162,6 +164,8 @@ export default function SupportTicketDetailsPage() {
           </div>
         </div>
       </header>
+
+      <section aria-label="حالة التذكرة" className="flex flex-wrap gap-2 md:hidden"><span className={`rounded-full border px-3 py-1.5 text-xs font-black ${supportPriorityClass(ticket.priority)}`}>{supportPriorityLabels[ticket.priority]}</span><span className={`rounded-full border px-3 py-1.5 text-xs font-black ${supportStatusClass(ticket.status)}`}>{supportStatusLabels[ticket.status]}</span><button type="button" onClick={copyTicketNumber} className="min-h-11 rounded-xl border border-cyan-300/20 px-3 text-xs font-black text-cyan-100">نسخ الرقم</button>{copyFeedback ? <span role="status" className="self-center text-xs font-bold text-emerald-300">{copyFeedback}</span> : null}</section>
 
       {notice ? <AdminAlert tone="success">{notice}</AdminAlert> : null}
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}

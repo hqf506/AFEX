@@ -469,20 +469,21 @@ export default function AdminAuditLogsPage() {
                     key={log.id}
                     className="text-sm text-slate-300 transition hover:bg-cyan-300/5"
                   >
-                    <td className="whitespace-nowrap px-4 py-4 text-slate-400">
-                      {formatDate(log.created_at)}
+                    <td className="whitespace-nowrap px-4 py-4 text-slate-400 max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                      <span className="hidden md:inline">{formatDate(log.created_at)}</span>
+                      <article data-mobile-audit-entry className="relative min-w-0 p-4 pr-8 md:hidden"><span className="absolute right-3 top-5 size-3 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.55)]" /><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-black text-cyan-100">{getEventLabel(log.action)}</p><p className="mt-1 truncate text-xs font-bold text-slate-400">{getEntityTypeLabel(log.entity_type)} · {resolveActorName(log)}</p></div><button type="button" onClick={() => setSelectedLog(log)} className="min-h-11 shrink-0 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100">عرض</button></div><p className="mt-3 break-words text-xs font-bold leading-6 text-slate-300">{getOperationDescription(log)}</p><time className="mt-3 block text-[11px] font-bold text-slate-500">{formatDate(log.created_at)}</time></article>
                     </td>
-                    <td className="px-4 py-4 font-black text-cyan-100">
+                    <td className="px-4 py-4 font-black text-cyan-100 max-md:!hidden">
                       {getEventLabel(log.action)}
                     </td>
-                    <td className="px-4 py-4 text-slate-200">
+                    <td className="px-4 py-4 text-slate-200 max-md:!hidden">
                       {getEntityTypeLabel(log.entity_type)}
                     </td>
-                    <td className="px-4 py-4">{resolveActorName(log)}</td>
-                    <td className="max-w-[360px] px-4 py-4 text-sm font-bold leading-6 text-slate-300">
+                    <td className="px-4 py-4 max-md:!hidden">{resolveActorName(log)}</td>
+                    <td className="max-w-[360px] px-4 py-4 text-sm font-bold leading-6 text-slate-300 max-md:!hidden">
                       {getOperationDescription(log)}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 max-md:!hidden">
                       <button
                         type="button"
                         onClick={() => setSelectedLog(log)}

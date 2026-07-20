@@ -370,7 +370,7 @@ export default function AdminVatPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSave} className="space-y-5">
+          <form data-mobile-vat-form onSubmit={handleSave} className="space-y-5">
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="text-right">
                 <label className="mb-2 block text-sm font-bold text-slate-200">

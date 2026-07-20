@@ -1274,19 +1274,26 @@ export default function AdminReceiptsPage() {
                             : ''
                         }`}
                       >
-                        <td className="px-5 py-4 text-sm font-black text-white">{receipt.receiptNumber}</td>
-                        <td className="px-5 py-4 text-sm text-slate-300">
+                        <td className="px-5 py-4 text-sm font-black text-white max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                          <span className="hidden md:inline">{receipt.receiptNumber}</span>
+                          <div data-mobile-receipt-card className="min-w-0 p-4 md:hidden">
+                            <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-black text-cyan-100">#{receipt.receiptNumber}</p><p className="mt-1 truncate text-sm font-bold text-white">{receipt.customerName}</p></div><span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-black ${isCancelledReceipt ? 'border-rose-400/35 bg-rose-500/10 text-rose-200' : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'}`}>{isCancelledReceipt ? 'ملغي' : 'مكتمل'}</span></div>
+                            <div className="mt-4 flex items-end justify-between gap-3"><div><p className="text-[10px] font-bold text-slate-500">الإجمالي</p><p className="mt-1 text-lg font-black text-cyan-100">{formatSar(receipt.netTotal)}</p></div><button type="button" onClick={(event) => { event.stopPropagation(); setSelectedReceiptId(receipt.id) }} className="min-h-11 rounded-xl bg-cyan-300 px-4 text-xs font-black text-slate-950">عرض</button></div>
+                            <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-3 text-[11px] font-bold text-slate-500"><span>{getPaymentTypeLabel(receipt.paymentType)}</span><time>{formatDate(receipt.createdAt)} · {formatTime(receipt.createdAt)}</time></div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-slate-300 max-md:!hidden">
                           <div>{formatDate(receipt.createdAt)}</div>
                           <div className="text-xs text-slate-500">{formatTime(receipt.createdAt)}</div>
                         </td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-100">{receipt.employeeName}</td>
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 text-sm font-bold text-slate-100 max-md:!hidden">{receipt.employeeName}</td>
+                        <td className="px-5 py-4 max-md:!hidden">
                           <div className="text-sm font-bold text-white">{receipt.customerName}</div>
                           <div className="text-xs text-slate-500">{receipt.customerPhone}</div>
                         </td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-200">{getPaymentTypeLabel(receipt.paymentType)}</td>
-                        <td className="px-5 py-4 text-sm font-black text-cyan-200">{formatSar(receipt.netTotal)}</td>
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 text-sm font-bold text-slate-200 max-md:!hidden">{getPaymentTypeLabel(receipt.paymentType)}</td>
+                        <td className="px-5 py-4 text-sm font-black text-cyan-200 max-md:!hidden">{formatSar(receipt.netTotal)}</td>
+                        <td className="px-5 py-4 max-md:!hidden">
                           {isCancelledReceipt ? (
                             <span className="inline-flex rounded-full border border-rose-400/35 bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-200">
                               ملغي
@@ -1297,7 +1304,7 @@ export default function AdminReceiptsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 max-md:!hidden">
                           <button
                             type="button"
                             onClick={(event) => {

@@ -5,6 +5,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminAlert, AdminEmptyState, AdminGlassSection, AdminLoadingState } from '@/components/admin-ui'
 import { SupportAttachmentPicker, uploadSupportAttachments } from '@/components/support-attachments'
+import { MobileFilterSheet } from '@/components/mobile/mobile-overlays'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES } from '@/lib/support/contracts'
@@ -63,6 +65,7 @@ export default function SupportTicketsPage() {
   const [status, setStatus] = useState('')
   const [priority, setPriority] = useState('')
   const [category, setCategory] = useState('')
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -199,7 +202,8 @@ export default function SupportTicketsPage() {
 
   return (
     <main dir="rtl" className="mx-auto w-full max-w-7xl space-y-5">
-      <header className="flex flex-col gap-4 rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-cyan-400/10 via-white/[0.055] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:flex-row md:items-center md:justify-between md:p-7">
+      <MobilePageHeader title="الدعم الفني" subtitle="تذاكر الدعم" action={<button type="button" onClick={() => { setCreateError(null); setCreateOpen(true) }} className="grid size-10 place-items-center rounded-xl bg-cyan-300 text-xl font-black text-slate-950" aria-label="إنشاء تذكرة">+</button>} />
+      <header className="hidden flex-col gap-4 rounded-[28px] border border-cyan-300/15 bg-gradient-to-l from-cyan-400/10 via-white/[0.055] to-transparent p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:flex md:flex-row md:items-center md:justify-between md:p-7">
         <div>
           <p className="text-xs font-black tracking-[0.18em] text-cyan-300">AFEX SUPPORT</p>
           <h1 className="mt-2 text-2xl font-black text-white md:text-3xl">الدعم الفني</h1>
@@ -231,7 +235,15 @@ export default function SupportTicketsPage() {
         <SummaryCard label={supportStatusLabels.closed} value={summary.closed} tone="border-slate-500/20 bg-white/[0.045] text-white" />
       </section>
 
-      <AdminGlassSection>
+      <div data-mobile-admin-support-filters className="space-y-3 md:hidden">
+        <label className="block space-y-2 text-xs font-bold text-slate-300"><span>البحث</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="رقم التذكرة أو العنوان" className="h-11 w-full rounded-2xl border border-white/10 bg-[#06111f] px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50" /></label>
+        <div className="grid grid-cols-2 gap-2 min-[390px]:grid-cols-4">
+          {(['', 'new', 'investigating'] as const).map((value) => <button key={value || 'all'} type="button" aria-pressed={status === value} onClick={() => { setStatus(value); setPage(1) }} className={`min-h-11 rounded-xl border px-2 text-xs font-black ${status === value ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-100' : 'border-white/10 text-slate-300'}`}>{value ? supportStatusLabels[value] : 'الكل'}</button>)}
+          <button type="button" onClick={() => setMobileFiltersOpen(true)} className="min-h-11 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-2 text-xs font-black text-cyan-100">كل الفلاتر</button>
+        </div>
+      </div>
+
+      <AdminGlassSection className="hidden md:block">
         <div data-responsive-filters className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1.6fr)_repeat(3,minmax(150px,1fr))_auto]">
           <label className="space-y-2 text-xs font-bold text-slate-300">
             <span>البحث</span>
@@ -279,6 +291,14 @@ export default function SupportTicketsPage() {
           <button type="button" onClick={clearFilters} className="h-11 self-end rounded-2xl border border-white/10 px-4 text-sm font-bold text-slate-300 transition hover:border-cyan-300/30 hover:text-white">مسح</button>
         </div>
       </AdminGlassSection>
+
+      <MobileFilterSheet open={mobileFiltersOpen} onClose={() => setMobileFiltersOpen(false)} title="فلاتر تذاكر الدعم" description="استخدم نفس فلاتر القائمة الحالية" footer={<div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { clearFilters(); setMobileFiltersOpen(false) }} className="h-11 rounded-xl border border-white/10 text-xs font-black text-slate-200">مسح</button><button type="button" onClick={() => setMobileFiltersOpen(false)} className="h-11 rounded-xl bg-cyan-300 text-xs font-black text-slate-950">عرض النتائج</button></div>}>
+        <div className="grid gap-4">
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>الحالة</span><AdminDarkSelect value={status} onChange={(value) => { setStatus(value); setPage(1) }} options={[{ value: '', label: 'كل الحالات' }, ...Object.entries(supportStatusLabels).map(([value, label]) => ({ value, label }))]} ariaLabel="تصفية حسب الحالة" /></label>
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>الأولوية</span><AdminDarkSelect value={priority} onChange={(value) => { setPriority(value); setPage(1) }} options={[{ value: '', label: 'كل الأولويات' }, ...SUPPORT_PRIORITIES.map((value) => ({ value, label: supportPriorityLabels[value] }))]} ariaLabel="تصفية حسب الأولوية" /></label>
+          <label className="space-y-2 text-xs font-bold text-slate-300"><span>التصنيف</span><AdminDarkSelect value={category} onChange={(value) => { setCategory(value); setPage(1) }} options={[{ value: '', label: 'كل التصنيفات' }, ...SUPPORT_CATEGORIES.map((value) => ({ value, label: supportCategoryLabels[value] }))]} ariaLabel="تصفية حسب التصنيف" /></label>
+        </div>
+      </MobileFilterSheet>
 
       {loading ? <AdminLoadingState /> : tickets.length === 0 ? (
         <AdminEmptyState title="لا توجد تذاكر مطابقة" description="غيّر معايير البحث أو أنشئ تذكرة دعم جديدة." />

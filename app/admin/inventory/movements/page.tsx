@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
+import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminAlert } from '@/components/admin-ui'
+import { MobileFilterSheet } from '@/components/mobile/mobile-overlays'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { type AdminBranchRecord } from '@/lib/admin/branches'
@@ -459,6 +461,7 @@ export default function InventoryMovementsPage() {
   const [totalMovements, setTotalMovements] = useState(0)
   const [branchMenuOpen, setBranchMenuOpen] = useState(false)
   const [movementTypeMenuOpen, setMovementTypeMenuOpen] = useState(false)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const movementsRequestSeqRef = useRef(0)
   const totalPages = Math.max(1, Math.ceil(totalMovements / PAGE_SIZE))
   const paginationItems = getPaginationItems(currentPage, totalPages)
@@ -635,7 +638,11 @@ export default function InventoryMovementsPage() {
       ) : null}
 
       <section className="overflow-visible rounded-[1.75rem] border border-white/10 bg-[#07111f]/90 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
-        <div data-responsive-filters className="grid gap-3 border-b border-white/10 px-5 py-5 md:grid-cols-2 md:px-7 xl:grid-cols-5">
+        <div data-mobile-movements-search className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-white/10 px-4 py-4 md:hidden">
+          <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1) }} placeholder="اسم العنصر" className="h-12 min-w-0 rounded-2xl border border-white/10 bg-[#0a1424] px-4 text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/40" />
+          <button type="button" onClick={() => setMobileFiltersOpen(true)} className="h-12 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100" aria-haspopup="dialog">الفلاتر</button>
+        </div>
+        <div data-responsive-filters className="hidden gap-3 border-b border-white/10 px-5 py-5 md:grid md:grid-cols-2 md:px-7 xl:grid-cols-5">
           <label className="relative block">
             <span className="mb-2 block text-xs font-black text-slate-400">
               الفرع
@@ -800,6 +807,20 @@ export default function InventoryMovementsPage() {
           </label>
         </div>
 
+        <MobileFilterSheet
+          open={mobileFiltersOpen}
+          onClose={() => setMobileFiltersOpen(false)}
+          title="فلاتر حركات المخزون"
+          footer={<div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setBranchFilter(''); setMovementTypeFilter(''); setDateFrom(''); setDateTo(''); setCurrentPage(1) }} className="min-h-11 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-black text-slate-200">مسح الفلاتر</button><button type="button" onClick={() => setMobileFiltersOpen(false)} className="min-h-11 rounded-xl bg-cyan-300 text-xs font-black text-slate-950">عرض النتائج</button></div>}
+        >
+          <div className="space-y-4">
+            <AdminDarkSelect value={branchFilter} onChange={(value) => { setBranchFilter(value); setCurrentPage(1) }} options={[{ value: '', label: 'كل الفروع' }, ...branches.map((branch) => ({ value: branch.id, label: branch.name }))]} ariaLabel="فلتر الفرع" triggerClassName="h-12 w-full rounded-2xl border-white/10 bg-[#0a1424]" />
+            <AdminDarkSelect value={movementTypeFilter} onChange={(value) => { setMovementTypeFilter(value); setCurrentPage(1) }} options={[{ value: '', label: 'كل الحركات' }, ...MOVEMENT_TYPE_OPTIONS]} ariaLabel="فلتر نوع الحركة" triggerClassName="h-12 w-full rounded-2xl border-white/10 bg-[#0a1424]" />
+            <label className="block"><span className="mb-2 block text-xs font-black text-slate-400">من تاريخ</span><AdminDarkDateInput value={dateFrom} onChange={(value) => { setDateFrom(value); setCurrentPage(1) }} allowClear placeholder="YYYY-MM-DD" ariaLabel="من تاريخ" /></label>
+            <label className="block"><span className="mb-2 block text-xs font-black text-slate-400">إلى تاريخ</span><AdminDarkDateInput value={dateTo} onChange={(value) => { setDateTo(value); setCurrentPage(1) }} allowClear placeholder="YYYY-MM-DD" ariaLabel="إلى تاريخ" /></label>
+          </div>
+        </MobileFilterSheet>
+
         <div className="overflow-x-auto px-5 py-5 md:px-7">
           <table data-responsive-table="movements" className="responsive-admin-table w-full min-w-[900px] border-separate border-spacing-y-2 text-right">
             <thead className="bg-[#091424]">
@@ -845,16 +866,32 @@ export default function InventoryMovementsPage() {
                     key={movement.id}
                     className="bg-slate-500/[0.045] transition hover:bg-cyan-300/[0.055]"
                   >
-                    <td className="rounded-r-2xl border-y border-r border-white/[0.08] px-3 py-4 text-sm font-bold text-slate-300">
-                      {formatDate(movement.created_at)}
+                    <td className="rounded-r-2xl border-y border-r border-white/[0.08] px-3 py-4 text-sm font-bold text-slate-300 max-md:!block max-md:!border max-md:!border-white/[0.08] max-md:!p-0 max-md:before:!hidden">
+                      <span className="hidden md:inline">{formatDate(movement.created_at)}</span>
+                      <article data-mobile-movement-entry className="relative min-w-0 p-4 pr-8 md:hidden">
+                        <span className="absolute right-3 top-5 size-3 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="truncate text-sm font-black text-white">{movement.item_name || '-'}</h3>
+                            <p className="mt-1 truncate text-xs font-bold text-slate-400">{movement.branch_name || '-'}</p>
+                          </div>
+                          <span dir="ltr" className={`shrink-0 font-mono text-base font-black tabular-nums ${movement.quantity_delta < 0 ? 'text-red-200' : 'text-emerald-200'}`}>{movement.quantity_delta > 0 ? '+' : ''}{formatNumber(movement.quantity_delta)}</span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getMovementTone(movement.movement_type)}`}>{getMovementTypeLabel(movement.movement_type)}</span>
+                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-black text-slate-300">{actorDisplay.name} · {actorRoleLabel}</span>
+                        </div>
+                        <p className="mt-3 break-words text-xs leading-5 text-slate-400">{getMovementNote(movement)}</p>
+                        <time className="mt-3 block text-[11px] font-bold text-slate-500">{formatDate(movement.created_at)}</time>
+                      </article>
                     </td>
-                    <td className="border-y border-white/[0.08] px-3 py-4 text-sm font-black text-white">
+                    <td className="border-y border-white/[0.08] px-3 py-4 text-sm font-black text-white max-md:!hidden">
                       {movement.item_name || '-'}
                     </td>
-                    <td className="border-y border-white/[0.08] px-3 py-4 text-sm font-bold text-slate-300">
+                    <td className="border-y border-white/[0.08] px-3 py-4 text-sm font-bold text-slate-300 max-md:!hidden">
                       {movement.branch_name || '-'}
                     </td>
-                    <td className="border-y border-white/[0.08] px-3 py-4">
+                    <td className="border-y border-white/[0.08] px-3 py-4 max-md:!hidden">
                       <span
                         className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getMovementTone(
                           movement.movement_type
@@ -864,7 +901,7 @@ export default function InventoryMovementsPage() {
                       </span>
                     </td>
                     <td
-                      className={`border-y border-white/[0.08] px-3 py-4 text-sm font-black ${
+                      className={`border-y border-white/[0.08] px-3 py-4 text-sm font-black max-md:!hidden ${
                         movement.quantity_delta < 0
                           ? 'text-red-100'
                           : 'text-emerald-100'
@@ -875,7 +912,7 @@ export default function InventoryMovementsPage() {
                         {formatNumber(movement.quantity_delta)}
                       </span>
                     </td>
-                    <td className="border-y border-white/[0.08] px-3 py-4">
+                    <td className="border-y border-white/[0.08] px-3 py-4 max-md:!hidden">
                       <div className="flex min-h-16 items-center gap-3">
                         <span
                           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-sm font-black leading-none tracking-normal ${getActorAvatarTone(
@@ -900,7 +937,7 @@ export default function InventoryMovementsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="rounded-l-2xl border-y border-l border-white/[0.08] px-3 py-4 text-sm font-bold text-slate-400">
+                    <td className="rounded-l-2xl border-y border-l border-white/[0.08] px-3 py-4 text-sm font-bold text-slate-400 max-md:!hidden">
                       {getMovementNote(movement)}
                     </td>
                   </tr>
