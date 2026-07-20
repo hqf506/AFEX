@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 
@@ -398,20 +399,22 @@ export default function AdminAuditLogsPage() {
           </label>
           <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">من تاريخ</span>
-            <input
-              type="date"
+            <AdminDarkDateInput
               value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
+              onChange={setDateFrom}
+              className="min-w-0 w-full"
+              triggerClassName="h-11"
+              ariaLabel="من تاريخ"
             />
           </label>
           <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">إلى تاريخ</span>
-            <input
-              type="date"
+            <AdminDarkDateInput
               value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-              className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
+              onChange={setDateTo}
+              className="min-w-0 w-full"
+              triggerClassName="h-11"
+              ariaLabel="إلى تاريخ"
             />
           </label>
           <button

@@ -747,9 +747,11 @@ export default async function AdminCustomersPage({
           <div className="absolute inset-y-0 right-0 flex min-h-0 w-full justify-end">
             <form data-admin-drawer data-mobile-customer-drawer
               action={updateCustomer}
-              className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative h-full min-h-0 w-full max-w-xl overflow-y-auto overscroll-contain border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6 lg:p-8"
+              className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative flex h-full min-h-0 w-full max-w-xl flex-col overflow-hidden border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]"
             >
               <input type="hidden" name="customerId" value={selectedCustomer.id} />
+
+              <header className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
 
               {drawerEditMode ? null : drawerPurchasesMode ? (
                 <div className="mb-6 flex justify-start">
@@ -838,7 +840,9 @@ export default async function AdminCustomersPage({
                   </Link>
                 )}
               </div>
+              </header>
 
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8">
               {drawerPurchasesMode ? (
                 <div className="space-y-3">
                   {selectedCustomerPurchases.length === 0 ? (
@@ -1033,23 +1037,6 @@ export default async function AdminCustomersPage({
                       />
                     </label>
 
-                    <div
-                      dir="ltr"
-                      className="sticky bottom-0 z-10 flex justify-start gap-2 border-t border-white/10 bg-[#050b16]/95 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl"
-                    >
-                      <button
-                        type="submit"
-                        className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01]"
-                      >
-                        حفظ
-                      </button>
-                      <Link
-                        href={`/admin/customers?customerId=${selectedCustomer.id}`}
-                        className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-6 text-sm font-black text-slate-200 transition hover:bg-white/[0.07]"
-                      >
-                        إلغاء
-                      </Link>
-                    </div>
                   </div>
                 </div>
               ) : (
@@ -1190,6 +1177,14 @@ export default async function AdminCustomersPage({
                   </div>
                 </div>
               )}
+              </div>
+
+              {drawerEditMode ? (
+                <footer dir="ltr" className="grid shrink-0 grid-cols-2 gap-2 border-t border-white/10 bg-[#050b16]/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:flex sm:justify-start sm:px-6 lg:px-8">
+                  <button type="submit" className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01]">حفظ</button>
+                  <Link href={`/admin/customers?customerId=${selectedCustomer.id}`} className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-6 text-sm font-black text-slate-200 transition hover:bg-white/[0.07]">إلغاء</Link>
+                </footer>
+              ) : null}
 
             </form>
           </div>
