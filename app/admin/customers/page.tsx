@@ -738,7 +738,7 @@ export default async function AdminCustomersPage({
       </div>
 
       {drawerOpen && selectedCustomer ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-[2px]">
           <Link
             href="/admin/customers"
             className="absolute inset-0"
@@ -830,7 +830,15 @@ export default async function AdminCustomersPage({
                   </p>
                 </div>
 
-                {drawerEditMode ? null : (
+                {drawerEditMode ? (
+                  <Link
+                    href={`/admin/customers?customerId=${selectedCustomer.id}`}
+                    className="inline-flex h-12 min-w-12 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 text-sm font-black text-cyan-100 shadow-[0_16px_45px_rgba(0,0,0,0.28)] transition hover:bg-cyan-300/15"
+                    aria-label="الرجوع إلى بيانات العميل"
+                  >
+                    رجوع
+                  </Link>
+                ) : (
                   <Link
                     href="/admin/customers"
                     className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-2xl font-light text-slate-200 shadow-[0_16px_45px_rgba(0,0,0,0.28)] transition hover:bg-white/[0.07] hover:text-white"

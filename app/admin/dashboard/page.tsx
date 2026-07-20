@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminBranchFilter } from '@/components/admin-branch-filter'
 import { useAuthState } from '@/components/auth-state-provider'
 import { getRoleLabel } from '@/lib/app-roles'
-import { canAccessAdminPath } from '@/lib/permissions'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import {
@@ -937,20 +936,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {canAccessAdminPath(access.userRole, '/admin/support') ? (
-              <Link
-                href="/admin/support"
-                className="group flex items-center justify-between gap-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] px-5 py-4 text-right transition hover:border-cyan-300/35 hover:bg-cyan-300/10 md:hidden"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 13v-2a8 8 0 0 1 16 0v2" /><path d="M4 13a2 2 0 0 1 2-2h1v6H6a2 2 0 0 1-2-2v-2Z" /><path d="M20 13a2 2 0 0 0-2-2h-1v6h1a2 2 0 0 0 2-2v-2Z" /><path d="M17 17c0 2-1.5 3-4 3h-1" /></svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-base font-black text-white">مركز الدعم</p>
-                  <p className="mt-1 truncate text-xs text-slate-400">متابعة تذاكر الدعم الفني</p>
-                </div>
-              </Link>
-            ) : null}
             {[
               {
                 href: '/admin/catalog',

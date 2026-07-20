@@ -394,6 +394,10 @@ body:has([data-admin-preview]) {
     overscroll-behavior: contain;
   }
 
+  [data-mobile-customer-drawer] {
+    overflow-y: hidden !important;
+  }
+
   [data-admin-dialog] {
     width: calc(100vw - 1.5rem) !important;
     max-width: calc(100vw - 1.5rem) !important;
