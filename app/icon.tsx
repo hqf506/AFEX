@@ -18,13 +18,13 @@ export default function Icon() {
           alignItems: 'center',
           justifyContent: 'center',
           background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-          color: '#ffffff',
-          fontSize: 180,
-          fontWeight: 800,
-          letterSpacing: '-0.08em',
+          color: '#67e8f9',
+          fontSize: 112,
+          fontWeight: 900,
+          letterSpacing: '0.02em',
         }}
       >
-        LF
+        AFEX
       </div>
     ),
     size

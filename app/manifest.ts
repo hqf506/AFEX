@@ -3,13 +3,13 @@ import type { MetadataRoute } from 'next'
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'AFEX POS',
-    short_name: 'LF POS',
+    short_name: 'AFEX POS',
     description: 'نقطة بيع AFEX المهيأة للاستخدام السريع على الجوال والتابلت.',
     start_url: '/pos',
     scope: '/pos',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#f1f5f9',
+    background_color: '#020617',
     theme_color: '#0f172a',
     lang: 'ar',
     dir: 'rtl',

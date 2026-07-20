@@ -18,14 +18,14 @@ export default function AppleIcon() {
           alignItems: 'center',
           justifyContent: 'center',
           background: '#0f172a',
-          color: '#ffffff',
+          color: '#67e8f9',
           borderRadius: 36,
-          fontSize: 64,
-          fontWeight: 800,
-          letterSpacing: '-0.08em',
+          fontSize: 42,
+          fontWeight: 900,
+          letterSpacing: '0.02em',
         }}
       >
-        LF
+        AFEX
       </div>
     ),
     size

@@ -37,8 +37,31 @@ const cairo = localFont({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://smart-afex.com'),
   title: 'AFEX',
   description: 'نظام إدارة الطلبات والفواتير لمتجر AFEX',
+  openGraph: {
+    title: 'AFEX',
+    description: 'نظام إدارة الطلبات والفواتير لمتجر AFEX',
+    url: 'https://smart-afex.com',
+    siteName: 'AFEX',
+    images: [
+      {
+        url: '/brand/afex-og-v2.png',
+        width: 1200,
+        height: 630,
+        alt: 'AFEX — نظام إدارة الطلبات والفواتير',
+      },
+    ],
+    locale: 'ar_SA',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AFEX',
+    description: 'نظام إدارة الطلبات والفواتير لمتجر AFEX',
+    images: ['/brand/afex-og-v2.png'],
+  },
 }
 
 export default function RootLayout({
