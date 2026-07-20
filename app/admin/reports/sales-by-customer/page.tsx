@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import { useAuthState } from '@/components/auth-state-provider'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
@@ -709,14 +710,15 @@ export default function SalesByCustomerPage() {
         <div className="absolute bottom-[-12%] left-[-10%] h-[420px] w-[420px] rounded-full bg-blue-500/10 blur-[120px]" />
       </div>
 
-      <div className="w-full max-w-none space-y-5 rounded-[32px] border border-white/10 bg-white/[0.025] p-4 shadow-[0_28px_140px_rgba(0,0,0,0.34)] backdrop-blur sm:p-6">
+      <div className="w-full max-w-none space-y-4 rounded-[24px] border border-white/10 bg-white/[0.025] p-3 shadow-[0_28px_140px_rgba(0,0,0,0.34)] backdrop-blur sm:p-6 md:space-y-5 md:rounded-[32px]">
+        <MobilePageHeader title="المبيعات حسب العميل" subtitle={getPeriodLabel(period)} />
         {errorMessage ? (
           <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-100">
             {errorMessage}
           </div>
         ) : null}
 
-        <section className="relative overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#07111f]/90 p-5 shadow-[0_24px_100px_rgba(0,0,0,0.28)]">
+        <section className="relative hidden overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#07111f]/90 p-5 shadow-[0_24px_100px_rgba(0,0,0,0.28)] md:block">
           <div className="absolute left-8 top-8 h-28 w-28 rounded-full bg-cyan-300/10 blur-3xl" />
           <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
@@ -744,7 +746,7 @@ export default function SalesByCustomerPage() {
         </section>
 
         <section className="rounded-[28px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.20)] backdrop-blur">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,180px)_minmax(0,180px)_auto] xl:items-end">
+          <div data-responsive-filters className="grid gap-4 xl:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,180px)_minmax(0,180px)_auto] xl:items-end">
             <div className="space-y-2">
               <label className="text-xs font-black text-slate-400">الفرع</label>
               {isSystemAdmin ? (
@@ -872,7 +874,7 @@ export default function SalesByCustomerPage() {
             <EmptyCustomersState />
           ) : (
             <>
-              <div className="grid gap-3 xl:grid-cols-5">
+              <div data-responsive-report-cards className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 {visibleTopRows.map((row, index) => {
                   const rank = index + 1
                   const share = getCustomerShare(row.grossSales)
@@ -951,7 +953,7 @@ export default function SalesByCustomerPage() {
           {customerRows.length === 0 ? (
             <EmptyCustomersState />
           ) : (
-            <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#07111f]/80">
+            <div className="hidden overflow-hidden rounded-[24px] border border-white/10 bg-[#07111f]/80 xl:block">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1240px] text-[15px]">
                   <thead className="border-b border-white/10 bg-[#091424]">

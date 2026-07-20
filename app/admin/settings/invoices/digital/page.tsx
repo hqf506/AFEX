@@ -20,6 +20,7 @@ import {
   renderInvoiceHtmlFromPayload,
 } from '@/lib/invoices/receipt-template'
 import { ADMIN_UX_MESSAGES } from '@/lib/admin-ux-messages'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 
 const DIGITAL_INVOICE_TABS = [
   { id: 'identity', label: 'الهوية' },
@@ -328,6 +329,12 @@ export default function AdminDigitalInvoiceSettingsPage() {
     <div className="relative min-h-screen overflow-hidden bg-[#020617] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_30%)]" />
       <div className="relative space-y-5 py-6">
+      <div className="px-4 md:hidden">
+        <MobilePageHeader
+          title="الفاتورة الرقمية"
+          subtitle={DIGITAL_INVOICE_TABS.find((tab) => tab.id === activeTab)?.label}
+        />
+      </div>
       {successMessage ? (
         <div className="mx-auto max-w-[1200px] rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 shadow-[0_0_28px_rgba(16,185,129,0.12)]">
           {successMessage}
@@ -339,8 +346,8 @@ export default function AdminDigitalInvoiceSettingsPage() {
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-[1200px] px-6">
-        <div className={darkPanelClassName}>
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+        <div className={`${darkPanelClassName} hidden md:block`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-3 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">
@@ -368,10 +375,10 @@ export default function AdminDigitalInvoiceSettingsPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1200px] px-6">
-        <div className={`${darkPanelClassName} space-y-6`}>
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+        <div data-responsive-admin-form className={`${darkPanelClassName} min-w-0 space-y-6`}>
           <div className="border-b border-cyan-300/10 pb-4">
-            <div className="flex flex-wrap gap-2">
+            <div data-responsive-settings-tabs className="grid grid-cols-2 gap-2 md:flex md:snap-x md:snap-mandatory md:flex-nowrap md:overflow-x-auto md:pb-1">
               {DIGITAL_INVOICE_TABS.map((tab) => {
                 const isActive = activeTab === tab.id
 
@@ -380,7 +387,7 @@ export default function AdminDigitalInvoiceSettingsPage() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                    className={`min-h-11 shrink-0 snap-start rounded-2xl border px-3 py-2 text-sm font-bold transition md:rounded-full md:px-4 ${
                       isActive
                         ? 'border-cyan-300/50 bg-gradient-to-l from-cyan-300 to-emerald-300 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.22)]'
                         : 'border-cyan-300/10 bg-[#091522]/80 text-slate-300 hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-white'
@@ -800,8 +807,8 @@ export default function AdminDigitalInvoiceSettingsPage() {
       </div>
 
       {previewOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-          <div className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-0 backdrop-blur-md sm:p-5">
+          <div data-admin-preview className="flex h-[100dvh] w-full max-w-[1180px] flex-col overflow-hidden border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] sm:h-[88vh] sm:rounded-[28px]">
             <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
               <div className="text-right">
                 <h3 className="text-lg font-black text-white">معاينة الفاتورة</h3>

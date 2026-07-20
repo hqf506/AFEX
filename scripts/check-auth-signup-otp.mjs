@@ -1,0 +1,32 @@
+import fs from 'node:fs'
+
+const read = (path) => fs.readFileSync(path, 'utf8')
+const page = read('app/signup/page.tsx')
+const request = read('app/api/auth/signup-otp/route.ts')
+const verify = read('app/api/auth/signup-otp/verify/route.ts')
+const onboarding = read('app/api/onboarding/create-tenant/route.ts')
+const template = read('docs/auth/signup-otp-email-template.html')
+const assert = (condition, message) => { if (!condition) throw new Error(message) }
+
+assert(request.includes('supabase.auth.signUp({ email, password })'), 'Signup must create only the pending Auth identity before OTP.')
+assert(request.includes("supabase.auth.resend({ type: 'signup', email })"), 'Resend must use the supported Supabase signup flow.')
+assert(request.includes('RESEND_COOLDOWN_MS = 60 * 1000') && request.includes('RATE_LIMIT_MAX_ATTEMPTS = 5'), 'OTP send must have cooldown and layered rate limiting.')
+assert(request.includes("createHash('sha256').update(email)") && !request.includes('console.warn(email'), 'Rate limiting must hash normalized email and logs must not expose it.')
+assert(verify.includes("supabase.auth.verifyOtp({") && verify.includes("type: 'signup'"), 'OTP verification must use the supported signup verification type.')
+assert(verify.includes('OTP_PATTERN = /^\\d{6}$/') && page.includes('pattern="[0-9]{6}"') && page.includes('inputMode="numeric"'), 'Client and server must require exactly six numeric digits.')
+assert(!page.includes('localStorage') && !page.includes('sessionStorage'), 'Signup OTP and registration secrets must not use browser storage.')
+assert(page.includes("fetch('/api/auth/signup-otp'") && page.includes("fetch('/api/auth/signup-otp/verify'") && page.indexOf("fetch('/api/auth/signup-otp/verify'") < page.indexOf('await completeOnboarding()'), 'OTP verification must precede onboarding.')
+assert(onboarding.includes('supabase.auth.getUser()') && onboarding.includes('verifiedUser.email_confirmed_at'), 'Onboarding must require a verified server-side Auth user.')
+assert(onboarding.includes('verifiedEmail !== email') && onboarding.includes('p_owner_user_id: verifiedUserId'), 'Onboarding must bind browser data to the verified user and email.')
+assert(!onboarding.includes('auth.admin.createUser') && !onboarding.includes('email_confirm: true'), 'Onboarding must never create or auto-confirm an Auth user.')
+assert(onboarding.includes("!allowedKeys.has(key)") && !onboarding.includes("'password',"), 'Post-OTP onboarding must reject password and unexpected browser fields.')
+const onboardingRpcIndex = onboarding.indexOf("'create_tenant_with_owner'")
+assert(onboardingRpcIndex > onboarding.indexOf('verifiedUser.email_confirmed_at'), 'Tenant/Profile/Branch RPC must run only after verified identity checks.')
+assert(onboarding.indexOf('after(async () =>') > onboardingRpcIndex, 'Welcome email invocation must remain after successful onboarding.')
+assert(onboarding.includes('onboardingInFlight') && !onboarding.includes('auth.admin.deleteUser'), 'Onboarding must block duplicate requests and preserve verified pending users for retry.')
+assert(onboarding.includes('alreadyCompleted: true'), 'Completed onboarding retries must be idempotent without duplicate RPC or welcome email calls.')
+assert(template.includes('{{ .Token }}') && !template.includes('{{ .ConfirmationURL }}'), 'Signup email must contain a manual OTP and no clickable verification URL.')
+assert(template.includes('صلاحية الرمز: 15 دقيقة') && template.includes('6 أرقام'), 'Template must document the configured OTP contract.')
+assert(!request.includes('console.log') && !verify.includes('console.log') && !request.includes('error.message') && !verify.includes('error.message'), 'OTP routes must not log secrets or raw provider errors.')
+
+console.log('AFEX signup OTP verification checks passed.')

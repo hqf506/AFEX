@@ -473,7 +473,7 @@ export default function AdminBranchesPage() {
           </div>
 
           <div className="mb-5 rounded-2xl border border-cyan-300/10 bg-[#07111d]/80 p-3 shadow-[0_0_40px_rgba(0,255,255,0.05)]">
-            <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div data-responsive-filters className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
               <label className="relative block">
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-cyan-200/75">
                   <svg
@@ -579,7 +579,7 @@ export default function AdminBranchesPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full table-fixed text-right">
+              <table data-responsive-table="branches-active" className="responsive-admin-table w-full table-fixed text-right">
                 <colgroup>
                   <col className="w-[16%]" />
                   <col className="w-[7%]" />
@@ -612,8 +612,8 @@ export default function AdminBranchesPage() {
                         key={branch.id}
                         className="border-b border-white/[0.08] transition hover:bg-cyan-300/[0.035] last:border-b-0"
                       >
-                        <td className="px-3 py-4">
-                          <div className="flex items-center gap-3">
+                        <td className="px-3 py-4 max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                          <div className="hidden items-center gap-3 md:flex">
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/10 text-cyan-200">
                               <BranchIcon className="h-5 w-5" />
                             </span>
@@ -623,8 +623,13 @@ export default function AdminBranchesPage() {
                               </span>
                             </span>
                           </div>
+                          <div data-mobile-branch-card className="min-w-0 p-4 md:hidden">
+                            <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-base font-black text-white">{branch.name}</p><p className="mt-1 text-xs font-bold text-slate-400">بادئة الطلب: {orderNumberPrefix || 'غير محدد'}</p></div><span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${branch.is_active ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-rose-300/25 bg-rose-500/10 text-rose-100'}`}>{branch.is_active ? 'نشط' : 'غير نشط'}</span></div>
+                            <p className="mt-3 truncate text-xs font-bold text-slate-400">{branch.display_branch_name || branch.display_store_name || 'لا توجد تسمية إضافية'}</p>
+                            <div className="mt-4 grid grid-cols-3 gap-2"><button type="button" onClick={() => openEditBranchDrawer(branch)} className="min-h-11 rounded-xl bg-cyan-300 text-xs font-black text-slate-950">تعديل</button><button type="button" onClick={() => void handleToggleBranch(branch)} disabled={isBusy} className="min-h-11 rounded-xl border border-amber-300/20 bg-amber-400/10 text-xs font-black text-amber-100 disabled:opacity-40">{branch.is_active ? 'تعطيل' : 'تفعيل'}</button><button type="button" onClick={() => setDeleteModalBranch(branch)} disabled={isDeleting} className="min-h-11 rounded-xl border border-red-300/20 bg-red-500/10 text-xs font-black text-red-100 disabled:opacity-40">حذف</button></div>
+                          </div>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           {orderNumberPrefix ? (
                             <span className="inline-flex min-w-12 justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.16em] text-cyan-100">
                               {orderNumberPrefix}
@@ -635,7 +640,7 @@ export default function AdminBranchesPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <span
                             className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
                               branch.is_active
@@ -646,7 +651,7 @@ export default function AdminBranchesPage() {
                             {branch.is_active ? 'نشط' : 'غير نشط'}
                           </span>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <span
                             className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
                               branch.map_url
@@ -657,17 +662,17 @@ export default function AdminBranchesPage() {
                             {branch.map_url ? 'تم إضافة الرابط' : 'لا يوجد رابط'}
                           </span>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <span className="block truncate text-sm font-black text-slate-200">
                             {branch.display_store_name || '--'}
                           </span>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <span className="block truncate text-sm font-black text-slate-200">
                             {branch.display_branch_name || '--'}
                           </span>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
@@ -727,7 +732,7 @@ export default function AdminBranchesPage() {
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full table-fixed text-right">
+              <table data-responsive-table="branches-inactive" className="responsive-admin-table w-full table-fixed text-right">
                 <colgroup>
                   <col className="w-[22%]" />
                   <col className="w-[12%]" />
@@ -818,7 +823,7 @@ export default function AdminBranchesPage() {
 
       {deleteModalBranch ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]">
+          <div data-admin-dialog className="w-full max-w-lg rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]">
             <div className="mb-4 inline-flex rounded-full border border-rose-300/20 bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-200">
               حذف مؤقت لمدة 30 يوم
             </div>
@@ -856,7 +861,7 @@ export default function AdminBranchesPage() {
       {isCreateDrawerOpen ? (
         <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]">
           <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-            <form
+            <form data-admin-drawer
               onSubmit={handleSaveBranch}
               className="animate-[branch-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6"
             >

@@ -34,3 +34,22 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Support email notifications
+
+Direct Support email alerts use Resend from server route handlers. Configure these server-only deployment variables:
+
+- `RESEND_API_KEY`
+- `SUPPORT_EMAIL_FROM` (for example, `AFEX Support <support@example.com>`)
+- `SUPPORT_EMAIL_REPLY_TO` (optional)
+- `AFEX_APP_BASE_URL` (the authenticated AFEX application origin)
+- `SUPPORT_EMAIL_NOTIFICATIONS_ENABLED` (defaults to disabled)
+- `SUPPORT_EMAIL_NEW_TICKET_ENABLED` (defaults to enabled when the master switch is enabled)
+- `SUPPORT_EMAIL_CUSTOMER_REPLY_ENABLED` (defaults to enabled when the master switch is enabled)
+- `CUSTOMER_EMAIL_NOTIFICATIONS_ENABLED` (defaults to disabled)
+- `CUSTOMER_EMAIL_PROVIDER_REPLY_ENABLED` (defaults to enabled when customer notifications are enabled)
+- `CUSTOMER_EMAIL_STATUS_ENABLED` (defaults to enabled when customer notifications are enabled)
+- `WELCOME_EMAIL_NOTIFICATIONS_ENABLED` (defaults to disabled; enables eligible new-account welcome emails)
+- `AUTH_RECOVERY_STATE_SECRET` (server-only, at least 32 random characters; signs short-lived password-recovery context)
+
+Do not expose these variables through `NEXT_PUBLIC_` names. Email delivery is best-effort after the customer response and does not change a successful ticket or reply result.

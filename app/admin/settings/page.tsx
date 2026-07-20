@@ -1,7 +1,9 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { AdminAlert } from '@/components/admin-ui'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import {
   useCallback,
   useEffect,
@@ -31,6 +33,7 @@ function getArabicErrorMessage(error: unknown, fallback: string) {
 
 type SettingsTab =
   | 'status'
+  | 'account'
   | 'organization'
   | 'invoice'
   | 'communication'
@@ -46,12 +49,23 @@ type InvoicePreviewFrame = {
 
 const tabs: Array<{ key: SettingsTab; label: string }> = [
   { key: 'status', label: 'حالة النظام' },
+  { key: 'account', label: 'بيانات الحساب' },
   { key: 'organization', label: 'معلومات المنشأة' },
   { key: 'invoice', label: 'إعدادات الفاتورة' },
   { key: 'communication', label: 'إعدادات التواصل' },
   { key: 'features', label: 'المميزات' },
   { key: 'notes', label: 'ملاحظات' },
 ]
+
+type CurrentAccountInfo = {
+  username: string | null
+  fullName: string | null
+  email: string | null
+  phone: string | null
+  branchName: string | null
+  role: string
+  isActive: boolean
+}
 
 const cardClassName =
   'rounded-[28px] border border-cyan-300/15 bg-[#07111d]/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl'
@@ -90,6 +104,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<SystemSettings | null>(null)
+  const [currentAccount, setCurrentAccount] = useState<CurrentAccountInfo | null>(null)
   const [form, setForm] = useState<SystemSettingsPayload>(() =>
     createDefaultSystemSettingsPayload()
   )
@@ -138,6 +153,7 @@ export default function AdminSettingsPage() {
       const settingsData = result.settings as SystemSettings | null
 
       setSettings(settingsData)
+      setCurrentAccount((result.currentAccount as CurrentAccountInfo | null) || null)
       setForm(createSystemSettingsPayload(settingsData))
       setLoading(false)
     } catch (error) {
@@ -453,7 +469,11 @@ export default function AdminSettingsPage() {
       <div className="pointer-events-none absolute -left-24 bottom-10 h-96 w-96 rounded-full bg-emerald-400/10 blur-3xl" />
 
       <div className="relative mx-auto max-w-[1440px] space-y-5">
-        <section className="rounded-[30px] border border-cyan-300/15 bg-[#07111d]/95 p-5 shadow-[0_28px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:p-7">
+        <MobilePageHeader
+          title="إعدادات النظام"
+          subtitle={tabs.find((tab) => tab.key === activeTab)?.label}
+        />
+        <section className="hidden rounded-[30px] border border-cyan-300/15 bg-[#07111d]/95 p-5 shadow-[0_28px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:block md:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4 text-right">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-200">
@@ -501,7 +521,29 @@ export default function AdminSettingsPage() {
         {successMessage ? <AdminAlert tone="success">{successMessage}</AdminAlert> : null}
         {errorMessage ? <AdminAlert tone="error">{errorMessage}</AdminAlert> : null}
 
-        <nav className="flex gap-2 overflow-x-auto rounded-[24px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl">
+        <nav aria-label="أقسام الإعدادات" data-mobile-settings-navigation className="grid grid-cols-2 gap-2 rounded-[22px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl md:hidden">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.key
+
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                aria-current={active ? 'page' : undefined}
+                onClick={() => setActiveTab(tab.key)}
+                className={`min-h-12 rounded-2xl px-3 py-2 text-sm font-black transition ${
+                  active
+                    ? 'bg-gradient-to-l from-cyan-300 to-emerald-300 text-[#04131d] shadow-[0_0_24px_rgba(34,211,238,0.16)]'
+                    : 'border border-white/10 bg-white/[0.035] text-slate-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        <nav data-responsive-settings-tabs className="hidden snap-x snap-mandatory gap-2 overflow-x-auto rounded-[24px] border border-cyan-300/15 bg-[#07111d]/90 p-2 backdrop-blur-xl md:flex">
           {tabs.map((tab) => {
             const active = activeTab === tab.key
 
@@ -510,7 +552,7 @@ export default function AdminSettingsPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`shrink-0 rounded-2xl px-4 py-3 text-sm font-black transition ${
+                className={`min-h-11 shrink-0 snap-start rounded-2xl px-4 py-3 text-sm font-black transition ${
                   active
                     ? 'bg-gradient-to-l from-cyan-300 to-emerald-300 text-[#04131d] shadow-[0_0_24px_rgba(34,211,238,0.16)]'
                     : 'text-slate-300 hover:bg-cyan-300/10 hover:text-white'
@@ -542,18 +584,47 @@ export default function AdminSettingsPage() {
           </Panel>
         ) : null}
 
+        {activeTab === 'account' ? (
+          <Panel
+            icon={<AccountIcon />}
+            title="بيانات الحساب"
+            description="بيانات الحساب الحالي للعرض فقط. يمكنك تعديلها من صفحة الحساب."
+          >
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
+              <InfoCard label="اسم المستخدم" value={safeValue(currentAccount?.username)} icon={<AccountIcon />} />
+              <InfoCard label="الاسم الكامل" value={safeValue(currentAccount?.fullName)} icon={<AccountIcon />} />
+              <InfoCard label="البريد الإلكتروني" value={safeValue(currentAccount?.email)} icon={<MessageIcon />} />
+              <InfoCard label="رقم الجوال" value={safeValue(currentAccount?.phone)} icon={<PhoneIcon />} />
+              <InfoCard label="اسم الفرع" value={safeValue(currentAccount?.branchName)} icon={<BuildingIcon />} />
+              <InfoCard label="الدور" value={roleLabel} icon={<ShieldIcon />} />
+              <InfoCard
+                label="حالة الحساب"
+                value={currentAccount ? (currentAccount.isActive ? 'نشط' : 'غير نشط') : 'غير محدد'}
+                icon={<ShieldIcon />}
+              />
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Link
+                href="/account"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-3 text-sm font-black text-[#04131d] shadow-[0_0_30px_rgba(34,211,238,0.18)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 sm:w-auto"
+              >
+                تعديل بيانات الحساب
+              </Link>
+            </div>
+          </Panel>
+        ) : null}
+
         {activeTab === 'organization' ? (
           <Panel
             icon={<StoreIcon />}
             title="معلومات المنشأة"
             description="البيانات التي تظهر في الفواتير والتقارير العامة."
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <InfoCard label="اسم النشاط" value={safeValue(settings?.store_name)} icon={<StoreIcon />} />
               <InfoCard label="اسم الفرع" value={safeValue(settings?.branch_name)} icon={<BuildingIcon />} />
               <InfoCard label="رقم واتساب" value={safeValue(form.whatsapp_phone)} icon={<PhoneIcon />} />
               <InfoCard label="مزود واتساب" value={providerMeta.title} icon={<MessageIcon />} />
-              <InfoCard label="رابط الشعار" value={safeValue(form.logo_url)} icon={<LinkIcon />} wide />
             </div>
           </Panel>
         ) : null}
@@ -1202,12 +1273,12 @@ export default function AdminSettingsPage() {
       </div>
 
       {invoicePreviewFrame ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-          <div
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/80 p-0 backdrop-blur-md sm:p-5">
+          <div data-admin-preview
             role="dialog"
             aria-modal="true"
             aria-labelledby="settings-invoice-preview-title"
-            className="flex h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)]"
+            className="flex h-[100dvh] w-full max-w-[1180px] flex-col overflow-hidden border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] sm:h-[88vh] sm:rounded-[28px]"
           >
             <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
               <div className="text-right">
@@ -1449,26 +1520,20 @@ function InfoCard({
   label,
   value,
   icon,
-  wide = false,
 }: {
   label: string
   value: string
   icon: ReactNode
-  wide?: boolean
 }) {
   return (
-    <div
-      className={`rounded-3xl border border-cyan-300/15 bg-[#091522]/80 p-4 transition hover:border-cyan-300/30 hover:bg-cyan-300/5 ${
-        wide ? 'md:col-span-2' : ''
-      }`}
-    >
-      <div className="flex items-center gap-4">
+    <div className="min-w-0 rounded-3xl border border-cyan-300/15 bg-[#091522]/80 p-4 transition hover:border-cyan-300/30 hover:bg-cyan-300/5">
+      <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
           {icon}
         </div>
         <div className="min-w-0 text-right">
           <p className="text-xs font-black text-slate-400">{label}</p>
-          <p className="mt-1 truncate text-base font-black text-white">{value}</p>
+          <p className="mt-1 break-words text-sm font-black leading-6 text-white sm:text-base">{value}</p>
         </div>
       </div>
     </div>
@@ -1543,6 +1608,15 @@ function ShieldIcon() {
   )
 }
 
+function AccountIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  )
+}
+
 function StoreIcon() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1575,15 +1649,6 @@ function MessageIcon() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" />
-    </svg>
-  )
-}
-
-function LinkIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15" />
-      <path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15" />
     </svg>
   )
 }

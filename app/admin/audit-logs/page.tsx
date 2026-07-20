@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 
@@ -377,8 +378,8 @@ export default function AdminAuditLogsPage() {
       </div>
 
       <div className="rounded-[28px] border border-cyan-300/15 bg-[#07111f]/88 p-4 shadow-[0_18px_70px_rgba(0,0,0,0.26)] backdrop-blur-xl">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <label className="space-y-2">
+        <div data-responsive-filters className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">الحدث</span>
             <input
               value={action}
@@ -387,7 +388,7 @@ export default function AdminAuditLogsPage() {
               className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
             />
           </label>
-          <label className="space-y-2">
+          <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">النوع</span>
             <input
               value={entityType}
@@ -396,22 +397,24 @@ export default function AdminAuditLogsPage() {
               className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
             />
           </label>
-          <label className="space-y-2">
+          <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">من تاريخ</span>
-            <input
-              type="date"
+            <AdminDarkDateInput
               value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
+              onChange={setDateFrom}
+              className="min-w-0 w-full"
+              triggerClassName="h-11"
+              ariaLabel="من تاريخ"
             />
           </label>
-          <label className="space-y-2">
+          <label className="grid min-w-0 grid-rows-[auto_2.75rem] gap-2">
             <span className="text-xs font-bold text-slate-400">إلى تاريخ</span>
-            <input
-              type="date"
+            <AdminDarkDateInput
               value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-              className="h-11 w-full rounded-2xl border border-cyan-300/15 bg-[#06111f] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
+              onChange={setDateTo}
+              className="min-w-0 w-full"
+              triggerClassName="h-11"
+              ariaLabel="إلى تاريخ"
             />
           </label>
           <button
@@ -439,7 +442,7 @@ export default function AdminAuditLogsPage() {
 
       <div className="overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#07111f]/88 shadow-[0_22px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl">
         <div className="overflow-x-auto">
-          <table className="min-w-[820px] w-full border-collapse text-right">
+          <table data-responsive-table="audit" className="responsive-admin-table min-w-[820px] w-full border-collapse text-right">
             <thead>
               <tr className="border-b border-cyan-300/10 bg-cyan-300/8 text-xs font-black text-cyan-100">
                 <th className="px-4 py-4">التاريخ</th>
@@ -469,20 +472,21 @@ export default function AdminAuditLogsPage() {
                     key={log.id}
                     className="text-sm text-slate-300 transition hover:bg-cyan-300/5"
                   >
-                    <td className="whitespace-nowrap px-4 py-4 text-slate-400">
-                      {formatDate(log.created_at)}
+                    <td className="whitespace-nowrap px-4 py-4 text-slate-400 max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                      <span className="hidden md:inline">{formatDate(log.created_at)}</span>
+                      <article data-mobile-audit-entry className="relative min-w-0 p-4 pr-8 md:hidden"><span className="absolute right-3 top-5 size-3 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.55)]" /><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-black text-cyan-100">{getEventLabel(log.action)}</p><p className="mt-1 truncate text-xs font-bold text-slate-400">{getEntityTypeLabel(log.entity_type)} · {resolveActorName(log)}</p></div><button type="button" onClick={() => setSelectedLog(log)} className="min-h-11 shrink-0 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100">عرض</button></div><p className="mt-3 break-words text-xs font-bold leading-6 text-slate-300">{getOperationDescription(log)}</p><time className="mt-3 block text-[11px] font-bold text-slate-500">{formatDate(log.created_at)}</time></article>
                     </td>
-                    <td className="px-4 py-4 font-black text-cyan-100">
+                    <td className="px-4 py-4 font-black text-cyan-100 max-md:!hidden">
                       {getEventLabel(log.action)}
                     </td>
-                    <td className="px-4 py-4 text-slate-200">
+                    <td className="px-4 py-4 text-slate-200 max-md:!hidden">
                       {getEntityTypeLabel(log.entity_type)}
                     </td>
-                    <td className="px-4 py-4">{resolveActorName(log)}</td>
-                    <td className="max-w-[360px] px-4 py-4 text-sm font-bold leading-6 text-slate-300">
+                    <td className="px-4 py-4 max-md:!hidden">{resolveActorName(log)}</td>
+                    <td className="max-w-[360px] px-4 py-4 text-sm font-bold leading-6 text-slate-300 max-md:!hidden">
                       {getOperationDescription(log)}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 max-md:!hidden">
                       <button
                         type="button"
                         onClick={() => setSelectedLog(log)}
@@ -498,7 +502,7 @@ export default function AdminAuditLogsPage() {
           </table>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-cyan-300/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div data-responsive-pagination className="flex flex-col gap-3 border-t border-cyan-300/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-bold text-slate-400">
             الصفحة {page} من {totalPages} · إجمالي السجلات {total}
           </p>
@@ -525,7 +529,7 @@ export default function AdminAuditLogsPage() {
 
       {selectedLog !== null ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
-          <div className="w-full max-w-2xl rounded-[28px] border border-cyan-300/20 bg-[#07111f] p-5 shadow-[0_30px_110px_rgba(0,0,0,0.6)]">
+          <div data-admin-dialog className="w-full max-w-2xl rounded-[28px] border border-cyan-300/20 bg-[#07111f] p-5 shadow-[0_30px_110px_rgba(0,0,0,0.6)]">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-black text-white">تفاصيل النشاط</h2>
               <button

@@ -577,7 +577,7 @@ export default function AdminDiscountsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[820px] text-right">
+              <table data-responsive-table="discounts" className="responsive-admin-table w-full min-w-[820px] text-right">
                 <thead className="bg-white/[0.035]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-5 py-4">الخصم</th>
@@ -594,8 +594,8 @@ export default function AdminDiscountsPage() {
                       key={discount.id}
                       className="border-b border-white/[0.08] transition hover:bg-cyan-300/[0.035] last:border-b-0"
                     >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
+                      <td className="px-5 py-4 max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                        <div className="hidden items-center gap-3 md:flex">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/10 text-cyan-200">
                             <DiscountIcon className="h-5 w-5" />
                           </span>
@@ -603,21 +603,22 @@ export default function AdminDiscountsPage() {
                             {discount.name}
                           </span>
                         </div>
+                        <div data-mobile-discount-card className="min-w-0 p-4 md:hidden"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-black text-white">{discount.name}</p><p className="mt-1 text-xs font-bold text-slate-400">{discount.type === 'percentage' ? 'نسبة مئوية' : 'مبلغ ثابت'} · {discount.branch_id ? branchNameMap.get(discount.branch_id) || 'فرع محدد' : 'كل الفروع'}</p></div><p className="shrink-0 text-lg font-black text-cyan-100">{formatDiscountValue(discount)}</p></div><div className="mt-4 flex items-center justify-between border-t border-white/[0.07] pt-3"><ToggleSwitch checked={discount.is_active} disabled={togglingDiscountId === discount.id} onChange={() => void handleToggleDiscount(discount)} /><button type="button" disabled={deletingDiscountId === discount.id} onClick={() => void handleDeleteDiscount(discount)} className="min-h-11 rounded-xl border border-red-300/20 bg-red-500/10 px-4 text-xs font-black text-red-200 disabled:opacity-40">حذف</button></div></div>
                       </td>
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center max-md:!hidden">
                         <span className="inline-flex rounded-full border border-white/10 bg-white/[0.055] px-3 py-1 text-xs font-black text-slate-200">
                           {discount.type === 'percentage' ? 'نسبة مئوية' : 'مبلغ ثابت'}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-center text-sm font-black text-cyan-100">
+                      <td className="px-5 py-4 text-center text-sm font-black text-cyan-100 max-md:!hidden">
                         {formatDiscountValue(discount)}
                       </td>
-                      <td className="px-5 py-4 text-center text-sm font-bold text-slate-300">
+                      <td className="px-5 py-4 text-center text-sm font-bold text-slate-300 max-md:!hidden">
                         {discount.branch_id
                           ? branchNameMap.get(discount.branch_id) || 'فرع محدد'
                           : 'كل الفروع'}
                       </td>
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center max-md:!hidden">
                         <div className="flex items-center justify-center">
                           <ToggleSwitch
                             checked={discount.is_active}
@@ -626,7 +627,7 @@ export default function AdminDiscountsPage() {
                           />
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center max-md:!hidden">
                         <button
                           type="button"
                           disabled={deletingDiscountId === discount.id}

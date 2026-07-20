@@ -205,7 +205,7 @@ export default function NewBranchPage() {
             </div>
           ) : null}
 
-          <form
+          <form data-mobile-branch-form
             onSubmit={handleSubmit}
             className="rounded-[28px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.25)] md:p-6"
           >
@@ -216,7 +216,7 @@ export default function NewBranchPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div data-responsive-admin-form className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="block text-right">
                 <span className="mb-2 block text-sm font-bold text-slate-200">
                   كود الفرع
@@ -320,7 +320,7 @@ export default function NewBranchPage() {
               </label>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-6 grid grid-cols-1 gap-3 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-5 max-md:border-t max-md:border-cyan-300/15 max-md:bg-[#07111f]/95 max-md:px-5 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:pt-3 max-md:backdrop-blur-xl sm:grid-cols-2">
               <Link
                 href="/admin/branches"
                 className="inline-flex h-13 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 text-sm font-black text-slate-200 transition hover:border-cyan-300/25 hover:bg-white/[0.08]"

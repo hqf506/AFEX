@@ -437,7 +437,7 @@ export default function AdminCategoriesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[620px] text-right">
+              <table data-responsive-table="categories" className="responsive-admin-table w-full min-w-[620px] text-right">
                 <thead className="bg-white/[0.035]">
                   <tr className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="px-5 py-4">الفئة</th>
@@ -451,8 +451,8 @@ export default function AdminCategoriesPage() {
                       key={category.id}
                       className="group border-b border-white/[0.08] transition hover:bg-cyan-300/[0.035] last:border-b-0"
                     >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
+                      <td className="px-5 py-4 max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                        <div className="hidden items-center gap-3 md:flex">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/10 text-cyan-200">
                             <CategoryIcon className="h-5 w-5" />
                           </span>
@@ -460,13 +460,25 @@ export default function AdminCategoriesPage() {
                             {category.name}
                           </span>
                         </div>
+                        <div data-mobile-category-card className="flex min-w-0 items-center gap-3 p-4 md:hidden">
+                          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/10 text-cyan-200"><CategoryIcon className="size-5" /></span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-black text-white">{category.name}</p>
+                            <p className="mt-1 text-xs font-bold text-slate-400">{category.used_count} عنصر</p>
+                          </div>
+                          {category.id === 'uncategorized' ? (
+                            <span className="shrink-0 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100">أساسي</span>
+                          ) : (
+                            <button type="button" disabled={deletingCategoryId === category.id} onClick={() => void handleDeleteCategory(category)} className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-red-300/20 bg-red-500/10 text-red-200 disabled:opacity-40" aria-label={`حذف فئة ${category.name}`}><TrashIcon className="size-5" /></button>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center max-md:!hidden">
                         <span className="inline-flex min-w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] px-3 py-1 text-sm font-black text-slate-200">
                           {category.used_count}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center max-md:!hidden">
                         {category.id === 'uncategorized' ? (
                           <span
                             className="inline-flex cursor-not-allowed items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-black text-cyan-100"
@@ -498,7 +510,7 @@ export default function AdminCategoriesPage() {
         <>
           <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 text-right text-white shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+            <div data-admin-dialog className="w-full max-w-md rounded-[28px] border border-cyan-300/15 bg-[#07111f] p-6 text-right text-white shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
               <div className="flex items-center gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-300/20 bg-red-500/10 text-red-200">
                   <TrashIcon className="h-5 w-5" />

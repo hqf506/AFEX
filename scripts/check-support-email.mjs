@@ -1,0 +1,33 @@
+import fs from 'node:fs'
+
+const read = (path) => fs.readFileSync(path, 'utf8')
+const email = read('lib/support/email.ts')
+const tickets = read('app/api/support/tickets/route.ts')
+const messages = read('app/api/support/tickets/[id]/messages/route.ts')
+const providerTicket = read('app/api/provider/support/tickets/[id]/route.ts')
+const assert = (condition, message) => { if (!condition) throw new Error(message) }
+
+assert(email.includes("import 'server-only'"), 'Support email service must remain server-only.')
+assert(email.includes(".eq('role', 'provider_owner')") && email.includes(".eq('is_active', true)"), 'Recipients must be active provider owners.')
+assert(email.includes('auth.admin.getUserById') && !email.includes('recipientEmail:'), 'Recipient email must be resolved from trusted Auth data.')
+assert(email.includes(".eq('sender_type', 'customer')") && email.includes(".eq('is_internal', false)"), 'Customer reply eligibility must exclude provider and internal messages.')
+assert(email.includes('supportEmailPreview') && email.includes('PREVIEW_LIMIT = 240') && email.includes('escapeHtml'), 'Email preview and HTML must be safely bounded and escaped.')
+assert(email.includes('Idempotency-Key') && email.includes('support/${input.eventType}/${input.sourceId}/${recipient.userId}'), 'Resend requests must use a stable per-recipient idempotency key.')
+assert(email.includes('AFEX_APP_BASE_URL') && !email.includes("headers().get('host')"), 'Ticket links must use a configured origin, not Host headers.')
+assert(email.includes("fetch('https://api.resend.com/emails'") && email.includes('AbortController'), 'Resend calls must be server-side and timeout-bounded.')
+assert(tickets.includes('after(async () => {') && tickets.includes("await sendSupportEmailNotification({ eventType: 'ticket_created'") && tickets.indexOf('after(async () => {') > tickets.indexOf('if (error || !ticket)'), 'Ticket email must be scheduled only after atomic creation succeeds.')
+assert(messages.includes("eventType: 'customer_reply'") && messages.includes("if (ticket.status === 'closed')") && messages.includes('if (!auth.isProvider)'), 'Only eligible non-closed customer replies may schedule email.')
+assert(!messages.includes("eventType: 'ticket_reopened'") && !email.includes("'ticket_reopened'"), 'Ticket reopened email is out of scope.')
+assert(tickets.indexOf('await sendSupportEmailNotification') > tickets.indexOf('after(async () => {') && messages.indexOf('await sendSupportEmailNotification') > messages.indexOf('after(async () => {'), 'Email delivery may only be awaited inside managed after() callbacks.')
+assert(!tickets.includes('void sendSupportEmailNotification') && !messages.includes('void sendSupportEmailNotification'), 'Email delivery must use managed after(), not a floating promise.')
+assert(!email.includes('storage_path') && !email.includes('signedUrl') && !email.includes('diagnostic_context'), 'Email content must exclude attachments and diagnostics.')
+assert(email.includes('CUSTOMER_EMAIL_NOTIFICATIONS_ENABLED') && email.includes('CUSTOMER_EMAIL_PROVIDER_REPLY_ENABLED') && email.includes('CUSTOMER_EMAIL_STATUS_ENABLED'), 'Customer email notifications must remain independently feature-flagged.')
+assert(email.includes(".select('contact_email')") && email.includes(".eq('id', ticket.created_by)") && email.includes(".eq('tenant_id', ticket.tenant_id)"), 'Customer email must be resolved server-side from the ticket owner profile.')
+assert(email.includes(".eq('sender_type', 'provider')") && email.includes(".eq('is_internal', false)"), 'Customer reply email must verify a public provider message.')
+assert(messages.includes('auth.isProvider && !isInternal') && messages.includes("eventType: 'provider_reply'"), 'Only public provider replies may schedule customer email.')
+assert(providerTicket.includes("changes.status === 'resolved' || changes.status === 'closed'") && providerTicket.includes("event.event_type === 'status_changed'"), 'Customer status email must follow a successful resolved or closed audit event.')
+assert(!email.includes('attachment') && !email.includes('assignment'), 'Customer email content must not expose attachments or assignments.')
+assert(!email.includes("console.info('[support-email] diagnostics'") && !email.includes("console.info('[support-email] sent'"), 'Temporary Support email diagnostics and success logs must not remain in Production code.')
+assert(email.includes("console.error('[support-email] failed'") && email.includes("console.warn('[support-email] skipped'"), 'Production email logs must retain only safe categorized failures and skips.')
+
+console.log('Support direct email notification checks passed.')

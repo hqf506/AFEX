@@ -121,7 +121,7 @@ function DrawerActions({
   onCancel: () => void
 }) {
   return (
-    <div className="mt-7 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <div className="mt-7 flex flex-col-reverse gap-2 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-5 max-md:border-t max-md:border-cyan-300/15 max-md:bg-[#07111f]/95 max-md:px-5 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:pt-3 max-md:backdrop-blur-xl sm:flex-row sm:justify-end">
       <button
         type="button"
         onClick={onCancel}
@@ -762,7 +762,7 @@ export default function AdminInventoryPage() {
           ) : (
             <>
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[820px] table-fixed text-right">
+              <table data-responsive-table="inventory" className="responsive-admin-table w-full min-w-[820px] table-fixed text-right">
                 <colgroup>
                   <col className="w-[24%]" />
                   <col className="w-[12%]" />
@@ -790,8 +790,8 @@ export default function AdminInventoryPage() {
                         key={`${row.branch_id}-${row.catalog_item_id}`}
                         className="border-b border-white/[0.08] transition hover:bg-cyan-300/[0.035] last:border-b-0"
                       >
-                        <td className="px-3 py-4">
-                          <div className="flex items-center gap-3">
+                        <td className="px-3 py-4 max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                          <div className="hidden items-center gap-3 md:flex">
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/10 text-cyan-200">
                               <InventoryIcon className="h-5 w-5" />
                             </span>
@@ -804,32 +804,49 @@ export default function AdminInventoryPage() {
                               </span>
                             </span>
                           </div>
+                          <div data-mobile-inventory-card className={`min-w-0 rounded-2xl border p-4 md:hidden ${stockStatus.cardTone}`}>
+                            <div className="flex min-w-0 items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-base font-black text-white">{row.item_name || 'بدون اسم'}</p>
+                                <p className="mt-1 truncate text-xs font-bold text-slate-400">{row.branch_name}</p>
+                              </div>
+                              <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${stockStatus.tone}`}>{stockStatus.label}</span>
+                            </div>
+                            <div className="mt-4 grid grid-cols-2 gap-2">
+                              <div className="rounded-xl border border-white/[0.08] bg-black/20 p-3"><p className="text-[10px] font-bold text-slate-500">المخزون الحالي</p><StockNumber value={row.quantity_on_hand} className="mt-1 text-lg font-black text-white" /></div>
+                              <div className="rounded-xl border border-white/[0.08] bg-black/20 p-3"><p className="text-[10px] font-bold text-slate-500">حد التنبيه</p><StockNumber value={row.low_stock_threshold} className="mt-1 text-lg font-black text-slate-200" /></div>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <button type="button" onClick={() => openAdjustDrawer(row)} className="min-h-11 rounded-xl bg-cyan-300 px-3 text-xs font-black text-slate-950">تعديل الكمية</button>
+                              <button type="button" onClick={() => openThresholdDrawer(row)} className="min-h-11 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-xs font-black text-slate-200">حد التنبيه</button>
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <span className="text-sm font-black text-slate-200">
                             {getItemTypeLabel(row.item_type)}
                           </span>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <StockNumber
                             value={row.quantity_on_hand}
                             className="text-sm font-black text-slate-100"
                           />
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <StockNumber
                             value={row.low_stock_threshold}
                             className="text-sm font-black text-slate-200"
                           />
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 max-md:!hidden">
                           <span
                             className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${stockStatus.tone}`}
                           >
                             {stockStatus.label}
                           </span>
                         </td>
-                        <td className="sticky left-0 bg-[#06111f] px-3 py-4">
+                        <td className="sticky left-0 bg-[#06111f] px-3 py-4 max-md:!hidden">
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
@@ -854,7 +871,7 @@ export default function AdminInventoryPage() {
               </table>
             </div>
             {totalPages > 1 ? (
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-cyan-300/10 pt-4">
+              <div data-responsive-pagination className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-cyan-300/10 pt-4">
                 <button
                   type="button"
                   onClick={() =>
@@ -958,7 +975,7 @@ export default function AdminInventoryPage() {
       {drawerOpen && selectedItem ? (
         <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px]">
           <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-            <aside className="animate-[branch-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6">
+            <aside data-admin-drawer data-mobile-inventory-drawer className="animate-[branch-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[#07111d] p-5 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6">
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
                   <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black tracking-[0.18em] text-cyan-200">

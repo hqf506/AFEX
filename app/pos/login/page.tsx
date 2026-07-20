@@ -452,7 +452,7 @@ export default function PosLoginPage() {
                   </label>
 
                   <Link
-                    href="/reset-password"
+                    href="/login?forgot=password"
                     className="inline-flex min-h-[44px] items-center font-bold text-cyan-300 transition hover:text-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-300/40"
                   >
                     نسيت كلمة المرور؟

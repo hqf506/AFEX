@@ -54,6 +54,8 @@ import {
 } from '@/lib/invoices/thermal-preview'
 import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 import { ADMIN_UX_MESSAGES } from '@/lib/admin-ux-messages'
+import { MobileActionSheet, MobileFilterSheet } from '@/components/mobile/mobile-overlays'
+import { MobileStickyActionBar } from '@/components/mobile/mobile-primitives'
 
 function fixArabic(text: string) {
   try {
@@ -701,6 +703,8 @@ export default function OrdersPage() {
     if (typeof window === 'undefined') return true
     return localStorage.getItem('orders_sound_enabled') !== 'false'
   })
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false)
 
   const initializedRef = useRef(false)
   const isFetchInFlightRef = useRef(false)
@@ -2037,7 +2041,7 @@ export default function OrdersPage() {
         `}</style>
 
         <section dir="rtl" className="w-full max-w-full space-y-5 text-white">
-          <div className="relative overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#07111d]/90 p-5 backdrop-blur-xl">
+          <div className="relative hidden overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#07111d]/90 p-5 backdrop-blur-xl md:block">
             <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-cyan-400/12 blur-3xl" />
             <div className="pointer-events-none absolute -left-24 bottom-0 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
 
@@ -2096,7 +2100,25 @@ export default function OrdersPage() {
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+          <div data-mobile-orders-quick-filters className="flex snap-x gap-2 overflow-x-auto pb-1 md:hidden">
+            {[
+              { label: 'الكل', value: totalOrders, filterKey: 'all' as const },
+              { label: 'قيد التجهيز', value: stats.inProgressCount, filterKey: 'in_progress' as const },
+              { label: 'جاهز', value: stats.readyCount, filterKey: 'ready' as const },
+            ].map((card) => (
+              <button
+                type="button"
+                key={card.filterKey}
+                onClick={() => { setFilter(card.filterKey); setCurrentPage(1) }}
+                aria-pressed={filter === card.filterKey}
+                className={`min-h-11 shrink-0 snap-start rounded-xl border px-3 text-xs font-black ${filter === card.filterKey ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-slate-400'}`}
+              >
+                {card.label} · {card.value.toLocaleString('ar-SA')}
+              </button>
+            ))}
+          </div>
+
+          <div className="hidden gap-2 sm:grid-cols-2 md:grid md:grid-cols-3 xl:grid-cols-5">
             {[
               { label: 'الكل', value: orders.length, filterKey: 'all' as const, tone: 'from-indigo-500/20 to-blue-500/5', icon: 'M7 7h10M7 12h10M7 17h6' },
               { label: 'قيد التجهيز', value: stats.inProgressCount, filterKey: 'in_progress' as const, tone: 'from-sky-500/20 to-cyan-500/5', icon: 'M12 8v4l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
@@ -2137,8 +2159,31 @@ export default function OrdersPage() {
             })}
           </div>
 
-          <div className="rounded-[22px] border border-cyan-300/10 bg-[#07111d]/90 p-3 backdrop-blur-xl">
-            <div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_minmax(360px,1.4fr)_minmax(190px,0.65fr)_auto]">
+          <div data-mobile-orders-search className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:hidden">
+            <label className="relative min-w-0">
+              <span className="sr-only">بحث في الطلبات</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="رقم الطلب أو اسم العميل أو الجوال"
+                className="h-12 w-full min-w-0 rounded-2xl border border-cyan-300/15 bg-[#07111f] py-0 pl-3 pr-10 text-right text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/15"
+              />
+              <svg viewBox="0 0 24 24" className="pointer-events-none absolute right-3 top-1/2 size-5 -translate-y-1/2 text-cyan-200/70" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+            </label>
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(true)}
+              aria-haspopup="dialog"
+              className="inline-flex h-12 items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100"
+            >
+              الفلاتر
+              {filter !== 'all' || (isSystemAdmin && selectedBranchId) ? <span className="grid size-5 place-items-center rounded-full bg-cyan-300 text-[10px] text-slate-950">!</span> : null}
+            </button>
+          </div>
+
+          <div className="hidden rounded-[22px] border border-cyan-300/10 bg-[#07111d]/90 p-3 backdrop-blur-xl md:block">
+            <div data-responsive-filters className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_minmax(360px,1.4fr)_minmax(190px,0.65fr)_auto]">
               <div className="relative">
                 <label className="mb-1.5 block text-xs font-bold text-slate-400">
                   بحث
@@ -2213,10 +2258,10 @@ export default function OrdersPage() {
           </div>
 
           <div className="max-w-full overflow-hidden rounded-[30px] border border-cyan-300/10 bg-[#07111d]/95 shadow-[0_0_45px_rgba(34,211,238,0.06)] backdrop-blur-xl">
-            <div className="flex items-end justify-between gap-4 border-b border-cyan-300/10 px-5 py-4">
+            <div className="flex items-end justify-between gap-4 border-b border-cyan-300/10 px-4 py-3 md:px-5 md:py-4">
               <div className="text-right">
-                <h2 className="text-2xl font-black text-white">جدول الطلبات</h2>
-                <p className="mt-1 text-sm text-slate-400">أزرار الحالة تستخدم نفس منطق تحديث الطلب الحالي.</p>
+                <h2 className="text-lg font-black text-white md:text-2xl"><span className="md:hidden">الطلبات</span><span className="hidden md:inline">جدول الطلبات</span></h2>
+                <p className="mt-1 hidden text-sm text-slate-400 md:block">أزرار الحالة تستخدم نفس منطق تحديث الطلب الحالي.</p>
               </div>
               <p className="text-left text-sm font-bold text-cyan-100">{totalOrders} طلب</p>
             </div>
@@ -2235,7 +2280,7 @@ export default function OrdersPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] table-fixed text-right" dir="rtl">
+                <table data-responsive-table="orders" className="responsive-admin-table w-full min-w-[760px] table-fixed text-right" dir="rtl">
                   <colgroup>
                     <col className="w-[150px]" />
                     <col className="w-[180px]" />
@@ -2284,8 +2329,8 @@ export default function OrdersPage() {
                           }}
                           className="cursor-pointer border-b border-cyan-300/10 bg-[#07111d]/60 transition hover:bg-cyan-400/[0.055] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-300/25"
                         >
-                          <td className="px-4 py-4 align-middle">
-                            <div className="space-y-1">
+                          <td className="px-4 py-4 align-middle max-md:!block max-md:!border-0 max-md:!p-0 max-md:before:!hidden">
+                            <div className="hidden space-y-1 md:block">
                               <button
                                 type="button"
                                 onClick={() => setDetailsDrawerOrderId(order.id)}
@@ -2303,17 +2348,40 @@ export default function OrdersPage() {
                                   : EMPTY_DASH}
                               </p>
                             </div>
+                            <div data-mobile-order-card className="min-w-0 p-4 md:hidden">
+                              <div className="flex min-w-0 items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-black text-cyan-100">#{order.invoice_number || order.order_number}</p>
+                                  <p className="mt-1 truncate text-sm font-bold text-white">{fixArabic(order.customer_name)}</p>
+                                </div>
+                                <OrderStatusBadge order={order} />
+                              </div>
+                              <div className="mt-4 grid grid-cols-2 gap-2">
+                                <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
+                                  <p className="text-[10px] font-bold text-slate-500">الإجمالي</p>
+                                  <p className="mt-1 text-sm font-black text-white">{formatMoney(order.total)}</p>
+                                </div>
+                                <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
+                                  <p className="text-[10px] font-bold text-slate-500">الفرع</p>
+                                  <p className="mt-1 truncate text-xs font-black text-slate-200">{getOrderBranchLabel(order)}</p>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex min-w-0 items-center justify-between gap-3 border-t border-white/[0.07] pt-3">
+                                <time className="min-w-0 truncate text-[11px] font-bold text-slate-500">{formatDateTime(order.created_at)}</time>
+                                <button type="button" onClick={() => setDetailsDrawerOrderId(order.id)} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-4 text-xs font-black text-cyan-100">عرض</button>
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-4 py-4 align-middle">
+                          <td className="px-4 py-4 align-middle max-md:!hidden">
                             <p className="truncate text-sm font-bold text-slate-100">{fixArabic(order.customer_name)}</p>
                           </td>
-                          <td className="px-4 py-4 align-middle">
+                          <td className="px-4 py-4 align-middle max-md:!hidden">
                             <p className="text-sm font-bold text-slate-300">{order.customer_phone}</p>
                           </td>
-                          <td className="px-4 py-4 align-middle">
+                          <td className="px-4 py-4 align-middle max-md:!hidden">
                             <p className="truncate text-sm font-bold text-slate-300">{getOrderBranchLabel(order)}</p>
                           </td>
-                          <td className="px-4 py-4 align-middle">
+                          <td className="px-4 py-4 align-middle max-md:!hidden">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <OrderStatusBadge order={order} />
                               <span className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-black ${deliveryStatusUi.className}`}>
@@ -2322,7 +2390,7 @@ export default function OrdersPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="sticky left-0 bg-[#07111d] px-4 py-4 align-middle">
+                          <td className="sticky left-0 bg-[#07111d] px-4 py-4 align-middle max-md:!hidden">
                             <div className="flex items-center">
                               <button
                                 type="button"
@@ -2346,7 +2414,7 @@ export default function OrdersPage() {
             )}
           </div>
           {totalOrders > ORDERS_PAGE_SIZE ? (
-            <div className="flex items-center justify-center gap-3 py-4" dir="rtl">
+            <div data-responsive-pagination className="flex items-center justify-center gap-3 py-4" dir="rtl">
               <button
                 type="button"
                 disabled={currentPage <= 1}
@@ -2368,12 +2436,85 @@ export default function OrdersPage() {
               </button>
             </div>
           ) : null}
+          <MobileFilterSheet
+            open={mobileFiltersOpen}
+            onClose={() => setMobileFiltersOpen(false)}
+            title="فلاتر الطلبات"
+            description="اختر حالة الطلب والفرع دون مغادرة القائمة."
+            footer={
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter('all')
+                    if (isSystemAdmin) setSelectedBranchId('')
+                    setCurrentPage(1)
+                  }}
+                  className="min-h-11 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-black text-slate-200"
+                >
+                  مسح الفلاتر
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileFiltersOpen(false)}
+                  className="min-h-11 rounded-xl bg-cyan-300 px-3 text-xs font-black text-slate-950"
+                >
+                  عرض النتائج
+                </button>
+              </div>
+            }
+          >
+            <div className="space-y-5">
+              <fieldset>
+                <legend className="mb-2 text-xs font-black text-slate-400">حالة الطلب</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {ORDER_STATE_FILTER_OPTIONS.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      aria-pressed={filter === item.key}
+                      onClick={() => {
+                        setFilter(item.key)
+                        setCurrentPage(1)
+                      }}
+                      className={`min-h-11 rounded-xl border px-3 text-xs font-black transition ${
+                        filter === item.key
+                          ? 'border-cyan-300/50 bg-cyan-300/15 text-cyan-100'
+                          : 'border-white/10 bg-white/[0.04] text-slate-300'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              {isSystemAdmin ? (
+                <AdminBranchFilter
+                  branches={branches}
+                  selectedBranchId={selectedBranchId}
+                  loading={loadingBranches}
+                  onChange={(value) => {
+                    setSelectedBranchId(value)
+                    setCurrentPage(1)
+                  }}
+                  className="min-w-0"
+                />
+              ) : (
+                <div>
+                  <p className="mb-2 text-xs font-black text-slate-400">الفرع</p>
+                  <div className="flex min-h-11 items-center rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-black text-slate-200">
+                    {selectedBranchName ? fixArabic(selectedBranchName) : EMPTY_DASH}
+                  </div>
+                </div>
+              )}
+            </div>
+          </MobileFilterSheet>
           {detailsDrawerOrder ? (
             <div
               className="fixed inset-0 z-[110] flex justify-end bg-slate-950/70 backdrop-blur-sm"
               onClick={() => setDetailsDrawerOrderId(null)}
             >
-              <aside
+              <aside data-admin-drawer data-mobile-order-drawer
                 dir="rtl"
                 className="flex h-full w-full max-w-[560px] animate-[ordersDrawerSlideIn_180ms_ease-out] flex-col border-r border-cyan-300/20 bg-[#06101c]/95 text-right text-white shadow-[0_0_90px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:w-[92vw]"
                 onClick={(event) => event.stopPropagation()}
@@ -2418,7 +2559,7 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 max-md:pb-28">
                   <div className="grid gap-2 sm:grid-cols-3">
                     <div className="rounded-2xl border border-cyan-300/15 bg-[#091522]/85 px-3 py-3">
                       <p className="text-[11px] font-bold text-slate-500">
@@ -2798,7 +2939,7 @@ export default function OrdersPage() {
                   </DrawerSection>
                 </div>
 
-                <div className="sticky bottom-0 border-t border-cyan-300/15 bg-[#07111d]/95 p-4 backdrop-blur-xl">
+                <div className="sticky bottom-0 hidden border-t border-cyan-300/15 bg-[#07111d]/95 p-4 backdrop-blur-xl md:block">
                   <p className="mb-3 text-sm font-black text-white">إجراءات سريعة</p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -2868,12 +3009,93 @@ export default function OrdersPage() {
                     </button>
                   </div>
                 </div>
+                <MobileStickyActionBar
+                  hasBottomNavigation={false}
+                  loading={updatingId === detailsDrawerOrder.id}
+                  primaryAction={
+                    <button
+                      type="button"
+                      disabled={
+                        !canManageOrders ||
+                        isFinalOrderStatus(detailsDrawerOrder) ||
+                        updatingId === detailsDrawerOrder.id
+                      }
+                      onClick={() => {
+                        const nextStatus = getNextAllowedStatus(detailsDrawerOrder)
+                        if (!nextStatus) {
+                          showError(INVALID_STATUS_SEQUENCE_MESSAGE)
+                          return
+                        }
+                        setStatusModalOrder(detailsDrawerOrder)
+                        setStatusModalValue(nextStatus)
+                        setStatusModalOptionKey(
+                          nextStatus === 'closed' ? 'delivered_closed' : nextStatus
+                        )
+                        setStatusDropdownOpen(false)
+                      }}
+                      className="min-h-12 w-full rounded-2xl bg-cyan-300 px-4 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      تعديل الحالة
+                    </button>
+                  }
+                  secondaryAction={
+                    <button
+                      type="button"
+                      onClick={() => setMobileActionsOpen(true)}
+                      className="min-h-12 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 text-sm font-black text-cyan-100"
+                    >
+                      المزيد
+                    </button>
+                  }
+                />
+                <MobileActionSheet
+                  open={mobileActionsOpen}
+                  onClose={() => setMobileActionsOpen(false)}
+                  title="إجراءات الطلب"
+                  description={`الطلب #${detailsDrawerOrder.invoice_number || detailsDrawerOrder.order_number}`}
+                  actions={[
+                    {
+                      key: 'send-pdf',
+                      label:
+                        invoicePdfActionByOrderId[detailsDrawerOrder.id] === 'send'
+                          ? 'جارٍ تجهيز الفاتورة وإرسالها...'
+                          : whatsappStatusByOrderId[detailsDrawerOrder.id] === 'sent'
+                            ? 'إعادة إرسال PDF'
+                            : 'إرسال PDF',
+                      disabled:
+                        !canManageOrders ||
+                        !whatsappFeatureEnabled ||
+                        detailsDrawerActionsDisabled ||
+                        detailsDrawerOrder.items.length === 0 ||
+                        Boolean(invoicePdfActionByOrderId[detailsDrawerOrder.id]),
+                      onSelect: () => sendDigitalInvoicePdf(detailsDrawerOrder),
+                    },
+                    {
+                      key: 'print',
+                      label:
+                        invoicePdfActionByOrderId[detailsDrawerOrder.id] === 'print'
+                          ? INVOICE_UX_MESSAGES.printPreparing
+                          : 'طباعة الفاتورة',
+                      disabled:
+                        detailsDrawerActionsDisabled ||
+                        Boolean(invoicePdfActionByOrderId[detailsDrawerOrder.id]),
+                      onSelect: () => printThermalReceipt(detailsDrawerOrder),
+                    },
+                    {
+                      key: 'cancel',
+                      label: 'إلغاء الطلب',
+                      destructive: true,
+                      disabled: !canCancelOrders || isFinalOrderStatus(detailsDrawerOrder),
+                      onSelect: () => setCancelModalOrder(detailsDrawerOrder),
+                    },
+                  ]}
+                />
               </aside>
             </div>
           ) : null}
           {invoicePreviewFrame ? (
             <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[#020817]/80 p-3 backdrop-blur-md sm:p-5">
-              <div className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] sm:max-h-[88dvh] ${
+              <div data-admin-preview className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[28px] border border-cyan-300/25 bg-[#07111d]/95 shadow-[0_0_80px_rgba(34,211,238,0.18)] sm:max-h-[88dvh] ${
                 invoicePreviewFrame.srcDoc ? 'max-w-[520px]' : 'max-w-[1180px]'
               }`}>
                 <div className="flex items-center justify-between gap-4 border-b border-cyan-300/15 px-4 py-3 sm:px-5">
@@ -2934,7 +3156,7 @@ export default function OrdersPage() {
           ) : null}
           {statusModalOrder ? (
             <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-              <div className="w-full max-w-md rounded-[28px] border border-cyan-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
+              <div data-admin-dialog className="w-full max-w-md rounded-[28px] border border-cyan-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-200/70">
@@ -3095,7 +3317,7 @@ export default function OrdersPage() {
           ) : null}
           {cancelModalOrder ? (
             <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
-              <div className="w-full max-w-md rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
+              <div data-admin-dialog className="w-full max-w-md rounded-[28px] border border-rose-300/20 bg-[#07111d] p-5 text-right shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.25em] text-rose-200/70">

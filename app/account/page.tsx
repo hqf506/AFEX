@@ -257,7 +257,7 @@ export default function AccountPage() {
                       value={tenantName}
                       onChange={(event) => setTenantName(event.target.value)}
                       className={fieldClass}
-                      placeholder="مثال: Leather Fix"
+                      placeholder="مثال: AFEX"
                       autoComplete="organization"
                     />
                   </label>

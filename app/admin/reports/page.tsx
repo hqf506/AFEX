@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminDarkDateInput } from '@/components/admin-dark-date-input'
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { AdminAlert, AdminEmptyState } from '@/components/admin-ui'
+import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import { useAuthState } from '@/components/auth-state-provider'
 import { getRoleLabel } from '@/lib/app-roles'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
@@ -373,7 +374,7 @@ export default function ReportsPage() {
       }
 
       if (lowerName.includes('leather-fix') || lowerName.includes('leather fix')) {
-        return 'فرع Leather-Fix'
+        return 'فرع AFEX'
       }
 
       return name
@@ -779,11 +780,15 @@ export default function ReportsPage() {
   return (
     <div className="min-h-full">
       <div className="w-full space-y-6">
+        <MobilePageHeader
+          title="التقارير"
+          subtitle={`${rangeLabel} · ${selectedBranchLabel}`}
+        />
         {errorMessage ? (
           <AdminAlert tone="error">{errorMessage}</AdminAlert>
         ) : null}
 
-        <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.24)] backdrop-blur">
+        <section className="relative hidden overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.24)] backdrop-blur md:block">
           <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-cyan-400/15 blur-[90px]" />
           <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="text-right">
@@ -824,7 +829,7 @@ export default function ReportsPage() {
           </div>
         </section>
 
-        <section className="rounded-[26px] border border-white/10 bg-white/[0.035] p-4 backdrop-blur">
+        <section data-mobile-report-filters className="rounded-[22px] border border-white/10 bg-white/[0.035] p-3 backdrop-blur sm:p-4 md:rounded-[26px]">
           <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
             <label className="block text-right">
               <span className="mb-2 block text-xs font-bold text-slate-500">
@@ -867,7 +872,7 @@ export default function ReportsPage() {
               )}
             </label>
 
-            <div className="flex items-end gap-2">
+            <div className="grid grid-cols-3 items-end gap-2 sm:flex">
               <button
                 type="button"
                 onClick={() => fetchReportsData()}
@@ -894,7 +899,7 @@ export default function ReportsPage() {
           </div>
         </section>
 
-        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <section data-responsive-report-cards className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {kpiCards.map((card) => (
             <ReportKpiCard
               key={card.title}

@@ -370,7 +370,7 @@ export default function AdminVatPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSave} className="space-y-5">
+          <form data-mobile-vat-form onSubmit={handleSave} className="space-y-5">
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="text-right">
                 <label className="mb-2 block text-sm font-bold text-slate-200">
@@ -429,7 +429,7 @@ export default function AdminVatPage() {
               <button
                 type="submit"
                 disabled={!canSave || saving || loadingSetting}
-                className="inline-flex h-14 min-w-[180px] items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition duration-150 hover:scale-[1.01] hover:shadow-[0_0_45px_rgba(34,211,238,0.3)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-14 w-full min-w-0 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition duration-150 hover:scale-[1.01] hover:shadow-[0_0_45px_rgba(34,211,238,0.3)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[180px]"
               >
                 {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
               </button>

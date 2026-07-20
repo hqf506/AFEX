@@ -16,6 +16,8 @@ export type ApiAuthProfile = {
   is_active: boolean
   username: string | null
   full_name: string | null
+  contact_email: string | null
+  phone: string | null
   tenant_id: string | null
 } & BranchAwareProfileFields
 
@@ -63,7 +65,7 @@ export async function requireApiAuth(
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, role, is_active, username, full_name, branch_id, tenant_id')
+      .select('id, role, is_active, username, full_name, contact_email, phone, branch_id, tenant_id')
       .eq('id', user.id)
       .single()
 

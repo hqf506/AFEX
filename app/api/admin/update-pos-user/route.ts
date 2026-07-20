@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { after } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
 import { writeAuditLog } from '@/lib/audit-log'
@@ -18,8 +19,10 @@ import {
 } from '@/lib/admin/users'
 import { type AppRole } from '@/lib/app-roles'
 import { type AuthScopeType } from '@/lib/auth-profile'
-import { safeErrorDetails } from '@/lib/security/redaction'
+import { maskId, safeErrorDetails } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { sendWelcomeEmail } from '@/lib/auth/email'
+import { INTERNAL_USERS_EMAIL_DOMAIN } from '@/lib/usernames'
 
 type UpdatePosUserBody = {
   userId?: string
@@ -59,6 +62,8 @@ type ExistingPosProfile = {
   pos_pin_hash: string | null
 }
 
+const MAX_EMAIL_LENGTH = 254
+
 function normalizeUsername(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -88,7 +93,11 @@ function isFullAdminRole(role: AppRole) {
 }
 
 function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+  return value.length <= MAX_EMAIL_LENGTH && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function isInternalGeneratedEmail(value: string) {
+  return value.endsWith(`@${INTERNAL_USERS_EMAIL_DOMAIN}`)
 }
 
 function isValidPosPin(value: string) {
@@ -523,6 +532,14 @@ export async function POST(request: NextRequest) {
         return withAuthCookies(auth.response, response)
       }
 
+      if (isInternalGeneratedEmail(contactEmail)) {
+        const response = jsonResponse(
+          { error: 'لا يمكن استخدام بريد النظام الداخلي لحساب تسجيل الدخول' },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
       if (adminPassword && !hasValidAdminPasswordLength(adminPassword)) {
         const response = jsonResponse(
           { error: 'كلمة مرور لوحة التحكم يجب أن تكون 6 أحرف أو أكثر' },
@@ -697,6 +714,20 @@ export async function POST(request: NextRequest) {
         return withAuthCookies(auth.response, response)
       }
 
+      const { data: currentAuthUserData, error: currentAuthUserError } =
+        await supabaseAdmin.auth.admin.getUserById(userId)
+      const previousAuthEmail = currentAuthUserData.user?.email
+        ?.trim()
+        .toLowerCase()
+
+      if (currentAuthUserError || !previousAuthEmail) {
+        const response = jsonResponse(
+          { error: 'تعذر التحقق من حساب تسجيل الدخول الحالي' },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
       const existingAuthUser = usersData.users.find(
         (user) =>
           user.id !== userId &&
@@ -737,25 +768,52 @@ export async function POST(request: NextRequest) {
         return withAuthCookies(auth.response, response)
       }
 
-      const { error: updateProfileError } = await supabaseAdmin
-        .from('profiles')
-        .update({
-          full_name: fullName,
-          username,
-          contact_email: contactEmail,
-          role,
-          branch_id: branchId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId)
-        .eq('tenant_id', tenantId)
+      const { data: updatedProfile, error: updateProfileError } =
+        await supabaseAdmin
+          .from('profiles')
+          .update({
+            full_name: fullName,
+            username,
+            contact_email: contactEmail,
+            role,
+            branch_id: branchId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId)
+          .eq('tenant_id', tenantId)
+          .select('id')
+          .maybeSingle()
 
-      if (updateProfileError) {
+      if (updateProfileError || !updatedProfile) {
+        const emailChanged = previousAuthEmail !== contactEmail
+        let emailRollbackFailed = false
+
+        if (emailChanged) {
+          const { error: emailRollbackError } =
+            await supabaseAdmin.auth.admin.updateUserById(userId, {
+              email: previousAuthEmail,
+              email_confirm: true,
+            })
+
+          emailRollbackFailed = Boolean(emailRollbackError)
+
+          if (emailRollbackFailed) {
+            console.error('[admin-user-email-sync] compensation failed', {
+              category: 'AUTH_EMAIL_ROLLBACK_FAILED',
+              user: maskId(userId),
+            })
+          }
+        }
+
         const response = jsonResponse(
           {
-            error: 'فشل تحديث مستخدم لوحة التحكم',
+            error: emailRollbackFailed
+              ? 'تعذر إكمال مزامنة البريد الإلكتروني. راجع سجل الخادم قبل إعادة المحاولة.'
+              : emailChanged
+                ? 'تعذر حفظ بيانات المستخدم، وتم التراجع عن تحديث البريد الإلكتروني.'
+                : 'تعذر حفظ بيانات المستخدم.',
             ...safeErrorDetails(
-              updateProfileError,
+              updateProfileError || 'Profile update returned no matching row',
               'تعذر تحديث مستخدم لوحة التحكم'
             ),
           },
@@ -848,8 +906,7 @@ export async function POST(request: NextRequest) {
           new_role: role,
           old_branch_id: currentBranchId,
           new_branch_id: branchId,
-          old_contact_email: existingProfile.contact_email,
-          new_contact_email: contactEmail,
+          contact_email_changed: previousAuthEmail !== contactEmail,
         },
       })
 
@@ -904,6 +961,14 @@ export async function POST(request: NextRequest) {
       if (!isValidEmail(contactEmail)) {
         const response = jsonResponse(
           { error: 'صيغة البريد الإلكتروني غير صحيحة' },
+          400
+        )
+        return withAuthCookies(auth.response, response)
+      }
+
+      if (isInternalGeneratedEmail(contactEmail)) {
+        const response = jsonResponse(
+          { error: 'لا يمكن استخدام بريد النظام الداخلي لحساب تسجيل الدخول' },
           400
         )
         return withAuthCookies(auth.response, response)
@@ -1292,6 +1357,17 @@ export async function POST(request: NextRequest) {
           new_branch_id: branchId,
         },
       })
+
+      if (!existingSameIdAuthUser) {
+        after(async () => {
+          await sendWelcomeEmail({
+            accountId: nextProfileId,
+            recipient: contactEmail,
+            displayName: fullName,
+            role,
+          })
+        })
+      }
 
       const response = jsonResponse({ success: true })
       return withAuthCookies(auth.response, response)

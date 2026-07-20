@@ -34,6 +34,7 @@ export function canAccessAdminPath(role: RoleLike, pathname: string | null | und
 
   return (
     normalizedPathname === '/admin/orders' ||
+    normalizedPathname.startsWith('/admin/support') ||
     normalizedPathname === '/admin/reports' ||
     normalizedPathname.startsWith('/admin/reports/')
   )

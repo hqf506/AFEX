@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.2"
+     baseProfile="tiny-ps"
+     xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     viewBox="0 0 1000 1000">
+  <title>AFEX</title>
+
+  <!-- Solid BIMI-safe background -->
+  <rect width="1000" height="1000" fill="#061225"/>
+
+  <!-- AFEX emblem -->
+  <path d="M240 615 L500 245 L735 170 L560 495 L770 495 L738 530 L530 530 L240 680 Z"
+        fill="#16DDE1"/>
+  <path d="M286 594 L515 278 L665 230 L524 486 L286 630 Z"
+        fill="#061225"/>
+
+  <!-- AFEX wordmark, built from vector shapes (no fonts) -->
+  <!-- A -->
+  <path d="M165 805 L235 635 L305 805 L270 805 L257 770 L213 770 L200 805 Z
+           M224 740 L246 740 L235 690 Z"
+        fill="#FFFFFF" fill-rule="evenodd"/>
+
+  <!-- F -->
+  <path d="M340 635 H465 V670 H380 V705 H450 V740 H380 V805 H340 Z"
+        fill="#FFFFFF"/>
+
+  <!-- E -->
+  <path d="M500 635 H625 V670 H540 V702 H612 V737 H540 V770 H625 V805 H500 Z"
+        fill="#FFFFFF"/>
+
+  <!-- X -->
+  <path d="M665 635 H708 L747 692 L786 635 H829 L769 719 L833 805 H790 L747 746 L704 805 H661 L725 719 Z"
+        fill="#FFFFFF"/>
+</svg>

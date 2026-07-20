@@ -62,6 +62,7 @@ type AdminCustomersPageProps = {
     mode?: string
     saved?: string
     page?: string
+    search?: string
   }>
 }
 
@@ -364,6 +365,7 @@ export default async function AdminCustomersPage({
     mode = '',
     saved,
     page: rawPage,
+    search: rawSearch = '',
   } = await searchParams
   const { supabase, tenantId, error } = await getCurrentTenantContext()
 
@@ -377,6 +379,7 @@ export default async function AdminCustomersPage({
   let customerStatsById = new Map<string, CustomerStats>()
   let errorMessage = error
   const requestedPage = Math.max(1, Math.floor(Number(rawPage) || 1))
+  const search = rawSearch.trim().slice(0, 120)
   let currentPage = requestedPage
   let totalCustomers = 0
 
@@ -389,6 +392,7 @@ export default async function AdminCustomersPage({
       pageSize: String(CUSTOMER_PAGE_SIZE),
       view: 'admin',
     })
+    if (search) params.set('q', search)
     const customersResponse = host
       ? await fetch(`${protocol}://${host}/api/customers?${params}`, {
           headers: { cookie: requestHeaders.get('cookie') || '' },
@@ -576,6 +580,22 @@ export default async function AdminCustomersPage({
             </span>
           </div>
 
+          <form action="/admin/customers" method="get" className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:max-w-xl">
+            <label className="min-w-0">
+              <span className="sr-only">بحث في العملاء</span>
+              <input
+                type="search"
+                name="search"
+                defaultValue={search}
+                placeholder="اسم العميل أو رقم الجوال"
+                className="h-12 w-full min-w-0 rounded-2xl border border-cyan-300/15 bg-[#07111f] px-4 text-right text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/15"
+              />
+            </label>
+            <button type="submit" className="h-12 rounded-2xl bg-cyan-300 px-4 text-xs font-black text-slate-950">
+              بحث
+            </button>
+          </form>
+
           {customers.length === 0 ? (
             <AdminEmptyState
               title="لا يوجد عملاء حتى الآن."
@@ -583,7 +603,7 @@ export default async function AdminCustomersPage({
             />
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#06111f]/65">
-              <table className="w-full min-w-[1120px] table-fixed text-right">
+              <table data-responsive-table="customers" className="responsive-admin-table w-full min-w-[1120px] table-fixed text-right">
                 <colgroup>
                   <col className="w-[20%]" />
                   <col className="w-[16%]" />
@@ -616,15 +636,29 @@ export default async function AdminCustomersPage({
                         key={customer.id}
                         className="group cursor-pointer border-b border-white/[0.08] bg-slate-500/[0.045] transition duration-200 hover:bg-cyan-300/[0.055] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10),0_0_26px_rgba(34,211,238,0.08)] last:border-b-0"
                       >
-                        <td className="p-0">
+                        <td className="p-0 max-md:!block max-md:!border-0 max-md:before:!hidden">
                           <Link
                             href={customerHref}
-                            className="block truncate px-3 py-4 text-sm font-black text-white transition group-hover:text-cyan-100"
+                            className="hidden truncate px-3 py-4 text-sm font-black text-white transition group-hover:text-cyan-100 md:block"
                           >
                             {customer.name || 'بدون اسم'}
                           </Link>
+                          <Link data-mobile-customer-card href={customerHref} className="block min-w-0 p-4 md:hidden">
+                            <div className="flex min-w-0 items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-base font-black text-white">{customer.name || 'بدون اسم'}</p>
+                                <p dir="ltr" className="mt-1 truncate text-right text-sm font-bold text-cyan-100">{customer.phone || EMPTY_VALUE}</p>
+                              </div>
+                              <span className="shrink-0 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-black text-cyan-100">عرض</span>
+                            </div>
+                            <div className="mt-4 grid grid-cols-2 gap-2">
+                              <span className="rounded-xl border border-white/[0.07] bg-black/20 p-3"><span className="block text-[10px] font-bold text-slate-500">عدد الطلبات</span><span className="mt-1 block text-sm font-black text-white">{stats.visitsCount}</span></span>
+                              <span className="rounded-xl border border-white/[0.07] bg-black/20 p-3"><span className="block text-[10px] font-bold text-slate-500">إجمالي الإنفاق</span><span className="mt-1 block text-sm font-black text-emerald-200">{formatCurrency(stats.totalSpent)}</span></span>
+                            </div>
+                            <span className="mt-3 block text-[11px] font-bold text-slate-500">آخر نشاط: {formatDate(stats.lastVisit)}</span>
+                          </Link>
                         </td>
-                        <td className="p-0">
+                        <td className="p-0 max-md:!hidden">
                           <Link
                             href={customerHref}
                             className="block truncate px-3 py-4 text-sm font-bold text-slate-200 transition group-hover:text-cyan-50"
@@ -632,7 +666,7 @@ export default async function AdminCustomersPage({
                             {customer.phone || EMPTY_VALUE}
                           </Link>
                         </td>
-                        <td className="p-0">
+                        <td className="p-0 max-md:!hidden">
                           <Link
                             href={customerHref}
                             className="block px-3 py-4 text-sm font-bold text-slate-300 transition group-hover:text-slate-100"
@@ -640,7 +674,7 @@ export default async function AdminCustomersPage({
                             {formatDate(stats.firstVisit)}
                           </Link>
                         </td>
-                        <td className="p-0">
+                        <td className="p-0 max-md:!hidden">
                           <Link
                             href={customerHref}
                             className="block px-3 py-4 text-sm font-bold text-slate-300 transition group-hover:text-slate-100"
@@ -648,7 +682,7 @@ export default async function AdminCustomersPage({
                             {formatDate(stats.lastVisit)}
                           </Link>
                         </td>
-                        <td className="p-0">
+                        <td className="p-0 max-md:!hidden">
                           <Link
                             href={customerHref}
                             className="block px-3 py-4 text-sm font-black text-slate-200 transition group-hover:text-cyan-50"
@@ -656,7 +690,7 @@ export default async function AdminCustomersPage({
                             {stats.visitsCount}
                           </Link>
                         </td>
-                        <td className="p-0">
+                        <td className="p-0 max-md:!hidden">
                           <Link
                             href={customerHref}
                             className="block px-3 py-4 text-sm font-black text-slate-200 transition group-hover:text-cyan-50"
@@ -664,7 +698,7 @@ export default async function AdminCustomersPage({
                             {formatCurrency(stats.totalSpent)}
                           </Link>
                         </td>
-                        <td className="p-0">
+                        <td className="p-0 max-md:!hidden">
                           <Link
                             href={customerHref}
                             className="block px-3 py-4 text-sm font-black text-cyan-100 transition group-hover:text-cyan-50"
@@ -680,9 +714,9 @@ export default async function AdminCustomersPage({
             </div>
           )}
           {totalCustomers > CUSTOMER_PAGE_SIZE ? (
-            <div className="mt-5 flex items-center justify-center gap-3" dir="rtl">
+            <div data-responsive-pagination className="mt-5 flex items-center justify-center gap-3" dir="rtl">
               <Link
-                href={`/admin/customers?page=${Math.max(1, currentPage - 1)}`}
+                href={`/admin/customers?page=${Math.max(1, currentPage - 1)}${search ? `&search=${encodeURIComponent(search)}` : ''}`}
                 aria-disabled={currentPage <= 1}
                 className={`inline-flex h-10 items-center rounded-xl border border-cyan-300/15 px-4 text-xs font-black ${currentPage <= 1 ? 'pointer-events-none opacity-40' : 'bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15'}`}
               >
@@ -692,7 +726,7 @@ export default async function AdminCustomersPage({
                 صفحة {currentPage} من {Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE)}
               </span>
               <Link
-                href={`/admin/customers?page=${Math.min(Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE), currentPage + 1)}`}
+                href={`/admin/customers?page=${Math.min(Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE), currentPage + 1)}${search ? `&search=${encodeURIComponent(search)}` : ''}`}
                 aria-disabled={currentPage >= Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE)}
                 className={`inline-flex h-10 items-center rounded-xl border border-cyan-300/15 px-4 text-xs font-black ${currentPage >= Math.ceil(totalCustomers / CUSTOMER_PAGE_SIZE) ? 'pointer-events-none opacity-40' : 'bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15'}`}
               >
@@ -704,18 +738,20 @@ export default async function AdminCustomersPage({
       </div>
 
       {drawerOpen && selectedCustomer ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-[2px]">
           <Link
             href="/admin/customers"
             className="absolute inset-0"
             aria-label="إغلاق"
           />
-          <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-            <form
+          <div className="absolute inset-y-0 right-0 flex min-h-0 w-full justify-end">
+            <form data-admin-drawer data-mobile-customer-drawer
               action={updateCustomer}
-              className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative h-full w-full max-w-xl overflow-y-auto border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] p-4 text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-6 lg:p-8"
+              className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative flex h-full min-h-0 w-full max-w-xl flex-col overflow-hidden border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]"
             >
               <input type="hidden" name="customerId" value={selectedCustomer.id} />
+
+              <header className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
 
               {drawerEditMode ? null : drawerPurchasesMode ? (
                 <div className="mb-6 flex justify-start">
@@ -794,7 +830,15 @@ export default async function AdminCustomersPage({
                   </p>
                 </div>
 
-                {drawerEditMode ? null : (
+                {drawerEditMode ? (
+                  <Link
+                    href={`/admin/customers?customerId=${selectedCustomer.id}`}
+                    className="inline-flex h-12 min-w-12 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 text-sm font-black text-cyan-100 shadow-[0_16px_45px_rgba(0,0,0,0.28)] transition hover:bg-cyan-300/15"
+                    aria-label="الرجوع إلى بيانات العميل"
+                  >
+                    رجوع
+                  </Link>
+                ) : (
                   <Link
                     href="/admin/customers"
                     className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-2xl font-light text-slate-200 shadow-[0_16px_45px_rgba(0,0,0,0.28)] transition hover:bg-white/[0.07] hover:text-white"
@@ -804,7 +848,9 @@ export default async function AdminCustomersPage({
                   </Link>
                 )}
               </div>
+              </header>
 
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8">
               {drawerPurchasesMode ? (
                 <div className="space-y-3">
                   {selectedCustomerPurchases.length === 0 ? (
@@ -999,23 +1045,6 @@ export default async function AdminCustomersPage({
                       />
                     </label>
 
-                    <div
-                      dir="ltr"
-                      className="flex justify-start gap-2 border-t border-white/10 pt-4"
-                    >
-                      <button
-                        type="submit"
-                        className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01]"
-                      >
-                        حفظ
-                      </button>
-                      <Link
-                        href={`/admin/customers?customerId=${selectedCustomer.id}`}
-                        className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-6 text-sm font-black text-slate-200 transition hover:bg-white/[0.07]"
-                      >
-                        إلغاء
-                      </Link>
-                    </div>
                   </div>
                 </div>
               ) : (
@@ -1156,6 +1185,14 @@ export default async function AdminCustomersPage({
                   </div>
                 </div>
               )}
+              </div>
+
+              {drawerEditMode ? (
+                <footer dir="ltr" className="grid shrink-0 grid-cols-2 gap-2 border-t border-white/10 bg-[#050b16]/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:flex sm:justify-start sm:px-6 lg:px-8">
+                  <button type="submit" className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-6 text-sm font-black text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.22)] transition hover:scale-[1.01]">حفظ</button>
+                  <Link href={`/admin/customers?customerId=${selectedCustomer.id}`} className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-6 text-sm font-black text-slate-200 transition hover:bg-white/[0.07]">إلغاء</Link>
+                </footer>
+              ) : null}
 
             </form>
           </div>

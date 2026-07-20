@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { isFullAdmin } from '@/lib/permissions'
@@ -190,6 +190,19 @@ export default function LandingPage() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [protectedNavLoading, setProtectedNavLoading] = useState(false)
   const [protectedNavMessage, setProtectedNavMessage] = useState('')
+  const [developerAllowed, setDeveloperAllowed] = useState(false)
+
+  useEffect(() => {
+    if (authState.status !== 'authenticated') {
+      return
+    }
+    const controller = new AbortController()
+    void fetch('/api/developer/access', { cache: 'no-store', signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => setDeveloperAllowed(result?.allowed === true))
+      .catch(() => setDeveloperAllowed(false))
+    return () => controller.abort()
+  }, [authState.status])
 
   const profileName = authState.profile?.full_name?.trim() || ''
   const profileRole = authState.profile?.role || ''
@@ -199,10 +212,15 @@ export default function LandingPage() {
   const isAuthReadyForProtectedNav =
     authState.status === 'authenticated' && Boolean(authState.profile)
   const visibleQuickLinks = isSignedInForUi
-    ? quickLinks.filter((link) =>
-        link.href === '/pos' ||
-        (link.href === '/admin/dashboard' && Boolean(adminEntryPath))
-      )
+    ? [
+        ...(adminEntryPath
+          ? [{ href: '/admin/dashboard', label: 'لوحة التحكم' }]
+          : []),
+        { href: '/pos', label: 'نقطة البيع POS' },
+        ...(developerAllowed
+          ? [{ href: '/developer', label: 'مركز المطور' }]
+          : []),
+      ]
     : quickLinks
 
   function openLoginModal() {
@@ -749,6 +767,15 @@ export default function LandingPage() {
                   className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
                   autoComplete="current-password"
                 />
+              </div>
+
+              <div className="text-center">
+                <Link
+                  href="/login?forgot=password"
+                  className="text-sm font-black text-cyan-200/85 underline decoration-cyan-300/30 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-200/60"
+                >
+                  نسيت كلمة المرور؟
+                </Link>
               </div>
 
               <div className="flex justify-end gap-3 pt-1">

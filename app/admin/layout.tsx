@@ -43,11 +43,20 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     redirect('/')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, is_active')
-    .eq('id', user.id)
-    .maybeSingle()
+  const [{ data: profile }, { data: provider }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('platform_admins')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .in('role', ['provider_owner', 'provider_support'])
+      .maybeSingle(),
+  ])
 
   const role = typeof profile?.role === 'string' ? profile.role : ''
   const isActive = profile?.is_active !== false
@@ -56,5 +65,5 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     return <AdminAccessDenied />
   }
 
-  return <AdminShellLayout>{children}</AdminShellLayout>
+  return <AdminShellLayout isProvider={Boolean(provider)}>{children}</AdminShellLayout>
 }

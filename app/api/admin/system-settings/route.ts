@@ -9,6 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { safeErrorDetails } from '@/lib/security/redaction'
 import { isFullAdmin } from '@/lib/permissions'
+import { createServerTiming } from '@/lib/performance/server-timing'
 
 type OrganizationInfo = {
   storeName: string | null
@@ -25,6 +26,16 @@ type VatSettingInfo = {
   rate: number
   isActive: boolean
   branchId: string | null
+}
+
+type CurrentAccountInfo = {
+  username: string | null
+  fullName: string | null
+  email: string | null
+  phone: string | null
+  branchName: string | null
+  role: string
+  isActive: boolean
 }
 
 const SENSITIVE_SETTINGS_FIELDS = new Set([
@@ -86,10 +97,13 @@ function minimizeOrganizationInfoForRole(
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  const timing = createServerTiming('system-settings')
+  const auth = await timing.measure('auth', () =>
+    requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  )
 
   if (!auth.ok) {
-    return auth.response
+    return timing.finish(auth.response)
   }
 
   try {
@@ -101,7 +115,7 @@ export async function GET(request: NextRequest) {
         settings: null,
       })
 
-      return withAuthCookies(auth.response, response)
+      return timing.finish(withAuthCookies(auth.response, response))
     }
 
     let query = supabaseAdmin
@@ -111,8 +125,59 @@ export async function GET(request: NextRequest) {
 
     query = applyTenantFilter(query, tenantId)
 
-    const { data, error } = await query
-      .maybeSingle()
+    const [
+      settingsResult,
+      tenantResult,
+      ownerResult,
+      branchResult,
+      branchVatResult,
+      globalVatResult,
+    ] = await Promise.all([
+      timing.measure('settings', () => query.maybeSingle()),
+      timing.measure('tenant', () => supabaseAdmin
+        .from('tenants')
+        .select('id, name')
+        .eq('id', tenantId)
+        .maybeSingle()),
+      timing.measure('owner', () => supabaseAdmin
+        .from('profiles')
+        .select('id, username, full_name, contact_email, phone, created_at')
+        .eq('tenant_id', tenantId)
+        .eq('role', 'admin')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()),
+      auth.profile.branch_id
+        ? timing.measure('branches', () => supabaseAdmin
+            .from('branches')
+            .select('id, name, code')
+            .eq('tenant_id', tenantId)
+            .eq('id', auth.profile.branch_id)
+            .maybeSingle())
+        : timing.measure('branches', () => supabaseAdmin
+            .from('branches')
+            .select('id, name, code')
+            .eq('tenant_id', tenantId)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()),
+      auth.profile.branch_id
+        ? timing.measure('vat', () => supabaseAdmin
+            .from('vat_settings')
+            .select('rate, is_active, branch_id')
+            .eq('tenant_id', tenantId)
+            .eq('branch_id', auth.profile.branch_id)
+            .maybeSingle())
+        : Promise.resolve({ data: null, error: null }),
+      timing.measure('vat', () => supabaseAdmin
+        .from('vat_settings')
+        .select('rate, is_active, branch_id')
+        .eq('tenant_id', tenantId)
+        .is('branch_id', null)
+        .maybeSingle()),
+    ])
+
+    const { data, error } = settingsResult
 
     if (error) {
       const response = jsonResponse(
@@ -123,58 +188,8 @@ export async function GET(request: NextRequest) {
         500
       )
 
-      return withAuthCookies(auth.response, response)
+      return timing.finish(withAuthCookies(auth.response, response))
     }
-
-    const [
-      tenantResult,
-      ownerResult,
-      branchResult,
-      branchVatResult,
-      globalVatResult,
-    ] = await Promise.all([
-      supabaseAdmin
-        .from('tenants')
-        .select('id, name')
-        .eq('id', tenantId)
-        .maybeSingle(),
-      supabaseAdmin
-        .from('profiles')
-        .select('id, username, full_name, contact_email, phone, created_at')
-        .eq('tenant_id', tenantId)
-        .eq('role', 'admin')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-      auth.profile.branch_id
-        ? supabaseAdmin
-            .from('branches')
-            .select('id, name, code')
-            .eq('tenant_id', tenantId)
-            .eq('id', auth.profile.branch_id)
-            .maybeSingle()
-        : supabaseAdmin
-            .from('branches')
-            .select('id, name, code')
-            .eq('tenant_id', tenantId)
-            .order('created_at', { ascending: true })
-            .limit(1)
-            .maybeSingle(),
-      auth.profile.branch_id
-        ? supabaseAdmin
-            .from('vat_settings')
-            .select('rate, is_active, branch_id')
-            .eq('tenant_id', tenantId)
-            .eq('branch_id', auth.profile.branch_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-      supabaseAdmin
-        .from('vat_settings')
-        .select('rate, is_active, branch_id')
-        .eq('tenant_id', tenantId)
-        .is('branch_id', null)
-        .maybeSingle(),
-    ])
 
     if (
       tenantResult.error ||
@@ -198,7 +213,7 @@ export async function GET(request: NextRequest) {
         500
       )
 
-      return withAuthCookies(auth.response, response)
+      return timing.finish(withAuthCookies(auth.response, response))
     }
 
     const ownerName =
@@ -225,17 +240,28 @@ export async function GET(request: NextRequest) {
         }
       : null
 
-    const response = jsonResponse({
+    const currentAccount: CurrentAccountInfo = {
+      username: auth.profile.username || null,
+      fullName: auth.profile.full_name || null,
+      email: auth.profile.contact_email || auth.user.email || null,
+      phone: auth.profile.phone || null,
+      branchName: branchResult.data?.name || null,
+      role: auth.profile.role,
+      isActive: auth.profile.is_active,
+    }
+
+    const response = await timing.measure('serialize', async () => jsonResponse({
       success: true,
       settings: sanitizeSystemSettings(data),
+      currentAccount,
       organizationInfo: minimizeOrganizationInfoForRole(
         organizationInfo,
         auth.profile.role
       ),
       vatSetting,
-    })
+    }))
 
-    return withAuthCookies(auth.response, response)
+    return timing.finish(withAuthCookies(auth.response, response))
   } catch (error) {
     const response = jsonResponse(
       {
@@ -245,7 +271,7 @@ export async function GET(request: NextRequest) {
       500
     )
 
-    return withAuthCookies(auth.response, response)
+    return timing.finish(withAuthCookies(auth.response, response))
   }
 }
 

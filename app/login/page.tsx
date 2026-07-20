@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername } from '@/lib/usernames'
@@ -14,16 +14,47 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function LoginPage() {
   const router = useRouter()
+  const resetEmailInputRef = useRef<HTMLInputElement | null>(null)
+  const resetSubmittingRef = useRef(false)
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [authNotice, setAuthNotice] = useState('')
   const [resetModalOpen, setResetModalOpen] = useState(false)
   const [resetIdentifier, setResetIdentifier] = useState('')
   const [resetMessage, setResetMessage] = useState('')
   const [resetError, setResetError] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    if (searchParams.get('forgot') === 'password') {
+      const timer = window.setTimeout(() => setResetModalOpen(true), 0)
+      return () => window.clearTimeout(timer)
+    }
+    if (searchParams.get('password_reset') === 'success') {
+      const timer = window.setTimeout(
+        () => setAuthNotice('تم تحديث كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن.'),
+        0
+      )
+      return () => window.clearTimeout(timer)
+    }
+    if (searchParams.get('recovery') === 'invalid') {
+      const timer = window.setTimeout(
+        () => setAuthNotice('رابط إعادة تعيين كلمة المرور غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا.'),
+        0
+      )
+      return () => window.clearTimeout(timer)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (resetModalOpen) {
+      resetEmailInputRef.current?.focus()
+    }
+  }, [resetModalOpen])
 
   function openResetModal() {
     setResetIdentifier(username)
@@ -40,6 +71,8 @@ export default function LoginPage() {
 
   async function handleResetRequest(e: React.FormEvent) {
     e.preventDefault()
+    if (resetSubmittingRef.current) return
+
     setResetMessage('')
     setResetError('')
 
@@ -51,6 +84,7 @@ export default function LoginPage() {
     }
 
     try {
+      resetSubmittingRef.current = true
       setResetLoading(true)
 
       const response = await fetch('/api/auth/reset-password', {
@@ -60,14 +94,24 @@ export default function LoginPage() {
         },
         body: JSON.stringify({ email }),
       })
+      const result = await response.json().catch(() => null)
       if (!response.ok && response.status !== 429) {
+        if (response.status === 400) {
+          setResetError('أدخل بريدًا إلكترونيًا صالحًا.')
+          return
+        }
         throw new Error('reset request failed')
       }
 
-      setResetMessage('إذا كان البريد مسجلًا، سيتم إرسال رابط إعادة التعيين')
+      setResetMessage(
+        typeof result?.message === 'string'
+          ? result.message
+          : 'إذا كان البريد الإلكتروني مرتبطًا بحساب، فسيتم إرسال رابط إعادة تعيين كلمة المرور.'
+      )
     } catch {
       setResetError('تعذر إرسال رابط إعادة التعيين. حاول مرة أخرى.')
     } finally {
+      resetSubmittingRef.current = false
       setResetLoading(false)
     }
   }
@@ -180,6 +224,12 @@ export default function LoginPage() {
             {error ? (
               <div className="mb-5 rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-100 shadow-[0_0_35px_rgba(251,113,133,0.08)]">
                 {error}
+              </div>
+            ) : null}
+
+            {authNotice ? (
+              <div className="mb-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold leading-7 text-emerald-100" role="status">
+                {authNotice}
               </div>
             ) : null}
 
@@ -339,24 +389,32 @@ export default function LoginPage() {
                 إعادة تعيين كلمة المرور
               </h3>
               <p className="mt-1 text-sm leading-7 text-slate-400">
-                أدخل البريد الإلكتروني أو اسم المستخدم لإرسال رابط إعادة التعيين.
+                أدخل البريد الإلكتروني المرتبط بالحساب لإرسال رابط إعادة التعيين.
               </p>
             </div>
 
             <form onSubmit={handleResetRequest} className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-bold text-slate-200">
-                  البريد الإلكتروني أو اسم المستخدم
+                  البريد الإلكتروني
                 </label>
                 <input
-                  type="text"
+                  ref={resetEmailInputRef}
+                  type="email"
                   value={resetIdentifier}
                   onChange={(e) => setResetIdentifier(e.target.value)}
-                  placeholder="example@afex.com أو اسم المستخدم"
+                  placeholder="example@afex.com"
                   className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 text-right text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:bg-white/[0.09] focus:ring-4 focus:ring-cyan-300/10"
-                  autoComplete="username"
+                  autoComplete="email"
+                  inputMode="email"
+                  maxLength={254}
+                  required
                 />
               </div>
+
+              <p className="text-xs leading-6 text-slate-400">
+                مستخدمو رمز PIN فقط يمكنهم التواصل مع مدير النظام لإعادة تعيين الرمز.
+              </p>
 
               {resetMessage ? (
                 <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-100">
