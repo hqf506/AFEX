@@ -9,6 +9,13 @@ import {
 } from '@/components/developer-support-notifications'
 import { MobileBottomNav } from '@/components/mobile/mobile-bottom-nav'
 import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
+import { NavigationFeedback } from '@/components/navigation-feedback'
+
+const DEVELOPER_PREFETCH_ROUTES = [
+  '/developer',
+  '/developer/support',
+  '/developer/notifications',
+] as const
 
 const links = [
   ['نظرة عامة', '/developer'],
@@ -78,6 +85,7 @@ export function DeveloperShell({ children }: { children: ReactNode }) {
   return (
     <DeveloperSupportNotificationsProvider>
       <div dir="rtl" className="min-h-screen bg-[#030714] text-white">
+        <NavigationFeedback prefetchRoutes={DEVELOPER_PREFETCH_ROUTES} />
         <div className={`mx-auto grid w-full min-w-0 gap-4 p-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-4 md:pb-4 xl:grid-cols-[230px_minmax(0,1fr)] xl:px-5 xl:py-5 ${wide ? 'max-w-[1920px] 2xl:px-6' : 'max-w-[1700px]'}`}>
           <aside className="hidden min-w-0 xl:block">
             <div className="rounded-[24px] border border-cyan-300/15 bg-[#07111f]/90 p-3 backdrop-blur-xl xl:sticky xl:top-5">

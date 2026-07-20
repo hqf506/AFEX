@@ -317,6 +317,23 @@ input[type='number'] {
   }
 }
 
+@keyframes navigation-progress {
+  0% {
+    transform: translateX(110%);
+  }
+  50% {
+    transform: translateX(-20%);
+  }
+  100% {
+    transform: translateX(-110%);
+  }
+}
+
+[data-navigation-pending='true'] {
+  pointer-events: none;
+  opacity: 0.68;
+}
+
 /* Shared Admin filter and pagination sizing without changing filter semantics. */
 @media (max-width: 1279px) {
   [data-responsive-filters] {

@@ -20,6 +20,15 @@ import { canAccessAdminPath } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 import { MobileBottomNav } from '@/components/mobile/mobile-bottom-nav'
 import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
+import { NavigationFeedback } from '@/components/navigation-feedback'
+
+const ADMIN_PREFETCH_ROUTES = [
+  '/admin/dashboard',
+  '/admin/orders',
+  '/admin/customers',
+  '/admin/inventory',
+  '/admin/support',
+] as const
 
 type AdminShellLayoutProps = {
   children: ReactNode
@@ -626,6 +635,7 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
 
   return (
     <div className="min-h-screen bg-[#030714] text-white">
+      <NavigationFeedback prefetchRoutes={ADMIN_PREFETCH_ROUTES} />
       <div className="pointer-events-none fixed inset-0 -z-0">
         <div className="absolute right-[-10rem] top-[-10rem] h-[32rem] w-[32rem] rounded-full bg-cyan-400/14 blur-[120px]" />
         <div className="absolute left-[-12rem] bottom-[-12rem] h-[34rem] w-[34rem] rounded-full bg-emerald-400/10 blur-[130px]" />

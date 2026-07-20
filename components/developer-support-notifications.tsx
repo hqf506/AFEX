@@ -7,6 +7,9 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { AdminDarkSelect } from '@/components/admin-dark-select'
 import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import { ProviderMobileBottomNavigation } from '@/components/mobile/provider-mobile-bottom-nav'
+import { NavigationFeedback } from '@/components/navigation-feedback'
+
+const PROVIDER_PREFETCH_ROUTES = ['/provider/support'] as const
 import type { DeveloperSupportNotification, DeveloperSupportNotificationResponse } from '@/lib/support/contracts'
 
 const POPOVER_LIMIT = 10
@@ -76,19 +79,6 @@ export function DeveloperSupportNotificationsProvider({ children }: { children: 
     if (openingKey) return
     setOpeningKey(item.event_key)
     try {
-      if (item.unread) {
-        const response = await fetch('/api/provider/support/notifications/read', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventType: item.event_type, eventId: item.event_id }),
-        })
-        if (response.ok) {
-          setItems((current) => current.map((entry) => entry.event_key === item.event_key ? { ...entry, unread: false } : entry))
-          setUnreadCount((value) => Math.max(0, value - 1))
-        } else {
-          setError('تعذر تحديث حالة الإشعار، ويمكنك متابعة فتح التذكرة.')
-        }
-      }
       const supportPath = pathname.startsWith('/provider') ? '/provider/support' : '/developer/support'
       if (pathname === supportPath) {
         const next = new URL(window.location.href)
@@ -97,6 +87,21 @@ export function DeveloperSupportNotificationsProvider({ children }: { children: 
         window.dispatchEvent(new CustomEvent('provider-support:open-ticket', { detail: { ticketId: item.ticket_id } }))
       } else {
         router.push(`${supportPath}?ticket=${encodeURIComponent(item.ticket_id)}`)
+      }
+
+      if (item.unread) {
+        setItems((current) => current.map((entry) => entry.event_key === item.event_key ? { ...entry, unread: false } : entry))
+        setUnreadCount((value) => Math.max(0, value - 1))
+        const response = await fetch('/api/provider/support/notifications/read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventType: item.event_type, eventId: item.event_id }),
+        })
+        if (!response.ok) {
+          setItems((current) => current.map((entry) => entry.event_key === item.event_key ? { ...entry, unread: true } : entry))
+          setUnreadCount((value) => value + 1)
+          setError('تعذر تحديث حالة الإشعار، ويمكنك متابعة فتح التذكرة.')
+        }
       }
     } finally {
       setOpeningKey('')
@@ -224,6 +229,7 @@ export function DeveloperSupportNotifications() {
 
 export function ProviderNotificationsShell({ children, notificationsEnabled }: { children: ReactNode; notificationsEnabled: boolean }) {
   const content = <>
+    <NavigationFeedback prefetchRoutes={PROVIDER_PREFETCH_ROUTES} />
     <MobilePageHeader title="تذاكر العملاء" subtitle="دعم المنصة" notification={notificationsEnabled ? <DeveloperSupportNotifications /> : undefined} action={<span className="grid size-9 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10 text-xs font-black text-emerald-200">AF</span>} className="mb-3" />
     <header className="mb-4 hidden items-center justify-end gap-2 rounded-[20px] border border-white/10 bg-[#07111f]/80 px-3 py-2 backdrop-blur-xl md:flex">
       <div className="flex min-w-0 items-center gap-2"><span className="grid size-9 shrink-0 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10 text-sm font-black text-emerald-200">AF</span><span className="min-w-0 leading-tight"><span className="block truncate text-xs font-black text-white">فريق AFEX</span><span className="mt-1 block text-[10px] font-bold text-slate-400">دعم المنصة</span></span></div>
