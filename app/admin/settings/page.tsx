@@ -1,7 +1,6 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
 import { AdminAlert } from '@/components/admin-ui'
 import { MobilePageHeader } from '@/components/mobile/mobile-primitives'
 import {
@@ -67,6 +66,13 @@ type CurrentAccountInfo = {
   isActive: boolean
 }
 
+type AccountEditForm = {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+}
+
 const cardClassName =
   'rounded-[28px] border border-cyan-300/15 bg-[#07111d]/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl'
 
@@ -96,6 +102,14 @@ function safeValue(value?: string | null) {
   return normalized
 }
 
+function splitFullName(fullName?: string | null) {
+  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean)
+  return {
+    firstName: parts[0] || '',
+    lastName: parts.slice(1).join(' '),
+  }
+}
+
 export default function AdminSettingsPage() {
   const access = usePageAccess(['admin'])
   const [activeTab, setActiveTab] = useState<SettingsTab>('status')
@@ -105,6 +119,20 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<SystemSettings | null>(null)
   const [currentAccount, setCurrentAccount] = useState<CurrentAccountInfo | null>(null)
+  const [accountEditing, setAccountEditing] = useState(false)
+  const [accountSaving, setAccountSaving] = useState(false)
+  const [accountVerifying, setAccountVerifying] = useState(false)
+  const [accountEditForm, setAccountEditForm] = useState<AccountEditForm>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+  })
+  const [pendingAccountEmail, setPendingAccountEmail] = useState('')
+  const [emailChangeRequiresCurrentConfirmation, setEmailChangeRequiresCurrentConfirmation] = useState(false)
+  const [emailChangeOtp, setEmailChangeOtp] = useState('')
+  const [accountSuccessMessage, setAccountSuccessMessage] = useState('')
+  const [accountErrorMessage, setAccountErrorMessage] = useState('')
   const [form, setForm] = useState<SystemSettingsPayload>(() =>
     createDefaultSystemSettingsPayload()
   )
@@ -221,6 +249,202 @@ export default function AdminSettingsPage() {
     setForm(createSystemSettingsPayload(settings))
     setSuccessMessage('')
     setErrorMessage('')
+  }
+
+  const startAccountEditing = () => {
+    if (!currentAccount || accountSaving || accountVerifying) return
+    const name = splitFullName(currentAccount.fullName)
+    setAccountEditForm({
+      firstName: name.firstName,
+      lastName: name.lastName,
+      email: currentAccount.email || '',
+      phone: currentAccount.phone || '',
+    })
+    setAccountSuccessMessage('')
+    setAccountErrorMessage('')
+    setAccountEditing(true)
+  }
+
+  const cancelAccountEditing = () => {
+    if (accountSaving || accountVerifying) return
+    setAccountEditing(false)
+    setAccountSuccessMessage('')
+    setAccountErrorMessage('')
+  }
+
+  const saveAccountDetails = async () => {
+    if (!currentAccount || accountSaving || accountVerifying) return
+
+    const firstName = accountEditForm.firstName.trim()
+    const lastName = accountEditForm.lastName.trim()
+    const fullName = [firstName, lastName].filter(Boolean).join(' ')
+    const phone = accountEditForm.phone.trim()
+    const email = accountEditForm.email.trim().toLowerCase()
+    const currentEmail = currentAccount.email?.trim().toLowerCase() || ''
+
+    setAccountSuccessMessage('')
+    setAccountErrorMessage('')
+
+    if (!firstName || !phone || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setAccountErrorMessage('تحقق من الاسم ورقم الجوال والبريد الإلكتروني ثم حاول مرة أخرى.')
+      return
+    }
+
+    setAccountSaving(true)
+    try {
+      const profileResponse = await fetch('/api/account', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: fullName, phone }),
+      })
+      const profileResult = await profileResponse.json().catch(() => null)
+
+      if (!profileResponse.ok || !profileResult?.success) {
+        setAccountErrorMessage(
+          getClientErrorMessage(profileResult, 'تعذر حفظ بيانات الحساب حاليًا.')
+        )
+        return
+      }
+
+      setCurrentAccount((previous) => previous ? {
+        ...previous,
+        fullName: profileResult.account?.full_name || fullName,
+        phone: profileResult.account?.phone || phone,
+      } : previous)
+
+      if (email === currentEmail) {
+        setAccountEditing(false)
+        setAccountSuccessMessage('تم تحديث بيانات الحساب بنجاح.')
+        return
+      }
+
+      const emailResponse = await fetch('/api/account/email-change', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const emailResult = await emailResponse.json().catch(() => null)
+
+      if (!emailResponse.ok || !emailResult?.success) {
+        setAccountErrorMessage(
+          `تم حفظ الاسم والجوال، ولكن ${getClientErrorMessage(emailResult, 'تعذر بدء تغيير البريد الإلكتروني.')}`
+        )
+        return
+      }
+
+      setPendingAccountEmail(email)
+      setEmailChangeRequiresCurrentConfirmation(false)
+      setEmailChangeOtp('')
+      setAccountEditing(false)
+      setAccountSuccessMessage('تم إرسال رمز التحقق إلى البريد الإلكتروني الجديد')
+    } catch (error) {
+      setAccountErrorMessage(
+        getArabicErrorMessage(error, 'تعذر تحديث بيانات الحساب حاليًا.')
+      )
+    } finally {
+      setAccountSaving(false)
+    }
+  }
+
+  const verifyAccountEmail = async () => {
+    if (
+      !pendingAccountEmail ||
+      accountVerifying ||
+      accountSaving ||
+      !/^\d{6}$/.test(emailChangeOtp)
+    ) {
+      if (!/^\d{6}$/.test(emailChangeOtp)) {
+        setAccountErrorMessage('أدخل رمز التحقق المكون من 6 أرقام.')
+      }
+      return
+    }
+
+    setAccountVerifying(true)
+    setAccountErrorMessage('')
+    setAccountSuccessMessage('')
+    try {
+      const response = await fetch('/api/account/email-change', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: pendingAccountEmail,
+          token: emailChangeOtp,
+        }),
+      })
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success) {
+        setAccountErrorMessage(
+          getClientErrorMessage(result, 'تعذر التحقق من الرمز حاليًا.')
+        )
+        return
+      }
+
+      if (!result.verified) {
+        setEmailChangeRequiresCurrentConfirmation(true)
+        setAccountSuccessMessage(
+          result.message || 'أكمل التأكيد المطلوب من بريدك الحالي.'
+        )
+        return
+      }
+
+      setCurrentAccount((previous) => previous ? {
+        ...previous,
+        email: result.email || pendingAccountEmail,
+      } : previous)
+      setPendingAccountEmail('')
+      setEmailChangeRequiresCurrentConfirmation(false)
+      setEmailChangeOtp('')
+      setAccountSuccessMessage('تم تأكيد البريد الإلكتروني وتحديث بيانات الحساب بنجاح.')
+    } catch (error) {
+      setAccountErrorMessage(
+        getArabicErrorMessage(error, 'تعذر التحقق من الرمز حاليًا.')
+      )
+    } finally {
+      setAccountVerifying(false)
+    }
+  }
+
+  const completeSecureEmailChange = async () => {
+    if (!pendingAccountEmail || accountVerifying || accountSaving) return
+
+    setAccountVerifying(true)
+    setAccountErrorMessage('')
+    setAccountSuccessMessage('')
+    try {
+      const response = await fetch('/api/account/email-change', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingAccountEmail }),
+      })
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success) {
+        setAccountErrorMessage(
+          getClientErrorMessage(result, 'لم يكتمل تأكيد البريد الحالي بعد.')
+        )
+        return
+      }
+
+      setCurrentAccount((previous) => previous ? {
+        ...previous,
+        email: result.email || pendingAccountEmail,
+      } : previous)
+      setPendingAccountEmail('')
+      setEmailChangeOtp('')
+      setEmailChangeRequiresCurrentConfirmation(false)
+      setAccountSuccessMessage('تم تأكيد البريد الإلكتروني وتحديث بيانات الحساب بنجاح.')
+    } catch (error) {
+      setAccountErrorMessage(
+        getArabicErrorMessage(error, 'تعذر التحقق من اكتمال تغيير البريد حاليًا.')
+      )
+    } finally {
+      setAccountVerifying(false)
+    }
   }
 
   const encodeInvoicePreviewPayload = (payload: unknown) => {
@@ -588,28 +812,175 @@ export default function AdminSettingsPage() {
           <Panel
             icon={<AccountIcon />}
             title="بيانات الحساب"
-            description="بيانات الحساب الحالي للعرض فقط. يمكنك تعديلها من صفحة الحساب."
+            description="راجع بيانات حسابك وحدّث الحقول المسموح بها دون مغادرة صفحة الإعدادات."
           >
-            <div className="grid min-w-0 gap-4 md:grid-cols-2">
-              <InfoCard label="اسم المستخدم" value={safeValue(currentAccount?.username)} icon={<AccountIcon />} />
-              <InfoCard label="الاسم الكامل" value={safeValue(currentAccount?.fullName)} icon={<AccountIcon />} />
-              <InfoCard label="البريد الإلكتروني" value={safeValue(currentAccount?.email)} icon={<MessageIcon />} />
-              <InfoCard label="رقم الجوال" value={safeValue(currentAccount?.phone)} icon={<PhoneIcon />} />
-              <InfoCard label="اسم الفرع" value={safeValue(currentAccount?.branchName)} icon={<BuildingIcon />} />
-              <InfoCard label="الدور" value={roleLabel} icon={<ShieldIcon />} />
-              <InfoCard
-                label="حالة الحساب"
-                value={currentAccount ? (currentAccount.isActive ? 'نشط' : 'غير نشط') : 'غير محدد'}
-                icon={<ShieldIcon />}
-              />
-            </div>
-            <div className="mt-5 flex justify-end">
-              <Link
-                href="/account"
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-3 text-sm font-black text-[#04131d] shadow-[0_0_30px_rgba(34,211,238,0.18)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 sm:w-auto"
-              >
-                تعديل بيانات الحساب
-              </Link>
+            {accountSuccessMessage ? (
+              <AdminAlert tone="success">{accountSuccessMessage}</AdminAlert>
+            ) : null}
+            {accountErrorMessage ? (
+              <AdminAlert tone="error">{accountErrorMessage}</AdminAlert>
+            ) : null}
+
+            {accountEditing ? (
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
+                <Field label="الاسم الأول">
+                  <input
+                    value={accountEditForm.firstName}
+                    onChange={(event) => setAccountEditForm((previous) => ({
+                      ...previous,
+                      firstName: event.target.value,
+                    }))}
+                    className={inputClassName}
+                    autoComplete="given-name"
+                    disabled={accountSaving}
+                  />
+                </Field>
+                <Field label="الاسم الأخير">
+                  <input
+                    value={accountEditForm.lastName}
+                    onChange={(event) => setAccountEditForm((previous) => ({
+                      ...previous,
+                      lastName: event.target.value,
+                    }))}
+                    className={inputClassName}
+                    autoComplete="family-name"
+                    disabled={accountSaving}
+                  />
+                </Field>
+                <Field label="البريد الإلكتروني">
+                  <input
+                    type="email"
+                    value={accountEditForm.email}
+                    onChange={(event) => setAccountEditForm((previous) => ({
+                      ...previous,
+                      email: event.target.value,
+                    }))}
+                    className={`${inputClassName} text-left`}
+                    autoComplete="email"
+                    dir="ltr"
+                    disabled={accountSaving}
+                  />
+                </Field>
+                <Field label="رقم الجوال">
+                  <input
+                    type="tel"
+                    value={accountEditForm.phone}
+                    onChange={(event) => setAccountEditForm((previous) => ({
+                      ...previous,
+                      phone: event.target.value,
+                    }))}
+                    className={`${inputClassName} text-left`}
+                    autoComplete="tel"
+                    dir="ltr"
+                    disabled={accountSaving}
+                  />
+                </Field>
+                <InfoCard label="اسم المستخدم" value={safeValue(currentAccount?.username)} icon={<AccountIcon />} />
+                <InfoCard label="اسم الفرع" value={safeValue(currentAccount?.branchName)} icon={<BuildingIcon />} />
+                <InfoCard label="الدور" value={roleLabel} icon={<ShieldIcon />} />
+                <InfoCard
+                  label="حالة الحساب"
+                  value={currentAccount ? (currentAccount.isActive ? 'نشط' : 'غير نشط') : 'غير محدد'}
+                  icon={<ShieldIcon />}
+                />
+              </div>
+            ) : (
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
+                <InfoCard label="اسم المستخدم" value={safeValue(currentAccount?.username)} icon={<AccountIcon />} />
+                <InfoCard label="الاسم الكامل" value={safeValue(currentAccount?.fullName)} icon={<AccountIcon />} />
+                <InfoCard label="البريد الإلكتروني" value={safeValue(currentAccount?.email)} icon={<MessageIcon />} />
+                <InfoCard label="رقم الجوال" value={safeValue(currentAccount?.phone)} icon={<PhoneIcon />} />
+                <InfoCard label="اسم الفرع" value={safeValue(currentAccount?.branchName)} icon={<BuildingIcon />} />
+                <InfoCard label="الدور" value={roleLabel} icon={<ShieldIcon />} />
+                <InfoCard
+                  label="حالة الحساب"
+                  value={currentAccount ? (currentAccount.isActive ? 'نشط' : 'غير نشط') : 'غير محدد'}
+                  icon={<ShieldIcon />}
+                />
+              </div>
+            )}
+
+            {pendingAccountEmail ? (
+              <div className="mt-5 min-w-0 rounded-3xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 sm:p-5">
+                <h3 className="text-base font-black text-cyan-100">تأكيد البريد الإلكتروني الجديد</h3>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-300">
+                  {emailChangeRequiresCurrentConfirmation
+                    ? 'تم تأكيد البريد الجديد. أكمل رسالة التأكيد في بريدك الحالي، ثم تحقق من اكتمال العملية.'
+                    : 'أدخل رمز التحقق المرسل إلى البريد الجديد. سيبقى البريد الحالي كما هو حتى اكتمال التأكيد.'}
+                </p>
+                {emailChangeRequiresCurrentConfirmation ? (
+                  <button
+                    type="button"
+                    data-account-email-complete
+                    onClick={() => void completeSecureEmailChange()}
+                    disabled={accountVerifying || accountSaving}
+                    className="mt-4 min-h-11 w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-3 text-sm font-black text-[#04131d] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  >
+                    {accountVerifying ? 'جارٍ التحقق...' : 'تحقق من اكتمال التأكيد'}
+                  </button>
+                ) : (
+                  <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1">
+                      <Field label="رمز التحقق">
+                        <input
+                          value={emailChangeOtp}
+                          onChange={(event) => setEmailChangeOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className={`${inputClassName} text-center tracking-[0.35em]`}
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          dir="ltr"
+                          maxLength={6}
+                          disabled={accountVerifying}
+                        />
+                      </Field>
+                    </div>
+                    <button
+                      type="button"
+                      data-account-email-verify
+                      onClick={() => void verifyAccountEmail()}
+                      disabled={accountVerifying || accountSaving || emailChangeOtp.length !== 6}
+                      className="min-h-11 w-full shrink-0 rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-3 text-sm font-black text-[#04131d] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                    >
+                      {accountVerifying ? 'جارٍ التحقق...' : 'تأكيد الرمز'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              {accountEditing ? (
+                <>
+                  <button
+                    type="button"
+                    data-account-edit-cancel
+                    onClick={cancelAccountEditing}
+                    disabled={accountSaving}
+                    className="min-h-11 w-full rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-slate-200 transition hover:border-cyan-300/35 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="button"
+                    data-account-edit-save
+                    onClick={() => void saveAccountDetails()}
+                    disabled={accountSaving || accountVerifying}
+                    className="min-h-11 w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-3 text-sm font-black text-[#04131d] shadow-[0_0_30px_rgba(34,211,238,0.18)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  >
+                    {accountSaving ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  data-account-edit-trigger
+                  onClick={startAccountEditing}
+                  disabled={!currentAccount || accountSaving || accountVerifying}
+                  className="min-h-11 w-full rounded-2xl bg-gradient-to-l from-cyan-300 to-emerald-300 px-5 py-3 text-sm font-black text-[#04131d] shadow-[0_0_30px_rgba(34,211,238,0.18)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                >
+                  تعديل بيانات الحساب
+                </button>
+              )}
             </div>
           </Panel>
         ) : null}

@@ -28,6 +28,9 @@ type AccountAuthFailure = {
   response: NextResponse
 }
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const MAX_EMAIL_LENGTH = 254
+
 function normalizeOptionalText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -219,6 +222,9 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = (await request.json()) as AccountPatchBody
+    const hasContactEmail = Object.hasOwn(body, 'contact_email')
+    const hasTenantName = Object.hasOwn(body, 'tenant_name')
+    const hasBranchName = Object.hasOwn(body, 'branch_name')
     const fullName = normalizeOptionalText(body.full_name)
     const phone = normalizeNullableText(body.phone)
     const contactEmail = normalizeNullableEmail(body.contact_email)
@@ -226,7 +232,15 @@ export async function PATCH(request: NextRequest) {
     const branchName = normalizeOptionalText(body.branch_name)
     const firstName = fullName.split(/\s+/).filter(Boolean)[0] || ''
 
-    if (!tenantName || !contactEmail || !phone || !firstName) {
+    if (
+      !phone ||
+      !firstName ||
+      (hasContactEmail &&
+        (!contactEmail ||
+          contactEmail.length > MAX_EMAIL_LENGTH ||
+          !EMAIL_PATTERN.test(contactEmail))) ||
+      (hasTenantName && !tenantName)
+    ) {
       const response = jsonResponse(
         {
           error: 'يرجى تعبئة جميع الحقول المطلوبة',
@@ -236,19 +250,36 @@ export async function PATCH(request: NextRequest) {
 
       return withAuthCookies(auth.response, response)
     }
+
+    const authenticatedEmail = auth.user.email?.trim().toLowerCase() || ''
+
+    if (hasContactEmail && contactEmail !== authenticatedEmail) {
+      const response = jsonResponse(
+        {
+          error: 'يجب تأكيد البريد الإلكتروني الجديد قبل حفظه',
+        },
+        409
+      )
+
+      return withAuthCookies(auth.response, response)
+    }
+
     const updateData: {
       full_name?: string
       phone: string | null
-      contact_email: string | null
+      contact_email?: string | null
       updated_at: string
     } = {
       phone,
-      contact_email: contactEmail,
       updated_at: new Date().toISOString(),
     }
 
     if (fullName) {
       updateData.full_name = fullName
+    }
+
+    if (hasContactEmail) {
+      updateData.contact_email = contactEmail
     }
 
     if (contactEmail) {
@@ -313,7 +344,7 @@ export async function PATCH(request: NextRequest) {
     const branchId =
       typeof profile.branch_id === 'string' ? profile.branch_id : null
 
-    if (tenantName && tenantId) {
+    if (hasTenantName && tenantName && tenantId) {
       const { error: tenantError } = await auth.supabase
         .from('tenants')
         .update({ name: tenantName })
@@ -331,7 +362,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    if (branchName && tenantId && branchId) {
+    if (hasBranchName && branchName && tenantId && branchId) {
       const { error: branchError } = await auth.supabase
         .from('branches')
         .update({ name: branchName })
