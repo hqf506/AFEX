@@ -3,8 +3,10 @@ import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
 import { isFullAdmin } from '@/lib/permissions'
 import {
+  buildSaudiPhoneCandidatePattern,
   buildCustomerSearchFilter,
   normalizeCustomerSearchTerm,
+  normalizeSaudiCustomerPhone,
 } from '@/lib/customers'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { createServerTiming } from '@/lib/performance/server-timing'
@@ -14,6 +16,57 @@ type CustomerListRow = {
   name: string | null
   phone: string | null
   [key: string]: unknown
+}
+
+type CustomerDatabaseError = {
+  code?: string | null
+  message?: string | null
+  details?: string | null
+  hint?: string | null
+}
+
+function resolveCustomerConstraint(error: CustomerDatabaseError) {
+  const diagnosticText = [error.message, error.details, error.hint]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+
+  return [
+    'customers_phone_key',
+    'customers_tenant_phone_normalized_key',
+    'customers_branch_id_fkey',
+    'customers_created_by_fkey',
+  ].find((name) => diagnosticText.includes(name)) || null
+}
+
+function logCustomerDatabaseFailure(
+  stage: 'lookup' | 'insert',
+  error: CustomerDatabaseError,
+  httpStatus: number
+) {
+  if (process.env.NODE_ENV !== 'development') return
+
+  const code = typeof error.code === 'string' ? error.code : 'UNKNOWN'
+  const constraint = resolveCustomerConstraint(error)
+  const category =
+    code === '23505'
+      ? 'UNIQUE_VIOLATION'
+      : code === '23503'
+        ? 'FOREIGN_KEY_VIOLATION'
+        : code === '23514'
+          ? 'CHECK_VIOLATION'
+          : code === '42501'
+            ? 'AUTHORIZATION_FAILURE'
+            : code === '22P02'
+              ? 'INVALID_INPUT'
+              : 'DATABASE_FAILURE'
+
+  console.warn('[api/customers] database request failed', {
+    stage,
+    httpStatus,
+    code,
+    constraint,
+    category,
+  })
 }
 
 function positiveInteger(value: string | null, fallback: number) {
@@ -29,6 +82,8 @@ type InvoiceCustomerActivityRow = {
   cash_received: number | string | null
   remaining_from_customer: number | string | null
 }
+
+const FULL_PHONE_CANDIDATE_LIMIT = 100
 
 function readNumber(value: number | string | null | undefined) {
   const numericValue =
@@ -103,6 +158,7 @@ export async function GET(request: NextRequest) {
   }
 
   const searchFilter = buildCustomerSearchFilter(search)
+  const normalizedFullPhone = normalizeSaudiCustomerPhone(search)
   const profileBranchId =
     typeof auth.profile.branch_id === 'string' ? auth.profile.branch_id : null
   const isSystemScoped = isFullAdmin(auth.profile.role)
@@ -126,7 +182,12 @@ export async function GET(request: NextRequest) {
 
   query = applyTenantFilter(query, auth.profile.tenant_id)
 
-  if (searchFilter) {
+  if (normalizedFullPhone) {
+    query = query.ilike(
+      'phone',
+      buildSaudiPhoneCandidatePattern(normalizedFullPhone)
+    )
+  } else if (searchFilter) {
     query = query.or(searchFilter)
   }
 
@@ -134,13 +195,16 @@ export async function GET(request: NextRequest) {
     query = query.eq('branch_id', profileBranchId)
   }
 
-  query = paginated
-    ? query.range((page - 1) * pageSize, page * pageSize - 1)
-    : query.limit(pageSize)
+  query = normalizedFullPhone
+    ? query.limit(FULL_PHONE_CANDIDATE_LIMIT)
+    : paginated
+      ? query.range((page - 1) * pageSize, page * pageSize - 1)
+      : query.limit(pageSize)
 
   const { data, error, count } = await timing.measure('customers', () => query)
 
   if (error) {
+    logCustomerDatabaseFailure('lookup', error, 500)
     return jsonWithAuthCookies(
       auth.response,
       {
@@ -151,7 +215,21 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const customers = Array.isArray(data) ? (data as CustomerListRow[]) : []
+  const candidateCustomers = Array.isArray(data)
+    ? (data as CustomerListRow[])
+    : []
+  const exactPhoneMatches = normalizedFullPhone
+    ? candidateCustomers.filter(
+        (customer) =>
+          normalizeSaudiCustomerPhone(customer.phone) === normalizedFullPhone
+      )
+    : candidateCustomers
+  const exactPhoneTotal = exactPhoneMatches.length
+  const customers = normalizedFullPhone
+    ? paginated
+      ? exactPhoneMatches.slice((page - 1) * pageSize, page * pageSize)
+      : exactPhoneMatches.slice(0, pageSize)
+    : exactPhoneMatches
   const customerIds = customers
     .map((customer) => (typeof customer.id === 'string' ? customer.id : ''))
     .filter(Boolean)
@@ -278,7 +356,11 @@ export async function GET(request: NextRequest) {
   const response = await timing.measure('serialize', async () => jsonWithAuthCookies(auth.response, {
     success: true,
     customers: customersWithActivity,
-    total: paginated ? count || 0 : customersWithActivity.length,
+    total: normalizedFullPhone
+      ? exactPhoneTotal
+      : paginated
+        ? count || 0
+        : customersWithActivity.length,
     page,
     pageSize,
   }))
@@ -363,13 +445,32 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) {
+    const constraint = resolveCustomerConstraint(error)
+    const isUniqueConflict = error.code === '23505'
+    const isPhoneConflict =
+      isUniqueConflict &&
+      (constraint === 'customers_phone_key' ||
+        constraint === 'customers_tenant_phone_normalized_key')
+    const status = isUniqueConflict ? 409 : 500
+    logCustomerDatabaseFailure('insert', error, status)
     return jsonWithAuthCookies(
       auth.response,
       {
         success: false,
-        error: 'Failed to create customer',
+        error: isPhoneConflict
+          ? 'Customer phone already exists'
+          : isUniqueConflict
+            ? 'Customer already exists'
+            : 'Failed to create customer',
+        ...(isUniqueConflict
+          ? {
+              code: isPhoneConflict
+                ? 'CUSTOMER_PHONE_CONFLICT'
+                : 'CUSTOMER_CONFLICT',
+            }
+          : {}),
       },
-      500
+      status
     )
   }
 
