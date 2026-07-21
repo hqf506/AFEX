@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const featureDisabledResponse = await timing.measure(
+    const settingsGuardPromise = timing.measure(
       'settings',
       () => disabledFeatureResponse(
         auth.response,
@@ -69,17 +69,51 @@ export async function GET(request: NextRequest) {
       )
     )
 
-    if (featureDisabledResponse) {
-      return timing.finish(featureDisabledResponse)
-    }
-
     const requestedBranchId = normalizeBranchId(
       request.nextUrl.searchParams.get('branchId')
     )
 
     const profileBranchId = normalizeBranchId(auth.profile.branch_id || null)
+    const resolvedBranchId =
+      auth.profile.scope_type === 'system'
+        ? requestedBranchId || profileBranchId
+        : profileBranchId
+    const hasMissingProfileBranch =
+      auth.profile.scope_type !== 'system' && !profileBranchId
+    const hasRequestedBranchMismatch =
+      auth.profile.scope_type !== 'system' &&
+      Boolean(requestedBranchId) &&
+      requestedBranchId !== profileBranchId
+    const canValidateBranch =
+      !hasMissingProfileBranch &&
+      !hasRequestedBranchMismatch &&
+      Boolean(resolvedBranchId)
+    const branchValidationPromise = canValidateBranch
+      ? timing.measure('branches', () =>
+          supabaseAdmin
+            .from('branches')
+            .select('id')
+            .eq('id', resolvedBranchId)
+            .eq('tenant_id', tenantId)
+            .maybeSingle()
+        )
+      : Promise.resolve(null)
 
-    if (auth.profile.scope_type !== 'system' && !profileBranchId) {
+    const [settingsGuardResult, branchValidationResult] =
+      await Promise.allSettled([
+        settingsGuardPromise,
+        branchValidationPromise,
+      ])
+
+    if (settingsGuardResult.status === 'rejected') {
+      throw settingsGuardResult.reason
+    }
+
+    if (settingsGuardResult.value) {
+      return timing.finish(settingsGuardResult.value)
+    }
+
+    if (hasMissingProfileBranch) {
       return withAuthCookies(
         auth.response,
         jsonResponse(
@@ -91,11 +125,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    if (
-      auth.profile.scope_type !== 'system' &&
-      requestedBranchId &&
-      requestedBranchId !== profileBranchId
-    ) {
+    if (hasRequestedBranchMismatch) {
       return withAuthCookies(
         auth.response,
         jsonResponse(
@@ -106,11 +136,6 @@ export async function GET(request: NextRequest) {
         )
       )
     }
-
-    const resolvedBranchId =
-      auth.profile.scope_type === 'system'
-        ? requestedBranchId || profileBranchId
-        : profileBranchId
 
     if (!resolvedBranchId) {
       return withAuthCookies(
@@ -124,14 +149,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const branchQuery = supabaseAdmin
-      .from('branches')
-      .select('id')
-      .eq('id', resolvedBranchId)
-      .eq('tenant_id', tenantId)
+    if (branchValidationResult.status === 'rejected') {
+      throw branchValidationResult.reason
+    }
 
-    const { data: branch, error: branchError } =
-      await timing.measure('branches', () => branchQuery.maybeSingle())
+    const branchValidation = branchValidationResult.value
+    const branch = branchValidation?.data
+    const branchError = branchValidation?.error
 
     if (branchError) {
       return withAuthCookies(

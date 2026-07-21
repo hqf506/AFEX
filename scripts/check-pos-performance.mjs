@@ -42,6 +42,81 @@ function collectCatalogReturnEffects(node) {
 }
 collectCatalogReturnEffects(itemsSourceFile)
 
+const catalogRouteSourceFile = ts.createSourceFile(
+  'app/api/invoice/catalog/route.ts',
+  catalogRoute,
+  ts.ScriptTarget.ES2022,
+  true,
+  ts.ScriptKind.TS
+)
+const catalogRouteCalls = []
+function collectCatalogRouteCalls(node) {
+  if (ts.isCallExpression(node)) {
+    catalogRouteCalls.push(node)
+  }
+  ts.forEachChild(node, collectCatalogRouteCalls)
+}
+collectCatalogRouteCalls(catalogRouteSourceFile)
+
+const findVariableInitializer = (name) => {
+  let initializer = null
+  function visit(node) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name
+    ) {
+      initializer = node.initializer || null
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(catalogRouteSourceFile)
+  return initializer
+}
+
+const settingsGuardInitializer = findVariableInitializer('settingsGuardPromise')
+const branchValidationInitializer = findVariableInitializer('branchValidationPromise')
+const allSettledCall = catalogRouteCalls.find(
+  (call) => call.expression.getText(catalogRouteSourceFile) === 'Promise.allSettled'
+)
+const allSettledDeclaration = allSettledCall?.parent.parent
+
+assert(
+  settingsGuardInitializer &&
+    !ts.isAwaitExpression(settingsGuardInitializer) &&
+    settingsGuardInitializer.getText(catalogRouteSourceFile).includes("timing.measure(\n      'settings'") &&
+    branchValidationInitializer &&
+    !ts.isAwaitExpression(branchValidationInitializer) &&
+    branchValidationInitializer.getText(catalogRouteSourceFile).includes("timing.measure('branches'") &&
+    settingsGuardInitializer.pos > catalogRoute.indexOf('if (!auth.ok)'),
+  'Catalog auth must finish before independent Settings and Branch promises start.'
+)
+assert(
+  allSettledCall?.arguments[0]?.getText(catalogRouteSourceFile).includes('settingsGuardPromise') &&
+    allSettledCall.arguments[0].getText(catalogRouteSourceFile).includes('branchValidationPromise') &&
+    allSettledCall.pos > settingsGuardInitializer.pos &&
+    allSettledCall.pos > branchValidationInitializer.pos,
+  'Settings and Branch promises must both start before either result is awaited.'
+)
+assert(
+  allSettledDeclaration &&
+    allSettledDeclaration.getText(catalogRouteSourceFile).includes(
+      'settingsGuardResult, branchValidationResult'
+    ) &&
+    catalogRoute.indexOf("if (settingsGuardResult.status === 'rejected')") <
+      catalogRoute.indexOf("if (branchValidationResult.status === 'rejected')") &&
+    catalogRoute.indexOf('if (settingsGuardResult.value)') <
+      catalogRoute.indexOf('if (hasMissingProfileBranch)'),
+  'Catalog guard result handling must explicitly preserve Settings-first error precedence.'
+)
+assert(
+  !catalogRoute.includes('Promise.race') &&
+    catalogRoute.indexOf('const categoriesQuery') >
+      catalogRoute.indexOf("if (!branch)"),
+  'Catalog queries must start only after both guards succeed without Promise.race.'
+)
+
 const ordersSourceFile = ts.createSourceFile(
   'app/admin/orders/page.tsx',
   ordersPage,
