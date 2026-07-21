@@ -76,29 +76,23 @@ export function PosTabletFrame({
 
   return (
     <PosTabletFrameContext.Provider value={contextValue}>
-      <div className="pos-tablet-frame-mobile h-full min-h-0 w-full xl:hidden">
-        <div className="h-full min-h-0 w-full">
-          <div className={`h-full min-h-0 w-full overflow-hidden ${isLoginPage ? 'min-h-[100dvh]' : ''}`}>
-            {children}
-          </div>
-        </div>
-      </div>
-
-      <div className="pos-tablet-frame-desktop hidden h-[100dvh] w-screen overflow-hidden bg-black xl:flex xl:items-center xl:justify-center">
+      <div className="pos-tablet-frame-root h-full min-h-0 w-full xl:flex xl:h-[100dvh] xl:w-screen xl:items-center xl:justify-center xl:overflow-hidden xl:bg-black">
         <div
-          className={`pos-tablet-frame-shell relative shrink-0 transition-all duration-200 ease-out ${frameWidthClass} ${desktopScreenHeightClass} ${
-            hydrated ? 'opacity-100 transition-opacity duration-150' : 'opacity-0'
+          className={`pos-tablet-frame-shell h-full min-h-0 w-full xl:relative xl:shrink-0 xl:transition-all xl:duration-200 xl:ease-out ${frameWidthClass} ${desktopScreenHeightClass} ${
+            hydrated
+              ? 'xl:opacity-100 xl:transition-opacity xl:duration-150'
+              : 'xl:opacity-0'
           }`}
         >
           <div
-            className="pos-tablet-device relative h-full overflow-hidden rounded-[24px] border border-black/30 bg-black p-[2px] shadow-[0_30px_100px_rgba(0,0,0,0.65)] ring-1 ring-white/10 transition-all duration-200 ease-out"
+            className="pos-tablet-device relative h-full w-full overflow-hidden xl:rounded-[24px] xl:border xl:border-black/30 xl:bg-black xl:p-[2px] xl:shadow-[0_30px_100px_rgba(0,0,0,0.65)] xl:ring-1 xl:ring-white/10 xl:transition-all xl:duration-200 xl:ease-out"
           >
             <span
               aria-hidden="true"
               className="pointer-events-none absolute inset-y-[14%] left-[1px] hidden w-[3px] rounded-full bg-white/12 xl:block"
             />
             <div
-              className="pos-tablet-screen h-full w-full overflow-hidden rounded-[20px] bg-white transition-all duration-200 ease-out"
+              className="pos-tablet-screen h-full w-full overflow-hidden xl:rounded-[20px] xl:bg-white xl:transition-all xl:duration-200 xl:ease-out"
             >
               <div
                 className={`h-full min-h-0 w-full overflow-hidden transition-all duration-200 ease-out ${

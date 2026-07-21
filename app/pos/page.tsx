@@ -391,11 +391,26 @@ export default function PosPage() {
   )
 
   const storeName = settings?.store_name?.trim() || 'AFEX POS'
+  const branchName = settings?.branch_name?.trim() || storeName
   const employeeDisplayName = getPosEmployeeDisplayName(activePosEmployee)
   const resolvedPosBranchId =
     activePosEmployee?.branch_id ||
     (access.scopeType === 'branch' ? access.branchId : null)
   const recentOrders = orders.slice(0, 6)
+  const mobileOrderStatusSummary = [
+    {
+      status: 'in_progress' as const,
+      count: orders.filter((order) => order.status === 'in_progress').length,
+    },
+    {
+      status: 'ready' as const,
+      count: orders.filter((order) => order.status === 'ready').length,
+    },
+    {
+      status: 'closed' as const,
+      count: orders.filter((order) => order.status === 'closed').length,
+    },
+  ]
   const dayName = new Intl.DateTimeFormat('ar-SA', {
     weekday: 'long',
   }).format(currentNow)
@@ -741,9 +756,9 @@ export default function PosPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(34,211,238,0.10),transparent_30%),radial-gradient(circle_at_82%_2%,rgba(34,211,238,0.08),transparent_28%),linear-gradient(135deg,#020817_0%,#04101F_48%,#061426_100%)]" />
       <div className="pointer-events-none absolute inset-x-28 top-0 h-px bg-[#22D3EE]/25 blur-sm" />
 
-      <div className="relative z-10 grid h-full w-full gap-6 p-6 [direction:rtl] lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8 xl:p-8">
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-[26px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl]">
-          <div className="mb-5 rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)]">
+      <div className="relative z-10 grid h-full w-full gap-3 overflow-y-auto overscroll-contain p-3 [direction:rtl] lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6 lg:overflow-hidden lg:p-6 xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8 xl:p-8">
+        <aside className="flex min-h-0 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] lg:overflow-hidden lg:rounded-[26px]">
+          <div className="mb-5 hidden rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] lg:block">
             <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
               AFEX
             </p>
@@ -752,13 +767,13 @@ export default function PosPage() {
             </p>
           </div>
 
-          <nav className="min-h-0 flex-1 space-y-1.5 overflow-hidden">
+          <nav aria-label="تنقل نقطة البيع" className="order-2 mt-3 grid min-h-0 grid-cols-3 gap-2 overflow-hidden lg:order-none lg:mt-0 lg:block lg:flex-1 lg:space-y-1.5">
             {sidebarItems.map((item) =>
               item.disabled ? (
                 <div
                   key={item.id}
                   aria-disabled="true"
-                  className="flex min-h-[46px] cursor-not-allowed items-center gap-2.5 rounded-[18px] border border-transparent px-3 text-sm font-bold text-slate-500/80"
+                  className="hidden min-h-[46px] cursor-not-allowed items-center gap-2.5 rounded-[18px] border border-transparent px-3 text-sm font-bold text-slate-500/80 lg:flex"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-2xl text-slate-500/80">
                     <PosIcon name={item.icon} className="h-4.5 w-4.5" />
@@ -769,7 +784,8 @@ export default function PosPage() {
                 <Link
                   key={item.id}
                   href={item.href}
-                  className={`group relative flex min-h-[46px] items-center gap-2.5 overflow-hidden rounded-[18px] border px-3 text-sm font-black transition-all duration-150 active:scale-[0.98] ${
+                  aria-current={item.active ? 'page' : undefined}
+                  className={`group relative flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-[16px] border px-2 text-xs font-black transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] lg:min-h-[46px] lg:flex-row lg:justify-start lg:gap-2.5 lg:rounded-[18px] lg:px-3 lg:text-sm ${
                     item.active
                       ? 'border-transparent bg-[rgba(34,211,238,0.10)] text-cyan-50 shadow-[0_0_18px_rgba(34,211,238,0.11),inset_0_0_24px_rgba(34,211,238,0.07)]'
                       : 'border-transparent text-slate-300/86 hover:border-[rgba(34,211,238,0.14)] hover:bg-[rgba(34,211,238,0.055)] hover:text-white'
@@ -791,15 +807,15 @@ export default function PosPage() {
                   >
                     <PosIcon name={item.icon} className="h-4.5 w-4.5" />
                   </span>
-                  <span>{item.label}</span>
+                  <span className="max-w-full truncate">{item.label}</span>
                 </Link>
               )
             )}
           </nav>
 
-          <div className="mt-4 space-y-2.5">
+          <div className="order-1 grid grid-cols-2 gap-2.5 lg:order-none lg:mt-4 lg:block lg:space-y-2.5">
             {activePosEmployee ? (
-              <div className="rounded-[22px] bg-[rgba(6,20,38,0.58)] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_20px_rgba(34,211,238,0.03)]">
+              <div className="col-span-2 rounded-[20px] bg-[rgba(6,20,38,0.58)] p-2.5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_20px_rgba(34,211,238,0.03)] lg:rounded-[22px] lg:p-3">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#22D3EE] text-sm font-black text-slate-950 shadow-[0_0_16px_rgba(34,211,238,0.14)]">
                     {employeeDisplayName.charAt(0)}
@@ -808,13 +824,15 @@ export default function PosPage() {
                     <p className="truncate text-sm font-black text-white">
                       {employeeDisplayName}
                     </p>
-                    <p className="mt-1 text-xs font-bold text-slate-400">الكاشير النشط</p>
+                    <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                      {branchName} · الكاشير النشط
+                    </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleSwitchEmployee}
                     aria-label="تبديل الموظف"
-                    className="rounded-xl px-2 py-1 text-xs font-bold text-slate-400 transition hover:bg-[rgba(34,211,238,0.08)] hover:text-cyan-100 active:scale-[0.98]"
+                    className="min-h-[44px] min-w-[44px] rounded-xl px-2 py-1 text-xs font-bold text-slate-400 transition hover:bg-[rgba(34,211,238,0.08)] hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98]"
                   >
                     تبديل
                   </button>
@@ -826,7 +844,7 @@ export default function PosPage() {
             offlineDraftSyncState.isSyncing ? (
               <Link
                 href="/pos/offline-drafts"
-                className="flex min-h-[44px] items-center justify-between rounded-[18px] bg-[rgba(6,20,38,0.55)] px-3 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.055)] active:scale-[0.98]"
+                className="flex min-h-[44px] items-center justify-between rounded-[18px] bg-[rgba(6,20,38,0.55)] px-3 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.055)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98]"
               >
                 <span className="flex items-center gap-2">
                   <PosIcon name="clipboard" className="h-4 w-4" />
@@ -844,7 +862,7 @@ export default function PosPage() {
               type="button"
               onClick={handleLogout}
               disabled={loggingOut}
-              className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[18px] bg-[rgba(6,20,38,0.46)] px-4 text-sm font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] transition hover:bg-red-400/10 hover:text-red-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[18px] bg-[rgba(6,20,38,0.46)] px-3 text-xs font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] transition hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 lg:px-4 lg:text-sm"
             >
               <PosIcon name="logout" className="h-5 w-5" />
               {loggingOut ? 'جارٍ تسجيل الخروج...' : 'تسجيل الخروج'}
@@ -852,13 +870,16 @@ export default function PosPage() {
           </div>
         </aside>
 
-        <main className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.24)] p-6 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] backdrop-blur-xl [direction:rtl] xl:p-8">
-          <header className="flex shrink-0 items-start justify-between gap-6">
-            <div className="text-right">
+        <main className="flex min-h-0 min-w-0 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.24)] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] backdrop-blur-xl [direction:rtl] sm:p-5 lg:overflow-hidden lg:rounded-[28px] lg:p-6 xl:p-8">
+          <header className="flex shrink-0 flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-start sm:gap-6">
+            <div className="min-w-0 text-right">
               <p className="text-sm font-black tracking-[0.18em] text-[#22D3EE]">
                 {storeName}
               </p>
-              <h1 className="mt-3 text-3xl font-black leading-tight text-white xl:text-[42px]">
+              <p className="mt-1 truncate text-xs font-bold text-slate-400 lg:hidden">
+                {branchName}
+              </p>
+              <h1 className="mt-2 text-2xl font-black leading-tight text-white sm:mt-3 sm:text-3xl xl:text-[42px]">
                 مرحباً بك، فيصل
               </h1>
               <p className="mt-2 text-base font-bold text-slate-300 xl:text-lg">
@@ -866,14 +887,14 @@ export default function PosPage() {
               </p>
             </div>
 
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 [direction:rtl]">
-              <div className="flex min-h-[48px] items-center gap-2.5 rounded-[20px] bg-[rgba(2,8,23,0.68)] px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10),inset_0_0_18px_rgba(34,211,238,0.03)]">
+            <div className="flex min-w-0 flex-wrap items-center justify-start gap-3 [direction:rtl] sm:w-auto sm:shrink-0 sm:justify-end">
+              <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2.5 rounded-[20px] bg-[rgba(2,8,23,0.68)] px-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10),inset_0_0_18px_rgba(34,211,238,0.03)] sm:flex-none sm:px-4">
                 <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
                   <PosIcon name="clock" className="h-4.5 w-4.5" />
                 </span>
                 <span className="text-sm font-black text-white">{timeLabel}</span>
               </div>
-              <div className="flex min-h-[48px] items-center gap-2.5 rounded-[20px] bg-[rgba(2,8,23,0.68)] px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10),inset_0_0_18px_rgba(34,211,238,0.03)]">
+              <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2.5 rounded-[20px] bg-[rgba(2,8,23,0.68)] px-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10),inset_0_0_18px_rgba(34,211,238,0.03)] sm:flex-none sm:px-4">
                 <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
                   <PosIcon name="clipboard" className="h-4.5 w-4.5" />
                 </span>
@@ -885,18 +906,18 @@ export default function PosPage() {
             </div>
           </header>
 
-          <section className="mt-7 grid shrink-0 gap-5 xl:mt-9 xl:gap-6">
+          <section className="mt-5 grid shrink-0 gap-3 sm:mt-7 sm:gap-5 xl:mt-9 xl:gap-6">
             <div className="flex justify-center">
               <button
                 type="button"
                 onClick={handleStartSale}
-                className="group relative flex h-[198px] w-full flex-col items-center justify-center overflow-hidden rounded-[32px] bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.18),transparent_58%),rgba(2,8,23,0.72)] px-9 text-center shadow-[0_0_36px_rgba(34,211,238,0.13),inset_0_0_0_1px_rgba(34,211,238,0.16),inset_0_1px_0_rgba(34,211,238,0.08)] transition hover:shadow-[0_0_44px_rgba(34,211,238,0.16),inset_0_0_0_1px_rgba(34,211,238,0.22)] active:scale-[0.99] xl:h-[232px]"
+                className="group relative flex h-[156px] w-full flex-col items-center justify-center overflow-hidden rounded-[26px] bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.18),transparent_58%),rgba(2,8,23,0.72)] px-5 text-center shadow-[0_0_36px_rgba(34,211,238,0.13),inset_0_0_0_1px_rgba(34,211,238,0.16),inset_0_1px_0_rgba(34,211,238,0.08)] transition hover:shadow-[0_0_44px_rgba(34,211,238,0.16),inset_0_0_0_1px_rgba(34,211,238,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.99] sm:h-[198px] sm:rounded-[32px] sm:px-9 xl:h-[232px]"
               >
                 <span className="absolute inset-x-24 top-0 h-px bg-[#22D3EE]/55 blur-sm" />
-                <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[rgba(34,211,238,0.09)] text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.12)] xl:h-24 xl:w-24">
-                  <PosIcon name="shoppingCart" className="h-10 w-10 xl:h-12 xl:w-12" />
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[rgba(34,211,238,0.09)] text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.12)] sm:h-20 sm:w-20 xl:h-24 xl:w-24">
+                  <PosIcon name="shoppingCart" className="h-8 w-8 sm:h-10 sm:w-10 xl:h-12 xl:w-12" />
                 </span>
-                <h2 className="mt-6 text-4xl font-black text-white xl:text-5xl">
+                <h2 className="mt-3 text-3xl font-black text-white sm:mt-6 sm:text-4xl xl:text-5xl">
                   بدء بيع جديد
                 </h2>
                 <p className="mt-2 text-sm font-bold text-slate-400 xl:text-base">
@@ -905,13 +926,13 @@ export default function PosPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 [direction:rtl] xl:gap-5">
+            <div className="grid grid-cols-2 gap-3 [direction:rtl] sm:grid-cols-3 sm:gap-4 xl:gap-5">
               <button
                 type="button"
                 onClick={handleQuickCustomer}
-                className="group flex h-[104px] items-center gap-4 rounded-[26px] bg-[rgba(2,8,23,0.60)] px-5 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] active:scale-[0.98]"
+                className="group flex min-h-[76px] min-w-0 items-center gap-2 rounded-[22px] bg-[rgba(2,8,23,0.60)] px-3 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] sm:h-[104px] sm:gap-4 sm:rounded-[26px] sm:px-5"
               >
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] sm:h-14 sm:w-14 sm:rounded-[20px]">
                   <PosIcon name="user" className="h-6 w-6" />
                 </span>
                 <span className="text-base font-black text-white">إضافة عميل</span>
@@ -920,9 +941,9 @@ export default function PosPage() {
               <button
                 type="button"
                 onClick={handleStartSale}
-                className="group flex h-[104px] items-center gap-4 rounded-[26px] bg-[rgba(2,8,23,0.60)] px-5 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] active:scale-[0.98]"
+                className="group flex min-h-[76px] min-w-0 items-center gap-2 rounded-[22px] bg-[rgba(2,8,23,0.60)] px-3 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] sm:h-[104px] sm:gap-4 sm:rounded-[26px] sm:px-5"
               >
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] sm:h-14 sm:w-14 sm:rounded-[20px]">
                   <PosIcon name="zap" className="h-6 w-6" />
                 </span>
                 <span className="text-base font-black text-white">عميل سريع</span>
@@ -931,9 +952,9 @@ export default function PosPage() {
               <button
                 type="button"
                 onClick={handleScanProduct}
-                className="group flex h-[104px] items-center gap-4 rounded-[26px] bg-[rgba(2,8,23,0.60)] px-5 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] active:scale-[0.98]"
+                className="group col-span-2 flex min-h-[76px] min-w-0 items-center justify-center gap-2 rounded-[22px] bg-[rgba(2,8,23,0.60)] px-3 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(34,211,238,0.028)] transition hover:bg-[rgba(34,211,238,0.055)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16),0_0_20px_rgba(34,211,238,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] sm:col-span-1 sm:h-[104px] sm:justify-start sm:gap-4 sm:rounded-[26px] sm:px-5"
               >
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[rgba(34,211,238,0.07)] text-[#22D3EE] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] sm:h-14 sm:w-14 sm:rounded-[20px]">
                   <PosIcon name="package" className="h-6 w-6" />
                 </span>
                 <span className="text-base font-black text-white">مسح منتج</span>
@@ -941,7 +962,28 @@ export default function PosPage() {
             </div>
           </section>
 
-          <section className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.60)] p-5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_28px_rgba(34,211,238,0.03)] xl:mt-8">
+          <section aria-label="ملخص حالات الطلبات" className="mt-4 grid grid-cols-2 gap-2 sm:hidden">
+            {mobileOrderStatusSummary.map(({ status, count }) => {
+              const statusUi = POS_ORDER_STATUS_UI[status]
+
+              return (
+                <div
+                  key={status}
+                  className={`min-w-0 rounded-[20px] bg-[rgba(2,8,23,0.60)] p-3 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] ${
+                    status === 'closed' ? 'col-span-2' : ''
+                  }`}
+                >
+                  <span className={`mx-auto block h-2 w-2 rounded-full ${statusUi.dotClassName}`} />
+                  <p className="mt-2 text-2xl font-black text-white">{count}</p>
+                  <p className="mt-1 truncate text-[11px] font-black text-slate-300">
+                    {statusUi.label}
+                  </p>
+                </div>
+              )
+            })}
+          </section>
+
+          <section className="mt-4 flex min-h-0 flex-1 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.60)] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_28px_rgba(34,211,238,0.03)] sm:mt-6 sm:rounded-[28px] sm:p-5 lg:overflow-hidden xl:mt-8">
             <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
                 <div className="text-right">
                   <h2 className="text-xl font-black text-white xl:text-2xl">آخر الطلبات</h2>
@@ -958,7 +1000,7 @@ export default function PosPage() {
                   ) : null}
                   <button
                     type="button"
-                    className="min-h-[36px] rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] active:scale-[0.98]"
+                    className="min-h-[44px] rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98]"
                   >
                     عرض الكل
                   </button>
@@ -972,7 +1014,7 @@ export default function PosPage() {
               ) : null}
 
               {!ordersError && ordersLoading ? (
-                <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 xl:gap-4">
+                <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:gap-4">
                   {Array.from({ length: 3 }).map((_, index) => (
                     <div
                       key={`pos-order-skeleton-${index}`}
@@ -994,7 +1036,7 @@ export default function PosPage() {
               ) : null}
 
               {!ordersError && !ordersLoading && recentOrders.length > 0 ? (
-                <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden xl:gap-4">
+                <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-visible sm:grid-cols-2 lg:overflow-y-auto lg:overscroll-contain lg:pr-1 lg:[scrollbar-width:none] lg:[-ms-overflow-style:none] lg:[&::-webkit-scrollbar]:hidden xl:gap-4">
                   {recentOrders.map((order) => {
                     const statusKey = resolvePosKanbanStatus(order.status)
                     const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
@@ -1043,7 +1085,7 @@ export default function PosPage() {
                               type="button"
                               onClick={() => handleAdvanceOrderStatus(order)}
                               disabled={isUpdatingOrder}
-                              className="min-h-[34px] rounded-2xl bg-[rgba(34,211,238,0.08)] px-3 text-xs font-black text-cyan-100 transition hover:bg-[rgba(34,211,238,0.13)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                              className="min-h-[44px] rounded-2xl bg-[rgba(34,211,238,0.08)] px-3 text-xs font-black text-cyan-100 transition hover:bg-[rgba(34,211,238,0.13)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isUpdatingOrder
                                 ? 'جارٍ...'

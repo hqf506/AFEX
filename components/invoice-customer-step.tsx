@@ -638,12 +638,12 @@ export function InvoiceCustomerStep({
 
   if (variant === 'pos') {
     return (
-      <div className="fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] p-5 text-white [direction:ltr] xl:p-7">
+      <div className="fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] p-3 text-white [direction:ltr] sm:p-5 xl:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.09),transparent_26%),linear-gradient(135deg,#020817_0%,#04101F_48%,#061426_100%)]" />
         <div className="pointer-events-none absolute inset-x-32 top-0 h-px bg-[#22D3EE]/25 blur-sm" />
 
-        <div className="relative z-10 flex h-full min-h-0 w-full flex-row gap-4 xl:gap-6">
-          <aside className="order-3 flex w-[206px] shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] xl:w-[220px]">
+        <div className="relative z-10 flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto overscroll-contain sm:flex-row sm:overflow-hidden xl:gap-6">
+          <aside className="order-3 flex w-full shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] sm:w-[206px] xl:w-[220px]">
             <div className="mb-5 rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)]">
               <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
                 AFEX
@@ -706,7 +706,7 @@ export function InvoiceCustomerStep({
                     clearActivePosEmployee()
                     router.replace('/pos/employee-pin')
                   }}
-                  className="mt-3 flex min-h-[34px] w-full items-center justify-center rounded-[14px] bg-[rgba(34,211,238,0.08)] text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] transition hover:bg-[rgba(34,211,238,0.12)] active:scale-[0.98]"
+                  className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-[14px] bg-[rgba(34,211,238,0.08)] text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] transition hover:bg-[rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98]"
                 >
                   تبديل الموظف
                 </button>
@@ -722,7 +722,7 @@ export function InvoiceCustomerStep({
             </div>
           </aside>
 
-          <aside className="order-2 flex w-[250px] shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3.5 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.12)] backdrop-blur-2xl [direction:rtl] xl:w-[268px] xl:p-4">
+          <aside className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3.5 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.12)] backdrop-blur-2xl [direction:rtl] sm:w-[250px] xl:w-[268px] xl:p-4">
             <h2 className="px-1 text-right text-xl font-black text-white">العميل الحالي</h2>
 
             <div className="mt-4 rounded-[24px] bg-[rgba(6,20,38,0.52)] p-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)]">
@@ -797,7 +797,7 @@ export function InvoiceCustomerStep({
             </div>
           </aside>
 
-          <main className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[30px] bg-transparent p-1 [direction:rtl]">
+          <main className="order-1 flex min-h-[720px] min-w-0 flex-1 flex-col overflow-hidden rounded-[30px] bg-transparent p-1 [direction:rtl] sm:min-h-0">
             <header className="flex shrink-0 items-start justify-between gap-5 px-1">
               <div className="text-right">
                 <p className="text-sm font-black text-[#22D3EE]">بيانات العميل</p>
