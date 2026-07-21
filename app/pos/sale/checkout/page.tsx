@@ -616,8 +616,8 @@ export default function PosSaleCheckoutPage() {
 
       <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_82%_82%,rgba(14,165,233,0.10),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-        <div className="relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 [direction:ltr] md:flex-row md:p-4 xl:p-5">
-          <main className="order-1 flex min-w-0 flex-1 flex-col gap-3 overflow-hidden [direction:rtl]">
+        <div className="relative flex h-full w-full flex-col gap-3 overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:overflow-hidden md:p-4 xl:p-5">
+          <main className="order-2 flex min-w-0 shrink-0 flex-col gap-3 overflow-visible [direction:rtl] md:order-1 md:min-h-0 md:flex-1 md:overflow-hidden">
             {checkout.successMessage ? (
               <div className="rounded-[22px] border border-[#14B8A6]/25 bg-[#14B8A6]/10 px-4 py-3 text-sm font-bold text-teal-50 shadow-[0_0_28px_rgba(20,184,166,0.16)]">
                 {checkout.successMessage}
@@ -639,13 +639,13 @@ export default function PosSaleCheckoutPage() {
               </div>
             ) : null}
 
-            <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-cyan-300/10 bg-[#020817]/62 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl">
+            <section className="flex min-h-0 flex-1 flex-col overflow-visible rounded-[28px] border border-cyan-300/10 bg-[#020817]/62 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl sm:p-4 md:overflow-hidden md:rounded-[32px]">
               <div className="mb-3 flex shrink-0 items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
                     CHECKOUT
                   </p>
-                  <h1 className="mt-1 text-3xl font-black text-white">
+                  <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
                   الدفع وإنهاء الفاتورة
                   </h1>
                   <p className="mt-1 text-sm font-bold text-slate-400">
@@ -657,7 +657,7 @@ export default function PosSaleCheckoutPage() {
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              <div className="min-h-0 flex-1 space-y-3 overflow-visible md:overflow-y-auto md:pr-1">
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                   {PAYMENT_METHODS.map((option) => {
                     const selected = checkout.paymentMethod === option.id
@@ -667,7 +667,8 @@ export default function PosSaleCheckoutPage() {
                         key={option.id}
                         type="button"
                         onClick={() => handleSelectPayment(option)}
-                        className={`flex min-h-[104px] flex-col items-center justify-center gap-3 rounded-[26px] border px-3 text-center transition-all duration-150 active:scale-[0.98] touch-manipulation ${
+                        aria-pressed={selected}
+                        className={`flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-[22px] border px-3 text-center transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] touch-manipulation sm:min-h-[104px] sm:gap-3 sm:rounded-[26px] ${
                           selected
                             ? 'border-cyan-300/55 bg-cyan-300/14 text-cyan-50 shadow-[0_0_42px_rgba(34,211,238,0.22)]'
                             : 'border-cyan-300/12 bg-[#061426]/62 text-slate-300 hover:border-cyan-300/28 hover:bg-cyan-300/8'
@@ -713,6 +714,8 @@ export default function PosSaleCheckoutPage() {
                       }
                     }}
                     placeholder="المبلغ المستلم"
+                    inputMode="decimal"
+                    enterKeyHint="done"
                     readOnly={!checkout.isReceivedAmountEditable}
                     disabled={!checkout.isReceivedAmountEditable}
                     className={`h-16 w-full rounded-[22px] border px-5 text-right text-2xl font-black outline-none transition placeholder:text-slate-500 ${
@@ -800,7 +803,7 @@ export default function PosSaleCheckoutPage() {
                   type="button"
                   onClick={handleCreateInvoice}
                   disabled={!canSubmitInvoice}
-                  className="flex h-16 flex-1 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] text-lg font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
+                  className="flex min-h-16 w-full flex-1 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] text-lg font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
                 >
                   {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
                 </button>
@@ -816,7 +819,7 @@ export default function PosSaleCheckoutPage() {
             </section>
           </main>
 
-          <aside className="order-2 flex h-[38%] w-full shrink-0 flex-col overflow-hidden rounded-[30px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:h-full md:w-[280px] lg:w-[330px]">
+          <aside className="order-1 flex h-auto w-full shrink-0 flex-col overflow-visible rounded-[28px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:order-2 md:h-full md:w-[280px] md:overflow-hidden md:rounded-[30px] lg:w-[330px]">
             <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
               <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
                 INVOICE
@@ -826,15 +829,15 @@ export default function PosSaleCheckoutPage() {
 
             <div className="mt-2.5 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3.5">
               <p className="text-xs font-black text-slate-400">العميل</p>
-              <p className="mt-2 truncate text-lg font-black text-white">
+              <p className="mt-2 break-words text-lg font-black text-white">
                 {customerName || 'بدون اسم'}
               </p>
-              <p className="mt-1 truncate text-sm font-bold text-slate-400">
+              <p className="mt-1 break-words text-sm font-bold text-slate-400">
                 {customerPhone || 'بدون رقم جوال'}
               </p>
             </div>
 
-            <div className="mt-2 flex min-h-0 flex-1 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5">
+            <div className="mt-2 flex min-h-0 shrink-0 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5 md:flex-1">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h3 className="text-base font-black text-white">العناصر</h3>
                 <span className="rounded-full bg-cyan-300/12 px-3 py-1 text-xs font-black text-cyan-100">
@@ -842,7 +845,7 @@ export default function PosSaleCheckoutPage() {
                 </span>
               </div>
 
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              <div className="min-h-0 flex-1 space-y-2 overflow-visible md:overflow-y-auto md:pr-1">
                 {invoiceItems.map((item) => (
                   <div
                     key={item.item_name}
@@ -850,7 +853,7 @@ export default function PosSaleCheckoutPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-white">
+                        <p className="line-clamp-2 break-words text-sm font-black text-white">
                           {item.item_name}
                         </p>
                         <div className="mt-1.5 flex items-center gap-3 text-xs font-bold text-slate-400">
@@ -862,7 +865,7 @@ export default function PosSaleCheckoutPage() {
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(item.item_name)}
-                        className="flex h-9 w-9 flex-none items-center justify-center rounded-2xl text-red-300 transition hover:bg-red-500/10"
+                        className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl text-red-300 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 touch-manipulation"
                         aria-label={`حذف ${item.item_name}`}
                       >
                         <Trash2 />

@@ -14,9 +14,14 @@ const tabletFrame = read('components/pos-tablet-frame.tsx')
 const posHome = read('app/pos/page.tsx')
 const customerStep = read('components/invoice-customer-step.tsx')
 const itemsStep = read('components/invoice-items-step.tsx')
+const checkoutStep = read('app/pos/sale/checkout/page.tsx')
 const activePosItemsLayout = itemsStep.slice(
   itemsStep.indexOf("if (variant === 'pos')"),
   itemsStep.indexOf('const renderLegacyPosItemsLayout')
+)
+const interactiveCheckoutLayout = checkoutStep.slice(
+  checkoutStep.indexOf('{hasInvalidBranchContext ?'),
+  checkoutStep.indexOf('<div id="print-area"')
 )
 
 assert.equal(
@@ -120,6 +125,35 @@ assert.ok(
     activePosItemsLayout.includes('md:flex-1 md:overflow-y-auto') &&
     (activePosItemsLayout.match(/className="flex h-11 w-11/g) || []).length >= 3,
   'Phone cart must use one full-width scroll surface with accessible item controls'
+)
+assert.ok(
+  checkoutStep.includes('overflow-y-auto overscroll-contain') &&
+    checkoutStep.includes('md:flex-row md:overflow-hidden') &&
+    checkoutStep.includes('aria-pressed={selected}') &&
+    checkoutStep.includes('inputMode="decimal"') &&
+    checkoutStep.includes('md:overflow-y-auto md:pr-1') &&
+    checkoutStep.includes('min-h-16 w-full flex-1') &&
+    checkoutStep.includes('flex h-11 w-11 flex-none'),
+  'POS checkout must keep one mobile scroll surface and accessible payment controls'
+)
+assert.equal(
+  (interactiveCheckoutLayout.match(/PAYMENT_METHODS\.map\(/g) || []).length,
+  1,
+  'Interactive POS checkout must render one payment-method control'
+)
+assert.equal(
+  (interactiveCheckoutLayout.match(/invoiceItems\.map\(/g) || []).length,
+  1,
+  'Interactive POS checkout must render one order-item list'
+)
+assert.equal(
+  (interactiveCheckoutLayout.match(/placeholder="المبلغ المستلم"/g) || []).length,
+  1,
+  'Interactive POS checkout must render one cash input'
+)
+assert.ok(
+  !interactiveCheckoutLayout.includes('window.innerWidth'),
+  'POS checkout responsive presentation must remain CSS-only'
 )
 
 for (const contractKey of [
