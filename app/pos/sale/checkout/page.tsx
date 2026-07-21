@@ -30,6 +30,7 @@ import {
   INVOICE_SUCCESS_STORAGE_KEY,
   serializeInvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
+import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
 import {
   getPaymentMethodLabel,
   normalizeUiPaymentMethod,
@@ -323,7 +324,7 @@ export default function PosSaleCheckoutPage() {
         paymentMethod: checkout.paymentMethod,
       }
 
-      localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      clearCompletedInvoiceSaleState()
       checkout.clearCheckout()
       setInvoiceItems([])
       sessionStorage.setItem(

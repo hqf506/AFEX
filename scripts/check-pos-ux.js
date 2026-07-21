@@ -15,6 +15,7 @@ const posHome = read('app/pos/page.tsx')
 const customerStep = read('components/invoice-customer-step.tsx')
 const itemsStep = read('components/invoice-items-step.tsx')
 const checkoutStep = read('app/pos/sale/checkout/page.tsx')
+const saleReset = read('lib/invoices/sale-reset.ts')
 const activePosItemsLayout = itemsStep.slice(
   itemsStep.indexOf("if (variant === 'pos')"),
   itemsStep.indexOf('const renderLegacyPosItemsLayout')
@@ -181,6 +182,66 @@ assert.match(
   'checkout loading is not reset in finally'
 )
 assert.ok(!checkout.includes('createOrderResult?.error ||'), 'checkout consumes a raw API error')
+
+const clearSaleStateBody = saleReset.match(
+  /export function clearCompletedInvoiceSaleState\(\)\s*\{([\s\S]*?)\n\}/
+)?.[1]
+assert.ok(clearSaleStateBody, 'completed sale cleanup helper is missing')
+
+const createStorage = (entries) => {
+  const values = new Map(entries)
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    removeItem: (key) => values.delete(key),
+  }
+}
+const successLocalStorage = createStorage([
+  ['invoice_customer', 'customer'],
+  ['invoice_sale_items', 'items'],
+  ['unrelated', 'keep'],
+])
+const successSessionStorage = createStorage([
+  ['invoice_success', 'previous-success'],
+  ['pos_employee_session', 'keep'],
+])
+new Function(
+  'window',
+  'INVOICE_CUSTOMER_STORAGE_KEY',
+  'INVOICE_SALE_ITEMS_STORAGE_KEY',
+  'INVOICE_SUCCESS_STORAGE_KEY',
+  clearSaleStateBody
+)(
+  { localStorage: successLocalStorage, sessionStorage: successSessionStorage },
+  'invoice_customer',
+  'invoice_sale_items',
+  'invoice_success'
+)
+assert.equal(successLocalStorage.getItem('invoice_customer'), null)
+assert.equal(successLocalStorage.getItem('invoice_sale_items'), null)
+assert.equal(successSessionStorage.getItem('invoice_success'), null)
+assert.equal(successLocalStorage.getItem('unrelated'), 'keep')
+assert.equal(successSessionStorage.getItem('pos_employee_session'), 'keep')
+
+const successCleanupIndex = checkoutStep.indexOf('clearCompletedInvoiceSaleState()')
+const successSnapshotIndex = checkoutStep.indexOf(
+  'sessionStorage.setItem(',
+  successCleanupIndex
+)
+const successNavigationIndex = checkoutStep.indexOf(
+  "router.push('/pos/sale/success')",
+  successSnapshotIndex
+)
+assert.ok(
+  successCleanupIndex > checkoutStep.indexOf('onInvoiceCreated:') &&
+    successSnapshotIndex > successCleanupIndex &&
+    successNavigationIndex > successSnapshotIndex,
+  'successful sale must clear customer/cart state before storing success and navigating'
+)
+assert.equal(
+  (checkout.match(/onInvoiceCreated\?\.\(/g) || []).length,
+  1,
+  'failure paths must not invoke successful sale cleanup'
+)
 assert.ok(drafts.includes('POS_UX_MESSAGES.draftSyncUncertain'), 'offline uncertain outcome is missing')
 assert.ok(drafts.includes('window.confirm('), 'offline draft deletion confirmation is missing')
 assert.ok(pin.includes('POS_UX_MESSAGES.networkFailure'), 'PIN network failure is not separated')
