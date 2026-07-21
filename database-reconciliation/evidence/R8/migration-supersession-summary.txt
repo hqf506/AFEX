@@ -1,0 +1,18 @@
+R8.6 Migration Supersession Map Draft
+GeneratedAt: 2026-07-22 01:07:33
+
+TotalObjectDefinitions : 205
+RepeatedObjectGroups   : 23
+SupersededDefinitions  : 45
+LatestDefinitions      : 23
+RepeatedFunctions      : 16
+RepeatedViews          : 6
+RepeatedTriggers       : 2
+RepeatedPolicies       : 2
+RepeatedTables         : 2
+RepeatedIndexes        : 3
+
+Important:
+- This report detects repeated CREATE definitions by object signature.
+- Superseded does not mean safe to delete.
+- Data migrations, grants, revokes, drops, backfills, and side effects require manual review.

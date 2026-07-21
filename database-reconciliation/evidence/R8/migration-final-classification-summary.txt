@@ -1,0 +1,21 @@
+R8.7 Final Migration Classification Draft
+GeneratedAt: 2026-07-22 01:10:18
+
+TotalMigrations                : 82
+HistoricalRecord               : 82
+ProductionBaselineCovered      : 82
+ExactDuplicateFiles            : 6
+FilesWithSupersededDefinitions : 8
+FilesWithLatestDefinitions     : 4
+SecuritySensitiveFiles         : 51
+StorageSensitiveFiles          : 3
+PossibleDataBearingFiles       : 47
+PreserveHistoricalArchive      : 22
+PreserveForAuditAndHistory     : 58
+PreserveButMarkExactDuplicate  : 2
+
+Decision:
+- Production baseline is the schema source of truth.
+- Existing migrations remain preserved as historical and audit evidence.
+- No migration is deleted, renamed, moved, or executed by this classification.
+- Future schema changes must be new migrations created after the baseline.

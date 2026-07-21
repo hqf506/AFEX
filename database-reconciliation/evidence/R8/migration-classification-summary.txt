@@ -1,0 +1,25 @@
+R8.5 Migration Classification Draft
+GeneratedAt: 2026-07-22 01:02:31
+
+TotalMigrations     : 82
+ExactDuplicateFiles : 6
+PossibleDataBearing : 47
+SecuritySensitive   : 51
+StorageSensitive    : 3
+DestructiveDDL      : 26
+SearchPathReview    : 0
+
+Exact duplicate groups:
+
+SHA256: A7897C184AED566ADE86880ED4387CC1262FBD321332D5A1FCE10F48BF2F558E
+  - 20260430_create_invoice_with_items_current_payload_safe.sql
+  - 20260430_create_invoice_with_items_safe_validation.sql
+
+SHA256: 7AD25F8B43CBCB6580D7583F2969DEA4C0C8CB958D19640D62175F057A7BB6B5
+  - 20260503_fix_invoice_items_insert_columns_in_create_invoice_with_items_safe.sql
+  - 20260503_replace_create_invoice_with_items_safe_full_body.sql
+
+SHA256: 2DB331EEC2E45B232065751A5AF3B7E73FA91B55E7680BA58ABB3B58D9112724
+  - 20260518124500_force_adjust_inventory_stock_created_by_signature.sql
+  - 20260518130000_reload_adjust_inventory_stock_created_by_signature.sql
+
