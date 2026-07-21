@@ -42,7 +42,7 @@ assert.ok(
     posHome.includes('aria-label="تنقل نقطة البيع"') &&
     posHome.includes("aria-current={item.active ? 'page' : undefined}") &&
     posHome.includes('grid grid-cols-2 gap-3') &&
-    posHome.includes('aria-label="ملخص حالات الطلبات"') &&
+    posHome.includes('aria-label="ملخص الطلبات الظاهرة"') &&
     posHome.includes('grid-cols-1 gap-3 overflow-visible sm:grid-cols-2'),
   'POS Home must preserve its single-tree touch-first phone hierarchy'
 )
@@ -54,9 +54,27 @@ assert.equal(
 assert.ok(
   customerStep.includes('flex-col gap-4 overflow-y-auto') &&
     customerStep.includes('sm:flex-row sm:overflow-hidden') &&
-    customerStep.includes('order-3 flex w-full') &&
+    customerStep.includes('order-6 flex w-full') &&
     customerStep.includes('sm:w-[206px]'),
   'Customer POS sidebars must stack on phones and preserve tablet widths'
+)
+assert.equal(
+  (customerStep.match(/visibleCustomerCards\.slice\(0, customerListLimit\)\.map/g) || []).length,
+  1,
+  'Customer results must keep one shared responsive map'
+)
+assert.equal(
+  (customerStep.match(/onClick=\{handleCreateCustomer\}/g) || []).length,
+  1,
+  'Customer creation must keep one guarded save action'
+)
+assert.ok(
+  customerStep.includes('contents sm:order-1 sm:flex') &&
+    customerStep.includes('contents sm:order-2 sm:flex') &&
+    customerStep.includes('role="dialog"') &&
+    customerStep.includes('aria-modal="true"') &&
+    customerStep.includes('items-start justify-center overflow-y-auto'),
+  'Customer step must preserve one responsive tree and a keyboard-safe dialog'
 )
 
 for (const contractKey of [

@@ -962,7 +962,10 @@ export default function PosPage() {
             </div>
           </section>
 
-          <section aria-label="ملخص حالات الطلبات" className="mt-4 grid grid-cols-2 gap-2 sm:hidden">
+          <section aria-label="ملخص الطلبات الظاهرة" className="mt-4 grid grid-cols-2 gap-2 sm:hidden">
+            <p className="col-span-2 px-1 text-right text-xs font-black text-slate-400">
+              ملخص الطلبات الظاهرة
+            </p>
             {mobileOrderStatusSummary.map(({ status, count }) => {
               const statusUi = POS_ORDER_STATUS_UI[status]
 

@@ -440,7 +440,7 @@ export function InvoiceCustomerStep({
         setCustomerName(storedCustomer.name)
         setCustomerPhone(storedCustomer.phone)
       }
-      customerPhoneInputRef.current?.focus()
+      customerPhoneInputRef.current?.focus({ preventScroll: true })
     }, 150)
 
     return () => window.clearTimeout(timeoutId)
@@ -638,13 +638,13 @@ export function InvoiceCustomerStep({
 
   if (variant === 'pos') {
     return (
-      <div className="fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] p-3 text-white [direction:ltr] sm:p-5 xl:p-7">
+      <div className="fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white [direction:ltr] sm:p-5 xl:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.09),transparent_26%),linear-gradient(135deg,#020817_0%,#04101F_48%,#061426_100%)]" />
         <div className="pointer-events-none absolute inset-x-32 top-0 h-px bg-[#22D3EE]/25 blur-sm" />
 
         <div className="relative z-10 flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto overscroll-contain sm:flex-row sm:overflow-hidden xl:gap-6">
-          <aside className="order-3 flex w-full shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] sm:w-[206px] xl:w-[220px]">
-            <div className="mb-5 rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)]">
+          <aside className="order-6 flex w-full shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] sm:order-3 sm:w-[206px] xl:w-[220px]">
+            <div className="mb-3 rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-3 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] sm:mb-5 sm:py-4">
               <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
                 AFEX
               </p>
@@ -653,7 +653,7 @@ export function InvoiceCustomerStep({
               </p>
             </div>
 
-            <nav className="min-h-0 flex-1 space-y-1.5 overflow-hidden">
+            <nav className="grid min-h-0 flex-1 grid-cols-2 gap-1.5 overflow-hidden sm:block sm:space-y-1.5">
               {posSidebarItems.map((item) => {
                 const isActive = item.id === 'customers'
 
@@ -686,7 +686,7 @@ export function InvoiceCustomerStep({
               })}
             </nav>
 
-            <div className="mt-4 space-y-2.5">
+            <div className="mt-3 grid gap-2.5 sm:mt-4 sm:block sm:space-y-2.5">
               <div className="rounded-[22px] bg-[rgba(6,20,38,0.58)] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_20px_rgba(34,211,238,0.03)]">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#22D3EE] text-sm font-black text-slate-950 shadow-[0_0_16px_rgba(34,211,238,0.14)]">
@@ -722,10 +722,10 @@ export function InvoiceCustomerStep({
             </div>
           </aside>
 
-          <aside className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3.5 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.12)] backdrop-blur-2xl [direction:rtl] sm:w-[250px] xl:w-[268px] xl:p-4">
-            <h2 className="px-1 text-right text-xl font-black text-white">العميل الحالي</h2>
+          <aside className="contents sm:order-2 sm:flex sm:w-[250px] sm:shrink-0 sm:flex-col sm:overflow-hidden sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.68)] sm:p-3.5 sm:shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.12)] sm:backdrop-blur-2xl sm:[direction:rtl] xl:w-[268px] xl:p-4">
+            <h2 className="order-2 px-1 text-right text-xl font-black text-white sm:order-none">العميل الحالي</h2>
 
-            <div className="mt-4 rounded-[24px] bg-[rgba(6,20,38,0.52)] p-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)]">
+            <div className="order-2 mt-4 rounded-[24px] bg-[rgba(6,20,38,0.52)] p-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] sm:order-none">
               <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(34,211,238,0.08)] text-[#22D3EE] shadow-[0_0_28px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.12)]">
                 <PosCustomerIcon name="user" className="h-7 w-7" />
               </span>
@@ -735,7 +735,7 @@ export function InvoiceCustomerStep({
               <p className="mt-2 text-sm font-bold text-slate-400">
                 {customerPhone.trim() ? 'رقم العميل' : 'اختر عميل من النتائج'}
               </p>
-              <p dir="ltr" className="mt-2 text-center text-lg font-black text-cyan-100">
+              <p dir="ltr" className="mt-2 break-all text-center text-lg font-black text-cyan-100">
                 {customerPhone.trim() || '—'}
               </p>
               <p className="mt-2 text-sm font-black text-cyan-50/90">
@@ -743,11 +743,11 @@ export function InvoiceCustomerStep({
               </p>
             </div>
 
-            <div className="mt-4 grid gap-3">
+            <div className="contents sm:mt-4 sm:grid sm:gap-3">
               <button
                 type="button"
                 onClick={openAddCustomerModal}
-                className="flex min-h-[68px] items-center justify-between rounded-[22px] bg-[rgba(2,8,23,0.72)] px-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] transition hover:bg-[rgba(34,211,238,0.07)] active:scale-[0.98]"
+                className="order-5 flex min-h-[68px] items-center justify-between rounded-[22px] bg-[rgba(2,8,23,0.72)] px-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] transition hover:bg-[rgba(34,211,238,0.07)] active:scale-[0.98] sm:order-none"
               >
                 <span>
                   <span className="block text-base font-black text-white">إضافة عميل جديد</span>
@@ -760,7 +760,7 @@ export function InvoiceCustomerStep({
                 type="button"
                 onClick={handleNext}
                 disabled={!selectedCustomerId}
-                className={`flex min-h-[68px] items-center justify-between rounded-[22px] px-4 text-right transition active:scale-[0.98] ${
+                className={`order-7 flex min-h-[68px] items-center justify-between rounded-[22px] px-4 text-right transition active:scale-[0.98] sm:order-none ${
                   selectedCustomerId
                     ? 'bg-emerald-400 text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.20)]'
                     : 'cursor-not-allowed bg-[rgba(6,20,38,0.42)] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.08)]'
@@ -776,7 +776,7 @@ export function InvoiceCustomerStep({
               <button
                 type="button"
                 onClick={handleReset}
-                className="flex min-h-[62px] items-center justify-between rounded-[22px] bg-[rgba(6,20,38,0.46)] px-4 text-right text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-red-400/10 hover:text-red-100 active:scale-[0.98]"
+                className="order-5 flex min-h-[62px] items-center justify-between rounded-[22px] bg-[rgba(6,20,38,0.46)] px-4 text-right text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-red-400/10 hover:text-red-100 active:scale-[0.98] sm:order-none"
               >
                 <span>
                   <span className="block text-base font-black">مسح البيانات</span>
@@ -786,7 +786,7 @@ export function InvoiceCustomerStep({
               </button>
             </div>
 
-            <div className="mt-auto pt-4">
+            <div className="order-8 mt-auto pt-4 sm:order-none">
               <Link
                 href={backHref}
                 className="flex min-h-[56px] items-center justify-center gap-3 rounded-[20px] bg-[rgba(6,20,38,0.46)] px-4 text-sm font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] transition hover:bg-[rgba(34,211,238,0.07)] hover:text-cyan-100 active:scale-[0.98]"
@@ -797,8 +797,8 @@ export function InvoiceCustomerStep({
             </div>
           </aside>
 
-          <main className="order-1 flex min-h-[720px] min-w-0 flex-1 flex-col overflow-hidden rounded-[30px] bg-transparent p-1 [direction:rtl] sm:min-h-0">
-            <header className="flex shrink-0 items-start justify-between gap-5 px-1">
+          <main className="contents sm:order-1 sm:flex sm:min-h-0 sm:min-w-0 sm:flex-1 sm:flex-col sm:overflow-hidden sm:rounded-[30px] sm:bg-transparent sm:p-1 sm:[direction:rtl]">
+            <header className="order-1 flex shrink-0 items-start justify-between gap-5 px-1 [direction:rtl]">
               <div className="text-right">
                 <p className="text-sm font-black text-[#22D3EE]">بيانات العميل</p>
                 <h2 className="mt-4 text-4xl font-black leading-tight text-white xl:text-[44px]">
@@ -815,7 +815,7 @@ export function InvoiceCustomerStep({
               </div>
             </header>
 
-            <section className="mt-7 shrink-0 rounded-[28px] bg-[rgba(2,8,23,0.62)] p-5 shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] xl:p-6">
+            <section className="order-3 mt-7 shrink-0 rounded-[28px] bg-[rgba(2,8,23,0.62)] p-5 shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] [direction:rtl] xl:p-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-sm font-black text-slate-300">
@@ -854,6 +854,8 @@ export function InvoiceCustomerStep({
                         setSelectedCustomerId(null)
                       }}
                       placeholder="اكتب اسم العميل"
+                      autoComplete="name"
+                      enterKeyHint="search"
                       aria-required="true"
                       className="h-[66px] w-full rounded-[22px] border-0 bg-[rgba(6,20,38,0.76)] px-5 text-right text-lg font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation"
                     />
@@ -871,7 +873,7 @@ export function InvoiceCustomerStep({
               ) : null}
             </section>
 
-            <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.56)] p-5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] xl:p-6">
+            <section className="order-4 mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.56)] p-5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] [direction:rtl] xl:p-6">
               <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
                 <div className="text-right">
                   <h3 className="text-2xl font-black text-white">العملاء الأخيرون</h3>
@@ -898,10 +900,10 @@ export function InvoiceCustomerStep({
                     </p>
                   </div>
                 ) : visibleCustomerCards.length > 0 ? (
-                  <div className="overflow-hidden rounded-[24px] bg-[rgba(6,20,38,0.42)] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)]">
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[860px] border-separate border-spacing-0 text-right">
-                        <thead>
+                  <div className="rounded-[24px] bg-[rgba(6,20,38,0.42)] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] sm:overflow-hidden">
+                    <div className="sm:overflow-x-auto">
+                      <table className="block w-full text-right sm:table sm:min-w-[860px] sm:border-separate sm:border-spacing-0">
+                        <thead className="hidden sm:table-header-group">
                           <tr className="text-xs font-black text-cyan-100/80">
                             <th className="px-4 py-4">العميل</th>
                             <th className="px-4 py-4">الجوال</th>
@@ -912,7 +914,7 @@ export function InvoiceCustomerStep({
                             <th className="px-4 py-4">اختيار</th>
                           </tr>
                         </thead>
-                        <tbody className="text-sm">
+                        <tbody className="grid gap-3 text-sm sm:table-row-group">
                           {visibleCustomerCards.slice(0, customerListLimit).map((customer) => (
                             <tr
                               key={customer.id}
@@ -925,35 +927,38 @@ export function InvoiceCustomerStep({
                                   selectExistingCustomer(customer)
                                 }
                               }}
-                              className="group cursor-pointer text-slate-300 transition hover:bg-[rgba(34,211,238,0.045)] hover:text-white"
+                              aria-pressed={selectedCustomerId === customer.id}
+                              className="group grid cursor-pointer grid-cols-2 gap-x-3 rounded-[22px] bg-[rgba(6,20,38,0.52)] p-4 text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] transition hover:bg-[rgba(34,211,238,0.065)] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:table-row sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none"
                             >
-                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4">
-                                <span className="block max-w-[180px] truncate text-base font-black text-white">
+                              <td className="col-span-2 block border-b border-[rgba(34,211,238,0.08)] pb-3 sm:table-cell sm:border-b-0 sm:border-t sm:px-4 sm:py-4">
+                                <span className="block break-words text-base font-black text-white sm:max-w-[180px] sm:truncate">
                                   {customer.name || '—'}
                                 </span>
                               </td>
                               <td
                                 dir="ltr"
-                                className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 text-right font-bold text-slate-300"
+                                data-label="الجوال"
+                                className="block min-w-0 py-3 text-left font-bold text-slate-300 before:mb-1 before:block before:text-right before:text-[11px] before:font-black before:text-slate-500 before:content-[attr(data-label)] sm:table-cell sm:border-t sm:border-[rgba(34,211,238,0.07)] sm:px-4 sm:py-4 sm:text-right sm:before:hidden"
                               >
                                 {customer.phone || '—'}
                               </td>
-                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 font-bold">
+                              <td data-label="أول زيارة" className="block py-3 font-bold before:mb-1 before:block before:text-[11px] before:font-black before:text-slate-500 before:content-[attr(data-label)] sm:table-cell sm:border-t sm:border-[rgba(34,211,238,0.07)] sm:px-4 sm:py-4 sm:before:hidden">
                                 {formatPosCustomerDate(customer.firstVisitAt)}
                               </td>
-                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 font-bold">
+                              <td data-label="آخر زيارة" className="block py-3 font-bold before:mb-1 before:block before:text-[11px] before:font-black before:text-slate-500 before:content-[attr(data-label)] sm:table-cell sm:border-t sm:border-[rgba(34,211,238,0.07)] sm:px-4 sm:py-4 sm:before:hidden">
                                 {formatPosCustomerDate(customer.lastActivityAt)}
                               </td>
-                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 font-black text-cyan-50">
+                              <td data-label="عدد الزيارات" className="block py-3 font-black text-cyan-50 before:mb-1 before:block before:text-[11px] before:text-slate-500 before:content-[attr(data-label)] sm:table-cell sm:border-t sm:border-[rgba(34,211,238,0.07)] sm:px-4 sm:py-4 sm:before:hidden">
                                 {customer.visitsCount ?? 0}
                               </td>
-                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-4 font-black text-white">
+                              <td data-label="إجمالي الصرف" className="block py-3 font-black text-white before:mb-1 before:block before:text-[11px] before:text-slate-500 before:content-[attr(data-label)] sm:table-cell sm:border-t sm:border-[rgba(34,211,238,0.07)] sm:px-4 sm:py-4 sm:before:hidden">
                                 {formatPosCustomerAmount(customer.totalSpent)}
                               </td>
-                              <td className="border-t border-[rgba(34,211,238,0.07)] px-4 py-3">
+                              <td className="col-span-2 block pt-2 sm:table-cell sm:border-t sm:border-[rgba(34,211,238,0.07)] sm:px-4 sm:py-3">
                                 {selectedCustomerId === customer.id ? (
-                                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400/18 text-emerald-100 shadow-[0_0_16px_rgba(52,211,153,0.14),inset_0_0_0_1px_rgba(52,211,153,0.26)]">
-                                    ✔
+                                  <span className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[16px] bg-emerald-400/18 px-4 text-xs font-black text-emerald-100 shadow-[0_0_16px_rgba(52,211,153,0.14),inset_0_0_0_1px_rgba(52,211,153,0.26)] sm:h-11 sm:w-11 sm:px-0">
+                                    <span aria-hidden="true">✔</span>
+                                    <span className="sm:sr-only">تم الاختيار</span>
                                   </span>
                                 ) : (
                                   <button
@@ -962,7 +967,7 @@ export function InvoiceCustomerStep({
                                       event.stopPropagation()
                                       selectExistingCustomer(customer)
                                     }}
-                                    className="min-h-[40px] rounded-[16px] bg-[rgba(34,211,238,0.10)] px-5 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] transition group-hover:bg-[rgba(34,211,238,0.15)] active:scale-[0.98]"
+                                    className="min-h-[44px] rounded-[16px] bg-[rgba(34,211,238,0.10)] px-5 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] transition group-hover:bg-[rgba(34,211,238,0.15)] active:scale-[0.98]"
                                   >
                                     اختيار
                                   </button>
@@ -1007,14 +1012,14 @@ export function InvoiceCustomerStep({
         </div>
 
         {addCustomerOpen ? (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#020817]/72 px-5 backdrop-blur-xl [direction:rtl]">
-            <div className="w-full max-w-[450px] rounded-[30px] bg-[rgba(2,8,23,0.86)] p-4 text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)] xl:p-5">
+          <div className="absolute inset-0 z-30 flex items-start justify-center overflow-y-auto bg-[#020817]/72 px-3 py-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl [direction:rtl] sm:items-center sm:px-5">
+            <div role="dialog" aria-modal="true" aria-labelledby="add-customer-title" className="my-auto w-full max-w-[450px] rounded-[30px] bg-[rgba(2,8,23,0.86)] p-4 text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)] xl:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-black tracking-[0.24em] text-[#22D3EE]">
                     عميل AFEX
                   </p>
-                  <h3 className="mt-3 text-[26px] font-black text-white">
+                  <h3 id="add-customer-title" className="mt-3 text-[26px] font-black text-white">
                     إضافة عميل جديد
                   </h3>
                 </div>
