@@ -19,6 +19,11 @@ import { type ExecutiveDashboardSummary } from '@/lib/reports/executive-dashboar
 import { type SalesTrendRow } from '@/lib/reports/sales-trend'
 import { formatCurrency, getDateInputValue } from '@/lib/orders/format'
 import { MobileDataCard, MobileSection } from '@/components/mobile/mobile-primitives'
+import {
+  BottomSafeArea,
+  ResponsiveGrid,
+  ResponsivePageContainer,
+} from '@/components/mobile/responsive-foundation'
 
 type DashboardRecentOrder = Pick<
   ReportOrderRecord,
@@ -597,8 +602,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-full">
-      <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
+    <ResponsivePageContainer className="min-h-full max-w-7xl px-0">
+      <BottomSafeArea className="space-y-4 md:contents md:space-y-6">
         {errorMessage ? (
           <div className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-100">
             {errorMessage}
@@ -740,7 +745,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div data-mobile-dashboard-kpis className="grid grid-cols-2 gap-3 md:hidden">
+        <ResponsiveGrid data-mobile-dashboard-kpis variant="cards" className="gap-3 md:hidden">
           {statCards.map((card, index) => (
             <MobileDataCard
               key={card.title}
@@ -748,10 +753,10 @@ export default function DashboardPage() {
               metric={card.value}
               status={<span className={`grid size-9 place-items-center rounded-xl border ${index === 0 ? 'border-cyan-300/25 bg-cyan-300/10 text-cyan-200' : index === 3 ? 'border-amber-300/25 bg-amber-300/10 text-amber-200' : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'}`}><svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><DashboardIcon type={card.icon} /></svg></span>}
               metadata={<span className="font-bold text-emerald-300">{card.growth} عن الفترة السابقة</span>}
-              className={index === 0 ? 'col-span-2 border-cyan-300/25 bg-cyan-300/[0.07]' : ''}
+              className={index === 0 ? 'border-cyan-300/25 bg-cyan-300/[0.07] sm:col-span-2' : ''}
             />
           ))}
-        </div>
+        </ResponsiveGrid>
 
         <div data-responsive-dashboard-kpis className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
           {statCards.map((card) => (
@@ -893,9 +898,9 @@ export default function DashboardPage() {
                 recentOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="flex max-w-full items-center justify-between gap-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#07111f] px-4 py-3"
+                    className="flex max-w-full flex-col items-stretch justify-between gap-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#07111f] px-4 py-3 sm:flex-row sm:items-center"
                   >
-                    <div className="flex min-w-0 items-center gap-3 overflow-hidden">
+                    <div className="flex min-w-0 items-center justify-between gap-3 overflow-hidden sm:justify-start">
                       <span
                         className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${resolveDashboardOrderStatusBadgeClassName(order.status)}`}
                       >
@@ -935,7 +940,7 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <ResponsiveGrid variant="split" className="gap-3 md:gap-4 xl:grid-cols-4">
             {[
               {
                 href: '/admin/catalog',
@@ -991,9 +996,9 @@ export default function DashboardPage() {
                 </div>
               </Link>
             ))}
-          </div>
+          </ResponsiveGrid>
         </div>
-      </div>
-    </div>
+      </BottomSafeArea>
+    </ResponsivePageContainer>
   )
 }

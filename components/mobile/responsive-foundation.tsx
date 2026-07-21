@@ -15,7 +15,7 @@ export function ResponsivePageContainer({ children, className = '' }: SharedProp
   )
 }
 
-type ResponsiveGridProps = SharedProps & {
+type ResponsiveGridProps = HTMLAttributes<HTMLDivElement> & {
   variant?: 'cards' | 'compact' | 'split'
 }
 
@@ -29,10 +29,12 @@ export function ResponsiveGrid({
   children,
   className = '',
   variant = 'cards',
+  ...props
 }: ResponsiveGridProps) {
   return (
     <div
       className={`grid min-w-0 gap-[var(--afex-section-gap)] ${gridVariants[variant]} ${className}`}
+      {...props}
     >
       {children}
     </div>
