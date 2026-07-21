@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('node:fs')
 const path = require('node:path')
+const ts = require('typescript')
 
 const root = path.resolve(__dirname, '..')
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8')
@@ -166,10 +167,78 @@ if (read('app/admin/reports/sales-trend/page.tsx').includes('min-w-[720px]')) {
   failures.push('Sales trend chart still forces a 720px mobile width')
 }
 
+const ordersSource = read('app/admin/orders/page.tsx')
+const ordersAst = ts.createSourceFile(
+  'app/admin/orders/page.tsx',
+  ordersSource,
+  ts.ScriptTarget.Latest,
+  true,
+  ts.ScriptKind.TSX,
+)
+const touchTargetHandlers = new Map([
+  ['setDetailsDrawerOrderId', 'Order number drawer trigger'],
+  ['setStatusModalOrder', 'Order drawer status action'],
+  ['sendDigitalInvoicePdf', 'Order drawer PDF action'],
+  ['printThermalReceipt', 'Order drawer print action'],
+  ['setCancelModalOrder', 'Order drawer cancellation action'],
+])
+const touchTargetMatches = new Map([...touchTargetHandlers.keys()].map((handler) => [handler, 0]))
+let desktopSearchMatches = 0
+let desktopFilterMatches = 0
+let orderNumberFocusVisible = false
+
+const getJsxAttributeText = (node, name) => {
+  const attribute = node.attributes.properties.find(
+    (property) => ts.isJsxAttribute(property) && property.name.text === name,
+  )
+  return attribute?.initializer?.getText(ordersAst) || ''
+}
+
+const hasMinimumTouchHeight = (className) => className.includes('h-11') || className.includes('min-h-11')
+
+const inspectOrdersNode = (node) => {
+  if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
+    const tagName = node.tagName.getText(ordersAst)
+    const className = getJsxAttributeText(node, 'className')
+    const placeholder = getJsxAttributeText(node, 'placeholder')
+    const onClick = getJsxAttributeText(node, 'onClick')
+
+    if (tagName === 'input' && placeholder.includes('بحث برقم الطلب')) {
+      desktopSearchMatches += 1
+      if (!hasMinimumTouchHeight(className)) failures.push('Orders desktop search touch target is below 44px')
+    }
+
+    if (tagName === 'button' && className.includes('filter === item.key')) {
+      if (hasMinimumTouchHeight(className)) desktopFilterMatches += 1
+    }
+
+    for (const handler of touchTargetHandlers.keys()) {
+      if (!onClick.includes(handler)) continue
+      if (!hasMinimumTouchHeight(className)) continue
+      touchTargetMatches.set(handler, touchTargetMatches.get(handler) + 1)
+      if (handler === 'setDetailsDrawerOrderId' && className.includes('focus-visible:ring-2')) {
+        orderNumberFocusVisible = true
+      }
+    }
+  }
+  ts.forEachChild(node, inspectOrdersNode)
+}
+
+inspectOrdersNode(ordersAst)
+
+if (desktopSearchMatches !== 1) failures.push(`Orders desktop search matched ${desktopSearchMatches} times`)
+if (desktopFilterMatches < 1) failures.push('Orders desktop filters are missing a 44px touch target')
+for (const [handler, label] of touchTargetHandlers) {
+  const matches = touchTargetMatches.get(handler)
+  if (matches < 1) failures.push(`${label} is missing a 44px touch target`)
+}
+if (!orderNumberFocusVisible) failures.push('Order number drawer trigger is missing a visible keyboard focus state')
+if (ordersSource.includes('window.innerWidth')) failures.push('Orders page uses window.innerWidth for responsive behavior')
+
 if (failures.length) {
   console.error('Responsive UX source check failed:')
   failures.forEach((failure) => console.error(`- ${failure}`))
   process.exit(1)
 }
 
-console.log(`Responsive UX source check passed (${checks.length + 1} assertions).`)
+console.log(`Responsive UX source check passed (${checks.length + 10} assertions).`)

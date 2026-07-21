@@ -2222,7 +2222,7 @@ export default function OrdersPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="بحث برقم الطلب أو اسم العميل أو الجوال..."
-                  className="h-10 w-full rounded-xl border border-cyan-300/15 bg-cyan-300/[0.03] px-3 pr-10 text-right text-xs font-bold text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/15"
+                  className="h-11 w-full rounded-xl border border-cyan-300/15 bg-cyan-300/[0.03] px-3 pr-10 text-right text-xs font-bold text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/15"
                 />
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-cyan-200/70">
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -2244,7 +2244,7 @@ export default function OrdersPage() {
                         setFilter(item.key)
                         setCurrentPage(1)
                       }}
-                      className={`h-9 rounded-xl px-3 text-xs font-black transition ${
+                      className={`min-h-11 rounded-xl px-3 text-xs font-black transition ${
                         filter === item.key
                           ? 'bg-cyan-300 text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.25)]'
                           : 'border border-cyan-300/10 bg-cyan-300/[0.03] text-slate-300 hover:border-cyan-300/35 hover:text-white'
@@ -2363,7 +2363,7 @@ export default function OrdersPage() {
                               <button
                                 type="button"
                                 onClick={() => setDetailsDrawerOrderId(order.id)}
-                                className="text-sm font-black text-white transition hover:text-cyan-100 hover:underline hover:decoration-cyan-300/80 hover:underline-offset-4 hover:drop-shadow-[0_0_10px_rgba(34,211,238,0.35)] focus:outline-none focus:text-cyan-100 focus:underline"
+                                className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-black text-white transition hover:text-cyan-100 hover:underline hover:decoration-cyan-300/80 hover:underline-offset-4 hover:drop-shadow-[0_0_10px_rgba(34,211,238,0.35)] focus:outline-none focus:text-cyan-100 focus:underline focus-visible:ring-2 focus-visible:ring-cyan-300/40"
                               >
                                 {order.invoice_number || order.order_number}
                               </button>
@@ -2991,7 +2991,7 @@ export default function OrdersPage() {
                         )
                         setStatusDropdownOpen(false)
                       }}
-                      className="h-10 rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:opacity-50"
+                      className="min-h-11 rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:opacity-50"
                     >
                       تعديل الحالة
                     </button>
@@ -3005,7 +3005,7 @@ export default function OrdersPage() {
                         Boolean(invoicePdfActionByOrderId[detailsDrawerOrder.id])
                       }
                       onClick={() => sendDigitalInvoicePdf(detailsDrawerOrder)}
-                      className="h-10 rounded-xl border border-teal-300/25 bg-teal-500/15 px-3 text-xs font-black text-teal-100 transition hover:bg-teal-500/25 disabled:opacity-50"
+                      className="min-h-11 rounded-xl border border-teal-300/25 bg-teal-500/15 px-3 text-xs font-black text-teal-100 transition hover:bg-teal-500/25 disabled:opacity-50"
                     >
                       {invoicePdfActionByOrderId[detailsDrawerOrder.id] === 'send'
                         ? 'جارٍ تجهيز الفاتورة وإرسالها...'
@@ -3020,7 +3020,7 @@ export default function OrdersPage() {
                         Boolean(invoicePdfActionByOrderId[detailsDrawerOrder.id])
                       }
                       onClick={() => printThermalReceipt(detailsDrawerOrder)}
-                      className="h-10 rounded-xl border border-slate-300/20 bg-slate-400/10 px-3 text-xs font-black text-slate-100 transition hover:bg-slate-400/15 disabled:opacity-50"
+                      className="min-h-11 rounded-xl border border-slate-300/20 bg-slate-400/10 px-3 text-xs font-black text-slate-100 transition hover:bg-slate-400/15 disabled:opacity-50"
                     >
                       {invoicePdfActionByOrderId[detailsDrawerOrder.id] === 'print'
                         ? INVOICE_UX_MESSAGES.printPreparing
@@ -3032,7 +3032,7 @@ export default function OrdersPage() {
                         !canCancelOrders || isFinalOrderStatus(detailsDrawerOrder)
                       }
                       onClick={() => setCancelModalOrder(detailsDrawerOrder)}
-                      className="h-10 rounded-xl border border-rose-300/25 bg-rose-500/15 px-3 text-xs font-black text-rose-100 transition hover:bg-rose-500/25 disabled:opacity-50"
+                      className="min-h-11 rounded-xl border border-rose-300/25 bg-rose-500/15 px-3 text-xs font-black text-rose-100 transition hover:bg-rose-500/25 disabled:opacity-50"
                     >
                       إلغاء الطلب
                     </button>
