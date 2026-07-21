@@ -21,6 +21,7 @@ import {
   parseStoredInvoiceCustomerDraft,
   serializeInvoiceCustomerDraft,
 } from '@/lib/invoices/customer'
+import { validateSaudiCustomerPhone } from '@/lib/customers'
 import {
   clearActivePosEmployee,
   markPosLoggedOut,
@@ -153,6 +154,7 @@ export function InvoiceCustomerStep({
   const [newCustomerNotes, setNewCustomerNotes] = useState('')
   const [newCustomerSaving, setNewCustomerSaving] = useState(false)
   const [newCustomerError, setNewCustomerError] = useState('')
+  const [newCustomerPhoneError, setNewCustomerPhoneError] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const customerSearchRequestIdRef = useRef(0)
   const customerPhoneInputRef = useRef<HTMLInputElement | null>(null)
@@ -161,6 +163,12 @@ export function InvoiceCustomerStep({
   const isValidSaudiPhone = /^(?:\+?966|0)?5\d{8}$/.test(normalizedCustomerPhone)
   const isValid =
     isInvoiceCustomerDraftValid(customerName, customerPhone) && isValidSaudiPhone
+  const newCustomerPhoneValidation = validateSaudiCustomerPhone(newCustomerPhone)
+  const displayedNewCustomerPhoneError =
+    newCustomerPhoneError ||
+    (newCustomerPhoneValidation.valid
+      ? ''
+      : newCustomerPhoneValidation.message)
   const activePosEmployee = variant === 'pos' ? readActivePosEmployee() : null
   const employeeDisplayName =
     activePosEmployee?.full_name?.trim() ||
@@ -492,6 +500,7 @@ export function InvoiceCustomerStep({
     setNewCustomerEmail('')
     setNewCustomerNotes('')
     setNewCustomerError('')
+    setNewCustomerPhoneError('')
     setAddCustomerOpen(true)
   }
 
@@ -502,6 +511,7 @@ export function InvoiceCustomerStep({
 
     setAddCustomerOpen(false)
     setNewCustomerError('')
+    setNewCustomerPhoneError('')
   }
 
   const handleCreateCustomer = async () => {
@@ -524,18 +534,16 @@ export function InvoiceCustomerStep({
       return
     }
 
-    if (!phone) {
-      setNewCustomerError('أدخل رقم جوال سعودي صحيحًا.')
-      return
-    }
+    const phoneValidation = validateSaudiCustomerPhone(phone)
 
-    if (!/^(?:\+?966|0)?5\d{8}$/.test(phone.replace(/[\s()-]/g, ''))) {
-      setNewCustomerError('أدخل رقم جوال سعودي صحيحًا.')
+    if (!phoneValidation.valid) {
+      setNewCustomerPhoneError(phoneValidation.message)
       return
     }
 
     setNewCustomerSaving(true)
     setNewCustomerError('')
+    setNewCustomerPhoneError('')
 
     try {
       const response = await fetch('/api/customers', {
@@ -556,6 +564,15 @@ export function InvoiceCustomerStep({
       const result = await response.json().catch(() => null)
 
       if (!response.ok || !result?.success || !result.customer) {
+        if (
+          typeof result?.code === 'string' &&
+          result.code.startsWith('CUSTOMER_PHONE_') &&
+          typeof result?.error === 'string'
+        ) {
+          setNewCustomerPhoneError(result.error)
+          return
+        }
+
         throw new Error('safe-customer-save-failure')
       }
 
@@ -834,8 +851,7 @@ export function InvoiceCustomerStep({
                       }}
                       placeholder="05xxxxxxxx"
                       className="h-[66px] w-full rounded-[22px] border-0 bg-[rgba(6,20,38,0.76)] px-5 text-right text-lg font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
+                      inputMode="tel"
                       autoComplete="tel"
                       enterKeyHint="search"
                       aria-required="true"
@@ -1074,14 +1090,26 @@ export function InvoiceCustomerStep({
                   <input
                     type="tel"
                     value={newCustomerPhone}
-                    onChange={(event) => setNewCustomerPhone(event.target.value)}
+                    onChange={(event) => {
+                      setNewCustomerPhone(event.target.value)
+                      setNewCustomerPhoneError('')
+                    }}
                     disabled={newCustomerSaving}
                     placeholder="05xxxxxxxx"
                     className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60 touch-manipulation"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                    inputMode="tel"
                     autoComplete="tel"
+                    aria-invalid={Boolean(displayedNewCustomerPhoneError)}
+                    aria-describedby="new-customer-phone-error"
                   />
+                  {displayedNewCustomerPhoneError ? (
+                    <span
+                      id="new-customer-phone-error"
+                      className="mt-2 block break-words text-sm font-bold leading-6 text-red-200"
+                    >
+                      {displayedNewCustomerPhoneError}
+                    </span>
+                  ) : null}
                 </label>
 
                 <label className="block">
@@ -1125,7 +1153,7 @@ export function InvoiceCustomerStep({
                 <button
                   type="button"
                   onClick={handleCreateCustomer}
-                  disabled={newCustomerSaving}
+                  disabled={newCustomerSaving || !newCustomerPhoneValidation.valid}
                   className="min-h-[52px] rounded-[18px] bg-[#22D3EE] px-5 text-[15px] font-black text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.18)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none active:scale-[0.98]"
                 >
                   {newCustomerSaving ? 'جار الحفظ...' : 'حفظ العميل'}
@@ -1209,8 +1237,7 @@ export function InvoiceCustomerStep({
               }}
               placeholder="05xxxxxxxx"
               className="field-input min-h-[48px] text-base touch-manipulation"
-              inputMode="numeric"
-              pattern="[0-9]*"
+              inputMode="tel"
               autoComplete="tel"
               enterKeyHint="search"
             />

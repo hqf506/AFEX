@@ -5,8 +5,10 @@ import { isFullAdmin } from '@/lib/permissions'
 import {
   buildSaudiPhoneCandidatePattern,
   buildCustomerSearchFilter,
+  CUSTOMER_PHONE_ERRORS,
   normalizeCustomerSearchTerm,
   normalizeSaudiCustomerPhone,
+  validateSaudiCustomerPhone,
 } from '@/lib/customers'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { createServerTiming } from '@/lib/performance/server-timing'
@@ -397,6 +399,7 @@ export async function POST(request: NextRequest) {
   const branchId = isSystemScoped
     ? requestedBranchId || profileBranchId || null
     : profileBranchId || null
+  const phoneValidation = validateSaudiCustomerPhone(phone)
 
   if (!name) {
     return jsonWithAuthCookies(
@@ -409,12 +412,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!phone) {
+  if (!phoneValidation.valid) {
     return jsonWithAuthCookies(
       auth.response,
       {
         success: false,
-        error: 'رقم الجوال مطلوب',
+        error: phoneValidation.message,
+        code: phoneValidation.code,
       },
       400
     )
@@ -428,6 +432,56 @@ export async function POST(request: NextRequest) {
         error: 'تعذر تحديد فرع الحساب',
       },
       403
+    )
+  }
+
+  let duplicatePhoneQuery = auth.supabase
+    .from('customers')
+    .select('id, phone')
+    .ilike(
+      'phone',
+      buildSaudiPhoneCandidatePattern(phoneValidation.normalizedPhone)
+    )
+    .limit(FULL_PHONE_CANDIDATE_LIMIT)
+
+  duplicatePhoneQuery = applyTenantFilter(
+    duplicatePhoneQuery,
+    auth.profile.tenant_id
+  )
+
+  const {
+    data: duplicatePhoneCandidates,
+    error: duplicatePhoneError,
+  } = await duplicatePhoneQuery
+
+  if (duplicatePhoneError) {
+    logCustomerDatabaseFailure('lookup', duplicatePhoneError, 500)
+    return jsonWithAuthCookies(
+      auth.response,
+      {
+        success: false,
+        error: 'تعذر التحقق من رقم الجوال حاليًا. حاول مرة أخرى.',
+        code: 'CUSTOMER_PHONE_LOOKUP_FAILED',
+      },
+      500
+    )
+  }
+
+  const duplicatePhoneCustomer = (duplicatePhoneCandidates || []).find(
+    (candidate) =>
+      normalizeSaudiCustomerPhone(candidate.phone) ===
+      phoneValidation.normalizedPhone
+  )
+
+  if (duplicatePhoneCustomer) {
+    return jsonWithAuthCookies(
+      auth.response,
+      {
+        success: false,
+        error: CUSTOMER_PHONE_ERRORS.duplicate,
+        code: 'CUSTOMER_PHONE_CONFLICT',
+      },
+      409
     )
   }
 
@@ -458,7 +512,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: isPhoneConflict
-          ? 'Customer phone already exists'
+          ? CUSTOMER_PHONE_ERRORS.duplicate
           : isUniqueConflict
             ? 'Customer already exists'
             : 'Failed to create customer',
