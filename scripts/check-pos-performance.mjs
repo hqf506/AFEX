@@ -20,6 +20,7 @@ const checkoutHook = read('hooks/use-invoice-checkout.ts')
 const paymentMethodsSource = read('lib/invoices/payment-method.ts')
 const orderPaymentSource = read('lib/invoices/order-payment.ts')
 const ordersPage = read('app/admin/orders/page.tsx')
+const ordersRoute = read('app/api/orders/route.ts')
 
 const itemsSourceFile = ts.createSourceFile(
   'components/invoice-items-step.tsx',
@@ -115,6 +116,69 @@ assert(
     catalogRoute.indexOf('const categoriesQuery') >
       catalogRoute.indexOf("if (!branch)"),
   'Catalog queries must start only after both guards succeed without Promise.race.'
+)
+
+const ordersRouteSourceFile = ts.createSourceFile(
+  'app/api/orders/route.ts',
+  ordersRoute,
+  ts.ScriptTarget.ES2022,
+  true,
+  ts.ScriptKind.TS
+)
+const ordersRouteInitializers = new Map()
+function collectOrdersRouteVariables(node) {
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+    ordersRouteInitializers.set(node.name.text, node.initializer || null)
+  }
+  ts.forEachChild(node, collectOrdersRouteVariables)
+}
+collectOrdersRouteVariables(ordersRouteSourceFile)
+
+const ordersSettingsPromise = ordersRouteInitializers.get('settingsGuardPromise')
+const ordersDetailsPromise = ordersRouteInitializers.get('detailsQueryPromise')
+const ordersSettledResults = ordersRouteInitializers.get('detailsSettledResults')
+const ordersDetailsSource = ordersDetailsPromise?.getText(ordersRouteSourceFile) || ''
+
+assert(
+  ordersSettingsPromise &&
+    ordersDetailsPromise &&
+    ordersSettingsPromise.pos > ordersRoute.indexOf('if (!auth.ok)') &&
+    ordersDetailsPromise.pos > ordersSettingsPromise.pos &&
+    !ts.isAwaitExpression(ordersSettingsPromise) &&
+    !ts.isAwaitExpression(ordersDetailsPromise),
+  'Orders Auth must finish before independent Settings and Details promises start.'
+)
+assert(
+  ordersSettledResults?.getText(ordersRouteSourceFile).includes(
+    'Promise.allSettled([settingsGuardPromise, detailsQueryPromise])'
+  ) &&
+    ordersSettledResults.pos > ordersDetailsPromise.pos,
+  'Orders Settings and Details promises must both start before either result is awaited.'
+)
+assert(
+  ordersRoute.indexOf("detailsSettledResults?.[0].status === 'rejected'") <
+      ordersRoute.indexOf('if (featureDisabledResponse)') &&
+    ordersRoute.indexOf('if (featureDisabledResponse)') <
+      ordersRoute.indexOf('if (hasMissingBranchScope)') &&
+    ordersRoute.indexOf('if (hasMissingBranchScope)') <
+      ordersRoute.indexOf("if (!query.id)"),
+  'Orders Details must preserve Settings, branch-scope, and missing-ID response precedence.'
+)
+assert(
+  ordersDetailsSource.includes(".select(ORDERS_DETAILS_SELECT)") &&
+    ordersDetailsSource.includes('applyTenantFilter(') &&
+    ordersDetailsSource.includes('shouldFilterByBranch(') &&
+    ordersDetailsSource.includes("'branch_id'") &&
+    ordersDetailsSource.includes("timing.measure('orders'") &&
+    ordersDetailsSource.includes('detailsQuery.maybeSingle()'),
+  'Orders Details query must retain its select, tenant filter, branch filter, and timing stage.'
+)
+assert(
+  !ordersRoute.includes('Promise.race') &&
+    !ordersRoute.includes('Promise.any') &&
+    ordersRoute.indexOf('const { data, error } = detailsResult.value') >
+      ordersRoute.indexOf('if (featureDisabledResponse)'),
+  'Orders Details must inspect Settings first without race/any or early response construction.'
 )
 
 const ordersSourceFile = ts.createSourceFile(

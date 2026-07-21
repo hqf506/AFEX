@@ -315,7 +315,11 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const featureDisabledResponse = await timing.measure(
+  const hasMissingBranchScope = isBranchScopedWithoutBranchId(
+    auth.profile.scope_type,
+    auth.profile.branch_id
+  )
+  const settingsGuardPromise = timing.measure(
     'settings',
     () => disabledFeatureResponse(
       auth.response,
@@ -324,17 +328,51 @@ export async function GET(request: NextRequest) {
       ORDERS_FEATURE_DISABLED_MESSAGE
     )
   )
+  const detailsQueryPromise =
+    query.mode === 'details' && query.id && !hasMissingBranchScope
+      ? (() => {
+          let detailsQuery = auth.supabase
+            .from('orders')
+            .select(ORDERS_DETAILS_SELECT)
+            .eq('id', query.id)
+
+          detailsQuery = applyTenantFilter(
+            detailsQuery,
+            auth.profile.tenant_id
+          )
+
+          if (
+            shouldFilterByBranch(
+              auth.profile.scope_type,
+              auth.profile.branch_id
+            )
+          ) {
+            detailsQuery = detailsQuery.eq(
+              'branch_id',
+              auth.profile.branch_id as string
+            )
+          }
+
+          return timing.measure('orders', () => detailsQuery.maybeSingle())
+        })()
+      : null
+  const detailsSettledResults = detailsQueryPromise
+    ? await Promise.allSettled([settingsGuardPromise, detailsQueryPromise])
+    : null
+
+  if (detailsSettledResults?.[0].status === 'rejected') {
+    throw detailsSettledResults[0].reason
+  }
+
+  const featureDisabledResponse = detailsSettledResults
+    ? detailsSettledResults[0].value
+    : await settingsGuardPromise
 
   if (featureDisabledResponse) {
     return timing.finish(featureDisabledResponse)
   }
 
-  if (
-    isBranchScopedWithoutBranchId(
-      auth.profile.scope_type,
-      auth.profile.branch_id
-    )
-  ) {
+  if (hasMissingBranchScope) {
     return jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
       success: true,
       mode: query.mode,
@@ -360,25 +398,12 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      let detailsQuery = auth.supabase
-        .from('orders')
-        .select(ORDERS_DETAILS_SELECT)
-        .eq('id', query.id)
-
-      detailsQuery = applyTenantFilter(detailsQuery, auth.profile.tenant_id)
-
-      if (
-        shouldFilterByBranch(auth.profile.scope_type, auth.profile.branch_id)
-      ) {
-        detailsQuery = detailsQuery.eq(
-          'branch_id',
-          auth.profile.branch_id as string
-        )
+      const detailsResult = detailsSettledResults?.[1]
+      if (!detailsResult || detailsResult.status === 'rejected') {
+        throw detailsResult?.reason
       }
 
-      const { data, error } = await timing.measure('orders', () =>
-        detailsQuery.maybeSingle()
-      )
+      const { data, error } = detailsResult.value
 
       if (error) {
         return jsonWithAuthCookies(
