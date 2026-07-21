@@ -16,6 +16,7 @@ const customerStep = read('components/invoice-customer-step.tsx')
 const itemsStep = read('components/invoice-items-step.tsx')
 const checkoutStep = read('app/pos/sale/checkout/page.tsx')
 const saleReset = read('lib/invoices/sale-reset.ts')
+const successStep = read('app/pos/sale/success/page.tsx')
 const activePosItemsLayout = itemsStep.slice(
   itemsStep.indexOf("if (variant === 'pos')"),
   itemsStep.indexOf('const renderLegacyPosItemsLayout')
@@ -155,6 +156,28 @@ assert.equal(
 assert.ok(
   !interactiveCheckoutLayout.includes('window.innerWidth'),
   'POS checkout responsive presentation must remain CSS-only'
+)
+assert.equal(
+  (successStep.match(/snapshot\.invoiceItems\.map\(/g) || []).length,
+  1,
+  'POS success receipt items must render from one shared responsive tree'
+)
+assert.equal(
+  (successStep.match(/onClick=\{handleNewSale\}/g) || []).length,
+  1,
+  'POS success page must keep one New Sale action'
+)
+assert.ok(
+  successStep.includes("router.push('/admin/orders')") &&
+    successStep.includes('overflow-x-hidden overflow-y-auto overscroll-y-contain') &&
+    successStep.includes('env(safe-area-inset-bottom)') &&
+    successStep.includes('min-[390px]:grid-cols-2') &&
+    successStep.includes('focus-visible:ring-2'),
+  'POS success page must preserve safe mobile scrolling, actions, focus, and the Orders shortcut'
+)
+assert.ok(
+  !successStep.includes('window.innerWidth'),
+  'POS success responsive presentation must remain CSS-only'
 )
 
 for (const contractKey of [

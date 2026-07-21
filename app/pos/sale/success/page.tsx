@@ -166,9 +166,9 @@ function SuccessCheckIcon() {
 
 function ReceiptLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-slate-500">{label}</span>
-      <span className="truncate text-left font-black text-slate-100">{value}</span>
+    <div className="flex min-w-0 items-start justify-between gap-3">
+      <span className="shrink-0 text-slate-500">{label}</span>
+      <span className="min-w-0 break-words text-left font-black text-slate-100 [overflow-wrap:anywhere]">{value}</span>
     </div>
   )
 }
@@ -583,19 +583,19 @@ export default function PosSaleSuccessPage() {
         <ReceiptView snapshot={snapshot} />
       </div>
 
-      <div className="receipt-print-hide fixed inset-0 h-[100svh] w-screen overflow-y-auto bg-[#020817] text-white md:overflow-hidden">
+      <div className="receipt-print-hide fixed inset-0 h-[100svh] w-screen overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#020817] text-white md:overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_80%_82%,rgba(20,184,166,0.12),transparent_36%),linear-gradient(135deg,#020817_0%,#061426_54%,#020817_100%)]" />
-        <div className="relative grid min-h-full w-full gap-3 p-3 [direction:ltr] md:h-full md:grid-cols-[minmax(0,1fr)_300px] md:overflow-hidden md:p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:p-5">
-          <main className="flex min-w-0 flex-col justify-between gap-4 rounded-[34px] border border-cyan-300/10 bg-[#020817]/62 p-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl [direction:rtl] md:overflow-hidden lg:p-6">
-            <section className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-              <div className="relative flex h-28 w-28 animate-[success-pop_420ms_ease-out] items-center justify-center rounded-full border border-[#14B8A6]/35 bg-[#14B8A6]/14 text-teal-50 shadow-[0_0_46px_rgba(20,184,166,0.28)]">
+        <div className="relative grid min-h-full w-full gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] [direction:ltr] md:h-full md:grid-cols-[minmax(0,1fr)_300px] md:overflow-hidden md:p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:p-5">
+          <main className="flex min-w-0 flex-col justify-between gap-4 rounded-[28px] border border-cyan-300/10 bg-[#020817]/62 p-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl [direction:rtl] md:overflow-hidden md:rounded-[34px] lg:p-6">
+            <section className="flex min-h-0 flex-1 flex-col items-center justify-center py-3 text-center sm:py-5 md:py-0">
+              <div className="relative flex h-20 w-20 animate-[success-pop_420ms_ease-out] items-center justify-center rounded-full border border-[#14B8A6]/35 bg-[#14B8A6]/14 text-teal-50 shadow-[0_0_46px_rgba(20,184,166,0.28)] sm:h-24 sm:w-24 lg:h-28 lg:w-28">
                 <div className="absolute inset-3 rounded-full border border-cyan-300/12" />
                 <SuccessCheckIcon />
               </div>
-              <p className="mt-7 text-xs font-black tracking-[0.22em] text-cyan-300">
+              <p className="mt-4 text-xs font-black tracking-[0.22em] text-cyan-300 sm:mt-6">
                 AFEX POS
               </p>
-              <h1 className="mt-2 text-4xl font-black text-white">
+              <h1 className="mt-2 text-2xl font-black text-white sm:text-3xl lg:text-4xl">
                 تم إنشاء الفاتورة بنجاح
               </h1>
               <p className="mt-3 max-w-xl text-base font-bold text-slate-400">
@@ -607,22 +607,22 @@ export default function PosSaleSuccessPage() {
                 </p>
               ) : null}
 
-              <div className="mt-7 grid w-full max-w-3xl grid-cols-2 gap-3">
+              <div className="mt-5 grid w-full max-w-3xl grid-cols-1 gap-3 min-[390px]:grid-cols-2 sm:mt-7">
                 <div className="rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4">
                   <p className="text-xs font-black text-slate-400">رقم الفاتورة</p>
-                  <p className="mt-2 text-2xl font-black text-white">
+                  <p className="mt-2 break-words text-xl font-black text-white [overflow-wrap:anywhere] sm:text-2xl">
                     {snapshot.invoiceNumber || '—'}
                   </p>
                 </div>
                 <div className="rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4">
                   <p className="text-xs font-black text-slate-400">رقم الطلب</p>
-                  <p className="mt-2 text-2xl font-black text-white">
+                  <p className="mt-2 break-words text-xl font-black text-white [overflow-wrap:anywhere] sm:text-2xl">
                     {snapshot.orderNumber || '—'}
                   </p>
                 </div>
-                <div className="col-span-2 rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4">
+                <div className="rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4 min-[390px]:col-span-2">
                   <p className="text-xs font-black text-slate-400">العميل</p>
-                  <p className="mt-2 text-2xl font-black text-white">
+                  <p className="mt-2 break-words text-xl font-black text-white [overflow-wrap:anywhere] sm:text-2xl">
                     {snapshot.customerName || '—'}{' '}
                     <span className="text-lg text-cyan-100">
                       {snapshot.customerPhone || ''}
@@ -636,7 +636,14 @@ export default function PosSaleSuccessPage() {
               </p>
             </section>
 
-            <section className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
+            <section className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-5">
+              <button
+                type="button"
+                onClick={handleNewSale}
+                className="col-span-2 flex min-h-14 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] px-4 py-3 text-base font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100/70 lg:col-span-1"
+              >
+                ➕ بيع جديد
+              </button>
               <button
                 type="button"
                 onClick={handlePagePrint}
@@ -646,7 +653,7 @@ export default function PosSaleSuccessPage() {
                     ? undefined
                     : 'ميزة الطباعة غير مفعلة من إعدادات النظام.'
                 }
-                className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-base font-black text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-slate-600/30 disabled:bg-slate-700/20 disabled:text-slate-500 disabled:shadow-none"
+                className="flex min-h-14 items-center justify-center rounded-[22px] border border-cyan-300/18 bg-cyan-400/10 px-3 py-3 text-sm font-black text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)] transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/60 disabled:cursor-not-allowed disabled:border-slate-600/30 disabled:bg-slate-700/20 disabled:text-slate-500 disabled:shadow-none sm:text-base"
               >
                 {printing ? 'جارٍ تجهيز الطباعة...' : '🖨 طباعة الفاتورة'}
               </button>
@@ -659,21 +666,21 @@ export default function PosSaleSuccessPage() {
                     ? undefined
                     : 'ميزة الواتساب غير مفعلة من إعدادات النظام.'
                 }
-                className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/14 bg-[#061426]/70 px-4 text-base font-black text-cyan-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:text-slate-600"
+                className="flex min-h-14 items-center justify-center rounded-[22px] border border-cyan-300/14 bg-[#061426]/70 px-3 py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/60 disabled:cursor-not-allowed disabled:text-slate-600 sm:text-base"
               >
                 {whatsappOpening ? 'جارٍ فتح واتساب...' : '📱 إرسال واتساب'}
               </button>
               <button
                 type="button"
-                onClick={handleNewSale}
-                className="flex h-16 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] px-4 text-base font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98]"
+                onClick={() => router.push('/admin/orders')}
+                className="flex min-h-14 items-center justify-center rounded-[22px] border border-cyan-300/14 bg-[#061426]/70 px-3 py-3 text-sm font-black text-slate-200 transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/60 sm:text-base"
               >
-                ➕ بيع جديد
+                📋 الطلبات
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/pos')}
-                className="flex h-16 items-center justify-center rounded-[24px] border border-cyan-300/14 bg-[#061426]/70 px-4 text-base font-black text-slate-200 transition active:scale-[0.98]"
+                className="flex min-h-14 items-center justify-center rounded-[22px] border border-cyan-300/14 bg-[#061426]/70 px-3 py-3 text-sm font-black text-slate-200 transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/60 sm:text-base"
               >
                 🏠 العودة للرئيسية
               </button>
@@ -688,7 +695,7 @@ export default function PosSaleSuccessPage() {
               <h2 className="mt-1 text-xl font-black text-white">معاينة الإيصال</h2>
             </div>
 
-            <div className="mt-3 flex min-h-0 flex-1 flex-col rounded-[28px] border border-cyan-300/12 bg-[#061426]/58 p-4">
+            <div className="mt-3 flex min-h-0 flex-1 flex-col rounded-[28px] border border-cyan-300/12 bg-[#061426]/58 p-3 sm:p-4">
               <div className="border-b border-cyan-300/10 pb-4 text-center">
                 <p className="text-3xl font-black tracking-[0.18em] text-white">
                   AFEX
@@ -727,7 +734,7 @@ export default function PosSaleSuccessPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-white">
+                        <p className="break-words text-sm font-black text-white [overflow-wrap:anywhere]">
                           {item.item_name}
                         </p>
                         <p className="mt-1 text-xs font-bold text-slate-500">
