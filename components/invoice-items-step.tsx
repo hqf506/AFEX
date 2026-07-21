@@ -639,8 +639,6 @@ export function InvoiceItemsStep({
     }
 
     let reloadTimeoutId: number | null = null
-    let followUpReloadTimeoutId: number | null = null
-
     const scheduleCatalogReload = () => {
       clearBranchInvoiceCatalogCache(invoiceBranchId, tenantId)
 
@@ -653,40 +651,22 @@ export function InvoiceItemsStep({
       }, 400)
     }
 
-    const scheduleShortVisibleRefresh = () => {
-      scheduleCatalogReload()
-
-      if (followUpReloadTimeoutId) {
-        window.clearTimeout(followUpReloadTimeoutId)
-      }
-
-      followUpReloadTimeoutId = window.setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          scheduleCatalogReload()
-        }
-      }, 3000)
-    }
-
     const refreshOnReturn = () => {
       if (document.visibilityState === 'visible') {
-        scheduleShortVisibleRefresh()
+        scheduleCatalogReload()
       }
     }
 
     document.addEventListener('visibilitychange', refreshOnReturn)
-    window.addEventListener('focus', scheduleShortVisibleRefresh)
+    window.addEventListener('focus', scheduleCatalogReload)
 
     return () => {
       if (reloadTimeoutId) {
         window.clearTimeout(reloadTimeoutId)
       }
 
-      if (followUpReloadTimeoutId) {
-        window.clearTimeout(followUpReloadTimeoutId)
-      }
-
       document.removeEventListener('visibilitychange', refreshOnReturn)
-      window.removeEventListener('focus', scheduleShortVisibleRefresh)
+      window.removeEventListener('focus', scheduleCatalogReload)
     }
   }, [
     allowed,

@@ -20,6 +20,44 @@ const checkoutHook = read('hooks/use-invoice-checkout.ts')
 const paymentMethodsSource = read('lib/invoices/payment-method.ts')
 const orderPaymentSource = read('lib/invoices/order-payment.ts')
 
+const itemsSourceFile = ts.createSourceFile(
+  'components/invoice-items-step.tsx',
+  itemsStep,
+  ts.ScriptTarget.ES2022,
+  true,
+  ts.ScriptKind.TSX
+)
+const catalogReturnEffects = []
+function collectCatalogReturnEffects(node) {
+  if (
+    ts.isCallExpression(node) &&
+    node.expression.getText(itemsSourceFile) === 'useEffect' &&
+    node.getText(itemsSourceFile).includes("addEventListener('visibilitychange'") &&
+    node.getText(itemsSourceFile).includes("addEventListener('focus'")
+  ) {
+    catalogReturnEffects.push(node)
+  }
+  ts.forEachChild(node, collectCatalogReturnEffects)
+}
+collectCatalogReturnEffects(itemsSourceFile)
+
+assert(
+  catalogReturnEffects.length === 1,
+  'Items must define one Catalog return-refresh effect.'
+)
+const catalogReturnEffectSource = catalogReturnEffects[0].getText(itemsSourceFile)
+assert(
+  (catalogReturnEffectSource.match(/window\.setTimeout\(/g) || []).length === 1 &&
+    (catalogReturnEffectSource.match(/window\.clearTimeout\(/g) || []).length === 2 &&
+    !catalogReturnEffectSource.includes('3000'),
+  'Focus and visibility must share one cancellable Catalog refresh timer without a follow-up reload.'
+)
+assert(
+  catalogReturnEffectSource.includes("removeEventListener('visibilitychange'") &&
+    catalogReturnEffectSource.includes("removeEventListener('focus'"),
+  'Catalog return listeners must both be removed during cleanup.'
+)
+
 assert(!catalogRoute.includes("select('*')"), 'POS Catalog must not use select(*).')
 assert(!runtimeRoute.includes("select('*')"), 'POS Runtime must not use select(*).')
 assert(
