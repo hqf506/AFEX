@@ -19,6 +19,7 @@ const customerStep = read('components/invoice-customer-step.tsx')
 const checkoutHook = read('hooks/use-invoice-checkout.ts')
 const paymentMethodsSource = read('lib/invoices/payment-method.ts')
 const orderPaymentSource = read('lib/invoices/order-payment.ts')
+const ordersPage = read('app/admin/orders/page.tsx')
 
 const itemsSourceFile = ts.createSourceFile(
   'components/invoice-items-step.tsx',
@@ -40,6 +41,81 @@ function collectCatalogReturnEffects(node) {
   ts.forEachChild(node, collectCatalogReturnEffects)
 }
 collectCatalogReturnEffects(itemsSourceFile)
+
+const ordersSourceFile = ts.createSourceFile(
+  'app/admin/orders/page.tsx',
+  ordersPage,
+  ts.ScriptTarget.ES2022,
+  true,
+  ts.ScriptKind.TSX
+)
+const ordersEffects = []
+function collectOrdersEffects(node) {
+  if (
+    ts.isCallExpression(node) &&
+    node.expression.getText(ordersSourceFile) === 'useEffect'
+  ) {
+    ordersEffects.push(node.getText(ordersSourceFile))
+  }
+  ts.forEachChild(node, collectOrdersEffects)
+}
+collectOrdersEffects(ordersSourceFile)
+
+const ordersIntervalEffect = ordersEffects.find((source) =>
+  source.includes('setInterval(')
+)
+const ordersVisibilityEffect = ordersEffects.find((source) =>
+  source.includes("addEventListener('visibilitychange'")
+)
+
+assert(
+  ordersIntervalEffect?.includes('checkOrdersMetaAndReload()') &&
+    ordersVisibilityEffect?.includes('checkOrdersMetaAndReload()'),
+  'Orders interval and visibility refresh must share one Metadata function.'
+)
+assert(
+  ordersPage.includes(
+    'if (isMetaFetchInFlightRef.current || isFetchInFlightRef.current) return'
+  ),
+  'Orders Metadata in-flight guard must remain active.'
+)
+assert(
+  (ordersPage.match(/lastSuccessfulMetaCheckRef = useRef/g) || []).length === 1 &&
+    ordersPage.includes('lastSuccessfulCheck?.context === metaContext') &&
+    ordersPage.includes('ORDERS_META_RECENT_SUCCESS_MS'),
+  'Orders must define one recent-success guard scoped to the Metadata context.'
+)
+assert(
+  ordersPage.includes('const metaContext = params.toString()') &&
+    ordersPage.includes('lastSuccessfulMetaCheckRef.current = null') &&
+    ordersPage.includes('metaInvalidationVersionRef.current += 1') &&
+    ordersPage.includes(
+      'metaInvalidationVersionRef.current === invalidationVersion'
+    ),
+  'Orders context changes and list refreshes must not reuse a stale Metadata success.'
+)
+assert(
+  !/if \(!response\.ok \|\| !result\?\.success\) \{\s*lastSuccessfulMetaCheckRef\.current/s.test(
+    ordersPage
+  ),
+  'Failed Orders Metadata requests must not start the recent-success window.'
+)
+assert(
+  /if \(nextSignature !== ordersSignatureRef\.current\) \{\s*lastSuccessfulMetaCheckRef\.current = null\s*await fetchOrders\(true\)/.test(
+    ordersPage
+  ),
+  'Orders signature changes must still invalidate the guard and reload the full list.'
+)
+assert(
+  ordersPage.includes('const ORDERS_META_INTERVAL_MS = 15000') &&
+    ordersIntervalEffect?.includes('ORDERS_META_INTERVAL_MS'),
+  'Orders Metadata interval must remain 15 seconds.'
+)
+assert(
+  ordersVisibilityEffect?.includes("removeEventListener('visibilitychange'") &&
+    !ordersPage.includes("addEventListener('focus'"),
+  'Orders visibility listener must be cleaned up without adding a focus listener.'
+)
 
 assert(
   catalogReturnEffects.length === 1,

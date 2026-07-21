@@ -73,6 +73,8 @@ function maskDebugId(id: string | null | undefined) {
 const EMPTY_DASH = '-'
 
 const ORDERS_PAGE_SIZE = 25
+const ORDERS_META_INTERVAL_MS = 15000
+const ORDERS_META_RECENT_SUCCESS_MS = ORDERS_META_INTERVAL_MS / 3
 const WHATSAPP_FEATURE_DISABLED_MESSAGE =
   'ميزة الواتساب غير مفعلة من إعدادات النظام.'
 const INVALID_STATUS_SEQUENCE_MESSAGE = 'لا يمكن تغيير الحالة بهذا التسلسل.'
@@ -709,6 +711,11 @@ export default function OrdersPage() {
   const initializedRef = useRef(false)
   const isFetchInFlightRef = useRef(false)
   const isMetaFetchInFlightRef = useRef(false)
+  const lastSuccessfulMetaCheckRef = useRef<{
+    context: string
+    checkedAt: number
+  } | null>(null)
+  const metaInvalidationVersionRef = useRef(0)
   const orderDetailsInFlightRef = useRef<Set<string>>(new Set())
   const ordersSignatureRef = useRef('')
   const previousOrderIdsRef = useRef<Set<string>>(new Set())
@@ -797,6 +804,8 @@ export default function OrdersPage() {
 
   const fetchOrders = useCallback(
     async (silent = false) => {
+      lastSuccessfulMetaCheckRef.current = null
+      metaInvalidationVersionRef.current += 1
       isFetchInFlightRef.current = true
 
       if (silent) {
@@ -942,31 +951,42 @@ export default function OrdersPage() {
       return
     }
 
+    const params = new URLSearchParams({
+      mode: 'meta',
+      page: String(currentPage),
+      pageSize: String(ORDERS_PAGE_SIZE),
+      listFilter: filter,
+    })
+
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    if (filter === 'today') {
+      const today = new Date().toISOString().slice(0, 10)
+      params.set('dateFrom', today)
+      params.set('dateTo', today)
+    }
+
+    const branchFilter = shouldFilterByBranch(scopeType, branchId)
+      ? branchId
+      : effectiveBranchId
+
+    if (branchFilter) {
+      params.set('branchId', branchFilter)
+    }
+
+    const metaContext = params.toString()
+    const lastSuccessfulCheck = lastSuccessfulMetaCheckRef.current
+    if (
+      lastSuccessfulCheck?.context === metaContext &&
+      Date.now() - lastSuccessfulCheck.checkedAt <
+        ORDERS_META_RECENT_SUCCESS_MS
+    ) {
+      return
+    }
+
     isMetaFetchInFlightRef.current = true
+    const invalidationVersion = metaInvalidationVersionRef.current
 
     try {
-      const params = new URLSearchParams({
-        mode: 'meta',
-        page: String(currentPage),
-        pageSize: String(ORDERS_PAGE_SIZE),
-        listFilter: filter,
-      })
-
-      if (debouncedSearch) params.set('search', debouncedSearch)
-      if (filter === 'today') {
-        const today = new Date().toISOString().slice(0, 10)
-        params.set('dateFrom', today)
-        params.set('dateTo', today)
-      }
-
-      const branchFilter = shouldFilterByBranch(scopeType, branchId)
-        ? branchId
-        : effectiveBranchId
-
-      if (branchFilter) {
-        params.set('branchId', branchFilter)
-      }
-
       const response = await fetch(`/api/orders?${params.toString()}`, {
         method: 'GET',
         credentials: 'include',
@@ -985,8 +1005,15 @@ export default function OrdersPage() {
       const nextSignature = result.comparisonSignature || ''
 
       if (nextSignature !== ordersSignatureRef.current) {
+        lastSuccessfulMetaCheckRef.current = null
         await fetchOrders(true)
       } else {
+        if (metaInvalidationVersionRef.current === invalidationVersion) {
+          lastSuccessfulMetaCheckRef.current = {
+            context: metaContext,
+            checkedAt: Date.now(),
+          }
+        }
         setLastUpdated(new Date().toLocaleTimeString('ar-SA'))
       }
     } catch (error) {
@@ -1024,7 +1051,7 @@ export default function OrdersPage() {
     const interval = setInterval(() => {
       if (document.hidden) return
       void checkOrdersMetaAndReload()
-    }, 15000)
+    }, ORDERS_META_INTERVAL_MS)
 
     return () => clearInterval(interval)
   }, [allowed, checkOrdersMetaAndReload])
@@ -1758,6 +1785,8 @@ export default function OrdersPage() {
       ordersSignatureRef.current = buildOrderComparisonSignature(nextOrders)
       return nextOrders
     })
+    lastSuccessfulMetaCheckRef.current = null
+    metaInvalidationVersionRef.current += 1
     setOrderDetailsById((current) => {
       const nextDetails = { ...current }
       delete nextDetails[order.id]
