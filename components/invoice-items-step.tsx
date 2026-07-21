@@ -1416,7 +1416,7 @@ export function InvoiceItemsStep({
             />
           ) : null}
 
-          <aside id="pos-cart-panel" className={`${showItemsModal ? 'fixed inset-x-3 bottom-3 top-3 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#020817]/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:static md:flex md:h-full md:w-[280px] md:bg-[#020817]/72 lg:w-[320px]`}>
+          <aside id="pos-cart-panel" className={`${showItemsModal ? 'fixed inset-0 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-y-auto overscroll-contain rounded-none border border-cyan-300/10 bg-[#020817]/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:static md:flex md:h-full md:w-[280px] md:overflow-hidden md:rounded-[28px] md:bg-[#020817]/72 md:p-3 lg:w-[320px]`}>
             <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1449,7 +1449,7 @@ export function InvoiceItemsStep({
               </p>
             </div>
 
-            <div className="mt-2 flex min-h-0 flex-1 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5">
+            <div className="mt-2 flex min-h-[160px] shrink-0 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5 md:min-h-0 md:flex-1">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h3 className="text-base font-black text-white">العناصر المختارة</h3>
                 <span className="rounded-full bg-cyan-300/12 px-3 py-1 text-xs font-black text-cyan-100">
@@ -1462,7 +1462,7 @@ export function InvoiceItemsStep({
                   اختر العناصر من الشبكة لإضافتها إلى الفاتورة.
                 </div>
               ) : (
-                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                <div className="space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto md:pr-1">
                   {invoiceItems.map((item) => (
                     <div
                       key={item.item_name}
@@ -1470,7 +1470,7 @@ export function InvoiceItemsStep({
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-black text-white">
+                          <p className="line-clamp-2 break-words text-sm font-black text-white">
                             {item.item_name}
                           </p>
                           <p className="mt-1 text-xs font-bold text-slate-400">
@@ -1480,7 +1480,7 @@ export function InvoiceItemsStep({
                         <button
                           type="button"
                           onClick={() => removeItem(item.item_name)}
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-red-300 transition hover:bg-red-500/10 hover:text-red-200 touch-manipulation"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-red-300 transition hover:bg-red-500/10 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 touch-manipulation"
                           aria-label={`حذف ${item.item_name}`}
                         >
                           <TrashIcon />
@@ -1492,7 +1492,7 @@ export function InvoiceItemsStep({
                           <button
                             type="button"
                             onClick={() => decreaseOrRemoveItem(item.item_name, item.quantity)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#020817]/80 text-lg font-black text-white transition hover:bg-cyan-300/10 touch-manipulation"
+                            className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#020817]/80 text-lg font-black text-white transition hover:bg-cyan-300/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 touch-manipulation"
                             aria-label={`تقليل ${item.item_name}`}
                           >
                             -
@@ -1503,7 +1503,7 @@ export function InvoiceItemsStep({
                           <button
                             type="button"
                             onClick={() => increaseQty(item)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-300 text-lg font-black text-[#02101c] transition hover:bg-cyan-200 touch-manipulation"
+                            className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-300 text-lg font-black text-[#02101c] transition hover:bg-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 touch-manipulation"
                             aria-label={`زيادة ${item.item_name}`}
                           >
                             +

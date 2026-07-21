@@ -113,6 +113,14 @@ assert.ok(
     !activePosItemsLayout.includes('window.innerWidth'),
   'POS product browsing must remain single-tree, touch-first, and CSS responsive'
 )
+assert.ok(
+  activePosItemsLayout.includes("'fixed inset-0 z-50 flex'") &&
+    activePosItemsLayout.includes('overflow-y-auto overscroll-contain rounded-none') &&
+    activePosItemsLayout.includes('md:overflow-hidden md:rounded-[28px]') &&
+    activePosItemsLayout.includes('md:flex-1 md:overflow-y-auto') &&
+    (activePosItemsLayout.match(/className="flex h-11 w-11/g) || []).length >= 3,
+  'Phone cart must use one full-width scroll surface with accessible item controls'
+)
 
 for (const contractKey of [
   'wrongPin',
