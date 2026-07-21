@@ -362,6 +362,7 @@ export function InvoiceCustomerStep({
       }
     )
       .then((customers) => {
+        window.clearTimeout(loadingTimeoutId)
         if (!controller.signal.aborted) {
           setRecentCustomers(customers)
           setRecentCustomersError('')
@@ -369,6 +370,7 @@ export function InvoiceCustomerStep({
         }
       })
       .catch((error) => {
+        window.clearTimeout(loadingTimeoutId)
         if (controller.signal.aborted) {
           return
         }

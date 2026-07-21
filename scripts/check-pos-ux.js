@@ -13,6 +13,11 @@ const paymentMethods = read('lib/invoices/payment-method.ts')
 const tabletFrame = read('components/pos-tablet-frame.tsx')
 const posHome = read('app/pos/page.tsx')
 const customerStep = read('components/invoice-customer-step.tsx')
+const itemsStep = read('components/invoice-items-step.tsx')
+const activePosItemsLayout = itemsStep.slice(
+  itemsStep.indexOf("if (variant === 'pos')"),
+  itemsStep.indexOf('const renderLegacyPosItemsLayout')
+)
 
 assert.equal(
   (tabletFrame.match(/\{children\}/g) || []).length,
@@ -75,6 +80,38 @@ assert.ok(
     customerStep.includes('aria-modal="true"') &&
     customerStep.includes('items-start justify-center overflow-y-auto'),
   'Customer step must preserve one responsive tree and a keyboard-safe dialog'
+)
+assert.ok(
+  (customerStep.match(/window\.clearTimeout\(loadingTimeoutId\)/g) || []).length >= 3,
+  'Recent customer cache success, failure, and cleanup must not leave loading active'
+)
+assert.equal(
+  (activePosItemsLayout.match(/paginatedProducts\.map\(/g) || []).length,
+  1,
+  'Active POS items layout must render products from one shared map'
+)
+assert.equal(
+  (activePosItemsLayout.match(/squarePosCategoryLabels\.map\(/g) || []).length,
+  1,
+  'Active POS items layout must render categories from one shared map'
+)
+assert.equal(
+  (activePosItemsLayout.match(/placeholder="ابحث عن منتج أو خدمة"/g) || []).length,
+  1,
+  'Active POS items layout must keep one search input'
+)
+assert.equal(
+  (activePosItemsLayout.match(/setShowItemsModal\(true\)/g) || []).length,
+  1,
+  'Active POS items layout must keep one phone cart opener'
+)
+assert.ok(
+  activePosItemsLayout.includes('aria-label="تصنيفات العناصر"') &&
+    activePosItemsLayout.includes('aria-pressed={active}') &&
+    activePosItemsLayout.includes('aria-controls="pos-cart-panel"') &&
+    activePosItemsLayout.includes('grid-cols-2') &&
+    !activePosItemsLayout.includes('window.innerWidth'),
+  'POS product browsing must remain single-tree, touch-first, and CSS responsive'
 )
 
 for (const contractKey of [

@@ -1124,7 +1124,7 @@ export function InvoiceItemsStep({
     return (
       <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_34%),radial-gradient(circle_at_78%_84%,rgba(14,165,233,0.12),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_48%,#020817_100%)]" />
-        <div className="relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 [direction:ltr] md:flex-row md:p-4 xl:gap-4">
+        <div className="relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:p-4 xl:gap-4">
           <main className="flex min-w-0 flex-1 flex-col gap-2.5 overflow-hidden [direction:rtl]">
             {(hasInvalidBranchContext || hasAmbiguousAdminBranchContext || stockErrorMessage) ? (
               <div className="grid gap-2">
@@ -1146,9 +1146,47 @@ export function InvoiceItemsStep({
               </div>
             ) : null}
 
-            <section className="flex shrink-0 items-center gap-3">
+            <section className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <div className="flex min-h-[44px] items-center justify-between gap-2 sm:hidden">
+                <a
+                  href={customerStepHref}
+                  className="flex min-h-[44px] items-center justify-center rounded-[18px] border border-cyan-300/18 bg-cyan-400/10 px-3 text-xs font-black text-cyan-100"
+                >
+                  العميل
+                </a>
+                <h1 className="min-w-0 flex-1 truncate text-center text-lg font-black text-white">
+                  اختيار العناصر
+                </h1>
+                <button
+                  type="button"
+                  onClick={() => setShowItemsModal(true)}
+                  aria-expanded={showItemsModal}
+                  aria-controls="pos-cart-panel"
+                  className="flex min-h-[44px] items-center justify-center gap-2 rounded-[18px] border border-cyan-300/18 bg-cyan-400/10 px-3 text-xs font-black text-cyan-100"
+                >
+                  السلة
+                  <span className="rounded-full bg-cyan-300 px-2 py-0.5 text-[#02101c]">
+                    {invoiceItemCount}
+                  </span>
+                </button>
+              </div>
+
               <div className="relative min-w-0 flex-1">
-                <SearchIcon className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-cyan-200/70" />
+                {search ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('')
+                      setCurrentCatalogPage(1)
+                    }}
+                    aria-label="مسح البحث"
+                    className="absolute left-1.5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[16px] text-lg font-black text-cyan-100 transition hover:bg-cyan-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
+                  >
+                    ×
+                  </button>
+                ) : (
+                  <SearchIcon className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-cyan-200/70" />
+                )}
                 <input
                   type="text"
                   value={search}
@@ -1159,12 +1197,14 @@ export function InvoiceItemsStep({
                   placeholder="ابحث عن منتج أو خدمة"
                   className="h-[54px] w-full rounded-[22px] border border-cyan-300/14 bg-[#020817]/70 pr-5 pl-14 text-right text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_34px_rgba(8,47,73,0.16)] outline-none backdrop-blur-xl transition placeholder:text-slate-400 focus:border-cyan-300/36 focus:ring-4 focus:ring-cyan-300/10 touch-manipulation"
                   inputMode="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
                 />
               </div>
 
               <a
                 href={customerStepHref}
-                className="flex h-[54px] shrink-0 items-center justify-center rounded-[22px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-sm font-black text-cyan-100 shadow-[0_14px_30px_rgba(34,211,238,0.10)] transition hover:bg-cyan-400/15 touch-manipulation"
+                className="hidden h-[54px] shrink-0 items-center justify-center rounded-[22px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-sm font-black text-cyan-100 shadow-[0_14px_30px_rgba(34,211,238,0.10)] transition hover:bg-cyan-400/15 touch-manipulation sm:flex"
               >
                 إضافة عميل
               </a>
@@ -1182,7 +1222,7 @@ export function InvoiceItemsStep({
               </button>
             </section>
 
-            <section className="flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1">
+            <section aria-label="تصنيفات العناصر" className="flex shrink-0 snap-x items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {squarePosCategoryLabels.map((filter) => {
                 const active = activeFilter === filter
 
@@ -1194,7 +1234,8 @@ export function InvoiceItemsStep({
                       setActiveFilter(filter)
                       setCurrentCatalogPage(1)
                     }}
-                    className={`min-h-[38px] shrink-0 rounded-full px-3.5 text-xs font-black transition touch-manipulation ${
+                    aria-pressed={active}
+                    className={`min-h-[44px] max-w-[160px] shrink-0 snap-start truncate rounded-full px-3.5 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 touch-manipulation ${
                       active
                         ? 'bg-cyan-300 text-[#02101c] shadow-[0_0_34px_rgba(34,211,238,0.30)]'
                         : 'border border-cyan-300/12 bg-[#020817]/54 text-slate-300 hover:border-cyan-300/24 hover:bg-cyan-400/8'
@@ -1232,12 +1273,28 @@ export function InvoiceItemsStep({
                   تعذر تحميل العناصر، حاول تحديث الصفحة
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div className="flex h-full items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300">
-                  لا توجد منتجات أو خدمات متاحة لهذا الفرع.
+                <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300">
+                  <p>
+                    {search.trim()
+                      ? 'لا توجد نتائج مطابقة للبحث.'
+                      : 'لا توجد منتجات أو خدمات متاحة لهذا الفرع.'}
+                  </p>
+                  {search.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('')
+                        setCurrentCatalogPage(1)
+                      }}
+                      className="mt-4 min-h-[44px] rounded-[18px] border border-cyan-300/18 bg-cyan-400/10 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
+                    >
+                      مسح البحث
+                    </button>
+                  ) : null}
                 </div>
               ) : (
                 <div className="flex h-full min-h-0 flex-col gap-3">
-                  <div className="grid min-h-0 flex-1 auto-rows-[232px] grid-cols-2 gap-3 overflow-y-auto pr-1 lg:grid-cols-4">
+                  <div className="grid min-h-0 flex-1 auto-rows-[224px] grid-cols-2 gap-2 overflow-y-auto overscroll-contain pe-1 sm:auto-rows-[232px] sm:gap-3 lg:grid-cols-4">
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
@@ -1257,7 +1314,7 @@ export function InvoiceItemsStep({
                           type="button"
                           onClick={() => addItemWithFeedback(product)}
                           disabled={productOutOfStock}
-                          className={`group flex h-[220px] min-w-0 flex-col rounded-[24px] border border-cyan-300/12 bg-[#061426]/72 p-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition hover:border-cyan-300/28 hover:bg-[#08203a]/74 active:scale-[0.985] touch-manipulation ${
+                          className={`group flex h-[216px] min-w-0 flex-col rounded-[22px] border border-cyan-300/12 bg-[#061426]/72 p-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition hover:border-cyan-300/28 hover:bg-[#08203a]/74 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.985] touch-manipulation sm:h-[220px] sm:rounded-[24px] ${
                             productOutOfStock ? 'cursor-not-allowed opacity-55' : ''
                           } ${
                             pressedItemId === normalizedCatalogItemId
@@ -1269,7 +1326,7 @@ export function InvoiceItemsStep({
                               : ''
                           }`}
                         >
-                          <div className="relative h-[104px] shrink-0 overflow-hidden rounded-[20px] border border-cyan-300/10 bg-[#020817]/72">
+                          <div className="relative h-[96px] shrink-0 overflow-hidden rounded-[18px] border border-cyan-300/10 bg-[#020817]/72 sm:h-[104px] sm:rounded-[20px]">
                             <PosCatalogItemImage
                               key={product.image_url || product.id}
                               imageUrl={product.image_url}
@@ -1296,7 +1353,7 @@ export function InvoiceItemsStep({
                             </p>
                             <div className="mt-auto flex h-11 shrink-0 items-end justify-between gap-2 pt-1">
                               <div className="min-w-0 pb-1">
-                                <p className="truncate whitespace-nowrap text-base font-black text-cyan-100">
+                                <p className="truncate whitespace-nowrap text-sm font-black text-cyan-100 sm:text-base">
                                   {formatCurrency(product.price)}
                                 </p>
                               </div>
@@ -1350,12 +1407,33 @@ export function InvoiceItemsStep({
             </section>
           </main>
 
-          <aside className="flex h-[42%] w-full shrink-0 flex-col overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#020817]/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:h-full md:w-[280px] lg:w-[320px]">
+          {showItemsModal ? (
+            <button
+              type="button"
+              onClick={() => setShowItemsModal(false)}
+              aria-label="إغلاق السلة"
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+            />
+          ) : null}
+
+          <aside id="pos-cart-panel" className={`${showItemsModal ? 'fixed inset-x-3 bottom-3 top-3 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#020817]/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:static md:flex md:h-full md:w-[280px] md:bg-[#020817]/72 lg:w-[320px]`}>
             <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
-              <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
-                AFEX POS
-              </p>
-              <h2 className="mt-1 text-xl font-black text-white">ملخص الفاتورة</h2>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
+                    AFEX POS
+                  </p>
+                  <h2 className="mt-1 text-xl font-black text-white">ملخص الفاتورة</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowItemsModal(false)}
+                  aria-label="إغلاق ملخص الفاتورة"
+                  className="flex h-11 w-11 items-center justify-center rounded-[16px] border border-cyan-300/12 bg-[#020817]/70 text-xl font-black text-cyan-100 md:hidden"
+                >
+                  ×
+                </button>
+              </div>
               <p className="mt-1 text-xs font-bold text-slate-400">
                 الفرع: {invoiceBranchName}
               </p>
