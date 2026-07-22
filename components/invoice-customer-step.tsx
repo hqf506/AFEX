@@ -232,7 +232,7 @@ export function InvoiceCustomerStep({
     const timeoutId = window.setTimeout(async () => {
 
       if (process.env.NODE_ENV === 'development') {
-        console.time(`customer search (${customerSearch.query})`)
+        console.time('customer search')
       }
 
       setCustomerSearchLoading(true)
@@ -276,7 +276,7 @@ export function InvoiceCustomerStep({
           },
           {
             ttlMs: CUSTOMER_SEARCH_CACHE_TTL_MS,
-            logLabel: `fetch customers (${customerSearch.query})`,
+            logLabel: 'fetch customers',
           }
         )
 
@@ -301,7 +301,7 @@ export function InvoiceCustomerStep({
         setCustomerSearchLoading(false)
       } finally {
         if (process.env.NODE_ENV === 'development') {
-          console.timeEnd(`customer search (${customerSearch.query})`)
+          console.timeEnd('customer search')
         }
       }
     }, CUSTOMER_SEARCH_DEBOUNCE_MS)
