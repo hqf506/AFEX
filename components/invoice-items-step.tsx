@@ -152,10 +152,39 @@ function triggerHapticFeedback(kind: PosFeedbackKind) {
     return
   }
 
-  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+  const vibrateFallback = () => {
+    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
+      return
+    }
+
     navigator.vibrate(
       kind === 'add' ? 35 : kind === 'remove' ? 45 : [70, 40, 90]
     )
+  }
+  const capacitorHaptics = (
+    window as typeof window & {
+      Capacitor?: {
+        Plugins?: {
+          Haptics?: {
+            impact?: (options: { style: 'LIGHT' | 'MEDIUM' }) => Promise<void> | void
+          }
+        }
+      }
+    }
+  ).Capacitor?.Plugins?.Haptics
+
+  if (!capacitorHaptics?.impact) {
+    vibrateFallback()
+    return
+  }
+
+  try {
+    const impactResult = capacitorHaptics.impact({
+      style: kind === 'error' ? 'MEDIUM' : 'LIGHT',
+    })
+    void Promise.resolve(impactResult).catch(vibrateFallback)
+  } catch {
+    vibrateFallback()
   }
 }
 
@@ -761,7 +790,7 @@ export function InvoiceItemsStep({
 
     const timeoutId = window.setTimeout(() => {
       setRecentlyAddedItemId(null)
-    }, 150)
+    }, 220)
 
     return () => window.clearTimeout(timeoutId)
   }, [recentlyAddedItemId])
@@ -773,7 +802,7 @@ export function InvoiceItemsStep({
 
     const timeoutId = window.setTimeout(() => {
       setPressedItemId(null)
-    }, 100)
+    }, 160)
 
     return () => window.clearTimeout(timeoutId)
   }, [pressedItemId])
@@ -1026,10 +1055,12 @@ export function InvoiceItemsStep({
     setInvoiceLineItems((prev) =>
       increaseInvoiceLineItemQuantity(prev, item.item_name)
     )
+    triggerHapticFeedback('add')
   }
 
   const decreaseQty = (itemName: string) => {
     setInvoiceLineItems((prev) => decreaseInvoiceLineItemQuantity(prev, itemName))
+    triggerHapticFeedback('remove')
   }
 
   const decreaseOrRemoveItem = (itemName: string, currentQuantity: number) => {
@@ -1102,9 +1133,42 @@ export function InvoiceItemsStep({
     ]
 
     return (
-      <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
+      <div className="pos-mobile-motion fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
+        <style jsx global>{`
+          @keyframes pos-mobile-screen-enter {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+
+          @keyframes pos-mobile-sheet-enter {
+            from { opacity: 0; transform: translateY(18px) scale(0.99); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+
+          @keyframes pos-mobile-skeleton-pulse {
+            0%, 100% { opacity: 0.45; }
+            50% { opacity: 0.8; }
+          }
+
+          @media (max-width: 639px) {
+            .pos-mobile-screen-enter { animation: pos-mobile-screen-enter 200ms ease-out both; }
+            .pos-mobile-sheet-enter { animation: pos-mobile-sheet-enter 200ms ease-out both; }
+            .pos-mobile-skeleton { animation: pos-mobile-skeleton-pulse 1.2s ease-in-out infinite; }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .pos-mobile-motion *,
+            .pos-mobile-motion *::before,
+            .pos-mobile-motion *::after {
+              animation-duration: 0.01ms !important;
+              animation-iteration-count: 1 !important;
+              scroll-behavior: auto !important;
+              transition-duration: 0.01ms !important;
+            }
+          }
+        `}</style>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_34%),radial-gradient(circle_at_78%_84%,rgba(14,165,233,0.12),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_48%,#020817_100%)]" />
-        <div className="relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:p-4 xl:gap-4">
+        <div className="pos-mobile-screen-enter relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:p-4 xl:gap-4">
           <main className="flex min-w-0 flex-1 flex-col gap-2.5 overflow-hidden [direction:rtl]">
             {(hasInvalidBranchContext || hasAmbiguousAdminBranchContext || stockErrorMessage) ? (
               <div className="grid gap-2">
@@ -1245,9 +1309,24 @@ export function InvoiceItemsStep({
                   اختر فرعًا محددًا أولًا حتى يتم تحميل كتالوج الفرع الصحيح للفاتورة.
                 </div>
               ) : catalogLoading && !canRenderCatalogImmediately ? (
-                <div className="flex h-full items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300">
-                  جارٍ تحميل العناصر...
-                </div>
+                <>
+                  <div className="grid h-full content-start gap-2 overflow-hidden sm:hidden" aria-label="جارٍ تحميل العناصر" aria-busy="true">
+                    {[0, 1, 2].map((skeletonItem) => (
+                      <div key={skeletonItem} className="pos-mobile-skeleton flex min-h-[132px] gap-3 rounded-[22px] border border-cyan-300/10 bg-[#061426]/68 p-3">
+                        <span className="h-[106px] w-[96px] shrink-0 rounded-[18px] bg-cyan-300/8" />
+                        <span className="flex min-w-0 flex-1 flex-col gap-3 py-1">
+                          <span className="h-4 w-4/5 rounded-full bg-cyan-300/10" />
+                          <span className="h-3 w-2/5 rounded-full bg-cyan-300/8" />
+                          <span className="mt-auto h-10 w-full rounded-[14px] bg-cyan-300/8" />
+                        </span>
+                      </div>
+                    ))}
+                    <span className="sr-only">جارٍ تحميل العناصر...</span>
+                  </div>
+                  <div className="hidden h-full items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300 sm:flex">
+                    جارٍ تحميل العناصر...
+                  </div>
+                </>
               ) : catalogError && filteredProducts.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-red-400/20 bg-red-950/20 px-6 text-center text-sm font-bold text-red-100">
                   <p>تعذر تحميل العناصر، حاول تحديث الصفحة</p>
@@ -1307,7 +1386,7 @@ export function InvoiceItemsStep({
                               ? `${product.name} غير متوفر في المخزون`
                               : `إضافة ${product.name} إلى السلة`
                           }
-                          className={`group flex min-h-[132px] w-full min-w-0 items-stretch gap-3 rounded-[22px] border bg-[#061426]/78 p-3 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.99] touch-manipulation ${
+                          className={`group flex min-h-[132px] w-full min-w-0 items-stretch gap-3 rounded-[22px] border bg-[#061426]/78 p-3 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.985] touch-manipulation ${
                             productOutOfStock
                               ? 'cursor-not-allowed border-slate-700/60 opacity-55'
                               : 'border-cyan-300/12'
@@ -1509,7 +1588,7 @@ export function InvoiceItemsStep({
             />
           ) : null}
 
-          <aside id="pos-cart-panel" className={`${showItemsModal ? 'fixed inset-0 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-y-auto overscroll-contain rounded-none border border-cyan-300/10 bg-[#020817]/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:flex md:h-full md:w-[280px] md:overflow-hidden md:rounded-[28px] md:bg-[#020817]/72 md:p-3 lg:w-[320px]`}>
+          <aside id="pos-cart-panel" className={`${showItemsModal ? 'pos-mobile-sheet-enter fixed inset-0 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-y-auto overscroll-contain rounded-none border border-cyan-300/10 bg-[#020817]/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:flex md:h-full md:w-[280px] md:overflow-hidden md:rounded-[28px] md:bg-[#020817]/72 md:p-3 lg:w-[320px]`}>
             <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1559,7 +1638,7 @@ export function InvoiceItemsStep({
                   {invoiceItems.map((item) => (
                     <div
                       key={item.item_name}
-                      className="rounded-[20px] border border-cyan-300/10 bg-[#020817]/58 p-2.5"
+                      className="rounded-[20px] border border-cyan-300/10 bg-[#020817]/58 p-2.5 transition-all duration-200"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">

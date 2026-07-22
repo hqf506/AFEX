@@ -688,11 +688,38 @@ export function InvoiceCustomerStep({
 
   if (variant === 'pos') {
     return (
-      <div className="fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white [direction:ltr] sm:p-5 xl:p-7">
+      <div className="pos-customer-motion fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white [direction:ltr] sm:p-5 xl:p-7">
+        <style jsx global>{`
+          @keyframes pos-customer-enter {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+
+          @keyframes pos-customer-sheet-enter {
+            from { opacity: 0; transform: translateY(18px) scale(0.99); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+
+          @media (max-width: 639px) {
+            .pos-customer-enter { animation: pos-customer-enter 200ms ease-out both; }
+            .pos-customer-sheet-enter { animation: pos-customer-sheet-enter 200ms ease-out both; }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .pos-customer-motion *,
+            .pos-customer-motion *::before,
+            .pos-customer-motion *::after {
+              animation-duration: 0.01ms !important;
+              animation-iteration-count: 1 !important;
+              scroll-behavior: auto !important;
+              transition-duration: 0.01ms !important;
+            }
+          }
+        `}</style>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.09),transparent_26%),linear-gradient(135deg,#020817_0%,#04101F_48%,#061426_100%)]" />
         <div className="pointer-events-none absolute inset-x-32 top-0 h-px bg-[#22D3EE]/25 blur-sm" />
 
-        <div className="relative z-10 flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto overscroll-contain sm:flex-row sm:overflow-hidden xl:gap-6">
+        <div className="pos-customer-enter relative z-10 flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto overscroll-contain sm:flex-row sm:overflow-hidden xl:gap-6">
           <aside className="order-6 flex w-full shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] sm:order-3 sm:w-[206px] xl:w-[220px]">
             <div className="mb-3 rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-3 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] sm:mb-5 sm:py-4">
               <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
@@ -1160,7 +1187,7 @@ export function InvoiceCustomerStep({
 
         {addCustomerOpen ? (
           <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-[#020817]/72 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl [direction:rtl] sm:absolute sm:items-center sm:overflow-y-auto sm:px-5 sm:py-[max(0.75rem,env(safe-area-inset-top))]">
-            <div role="dialog" aria-modal="true" aria-labelledby="add-customer-title" className="flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-[450px] flex-col overflow-hidden rounded-t-[30px] bg-[rgba(2,8,23,0.96)] text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)] sm:my-auto sm:max-h-[calc(100%-1.5rem)] sm:rounded-[30px] sm:bg-[rgba(2,8,23,0.86)]">
+            <div role="dialog" aria-modal="true" aria-labelledby="add-customer-title" className="pos-customer-sheet-enter flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-[450px] flex-col overflow-hidden rounded-t-[30px] bg-[rgba(2,8,23,0.96)] text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)] sm:my-auto sm:max-h-[calc(100%-1.5rem)] sm:rounded-[30px] sm:bg-[rgba(2,8,23,0.86)]">
               <div className="flex shrink-0 items-start justify-between gap-4 border-b border-cyan-300/10 p-4 sm:border-b-0 sm:pb-0 xl:px-5 xl:pt-5">
                 <div>
                   <p className="text-xs font-black tracking-[0.24em] text-[#22D3EE]">

@@ -66,6 +66,39 @@ const DEFAULT_THERMAL_RECEIPT_SETTINGS: ThermalReceiptSettings = {
 
 const POS_RUNTIME_CACHE_TTL_MS = 30_000
 
+function triggerCheckoutHaptic(style: 'LIGHT' | 'MEDIUM') {
+  if (typeof window === 'undefined') return
+
+  const vibrateFallback = () => {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(style === 'MEDIUM' ? 70 : 35)
+    }
+  }
+  const capacitorHaptics = (
+    window as typeof window & {
+      Capacitor?: {
+        Plugins?: {
+          Haptics?: {
+            impact?: (options: { style: 'LIGHT' | 'MEDIUM' }) => Promise<void> | void
+          }
+        }
+      }
+    }
+  ).Capacitor?.Plugins?.Haptics
+
+  if (!capacitorHaptics?.impact) {
+    vibrateFallback()
+    return
+  }
+
+  try {
+    const impactResult = capacitorHaptics.impact({ style })
+    void Promise.resolve(impactResult).catch(vibrateFallback)
+  } catch {
+    vibrateFallback()
+  }
+}
+
 type PosRuntime = {
   discounts: CheckoutDiscountOption[]
   vat: CheckoutVatSetting | null
@@ -410,6 +443,7 @@ export default function PosSaleCheckoutPage() {
 
   const handleSelectPayment = (option: (typeof PAYMENT_METHODS)[number]) => {
     checkout.setPaymentMethod(option.id)
+    triggerCheckoutHaptic('LIGHT')
   }
 
   const handleApplyQuickAmount = (amount: number | 'full') => {
@@ -429,6 +463,7 @@ export default function PosSaleCheckoutPage() {
     }
 
     submitLockedRef.current = true
+    triggerCheckoutHaptic('MEDIUM')
     try {
       await checkout.createInvoice()
     } finally {
@@ -584,6 +619,26 @@ export default function PosSaleCheckoutPage() {
           margin-top: 0 !important;
         }
 
+        @keyframes pos-checkout-enter {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 639px) {
+          .pos-checkout-enter { animation: pos-checkout-enter 200ms ease-out both; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .pos-checkout-page *,
+          .pos-checkout-page *::before,
+          .pos-checkout-page *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
+
         @media print {
           body * {
             visibility: hidden;
@@ -617,7 +672,7 @@ export default function PosSaleCheckoutPage() {
 
       <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_82%_82%,rgba(14,165,233,0.10),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-        <div className="relative flex h-full w-full flex-col gap-3 overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:overflow-hidden md:p-4 xl:p-5">
+        <div className="pos-checkout-enter relative flex h-full w-full flex-col gap-3 overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:overflow-hidden md:p-4 xl:p-5">
           <main className="order-2 flex min-w-0 shrink-0 flex-col gap-3 overflow-visible [direction:rtl] md:order-1 md:min-h-0 md:flex-1 md:overflow-hidden">
             {checkout.successMessage ? (
               <div className="rounded-[22px] border border-[#14B8A6]/25 bg-[#14B8A6]/10 px-4 py-3 text-sm font-bold text-teal-50 shadow-[0_0_28px_rgba(20,184,166,0.16)]">

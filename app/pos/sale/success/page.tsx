@@ -109,8 +109,35 @@ async function playSuccessSound() {
 }
 
 function triggerSuccessHaptic() {
-  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-    navigator.vibrate([90, 40, 130])
+  if (typeof window === 'undefined') return
+
+  const vibrateFallback = () => {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate([90, 40, 130])
+    }
+  }
+  const capacitorHaptics = (
+    window as typeof window & {
+      Capacitor?: {
+        Plugins?: {
+          Haptics?: {
+            notification?: (options: { type: 'SUCCESS' }) => Promise<void> | void
+          }
+        }
+      }
+    }
+  ).Capacitor?.Plugins?.Haptics
+
+  if (!capacitorHaptics?.notification) {
+    vibrateFallback()
+    return
+  }
+
+  try {
+    const notificationResult = capacitorHaptics.notification({ type: 'SUCCESS' })
+    void Promise.resolve(notificationResult).catch(vibrateFallback)
+  } catch {
+    vibrateFallback()
   }
 }
 
@@ -577,6 +604,26 @@ export default function PosSaleSuccessPage() {
             opacity: 1;
           }
         }
+
+        @keyframes pos-success-enter {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 639px) {
+          .pos-success-enter { animation: pos-success-enter 220ms ease-out both; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .pos-success-page *,
+          .pos-success-page *::before,
+          .pos-success-page *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
       `}</style>
 
       <div className="receipt-print-root pointer-events-none fixed left-[-9999px] top-0">
@@ -585,10 +632,10 @@ export default function PosSaleSuccessPage() {
 
       <div className="receipt-print-hide fixed inset-0 h-[100svh] w-screen overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#020817] text-white md:overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_80%_82%,rgba(20,184,166,0.12),transparent_36%),linear-gradient(135deg,#020817_0%,#061426_54%,#020817_100%)]" />
-        <div className="relative grid min-h-full w-full gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] [direction:ltr] md:h-full md:grid-cols-[minmax(0,1fr)_300px] md:overflow-hidden md:p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:p-5">
+        <div className="pos-success-enter relative grid min-h-full w-full gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] [direction:ltr] md:h-full md:grid-cols-[minmax(0,1fr)_300px] md:overflow-hidden md:p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:p-5">
           <main className="flex min-w-0 flex-col justify-between gap-4 rounded-[28px] border border-cyan-300/10 bg-[#020817]/62 p-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl [direction:rtl] md:overflow-hidden md:rounded-[34px] lg:p-6">
             <section className="flex min-h-0 flex-1 flex-col items-center justify-center py-3 text-center sm:py-5 md:py-0">
-              <div className="relative flex h-20 w-20 animate-[success-pop_420ms_ease-out] items-center justify-center rounded-full border border-[#14B8A6]/35 bg-[#14B8A6]/14 text-teal-50 shadow-[0_0_46px_rgba(20,184,166,0.28)] sm:h-24 sm:w-24 lg:h-28 lg:w-28">
+              <div className="relative flex h-20 w-20 animate-[success-pop_240ms_ease-out] items-center justify-center rounded-full border border-[#14B8A6]/35 bg-[#14B8A6]/14 text-teal-50 shadow-[0_0_46px_rgba(20,184,166,0.28)] sm:h-24 sm:w-24 sm:animate-[success-pop_420ms_ease-out] lg:h-28 lg:w-28">
                 <div className="absolute inset-3 rounded-full border border-cyan-300/12" />
                 <SuccessCheckIcon />
               </div>
