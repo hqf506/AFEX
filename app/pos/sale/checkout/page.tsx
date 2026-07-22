@@ -658,6 +658,18 @@ export default function PosSaleCheckoutPage() {
                 </div>
               </div>
 
+              <div className="mb-3 flex items-end justify-between gap-4 rounded-[24px] border border-emerald-300/20 bg-emerald-400/10 p-4 shadow-[0_0_28px_rgba(52,211,153,0.10)] sm:hidden">
+                <div>
+                  <p className="text-xs font-black text-emerald-200">الإجمالي المستحق</p>
+                  <p className="mt-1 text-3xl font-black text-white">
+                    {formatCurrency(checkout.finalTotal)}
+                  </p>
+                </div>
+                <p className="rounded-full bg-cyan-300/10 px-3 py-1.5 text-xs font-black text-cyan-100">
+                  {invoiceItems.length} عنصر
+                </p>
+              </div>
+
               <div className="min-h-0 flex-1 space-y-3 overflow-visible md:overflow-y-auto md:pr-1">
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                   {PAYMENT_METHODS.map((option) => {
@@ -799,7 +811,13 @@ export default function PosSaleCheckoutPage() {
                 </div>
               </div>
 
-              <div className="mt-3 flex shrink-0 flex-col gap-2 border-t border-cyan-300/10 pt-3 sm:flex-row sm:items-center">
+              <div className="sticky bottom-0 z-10 -mx-3 mt-3 flex shrink-0 flex-col gap-2 border-t border-cyan-300/10 bg-[#020817]/96 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:static sm:mx-0 sm:flex-row sm:items-center sm:bg-transparent sm:px-0 sm:pb-0">
+                <div className="flex items-center justify-between gap-3 px-1 sm:hidden">
+                  <span className="text-xs font-black text-slate-400">المطلوب</span>
+                  <span className="text-xl font-black text-white">
+                    {formatCurrency(checkout.finalTotal)}
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={handleCreateInvoice}
@@ -836,6 +854,11 @@ export default function PosSaleCheckoutPage() {
               <p className="mt-1 break-words text-sm font-bold text-slate-400">
                 {customerPhone || 'بدون رقم جوال'}
               </p>
+              {selectedBranchName ? (
+                <p className="mt-3 border-t border-cyan-300/10 pt-3 text-xs font-bold text-slate-400 sm:hidden">
+                  الفرع: <span className="font-black text-cyan-100">{selectedBranchName}</span>
+                </p>
+              ) : null}
             </div>
 
             <div className="mt-2 flex min-h-0 shrink-0 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5 md:flex-1">
@@ -861,6 +884,9 @@ export default function PosSaleCheckoutPage() {
                           <span>الكمية: {item.quantity}</span>
                           <span>{formatCurrency(item.unit_price)}</span>
                         </div>
+                        <p className="mt-2 text-sm font-black text-cyan-100 sm:hidden">
+                          الإجمالي: {formatCurrency(item.quantity * item.unit_price)}
+                        </p>
                       </div>
 
                       <button

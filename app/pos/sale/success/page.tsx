@@ -607,7 +607,20 @@ export default function PosSaleSuccessPage() {
                 </p>
               ) : null}
 
-              <div className="mt-5 grid w-full max-w-3xl grid-cols-1 gap-3 min-[390px]:grid-cols-2 sm:mt-7">
+              <div className="mt-5 grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-3 rounded-[26px] border border-emerald-300/20 bg-emerald-400/10 p-4 text-right shadow-[0_0_30px_rgba(52,211,153,0.12)] sm:hidden">
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-emerald-200">الإجمالي النهائي</p>
+                  <p className="mt-1 break-words text-3xl font-black text-white">
+                    {formatCurrency(snapshot.finalTotal)}
+                  </p>
+                </div>
+                <div className="text-left">
+                  <p className="text-[11px] font-black text-slate-400">التاريخ والوقت</p>
+                  <p className="mt-1 text-xs font-bold text-cyan-100">{issuedAtLabel}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 grid w-full max-w-3xl grid-cols-1 gap-3 min-[390px]:grid-cols-2 sm:mt-7">
                 <div className="rounded-[24px] border border-cyan-300/10 bg-[#061426]/62 p-4">
                   <p className="text-xs font-black text-slate-400">رقم الفاتورة</p>
                   <p className="mt-2 break-words text-xl font-black text-white [overflow-wrap:anywhere] sm:text-2xl">

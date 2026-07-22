@@ -1509,7 +1509,7 @@ export function InvoiceItemsStep({
             />
           ) : null}
 
-          <aside id="pos-cart-panel" className={`${showItemsModal ? 'fixed inset-0 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-y-auto overscroll-contain rounded-none border border-cyan-300/10 bg-[#020817]/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] md:static md:flex md:h-full md:w-[280px] md:overflow-hidden md:rounded-[28px] md:bg-[#020817]/72 md:p-3 lg:w-[320px]`}>
+          <aside id="pos-cart-panel" className={`${showItemsModal ? 'fixed inset-0 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-y-auto overscroll-contain rounded-none border border-cyan-300/10 bg-[#020817]/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:flex md:h-full md:w-[280px] md:overflow-hidden md:rounded-[28px] md:bg-[#020817]/72 md:p-3 lg:w-[320px]`}>
             <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1567,6 +1567,7 @@ export function InvoiceItemsStep({
                             {item.item_name}
                           </p>
                           <p className="mt-1 text-xs font-bold text-slate-400">
+                            <span className="sm:sr-only">سعر الوحدة: </span>
                             {formatCurrency(item.unit_price)}
                           </p>
                         </div>
@@ -1602,7 +1603,10 @@ export function InvoiceItemsStep({
                             +
                           </button>
                         </div>
-                        <p className="text-sm font-black text-white">
+                        <p className="text-left text-sm font-black text-white">
+                          <span className="mb-1 block text-[10px] font-bold text-slate-500 sm:hidden">
+                            إجمالي العنصر
+                          </span>
                           {formatCurrency(item.quantity * item.unit_price)}
                         </p>
                       </div>
@@ -1637,7 +1641,16 @@ export function InvoiceItemsStep({
               </div>
             </div>
 
-            <div className="mt-2 shrink-0 space-y-1.5">
+            <div className="sticky bottom-0 z-10 -mx-3 mt-2 shrink-0 space-y-1.5 border-t border-cyan-300/10 bg-[#020817]/96 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
+              <div className="flex items-end justify-between gap-3 px-1 pb-1 sm:hidden">
+                <div>
+                  <p className="text-[11px] font-black text-slate-400">{invoiceItemCount} عنصر في السلة</p>
+                  <p className="mt-1 text-xl font-black text-white">
+                    {formatCurrency(checkout.finalTotal)}
+                  </p>
+                </div>
+                <p className="text-xs font-black text-emerald-200">جاهز للمتابعة</p>
+              </div>
               <button
                 type="button"
                 onClick={() => router.push(checkoutHref)}
