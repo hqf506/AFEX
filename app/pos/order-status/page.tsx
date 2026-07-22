@@ -14,6 +14,7 @@ import {
   type OrderSourceRow,
   type OrderStatus,
 } from '@/lib/orders/normalize'
+import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 
 type ActiveOrderStatus = Extract<OrderStatus, 'in_progress' | 'ready'>
@@ -80,7 +81,7 @@ function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
 export default function PosOrderStatusPage() {
   const router = useRouter()
   const access = usePageAccess({
-    allowedRoles: ['employee', 'cashier'],
+    allowedRoles: [...POS_ACCESS_ROLES],
     redirectIfNoUser: '/pos/login',
     redirectIfForbidden: '/pos',
   })
