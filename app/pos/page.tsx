@@ -962,19 +962,14 @@ export default function PosPage() {
             </div>
           </section>
 
-          <section aria-label="ملخص الطلبات الظاهرة" className="mt-4 grid grid-cols-2 gap-2 sm:hidden">
-            <p className="col-span-2 px-1 text-right text-xs font-black text-slate-400">
-              ملخص الطلبات الظاهرة
-            </p>
+          <section aria-label="ملخص الطلبات الظاهرة" className="mt-4 flex snap-x gap-2 overflow-x-auto pb-1 sm:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mobileOrderStatusSummary.map(({ status, count }) => {
               const statusUi = POS_ORDER_STATUS_UI[status]
 
               return (
                 <div
                   key={status}
-                  className={`min-w-0 rounded-[20px] bg-[rgba(2,8,23,0.60)] p-3 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] ${
-                    status === 'closed' ? 'col-span-2' : ''
-                  }`}
+                  className="min-h-[94px] min-w-[104px] shrink-0 snap-start rounded-[18px] border border-cyan-300/10 bg-[#07111f] p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
                 >
                   <span className={`mx-auto block h-2 w-2 rounded-full ${statusUi.dotClassName}`} />
                   <p className="mt-2 text-2xl font-black text-white">{count}</p>
@@ -986,11 +981,11 @@ export default function PosPage() {
             })}
           </section>
 
-          <section className="mt-4 flex min-h-0 flex-1 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.60)] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_28px_rgba(34,211,238,0.03)] sm:mt-6 sm:rounded-[28px] sm:p-5 lg:overflow-hidden xl:mt-8">
-            <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
+          <section className="mt-4 flex min-h-0 flex-1 flex-col overflow-visible rounded-[24px] bg-transparent p-0 sm:mt-6 sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.60)] sm:p-5 sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_28px_rgba(34,211,238,0.03)] lg:overflow-hidden xl:mt-8">
+            <div className="mb-4 flex min-h-[54px] shrink-0 items-center justify-between gap-4 rounded-[18px] border border-cyan-300/15 bg-[#07111f] px-4 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0">
                 <div className="text-right">
-                  <h2 className="text-xl font-black text-white xl:text-2xl">آخر الطلبات</h2>
-                  <p className="mt-1 text-xs font-semibold text-slate-500 xl:text-sm">
+                  <h2 className="text-sm font-black text-cyan-300 sm:text-xl sm:text-white xl:text-2xl"><span className="sm:hidden">عرض كل الطلبات</span><span className="hidden sm:inline">آخر الطلبات</span></h2>
+                  <p className="mt-1 hidden text-xs font-semibold text-slate-500 sm:block xl:text-sm">
                     صفوف مختصرة لآخر عمليات البيع
                   </p>
                 </div>
@@ -1001,12 +996,10 @@ export default function PosPage() {
                       تحميل...
                     </span>
                   ) : null}
-                  <button
-                    type="button"
-                    className="min-h-[44px] rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98]"
-                  >
-                    عرض الكل
-                  </button>
+                  <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-2xl text-cyan-300 sm:hidden">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M7 12h10M10 17h4" strokeLinecap="round"/><path d="M7 4v6M17 9v6" strokeLinecap="round"/></svg>
+                  </span>
+                  <span className="hidden min-h-[44px] items-center rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] sm:inline-flex">عرض الكل</span>
                 </div>
               </div>
 
@@ -1049,7 +1042,7 @@ export default function PosPage() {
                     return (
                       <div
                         key={order.id}
-                        className={`flex min-h-[118px] flex-col justify-between rounded-[24px] bg-[rgba(6,20,38,0.54)] p-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] transition hover:bg-[rgba(34,211,238,0.045)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_18px_rgba(34,211,238,0.07)] xl:min-h-[132px] ${
+                        className={`flex min-h-[156px] flex-col justify-between rounded-[22px] border border-cyan-300/10 bg-[#07111f] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.035)] transition hover:bg-[rgba(34,211,238,0.045)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_18px_rgba(34,211,238,0.07)] sm:min-h-[118px] sm:rounded-[24px] sm:border-0 sm:bg-[rgba(6,20,38,0.54)] sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] xl:min-h-[132px] ${
                           isUpdatingOrder ? 'opacity-60' : 'opacity-100'
                         }`}
                       >
@@ -1058,8 +1051,11 @@ export default function PosPage() {
                             <p className="truncate text-lg font-black text-white">
                               {order.order_number}
                             </p>
+                            <p className="mt-2 truncate text-sm font-bold text-slate-200 sm:hidden">
+                              {order.customer_name || 'عميل نقدي'}
+                            </p>
                             <p className="mt-1 truncate text-xs font-semibold text-slate-500">
-                              POS · {formatOrderTime(order.created_at)}
+                              {new Date(order.created_at).toLocaleDateString('ar-SA')} · {formatOrderTime(order.created_at)}
                             </p>
                           </div>
 
@@ -1078,7 +1074,7 @@ export default function PosPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-end justify-between gap-3">
+                        <div className="flex items-end justify-between gap-3 border-t border-cyan-300/10 pt-3 sm:border-0 sm:pt-0">
                           <p className="text-xl font-black text-cyan-100">
                             {formatCurrency(order.total)}
                           </p>

@@ -876,13 +876,13 @@ export function InvoiceCustomerStep({
                 ref={addCustomerButtonRef}
                 type="button"
                 onClick={openAddCustomerModal}
-                className="order-5 flex min-h-[68px] items-center justify-between rounded-[22px] bg-[rgba(2,8,23,0.72)] px-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] transition hover:bg-[rgba(34,211,238,0.07)] active:scale-[0.98] sm:order-none"
+                className="order-5 flex min-h-[60px] items-center justify-between rounded-[20px] bg-gradient-to-l from-cyan-300 to-blue-600 px-5 text-right text-slate-950 shadow-[0_14px_36px_rgba(6,182,212,0.24)] transition active:scale-[0.98] sm:order-none sm:min-h-[68px] sm:rounded-[22px] sm:bg-[rgba(2,8,23,0.72)] sm:px-4 sm:text-white sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] sm:hover:bg-[rgba(34,211,238,0.07)]"
               >
                 <span>
                   <span className="block text-base font-black text-white">إضافة عميل جديد</span>
-                  <span className="mt-1 block text-xs font-bold text-slate-400">إنشاء عميل جديد</span>
+                  <span className="mt-1 hidden text-xs font-bold text-slate-400 sm:block">إنشاء عميل جديد</span>
                 </span>
-                <PosCustomerIcon name="plus" className="h-6 w-6 text-[#22D3EE]" />
+                <PosCustomerIcon name="plus" className="h-6 w-6 text-slate-950 sm:text-[#22D3EE]" />
               </button>
 
               <button
@@ -929,12 +929,14 @@ export function InvoiceCustomerStep({
           <main className="contents sm:order-1 sm:flex sm:min-h-0 sm:min-w-0 sm:flex-1 sm:flex-col sm:overflow-hidden sm:rounded-[30px] sm:bg-transparent sm:p-1 sm:[direction:rtl]">
             <header data-pos-mobile-customer-header className="order-1 flex shrink-0 items-start justify-between gap-5 px-1 [direction:rtl]">
               <div className="text-right">
-                <p className="text-sm font-black text-[#22D3EE]">بيانات العميل</p>
+                <p className="hidden text-sm font-black text-[#22D3EE] sm:block">بيانات العميل</p>
                 <h2 className="mt-2 text-[30px] font-black leading-tight text-white sm:mt-4 sm:text-4xl xl:text-[44px]">
-                  بيانات العميل
+                  <span className="sm:hidden">العملاء</span>
+                  <span className="hidden sm:inline">بيانات العميل</span>
                 </h2>
                 <p className="mt-3 text-sm font-bold leading-6 text-slate-400">
-                  ابحث بالجوال أو الاسم ثم اختر العميل أو تابع كعميل جديد.
+                  <span className="sm:hidden">ابحث برقم الجوال أو اسم العميل</span>
+                  <span className="hidden sm:inline">ابحث بالجوال أو الاسم ثم اختر العميل أو تابع كعميل جديد.</span>
                 </p>
               </div>
 
@@ -944,7 +946,7 @@ export function InvoiceCustomerStep({
               </div>
             </header>
 
-            <section data-pos-mobile-customer-search className="order-3 mt-4 shrink-0 rounded-[24px] bg-[rgba(2,8,23,0.62)] p-4 shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] [direction:rtl] sm:mt-7 sm:rounded-[28px] sm:p-5 xl:p-6">
+            <section data-pos-mobile-customer-search className="order-3 mt-4 shrink-0 rounded-[22px] bg-[#07111f] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.13)] [direction:rtl] sm:mt-7 sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.62)] sm:p-5 sm:shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] xl:p-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-sm font-black text-slate-300">
@@ -1001,7 +1003,7 @@ export function InvoiceCustomerStep({
               ) : null}
             </section>
 
-            <section data-pos-mobile-customer-results className="order-4 mt-4 flex min-h-0 flex-1 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.56)] p-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] [direction:rtl] sm:mt-5 sm:overflow-hidden sm:rounded-[28px] sm:p-5 xl:p-6">
+            <section data-pos-mobile-customer-results className="order-4 mt-4 flex min-h-[340px] flex-none flex-col overflow-visible rounded-[24px] bg-transparent p-0 [direction:rtl] sm:mt-5 sm:min-h-0 sm:flex-1 sm:overflow-hidden sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.56)] sm:p-5 sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] xl:p-6">
               <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
                 <div className="text-right">
                   <h3 className="text-xl font-black text-white sm:text-2xl">
@@ -1039,32 +1041,36 @@ export function InvoiceCustomerStep({
                           type="button"
                           onClick={() => selectExistingCustomer(customer)}
                           aria-pressed={selectedCustomerId === customer.id}
-                          className={`min-h-[118px] min-w-0 rounded-[22px] p-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.99] ${
+                          className={`min-h-[150px] min-w-0 rounded-[22px] border border-cyan-300/10 p-4 text-right shadow-[0_14px_36px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.035)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.99] ${
                             selectedCustomerId === customer.id
                               ? 'bg-emerald-400/12'
                               : 'bg-[rgba(6,20,38,0.62)]'
                           }`}
                         >
-                          <span className="flex min-w-0 items-start justify-between gap-3">
+                          <span className="flex min-w-0 items-start gap-3">
+                            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+                              {(customer.name || 'ع').trim().slice(0, 2)}
+                            </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block break-words text-base font-black text-white">
+                              <span className="block break-words text-[17px] font-black text-white">
                                 {customer.name || '—'}
                               </span>
                               <span dir="ltr" className="mt-2 block break-all text-right text-sm font-bold text-cyan-100">
                                 {customer.phone || '—'}
                               </span>
                             </span>
-                            <span className={`inline-flex min-h-[44px] shrink-0 items-center rounded-[15px] px-3 text-xs font-black ${
+                            <span className={`inline-flex min-h-[32px] shrink-0 items-center rounded-full px-3 text-xs font-black ${
                               selectedCustomerId === customer.id
                                 ? 'bg-emerald-400/18 text-emerald-100'
                                 : 'bg-cyan-300/10 text-cyan-100'
                             }`}>
-                              {selectedCustomerId === customer.id ? 'تم الاختيار' : 'اختيار العميل'}
+                              {selectedCustomerId === customer.id ? 'تم الاختيار' : 'عميل'}
                             </span>
                           </span>
-                          <span className="mt-4 grid grid-cols-2 gap-2 border-t border-cyan-300/10 pt-3 text-xs font-bold text-slate-400">
-                            <span>الزيارات: <strong className="text-cyan-50">{customer.visitsCount ?? 0}</strong></span>
-                            <span>إجمالي الصرف: <strong className="text-white">{formatPosCustomerAmount(customer.totalSpent)}</strong></span>
+                          <span className="mt-4 flex items-end justify-between gap-3 border-t border-cyan-300/10 pt-3 text-xs font-bold text-slate-400">
+                            <span>{customer.visitsCount ?? 0} طلبات</span>
+                            <span>الإجمالي: <strong className="text-base text-cyan-300">{formatPosCustomerAmount(customer.totalSpent)}</strong></span>
+                            <PosCustomerIcon name="arrowLeft" className="h-5 w-5 shrink-0 text-cyan-300/80" />
                           </span>
                         </button>
                       ))}
