@@ -800,11 +800,13 @@ export async function POST(req: NextRequest) {
       return whatsappFeatureDisabledResponse()
     }
 
-    if (!isFullAdminRole) {
-      const allowedNotification =
-        notificationKey &&
-        BRANCH_NOTIFICATION_STATUSES.has(notificationStatus)
+    const allowedNotification =
+      notificationKey && BRANCH_NOTIFICATION_STATUSES.has(notificationStatus)
+    const shouldComposeTrustedNotification =
+      allowedNotification &&
+      (!isFullAdminRole || (!to && !text && !fileUrl))
 
+    if (!isFullAdminRole) {
       if (!allowedNotification) {
         return jsonResponse(
           {
@@ -815,6 +817,9 @@ export async function POST(req: NextRequest) {
         )
       }
 
+    }
+
+    if (shouldComposeTrustedNotification) {
       const composedNotification = await loadServerComposedOrderNotification({
         tenantId,
         branchId,

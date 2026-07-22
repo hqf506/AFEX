@@ -159,7 +159,11 @@ export default function PosOrderStatusPage() {
     })
   }, [orders, search])
 
-  const sendStatusWhatsApp = async (orderId: string, status: 'ready' | 'closed') => {
+  const sendStatusWhatsApp = async (
+    orderId: string,
+    branchId: string,
+    status: 'ready' | 'closed'
+  ) => {
     const response = await fetch('/api/whatsapp/send', {
       method: 'POST',
       credentials: 'include',
@@ -167,6 +171,7 @@ export default function PosOrderStatusPage() {
       body: JSON.stringify({
         type: 'text',
         mode: 'text',
+        branchId,
         notification: {
           orderId,
           status,
@@ -177,7 +182,16 @@ export default function PosOrderStatusPage() {
     const result = await response.json().catch(() => null)
 
     if (!response.ok || !result?.success) {
-      throw new Error('تم تحديث الحالة، لكن تعذر إرسال إشعار واتساب.')
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[POS ORDER STATUS] WhatsApp notification failed.', {
+          orderId: `${orderId.slice(0, 4)}...${orderId.slice(-4)}`,
+          status,
+          httpStatus: response.status,
+          code: result?.code || `HTTP_${response.status}`,
+          message: typeof result?.error === 'string' ? result.error : 'WhatsApp notification failed',
+        })
+      }
+      throw new Error('تم تحديث حالة الطلب، لكن تعذر إرسال رسالة الواتساب.')
     }
   }
 
@@ -233,9 +247,9 @@ export default function PosOrderStatusPage() {
     }
 
     try {
-      await sendStatusWhatsApp(order.id, nextStatus)
+      await sendStatusWhatsApp(order.id, order.branch_id, nextStatus)
     } catch (notificationError) {
-      setPageError(notificationError instanceof Error ? notificationError.message : 'تم تحديث الحالة، لكن تعذر إرسال إشعار واتساب.')
+      setPageError(notificationError instanceof Error ? notificationError.message : 'تم تحديث حالة الطلب، لكن تعذر إرسال رسالة الواتساب.')
     } finally {
       updatingOrderIdsRef.current.delete(order.id)
       setUpdatingOrderIds((current) => ({ ...current, [order.id]: false }))
