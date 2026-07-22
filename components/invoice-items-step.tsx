@@ -1126,8 +1126,8 @@ export function InvoiceItemsStep({
               </div>
             ) : null}
 
-            <section className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <div className="flex min-h-[44px] items-center justify-between gap-2 sm:hidden">
+            <section className="grid shrink-0 grid-cols-[minmax(0,1fr)_54px] gap-2 sm:flex sm:flex-row sm:items-center sm:gap-3">
+              <div className="col-span-2 flex min-h-[44px] items-center justify-between gap-2 sm:hidden">
                 <a
                   href={customerStepHref}
                   className="flex min-h-[44px] items-center justify-center rounded-[18px] border border-cyan-300/18 bg-cyan-400/10 px-3 text-xs font-black text-cyan-100"
@@ -1202,7 +1202,7 @@ export function InvoiceItemsStep({
               </button>
             </section>
 
-            <section aria-label="تصنيفات العناصر" className="flex shrink-0 snap-x items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <section aria-label="تصنيفات العناصر" className="flex w-full min-w-0 shrink-0 snap-x snap-mandatory items-center gap-2 overflow-x-auto pb-1 [direction:rtl] [scrollbar-width:none] [-ms-overflow-style:none] sm:snap-proximity sm:gap-1.5 [&::-webkit-scrollbar]:hidden">
               {squarePosCategoryLabels.map((filter) => {
                 const active = activeFilter === filter
 
@@ -1215,7 +1215,7 @@ export function InvoiceItemsStep({
                       setCurrentCatalogPage(1)
                     }}
                     aria-pressed={active}
-                    className={`min-h-[44px] max-w-[160px] shrink-0 snap-start truncate rounded-full px-3.5 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 touch-manipulation ${
+                    className={`min-h-[44px] max-w-[180px] shrink-0 snap-start truncate rounded-full px-4 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 touch-manipulation sm:max-w-[160px] sm:px-3.5 ${
                       active
                         ? 'bg-cyan-300 text-[#02101c] shadow-[0_0_34px_rgba(34,211,238,0.30)]'
                         : 'border border-cyan-300/12 bg-[#020817]/54 text-slate-300 hover:border-cyan-300/24 hover:bg-cyan-400/8'
@@ -1239,7 +1239,7 @@ export function InvoiceItemsStep({
               </div>
             ) : null}
 
-            <section className="min-h-0 flex-1 overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#020817]/58 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_22px_58px_rgba(2,8,23,0.32)] backdrop-blur-2xl">
+            <section className="min-h-0 flex-1 overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#020817]/58 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_22px_58px_rgba(2,8,23,0.32)] backdrop-blur-2xl sm:rounded-[28px]">
               {hasAmbiguousAdminBranchContext ? (
                 <div className="flex h-full items-center justify-center rounded-[28px] border border-amber-400/20 bg-amber-950/20 px-6 text-center text-sm font-bold text-amber-100">
                   اختر فرعًا محددًا أولًا حتى يتم تحميل كتالوج الفرع الصحيح للفاتورة.
@@ -1249,8 +1249,16 @@ export function InvoiceItemsStep({
                   جارٍ تحميل العناصر...
                 </div>
               ) : catalogError && filteredProducts.length === 0 ? (
-                <div className="flex h-full items-center justify-center rounded-[28px] border border-red-400/20 bg-red-950/20 px-6 text-center text-sm font-bold text-red-100">
-                  تعذر تحميل العناصر، حاول تحديث الصفحة
+                <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-red-400/20 bg-red-950/20 px-6 text-center text-sm font-bold text-red-100">
+                  <p>تعذر تحميل العناصر، حاول تحديث الصفحة</p>
+                  <button
+                    type="button"
+                    onClick={() => void forceReloadCatalog({ showRefreshing: true })}
+                    disabled={catalogLoading || catalogRefreshing}
+                    className="mt-4 min-h-[44px] rounded-[16px] border border-red-300/20 bg-red-300/10 px-5 text-sm font-black text-red-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200/70 disabled:cursor-not-allowed disabled:opacity-50 sm:hidden"
+                  >
+                    {catalogRefreshing ? 'جارٍ إعادة المحاولة...' : 'إعادة المحاولة'}
+                  </button>
                 </div>
               ) : filteredProducts.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300">
@@ -1274,7 +1282,112 @@ export function InvoiceItemsStep({
                 </div>
               ) : (
                 <div className="flex h-full min-h-0 flex-col gap-3">
-                  <div className="grid min-h-0 flex-1 auto-rows-[224px] grid-cols-2 gap-2 overflow-y-auto overscroll-contain pe-1 sm:auto-rows-[232px] sm:gap-3 lg:grid-cols-4">
+                  <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto overscroll-contain pe-1 sm:hidden">
+                    {paginatedProducts.map((product) => {
+                      const normalizedCatalogItemId =
+                        getNormalizedCatalogItemId(product)
+                      const inventoryState = getInventoryTrackingState(product)
+                      const productOutOfStock = inventoryState.isOutOfStock
+                      const productCartQuantity =
+                        invoiceItemQuantities.byId.get(normalizedCatalogItemId) ??
+                        invoiceItemQuantities.byName.get(product.name) ??
+                        0
+                      const reachedStockLimit =
+                        inventoryState.isInventoryTracked &&
+                        productCartQuantity >= inventoryState.normalizedQuantity
+
+                      return (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => addItemWithFeedback(product)}
+                          disabled={productOutOfStock}
+                          aria-label={
+                            productOutOfStock
+                              ? `${product.name} غير متوفر في المخزون`
+                              : `إضافة ${product.name} إلى السلة`
+                          }
+                          className={`group flex min-h-[132px] w-full min-w-0 items-stretch gap-3 rounded-[22px] border bg-[#061426]/78 p-3 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.99] touch-manipulation ${
+                            productOutOfStock
+                              ? 'cursor-not-allowed border-slate-700/60 opacity-55'
+                              : 'border-cyan-300/12'
+                          } ${
+                            recentlyAddedItemId === normalizedCatalogItemId
+                              ? 'border-cyan-300/50 bg-cyan-400/10 shadow-[0_0_34px_rgba(34,211,238,0.18)]'
+                              : ''
+                          }`}
+                        >
+                          <span className="relative h-[106px] w-[96px] shrink-0 overflow-hidden rounded-[18px] border border-cyan-300/10 bg-[#020817]/72">
+                            <PosCatalogItemImage
+                              key={product.image_url || product.id}
+                              imageUrl={product.image_url}
+                              posDisplayMode={getProductPosDisplayMode(product)}
+                              posColor={getProductOptionalText(product, 'pos_color')}
+                              posShape={getProductOptionalText(product, 'pos_shape')}
+                              name={product.name}
+                              type={product.type}
+                              frameClassName="h-full w-full rounded-[18px] bg-[#020817]"
+                            />
+                            {productCartQuantity > 0 ? (
+                              <span className="absolute right-1.5 top-1.5 flex min-h-7 min-w-7 items-center justify-center rounded-full bg-cyan-300 px-1.5 text-xs font-black text-[#02101c] shadow-[0_0_18px_rgba(34,211,238,0.38)]">
+                                {productCartQuantity}
+                              </span>
+                            ) : null}
+                          </span>
+
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="break-words text-[15px] font-black leading-6 text-white">
+                              {product.name}
+                            </span>
+                            <span className="mt-1 truncate text-xs font-bold text-slate-400">
+                              {product.category}
+                            </span>
+                            {inventoryState.isInventoryTracked ? (
+                              <span className={`mt-1 inline-flex w-fit rounded-full px-2 py-1 text-[11px] font-black ${
+                                productOutOfStock
+                                  ? 'bg-red-400/12 text-red-200'
+                                  : inventoryState.isLowStock
+                                    ? 'bg-amber-400/12 text-amber-200'
+                                    : 'bg-emerald-400/12 text-emerald-200'
+                              }`}>
+                                {productOutOfStock
+                                  ? 'غير متوفر'
+                                  : inventoryState.isLowStock
+                                    ? 'المخزون منخفض'
+                                    : `المتاح: ${formatStockNumber(inventoryState.normalizedQuantity)}`}
+                              </span>
+                            ) : (
+                              <span className="mt-1 inline-flex w-fit rounded-full bg-emerald-400/12 px-2 py-1 text-[11px] font-black text-emerald-200">
+                                متاح
+                              </span>
+                            )}
+                            <span className="mt-auto flex items-end justify-between gap-2 pt-2">
+                              <span className="text-lg font-black leading-none text-cyan-100">
+                                {formatCurrency(product.price)}
+                              </span>
+                              <span className={`inline-flex min-h-[44px] shrink-0 items-center rounded-[15px] px-3 text-xs font-black ${
+                                reachedStockLimit || productOutOfStock
+                                  ? 'bg-slate-800 text-slate-400'
+                                  : 'bg-cyan-300 text-[#02101c] shadow-[0_0_22px_rgba(34,211,238,0.24)]'
+                              }`}>
+                                {productOutOfStock
+                                  ? 'غير متوفر'
+                                  : reachedStockLimit
+                                    ? `في السلة (${productCartQuantity})`
+                                    : recentlyAddedItemId === normalizedCatalogItemId
+                                      ? 'تمت الإضافة'
+                                      : productCartQuantity > 0
+                                        ? `إضافة أخرى (${productCartQuantity})`
+                                        : 'إضافة للسلة'}
+                              </span>
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="hidden min-h-0 flex-1 auto-rows-[232px] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pe-1 sm:grid lg:grid-cols-4">
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
