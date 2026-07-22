@@ -690,7 +690,7 @@ export function InvoiceCustomerStep({
 
   if (variant === 'pos') {
     return (
-      <div className="pos-customer-motion fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white [direction:ltr] sm:p-5 xl:p-7">
+      <div className="pos-customer-motion fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-white [direction:ltr] sm:p-5 xl:p-7">
         <style jsx global>{`
           @keyframes pos-customer-enter {
             from { opacity: 0; transform: translateY(8px); }
@@ -722,7 +722,7 @@ export function InvoiceCustomerStep({
         <div className="pointer-events-none absolute inset-x-32 top-0 h-px bg-[#22D3EE]/25 blur-sm" />
 
         <div className="pos-customer-enter relative z-10 flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto overscroll-contain sm:flex-row sm:overflow-hidden xl:gap-6">
-          <aside className="order-6 flex w-full shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] sm:order-3 sm:w-[206px] xl:w-[220px]">
+          <aside className="order-6 hidden w-full shrink-0 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] sm:order-3 sm:flex sm:w-[206px] xl:w-[220px]">
             <div className="mb-3 rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-3 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] sm:mb-5 sm:py-4">
               <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
                 AFEX
@@ -804,7 +804,7 @@ export function InvoiceCustomerStep({
           <aside className="contents sm:order-2 sm:flex sm:w-[250px] sm:shrink-0 sm:flex-col sm:overflow-hidden sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.68)] sm:p-3.5 sm:shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.12)] sm:backdrop-blur-2xl sm:[direction:rtl] xl:w-[268px] xl:p-4">
             <h2 className="hidden px-1 text-right text-xl font-black text-white sm:order-none sm:block">العميل الحالي</h2>
 
-            <div className="order-2 min-w-0 rounded-[24px] bg-[rgba(6,20,38,0.66)] p-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] [direction:rtl] sm:hidden">
+            <div className={`order-2 min-w-0 rounded-[22px] bg-[rgba(6,20,38,0.62)] p-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] [direction:rtl] sm:hidden ${selectedCustomerId ? 'block' : 'hidden'}`}>
               {selectedCustomerId ? (
                 <>
                   <div className="flex min-w-0 items-center gap-3">
@@ -876,28 +876,30 @@ export function InvoiceCustomerStep({
                 ref={addCustomerButtonRef}
                 type="button"
                 onClick={openAddCustomerModal}
-                className="order-5 flex min-h-[60px] items-center justify-between rounded-[20px] bg-gradient-to-l from-cyan-300 to-blue-600 px-5 text-right text-slate-950 shadow-[0_14px_36px_rgba(6,182,212,0.24)] transition active:scale-[0.98] sm:order-none sm:min-h-[68px] sm:rounded-[22px] sm:bg-[rgba(2,8,23,0.72)] sm:px-4 sm:text-white sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] sm:hover:bg-[rgba(34,211,238,0.07)]"
+                className="order-5 flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-[24px] border border-dashed border-cyan-300/25 bg-cyan-300/[0.035] px-5 text-center text-white transition hover:bg-cyan-300/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] sm:order-none sm:min-h-[68px] sm:flex-row sm:justify-between sm:rounded-[22px] sm:border-0 sm:bg-[rgba(2,8,23,0.72)] sm:px-4 sm:text-right sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] sm:hover:bg-[rgba(34,211,238,0.07)]"
               >
+                <span className="grid h-12 w-12 place-items-center rounded-[18px] border border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-300 sm:contents">
+                  <PosCustomerIcon name="plus" className="h-6 w-6 text-cyan-300" />
+                </span>
                 <span>
                   <span className="block text-base font-black text-white">إضافة عميل جديد</span>
-                  <span className="mt-1 hidden text-xs font-bold text-slate-400 sm:block">إنشاء عميل جديد</span>
+                  <span className="mt-1 block text-xs font-bold text-slate-400"><span className="sm:hidden">سجل عميل جديد بسرعة</span><span className="hidden sm:inline">إنشاء عميل جديد</span></span>
                 </span>
-                <PosCustomerIcon name="plus" className="h-6 w-6 text-slate-950 sm:text-[#22D3EE]" />
               </button>
 
               <button
                 type="button"
                 onClick={handleNext}
                 disabled={!selectedCustomerId}
-                className={`order-7 flex min-h-[68px] items-center justify-between rounded-[22px] px-4 text-right transition active:scale-[0.98] sm:order-none ${
+                className={`sticky bottom-0 z-20 order-7 flex min-h-[64px] items-center justify-between rounded-[22px] px-5 text-right transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-[0.98] sm:static sm:order-none ${
                   selectedCustomerId
-                    ? 'bg-emerald-400 text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.20)]'
+                    ? 'bg-gradient-to-l from-cyan-300 via-sky-400 to-blue-600 text-white shadow-[0_16px_36px_rgba(14,165,233,0.28)] sm:bg-emerald-400 sm:bg-none sm:text-slate-950 sm:shadow-[0_0_24px_rgba(52,211,153,0.20)]'
                     : 'cursor-not-allowed bg-[rgba(6,20,38,0.42)] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.08)]'
                 }`}
               >
                 <span>
-                  <span className="block text-base font-black">الانتقال إلى العناصر →</span>
-                  <span className="mt-1 block text-xs font-bold opacity-70">تابع إلى المنتجات</span>
+                  <span className="block text-base font-black"><span className="sm:hidden">متابعة إلى نقطة البيع</span><span className="hidden sm:inline">الانتقال إلى العناصر →</span></span>
+                  <span className="mt-1 hidden text-xs font-bold opacity-70 sm:block">تابع إلى المنتجات</span>
                 </span>
                 <PosCustomerIcon name="arrowLeft" className="h-6 w-6" />
               </button>
@@ -905,7 +907,7 @@ export function InvoiceCustomerStep({
               <button
                 type="button"
                 onClick={handleReset}
-                className="order-5 flex min-h-[62px] items-center justify-between rounded-[22px] bg-[rgba(6,20,38,0.46)] px-4 text-right text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-red-400/10 hover:text-red-100 active:scale-[0.98] sm:order-none"
+                className="order-5 hidden min-h-[62px] items-center justify-between rounded-[22px] bg-[rgba(6,20,38,0.46)] px-4 text-right text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-red-400/10 hover:text-red-100 active:scale-[0.98] sm:order-none sm:flex"
               >
                 <span>
                   <span className="block text-base font-black">مسح البيانات</span>
@@ -915,7 +917,7 @@ export function InvoiceCustomerStep({
               </button>
             </div>
 
-            <div className="order-8 mt-auto pt-4 sm:order-none">
+            <div className="order-8 mt-auto hidden pt-4 sm:order-none sm:block">
               <Link
                 href={backHref}
                 className="flex min-h-[56px] items-center justify-center gap-3 rounded-[20px] bg-[rgba(6,20,38,0.46)] px-4 text-sm font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] transition hover:bg-[rgba(34,211,238,0.07)] hover:text-cyan-100 active:scale-[0.98]"
@@ -928,17 +930,30 @@ export function InvoiceCustomerStep({
 
           <main className="contents sm:order-1 sm:flex sm:min-h-0 sm:min-w-0 sm:flex-1 sm:flex-col sm:overflow-hidden sm:rounded-[30px] sm:bg-transparent sm:p-1 sm:[direction:rtl]">
             <header data-pos-mobile-customer-header className="order-1 flex shrink-0 items-start justify-between gap-5 px-1 [direction:rtl]">
-              <div className="text-right">
+              <div className="flex min-w-0 items-start gap-3 text-right sm:block">
+                <span className="mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-[16px] bg-cyan-300/[0.07] text-cyan-300 sm:hidden">
+                  <PosCustomerIcon name="users" className="h-6 w-6" />
+                </span>
+                <div className="min-w-0">
                 <p className="hidden text-sm font-black text-[#22D3EE] sm:block">بيانات العميل</p>
                 <h2 className="mt-2 text-[30px] font-black leading-tight text-white sm:mt-4 sm:text-4xl xl:text-[44px]">
                   <span className="sm:hidden">العملاء</span>
                   <span className="hidden sm:inline">بيانات العميل</span>
                 </h2>
                 <p className="mt-3 text-sm font-bold leading-6 text-slate-400">
-                  <span className="sm:hidden">ابحث برقم الجوال أو اسم العميل</span>
+                  <span className="sm:hidden">ابحث عن عميل أو أضف عميل جديد</span>
                   <span className="hidden sm:inline">ابحث بالجوال أو الاسم ثم اختر العميل أو تابع كعميل جديد.</span>
                 </p>
+                </div>
               </div>
+
+              <Link
+                href={backHref}
+                aria-label={backLabel}
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-[17px] border border-cyan-300/25 bg-cyan-300/[0.04] text-slate-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.96] sm:hidden"
+              >
+                <PosCustomerIcon name="arrowLeft" className="h-6 w-6" />
+              </Link>
 
               <div className="hidden rounded-[22px] bg-[rgba(2,8,23,0.58)] px-5 py-4 text-left shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] sm:block">
                 <p className="text-xs font-bold text-slate-500">الخطوة</p>
@@ -946,11 +961,12 @@ export function InvoiceCustomerStep({
               </div>
             </header>
 
-            <section data-pos-mobile-customer-search className="order-3 mt-4 shrink-0 rounded-[22px] bg-[#07111f] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.13)] [direction:rtl] sm:mt-7 sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.62)] sm:p-5 sm:shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] xl:p-6">
+            <section data-pos-mobile-customer-search className="order-3 mt-4 shrink-0 rounded-[26px] border border-cyan-300/12 bg-[rgba(6,20,38,0.62)] p-4 [direction:rtl] sm:mt-7 sm:rounded-[28px] sm:border-0 sm:bg-[rgba(2,8,23,0.62)] sm:p-5 sm:shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] xl:p-6">
+              <h3 className="mb-5 text-xl font-black text-white sm:hidden">ابحث عن عميل</h3>
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-sm font-black text-slate-300">
-                    بحث بالجوال <span className="text-cyan-300">(مطلوب)</span>
+                    <span className="sm:hidden">رقم الجوال </span><span className="hidden sm:inline">بحث بالجوال </span><span className="text-cyan-300">(مطلوب)</span>
                   </span>
                   <div className="relative">
                     <input
@@ -961,19 +977,26 @@ export function InvoiceCustomerStep({
                         setCustomerPhone(e.target.value)
                         setSelectedCustomerId(null)
                       }}
-                      placeholder="05xxxxxxxx"
-                      className="h-[66px] w-full rounded-[22px] border-0 bg-[rgba(6,20,38,0.76)] px-5 text-right text-lg font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation"
+                      placeholder={isMobileViewport ? 'رقم الجوال' : '05xxxxxxxx'}
+                      className="h-[60px] w-full rounded-[20px] border-0 bg-[rgba(2,8,23,0.64)] px-5 pl-14 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-500 focus:shadow-[0_0_20px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation sm:h-[66px] sm:rounded-[22px] sm:bg-[rgba(6,20,38,0.76)] sm:text-lg"
                       inputMode="tel"
                       autoComplete="tel"
                       enterKeyHint="search"
                       aria-required="true"
                     />
+                    <PosCustomerIcon name="phone" className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-cyan-100/80" />
                   </div>
                 </label>
 
+                <div className="flex items-center gap-3 text-xs font-black text-slate-500 sm:hidden">
+                  <span className="h-px flex-1 bg-cyan-300/10" />
+                  أو
+                  <span className="h-px flex-1 bg-cyan-300/10" />
+                </div>
+
                 <label className="block">
                   <span className="mb-2 block text-sm font-black text-slate-300">
-                    بحث بالاسم <span className="text-cyan-300">(مطلوب)</span>
+                    بحث بالاسم <span className="text-cyan-300"><span className="sm:hidden">(اختياري)</span><span className="hidden sm:inline">(مطلوب)</span></span>
                   </span>
                   <div className="relative">
                     <input
@@ -983,37 +1006,50 @@ export function InvoiceCustomerStep({
                         setCustomerName(e.target.value)
                         setSelectedCustomerId(null)
                       }}
-                      placeholder="اكتب اسم العميل"
+                      placeholder={isMobileViewport ? 'بحث بالاسم' : 'اكتب اسم العميل'}
                       autoComplete="name"
                       enterKeyHint="search"
                       aria-required="true"
-                      className="h-[66px] w-full rounded-[22px] border-0 bg-[rgba(6,20,38,0.76)] px-5 text-right text-lg font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation"
+                      className="h-[60px] w-full rounded-[20px] border-0 bg-[rgba(2,8,23,0.64)] px-5 pl-14 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-500 focus:shadow-[0_0_20px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.34)] touch-manipulation sm:h-[66px] sm:rounded-[22px] sm:bg-[rgba(6,20,38,0.76)] sm:text-lg"
                     />
+                    <PosCustomerIcon name="user" className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-cyan-100/80" />
                   </div>
                 </label>
               </div>
+
+              <button
+                type="button"
+                onClick={() => customerPhoneInputRef.current?.blur()}
+                className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[20px] bg-gradient-to-l from-cyan-300/25 to-blue-600/40 text-base font-black text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.55),0_12px_28px_rgba(14,165,233,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-[0.98] sm:hidden"
+              >
+                بحث
+                <PosCustomerIcon name="search" className="h-5 w-5" />
+              </button>
 
               {customerSearchLoading ? (
                 <p className="mt-3 text-xs font-black text-cyan-100">بحث...</p>
               ) : null}
               {!isValid ? (
                 <p className="mt-3 text-xs font-bold text-amber-100">
-                  أدخل اسم العميل ورقم الجوال للمتابعة إلى العناصر.
+                  <span className="sm:hidden">أدخل رقم الجوال أو الاسم للبحث عن العميل.</span><span className="hidden sm:inline">أدخل اسم العميل ورقم الجوال للمتابعة إلى العناصر.</span>
                 </p>
               ) : null}
             </section>
 
-            <section data-pos-mobile-customer-results className="order-4 mt-4 flex min-h-[340px] flex-none flex-col overflow-visible rounded-[24px] bg-transparent p-0 [direction:rtl] sm:mt-5 sm:min-h-0 sm:flex-1 sm:overflow-hidden sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.56)] sm:p-5 sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] xl:p-6">
+            <section data-pos-mobile-customer-results className="order-4 mt-5 flex min-h-0 flex-none flex-col overflow-visible rounded-[24px] bg-transparent p-0 [direction:rtl] sm:mt-5 sm:min-h-0 sm:flex-1 sm:overflow-hidden sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.56)] sm:p-5 sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] xl:p-6">
               <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
                 <div className="text-right">
                   <h3 className="text-xl font-black text-white sm:text-2xl">
-                    {customerSearch.active ? 'نتائج البحث' : 'العملاء الأخيرون'}
+                    {customerSearch.active ? 'نتائج البحث' : <><span className="sm:hidden">عملاء مختصرون</span><span className="hidden sm:inline">العملاء الأخيرون</span></>}
                   </h3>
-                  <p className="mt-1 text-xs font-bold text-slate-500">
+                  <p className="mt-1 hidden text-xs font-bold text-slate-500 sm:block">
                     نتائج البحث وآخر العملاء بنفس نمط بطاقات POS.
                   </p>
                 </div>
-                <span className="rounded-full bg-[rgba(34,211,238,0.08)] px-3 py-1 text-xs font-black text-cyan-100">
+                <button type="button" onClick={() => setCustomerListLimit((currentLimit) => currentLimit + 6)} disabled={!canLoadMoreCustomers} className="min-h-[44px] rounded-full bg-[rgba(34,211,238,0.08)] px-3 text-xs font-black text-cyan-100 disabled:opacity-50 sm:hidden">
+                  عرض الكل
+                </button>
+                <span className="hidden rounded-full bg-[rgba(34,211,238,0.08)] px-3 py-1 text-xs font-black text-cyan-100 sm:inline">
                   عرض الكل
                 </span>
               </div>
@@ -1034,43 +1070,38 @@ export function InvoiceCustomerStep({
                 ) : visibleCustomerCards.length > 0 ? (
                   <>
                     {isMobileViewport ? (
-                    <div className="grid gap-3">
+                    <div className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {visibleCustomerCards.slice(0, customerListLimit).map((customer) => (
                         <button
                           key={customer.id}
                           type="button"
                           onClick={() => selectExistingCustomer(customer)}
                           aria-pressed={selectedCustomerId === customer.id}
-                          className={`min-h-[150px] min-w-0 rounded-[22px] border border-cyan-300/10 p-4 text-right shadow-[0_14px_36px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.035)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.99] ${
+                          className={`min-h-[158px] w-[158px] shrink-0 snap-start rounded-[22px] border border-cyan-300/10 p-3 text-center shadow-[0_12px_30px_rgba(0,0,0,0.16),inset_0_1px_0_rgba(255,255,255,0.035)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] ${
                             selectedCustomerId === customer.id
                               ? 'bg-emerald-400/12'
                               : 'bg-[rgba(6,20,38,0.62)]'
                           }`}
                         >
-                          <span className="flex min-w-0 items-start gap-3">
+                          <span className="flex min-w-0 flex-col items-center gap-2">
                             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
                               {(customer.name || 'ع').trim().slice(0, 2)}
                             </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block break-words text-[17px] font-black text-white">
+                            <span className="min-w-0 max-w-full">
+                              <span className="block truncate text-sm font-black text-white">
                                 {customer.name || '—'}
                               </span>
-                              <span dir="ltr" className="mt-2 block break-all text-right text-sm font-bold text-cyan-100">
+                              <span dir="ltr" className="mt-1 block truncate text-center text-xs font-bold text-slate-300">
                                 {customer.phone || '—'}
                               </span>
                             </span>
-                            <span className={`inline-flex min-h-[32px] shrink-0 items-center rounded-full px-3 text-xs font-black ${
+                            <span className={`inline-flex min-h-[36px] shrink-0 items-center rounded-[14px] px-4 text-xs font-black ${
                               selectedCustomerId === customer.id
                                 ? 'bg-emerald-400/18 text-emerald-100'
                                 : 'bg-cyan-300/10 text-cyan-100'
                             }`}>
-                              {selectedCustomerId === customer.id ? 'تم الاختيار' : 'عميل'}
+                              {selectedCustomerId === customer.id ? 'تم الاختيار' : 'تحديد'}
                             </span>
-                          </span>
-                          <span className="mt-4 flex items-end justify-between gap-3 border-t border-cyan-300/10 pt-3 text-xs font-bold text-slate-400">
-                            <span>{customer.visitsCount ?? 0} طلبات</span>
-                            <span>الإجمالي: <strong className="text-base text-cyan-300">{formatPosCustomerAmount(customer.totalSpent)}</strong></span>
-                            <PosCustomerIcon name="arrowLeft" className="h-5 w-5 shrink-0 text-cyan-300/80" />
                           </span>
                         </button>
                       ))}
@@ -1184,7 +1215,7 @@ export function InvoiceCustomerStep({
                   setCustomerListLimit((currentLimit) => currentLimit + 6)
                 }}
                 disabled={!canLoadMoreCustomers}
-                className={`mt-4 min-h-[48px] shrink-0 rounded-[18px] text-sm font-black shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition active:scale-[0.98] ${
+                className={`mt-4 hidden min-h-[48px] shrink-0 rounded-[18px] text-sm font-black shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition active:scale-[0.98] sm:block ${
                   canLoadMoreCustomers
                     ? 'bg-[rgba(6,20,38,0.46)] text-cyan-100 hover:bg-[rgba(34,211,238,0.07)]'
                     : 'cursor-not-allowed bg-[rgba(6,20,38,0.28)] text-slate-500'
@@ -1580,7 +1611,9 @@ function PosCustomerIcon({
     | 'home'
     | 'logout'
     | 'note'
+    | 'phone'
     | 'plus'
+    | 'search'
     | 'settings'
     | 'trash'
     | 'user'
@@ -1625,6 +1658,19 @@ function PosCustomerIcon({
         <svg {...props}>
           <path d="M20 21a8 8 0 0 0-16 0" />
           <path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" />
+        </svg>
+      )
+    case 'phone':
+      return (
+        <svg {...props}>
+          <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.4 2.1L8.1 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.6 1.9Z" />
+        </svg>
+      )
+    case 'search':
+      return (
+        <svg {...props}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4-4" />
         </svg>
       )
     case 'users':

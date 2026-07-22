@@ -376,6 +376,7 @@ export default function PosPage() {
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const [showMobileRecentOrders, setShowMobileRecentOrders] = useState(false)
+  const [selectedMobileOrderId, setSelectedMobileOrderId] = useState<string | null>(null)
   const [activePosEmployee, setActivePosEmployee] =
     useState<ActivePosEmployee | null>(null)
   const [currentNow, setCurrentNow] = useState(() => new Date())
@@ -402,6 +403,18 @@ export default function PosPage() {
     activePosEmployee?.branch_id ||
     (access.scopeType === 'branch' ? access.branchId : null)
   const recentOrders = orders.slice(0, 6)
+  const selectedMobileOrder = selectedMobileOrderId
+    ? recentOrders.find((order) => order.id === selectedMobileOrderId) || null
+    : null
+  const selectedMobileOrderStatusKey = selectedMobileOrder
+    ? resolvePosKanbanStatus(selectedMobileOrder.status)
+    : null
+  const selectedMobileOrderStatusUi = selectedMobileOrderStatusKey
+    ? POS_ORDER_STATUS_UI[selectedMobileOrderStatusKey]
+    : null
+  const selectedMobileOrderNextStatus = selectedMobileOrder
+    ? getNextPosOrderStatus(selectedMobileOrder.status)
+    : null
   const mobileOrderStatusSummary = [
     {
       status: 'in_progress' as const,
@@ -438,6 +451,27 @@ export default function PosPage() {
       window.clearInterval(intervalId)
     }
   }, [])
+
+  useEffect(() => {
+    if (!selectedMobileOrderId) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedMobileOrderId(null)
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', closeOnEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [selectedMobileOrderId])
 
   useEffect(() => {
     if (!access.allowed || isPosLoginPage) {
@@ -760,6 +794,16 @@ export default function PosPage() {
       dir="rtl"
       className="fixed inset-0 z-[60] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white"
     >
+      <style jsx global>{`
+        @keyframes pos-order-details-sheet-in {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .pos-order-details-sheet { animation: none !important; }
+        }
+      `}</style>
       <section
         className="relative h-full w-full overflow-hidden bg-[#020817]"
       >
@@ -882,31 +926,29 @@ export default function PosPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="mobile-recent-orders-title"
-              className="fixed inset-0 z-50 flex items-end bg-slate-950/80 backdrop-blur-sm"
+              className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#020817] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]"
             >
-              <button
-                type="button"
-                aria-label="إغلاق آخر الطلبات"
-                onClick={() => setShowMobileRecentOrders(false)}
-                className="absolute inset-0 cursor-default"
-              />
-              <section className="relative z-10 flex max-h-[82svh] w-full flex-col rounded-t-[30px] border-x border-t border-cyan-300/15 bg-[#06101e] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-24px_70px_rgba(0,0,0,0.45)]">
-                <span aria-hidden="true" className="mx-auto h-1 w-12 rounded-full bg-slate-600" />
-                <header className="flex items-center justify-between gap-3 py-4">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.09),transparent_32%),linear-gradient(180deg,#020817_0%,#04101d_100%)]" />
+              <section className="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-md flex-col">
+                <header className="flex shrink-0 items-start justify-between gap-4 pb-5 pt-1">
                   <div>
-                    <h2 id="mobile-recent-orders-title" className="text-xl font-black text-white">آخر الطلبات</h2>
-                    <p className="mt-1 text-xs font-bold text-slate-400">آخر عمليات البيع المتاحة لنقطة البيع</p>
+                    <h2 id="mobile-recent-orders-title" className="text-[28px] font-black leading-tight text-white">آخر الطلبات</h2>
+                    <p className="mt-2 text-sm font-bold leading-6 text-slate-400">آخر عمليات البيع المتاحة لنقطة البيع</p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowMobileRecentOrders(false)}
-                    className="min-h-[44px] rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.06] px-4 text-xs font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97]"
+                    onClick={() => {
+                      setSelectedMobileOrderId(null)
+                      setShowMobileRecentOrders(false)
+                    }}
+                    aria-label="إغلاق آخر الطلبات"
+                    className="grid h-12 w-12 shrink-0 place-items-center rounded-[17px] border border-cyan-300/20 bg-cyan-300/[0.05] text-2xl font-black text-slate-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.96]"
                   >
-                    إغلاق
+                    ←
                   </button>
                 </header>
 
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-1">
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {ordersError ? (
                     <div className="rounded-[18px] border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">
                       {ordersError}
@@ -915,55 +957,182 @@ export default function PosPage() {
 
                   {!ordersError && ordersLoading ? (
                     Array.from({ length: 3 }).map((_, index) => (
-                      <div key={`mobile-recent-order-skeleton-${index}`} className="h-[138px] animate-pulse rounded-[22px] bg-slate-800/70" />
+                      <div key={`mobile-recent-order-skeleton-${index}`} className="h-[176px] animate-pulse rounded-[24px] border border-cyan-300/[0.06] bg-[rgba(6,20,38,0.62)] p-4">
+                        <div className="h-5 w-24 rounded-lg bg-slate-700/70" />
+                        <div className="mt-4 h-4 w-36 rounded-lg bg-slate-800" />
+                        <div className="mt-3 h-3 w-44 rounded-lg bg-slate-800" />
+                        <div className="mt-6 h-7 w-28 rounded-lg bg-slate-700/60" />
+                      </div>
                     ))
                   ) : null}
 
                   {!ordersError && !ordersLoading && recentOrders.length === 0 ? (
-                    <div className="rounded-[22px] border border-dashed border-cyan-300/15 bg-cyan-300/[0.04] px-5 py-10 text-center text-sm font-black text-slate-300">
-                      لا توجد طلبات حديثة.
+                    <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[26px] border border-dashed border-cyan-300/15 bg-cyan-300/[0.025] px-6 text-center">
+                      <span className="grid h-16 w-16 place-items-center rounded-[22px] bg-cyan-300/[0.08] text-cyan-200 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+                        <PosIcon name="clipboard" className="h-8 w-8" />
+                      </span>
+                      <h3 className="mt-5 text-xl font-black text-white">لا توجد طلبات حديثة</h3>
+                      <p className="mt-2 text-sm font-bold text-slate-400">ستظهر آخر عمليات البيع هنا.</p>
                     </div>
                   ) : null}
 
                   {!ordersError && !ordersLoading ? recentOrders.map((order) => {
                     const statusKey = resolvePosKanbanStatus(order.status)
                     const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
-                    const nextStatus = getNextPosOrderStatus(order.status)
                     const isUpdatingOrder = updatingOrderId === order.id
 
                     return (
-                      <article key={order.id} className={`rounded-[22px] border border-cyan-300/10 bg-[#071524] p-4 ${isUpdatingOrder ? 'opacity-60' : 'opacity-100'}`}>
+                      <article key={order.id} className={`rounded-[24px] border border-cyan-300/10 bg-[rgba(6,20,38,0.68)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition ${isUpdatingOrder ? 'opacity-60' : 'opacity-100'}`}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-lg font-black text-white">{order.order_number}</p>
                             <p className="mt-2 truncate text-sm font-bold text-slate-200">{order.customer_name || 'عميل نقدي'}</p>
-                            <p className="mt-1 truncate text-xs font-semibold text-slate-500">
-                              {new Date(order.created_at).toLocaleDateString('ar-SA')} · {formatOrderTime(order.created_at)}
-                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+                              <span>{new Date(order.created_at).toLocaleDateString('ar-SA')}</span>
+                              <span aria-hidden="true">•</span>
+                              <span>{formatOrderTime(order.created_at)}</span>
+                            </div>
                           </div>
                           <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${statusUi?.badgeClassName || 'bg-slate-300/10 text-slate-200'}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${statusUi?.dotClassName || 'bg-slate-400'}`} />
                             {statusUi?.label || order.status}
                           </span>
                         </div>
-                        <div className="mt-4 flex items-end justify-between gap-3 border-t border-cyan-300/10 pt-3">
+                        <div className="mt-4 flex items-center justify-between gap-3 border-t border-cyan-300/10 pt-3">
                           <p className="text-xl font-black text-cyan-100">{formatCurrency(order.total)}</p>
-                          {nextStatus ? (
-                            <button
-                              type="button"
-                              onClick={() => handleAdvanceOrderStatus(order)}
-                              disabled={isUpdatingOrder}
-                              className="min-h-[44px] rounded-2xl bg-cyan-300/[0.08] px-3 text-xs font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97] disabled:opacity-60"
-                            >
-                              {isUpdatingOrder ? 'جارٍ...' : order.status === 'in_progress' ? 'جاهز' : 'تم تسليم'}
-                            </button>
-                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMobileOrderId(order.id)}
+                            className="flex min-h-[44px] items-center rounded-2xl bg-cyan-300/[0.07] px-3 text-xs font-black text-cyan-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97]"
+                          >
+                            عرض التفاصيل
+                          </button>
                         </div>
                       </article>
                     )
                   }) : null}
                 </div>
               </section>
+
+              {selectedMobileOrder ? (
+                <div className="fixed inset-0 z-20 flex items-end bg-slate-950/75 backdrop-blur-sm">
+                  <button
+                    type="button"
+                    aria-label="إغلاق تفاصيل الطلب"
+                    onClick={() => setSelectedMobileOrderId(null)}
+                    className="absolute inset-0 cursor-default"
+                  />
+                  <section
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="mobile-order-details-title"
+                    className="pos-order-details-sheet relative z-10 flex max-h-[88svh] w-full flex-col overflow-hidden rounded-t-[30px] border-x border-t border-cyan-300/15 bg-[#06101e] pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-20px_60px_rgba(0,0,0,0.38)] motion-safe:animate-[pos-order-details-sheet-in_180ms_ease-out]"
+                  >
+                    <span aria-hidden="true" className="mx-auto mt-3 h-1 w-12 shrink-0 rounded-full bg-slate-600" />
+                    <header className="flex shrink-0 items-start justify-between gap-4 border-b border-cyan-300/10 px-4 pb-4 pt-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-cyan-300">تفاصيل الطلب</p>
+                        <h3 id="mobile-order-details-title" className="mt-2 truncate text-2xl font-black text-white">
+                          {selectedMobileOrder.order_number}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMobileOrderId(null)}
+                        aria-label="إغلاق"
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-cyan-300/[0.06] text-xl font-black text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.96]"
+                      >
+                        ×
+                      </button>
+                    </header>
+
+                    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <section className="rounded-[22px] border border-cyan-300/10 bg-[#071524] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-base font-black text-white">{selectedMobileOrder.customer_name || 'عميل نقدي'}</p>
+                            {selectedMobileOrder.customer_phone && selectedMobileOrder.customer_phone !== '—' ? (
+                              <p dir="ltr" className="mt-2 text-right text-sm font-bold text-slate-400">{selectedMobileOrder.customer_phone}</p>
+                            ) : null}
+                            <p className="mt-2 text-xs font-bold text-slate-500">
+                              {new Date(selectedMobileOrder.created_at).toLocaleDateString('ar-SA')} · {formatOrderTime(selectedMobileOrder.created_at)}
+                            </p>
+                          </div>
+                          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${selectedMobileOrderStatusUi?.badgeClassName || 'bg-slate-300/10 text-slate-200'}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${selectedMobileOrderStatusUi?.dotClassName || 'bg-slate-400'}`} />
+                            {selectedMobileOrderStatusUi?.label || selectedMobileOrder.status}
+                          </span>
+                        </div>
+                      </section>
+
+                      <section>
+                        <h4 className="text-sm font-black text-white">المنتجات</h4>
+                        <div className="mt-3 space-y-2">
+                          {selectedMobileOrder.items.length > 0 ? selectedMobileOrder.items.map((item, index) => (
+                            <div key={`${selectedMobileOrder.id}-${item.item_name}-${index}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[18px] border border-cyan-300/[0.08] bg-[#071524] p-3">
+                              <div className="min-w-0">
+                                <p className="break-words text-sm font-black text-white">{item.item_name}</p>
+                                <p className="mt-1 text-xs font-bold text-slate-500">الكمية: {item.quantity} × {formatCurrency(item.unit_price)}</p>
+                              </div>
+                              <p className="self-center text-sm font-black text-cyan-200">{formatCurrency(item.line_total)}</p>
+                            </div>
+                          )) : (
+                            <p className="rounded-[18px] border border-dashed border-cyan-300/10 px-4 py-6 text-center text-sm font-bold text-slate-500">لا توجد تفاصيل منتجات متاحة.</p>
+                          )}
+                        </div>
+                      </section>
+
+                      <section className="rounded-[22px] border border-cyan-300/10 bg-[#071524] p-4">
+                        <div className="flex items-center justify-between gap-3 text-sm font-bold text-slate-400">
+                          <span>الإجمالي الفرعي</span>
+                          <span>{formatCurrency(selectedMobileOrder.subtotal)}</span>
+                        </div>
+                        {selectedMobileOrder.discount > 0 ? (
+                          <div className="mt-3 flex items-center justify-between gap-3 text-sm font-bold text-emerald-300">
+                            <span>الخصم</span>
+                            <span>{formatCurrency(selectedMobileOrder.discount)}</span>
+                          </div>
+                        ) : null}
+                        <div className="mt-3 flex items-center justify-between gap-3 text-sm font-bold text-slate-400">
+                          <span>الضريبة</span>
+                          <span>{formatCurrency(selectedMobileOrder.tax)}</span>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between gap-3 border-t border-cyan-300/10 pt-4">
+                          <span className="text-base font-black text-white">الإجمالي</span>
+                          <span className="text-2xl font-black text-cyan-200">{formatCurrency(selectedMobileOrder.total)}</span>
+                        </div>
+                      </section>
+
+                      {selectedMobileOrder.payment_method && selectedMobileOrder.payment_method !== '—' ? (
+                        <section className="rounded-[22px] border border-cyan-300/10 bg-[#071524] p-4">
+                          <h4 className="text-sm font-black text-white">الدفع</h4>
+                          <div className="mt-3 flex items-center justify-between gap-3 text-sm font-bold text-slate-400">
+                            <span>وسيلة الدفع</span>
+                            <span className="text-slate-200">{selectedMobileOrder.payment_method}</span>
+                          </div>
+                          {selectedMobileOrder.payment_status && selectedMobileOrder.payment_status !== '—' ? (
+                            <div className="mt-3 flex items-center justify-between gap-3 text-sm font-bold text-slate-400">
+                              <span>حالة الدفع</span>
+                              <span className="text-slate-200">{selectedMobileOrder.payment_status}</span>
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : null}
+
+                      {selectedMobileOrderNextStatus ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAdvanceOrderStatus(selectedMobileOrder)}
+                          disabled={updatingOrderId === selectedMobileOrder.id}
+                          className="min-h-[52px] w-full rounded-[18px] bg-cyan-300/[0.10] px-4 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] disabled:opacity-60"
+                        >
+                          {updatingOrderId === selectedMobileOrder.id ? 'جارٍ التحديث...' : selectedMobileOrder.status === 'in_progress' ? 'نقل إلى جاهز' : 'تم التسليم'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </section>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

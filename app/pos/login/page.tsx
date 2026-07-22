@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
+import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import { getCurrentUserProfile } from '@/lib/auth'
 import { canAccessPos } from '@/lib/permissions'
 import {
@@ -12,7 +13,7 @@ import {
   hasPosLoggedOut,
 } from '@/lib/pos-employee-session'
 import { supabase } from '@/lib/supabase/client'
-import { normalizeUsername, usernameToInternalEmail } from '@/lib/usernames'
+import { normalizeUsername } from '@/lib/usernames'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
@@ -77,32 +78,6 @@ function LockIcon({ className = 'h-5 w-5' }: { className?: string }) {
   )
 }
 
-function FingerprintIcon({ className = 'h-5 w-5' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="M12 11v2.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path
-        d="M8.4 17.4c.7-1.5 1-3 1-4.5a2.6 2.6 0 0 1 5.2 0c0 2.4-.5 4.6-1.5 6.6"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M6.2 14.8c.2-.7.3-1.3.3-2a5.5 5.5 0 0 1 11 0c0 .8-.1 1.7-.2 2.5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M4.2 11.5a7.8 7.8 0 0 1 15.6 1.3c0 .5 0 .9-.1 1.4M7.2 20.5c.8-1.1 1.4-2.4 1.8-3.8M16.5 20c.7-1.7 1.1-3.5 1.2-5.4"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
 function HeadsetIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
@@ -156,30 +131,16 @@ function PosHardwareIllustration() {
   )
 }
 
-async function waitForSessionPersistence(expectedUserId: string) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (session?.user?.id === expectedUserId) {
-      return session
-    }
-
-    await new Promise((resolve) => window.setTimeout(resolve, 50))
-  }
-
-  return null
-}
-
 export default function PosLoginPage() {
   const router = useRouter()
   const authState = useAuthState()
+  const isMobileViewport = useMobileViewport()
   const usernameInputRef = useRef<HTMLInputElement | null>(null)
   const passwordInputRef = useRef<HTMLInputElement | null>(null)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -228,59 +189,39 @@ export default function PosLoginPage() {
         throw new Error('يرجى كتابة كلمة المرور')
       }
 
-      const checkResponse = await fetch('/api/auth/check-username', {
+      const loginResponse = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           username: normalizedUsername,
+          password,
         }),
       })
 
-      const checkResult = await checkResponse.json().catch(() => null)
+      const loginResult = await loginResponse.json().catch(() => null)
 
-      if (!checkResponse.ok) {
+      if (!loginResponse.ok || !loginResult?.success) {
         throw new Error(
-          getClientErrorMessage(checkResult, 'تعذر التحقق من المستخدم')
+          getClientErrorMessage(loginResult, POS_UX_MESSAGES.invalidLogin)
         )
       }
 
-      if (!checkResult?.exists) {
-        throw new Error(POS_UX_MESSAGES.invalidLogin)
-      }
-
-      if (checkResult?.user && checkResult.user.is_active === false) {
-        throw new Error(POS_UX_MESSAGES.disabledUser)
-      }
-
-      const isEmailLogin = normalizedUsername.includes('@')
-      const loginEmail = isEmailLogin
-        ? normalizedUsername
-        : usernameToInternalEmail(normalizedUsername)
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password,
-      })
-
-      if (signInError || !data.user) {
-        console.error('[POS LOGIN] auth sign-in failed', {
-          category: signInError?.name || 'InvalidCredentials',
-          status: signInError?.status ?? null,
-        })
-        throw new Error(POS_UX_MESSAGES.invalidLogin)
-      }
-
-      await new Promise((resolve) => window.setTimeout(resolve, 200))
-
-      const persistedSession =
-        data.session ?? (await waitForSessionPersistence(data.user.id))
-
-      if (!persistedSession) {
+      if (!loginResult.session?.access_token || !loginResult.session?.refresh_token) {
         throw new Error('تعذر تثبيت جلسة تسجيل الدخول')
       }
 
-      const profile = await getCurrentUserProfile({ user: data.user })
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token: loginResult.session.access_token,
+        refresh_token: loginResult.session.refresh_token,
+      })
+
+      if (sessionError || !sessionData.user) {
+        throw new Error('تعذر تثبيت جلسة تسجيل الدخول')
+      }
+
+      const profile = await getCurrentUserProfile({ user: sessionData.user })
 
       if (!profile || !profile.is_active) {
         clearActivePosEmployee()
@@ -309,6 +250,129 @@ export default function PosLoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (isMobileViewport) {
+    return (
+      <main dir="rtl" className="relative h-[100svh] overflow-y-auto bg-[#020817] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-white">
+        <style jsx global>{`
+          .pos-login-input:-webkit-autofill,
+          .pos-login-input:-webkit-autofill:hover,
+          .pos-login-input:-webkit-autofill:focus {
+            -webkit-text-fill-color: rgb(255, 255, 255);
+            caret-color: rgb(255, 255, 255);
+            box-shadow: 0 0 0 1000px rgba(2, 8, 23, 0.84) inset;
+            transition: background-color 9999s ease-in-out 0s;
+          }
+        `}</style>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(34,211,238,0.11),transparent_34%),linear-gradient(180deg,#020817_0%,#030b17_100%)]" />
+
+        <div className="relative z-10 mx-auto flex min-h-full w-full max-w-md flex-col">
+          <header className="flex items-center justify-between">
+            <Link
+              href="/"
+              aria-label="العودة"
+              className="grid h-12 w-12 place-items-center rounded-[17px] border border-cyan-300/20 bg-cyan-300/[0.04] text-slate-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.96]"
+            >
+              <span aria-hidden="true" className="text-2xl">←</span>
+            </Link>
+            <span className="inline-flex min-h-[42px] items-center gap-2 rounded-full border border-cyan-300/18 bg-cyan-300/[0.06] px-3 text-xs font-black text-cyan-100">
+              <ShieldIcon className="h-4 w-4" />
+              دخول آمن
+            </span>
+          </header>
+
+          <section className="pb-7 pt-8 text-center">
+            <div className="mx-auto flex items-center justify-center gap-3 text-white">
+              <AfexMark className="h-16 w-16 text-cyan-300 drop-shadow-[0_0_18px_rgba(34,211,238,0.45)]" />
+              <div className="text-right">
+                <p className="text-3xl font-black tracking-[0.12em]">AFEX</p>
+                <p className="mt-1 text-xs font-black tracking-[0.28em] text-cyan-300">POS</p>
+              </div>
+            </div>
+            <h1 className="mt-7 text-[34px] font-black leading-tight">تسجيل الدخول</h1>
+            <p className="mx-auto mt-3 max-w-xs text-sm font-bold leading-7 text-slate-400">
+              الرجاء إدخال بياناتك للوصول إلى نقطة البيع
+            </p>
+          </section>
+
+          <section className="rounded-[28px] border border-cyan-300/12 bg-[rgba(6,20,38,0.66)] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+            {error ? (
+              <div id="pos-mobile-login-error" role="alert" className="mb-5 rounded-2xl border border-rose-300/20 bg-rose-400/10 px-4 py-3 text-sm font-bold leading-6 text-rose-100">
+                {error}
+              </div>
+            ) : null}
+
+            <form onSubmit={handleLogin} className="space-y-5">
+              <label className="block" htmlFor="pos-mobile-login-username">
+                <span className="mb-2 block text-sm font-black text-slate-200">اسم المستخدم</span>
+                <span className="group flex min-h-[58px] items-center gap-3 rounded-[20px] bg-[#020817]/75 px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] transition focus-within:shadow-[0_0_20px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.38)]">
+                  <UserIcon className="h-5 w-5 shrink-0 text-slate-400 group-focus-within:text-cyan-300" />
+                  <input
+                    id="pos-mobile-login-username"
+                    type="text"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="اسم المستخدم أو البريد الإلكتروني"
+                    autoComplete="username"
+                    enterKeyHint="next"
+                    required
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? 'pos-mobile-login-error' : undefined}
+                    className="pos-login-input h-14 min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-slate-600"
+                  />
+                </span>
+              </label>
+
+              <label className="block" htmlFor="pos-mobile-login-password">
+                <span className="mb-2 block text-sm font-black text-slate-200">كلمة المرور</span>
+                <span className="group flex min-h-[58px] items-center gap-3 rounded-[20px] bg-[#020817]/75 px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] transition focus-within:shadow-[0_0_20px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.38)]">
+                  <LockIcon className="h-5 w-5 shrink-0 text-slate-400 group-focus-within:text-cyan-300" />
+                  <input
+                    id="pos-mobile-login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="أدخل كلمة المرور"
+                    autoComplete="current-password"
+                    enterKeyHint="done"
+                    required
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? 'pos-mobile-login-error' : undefined}
+                    className="pos-login-input h-14 min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-slate-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xs font-black text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
+                  >
+                    {showPassword ? 'إخفاء' : 'إظهار'}
+                  </button>
+                </span>
+              </label>
+
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <label className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 font-bold text-slate-300">
+                  <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-5 w-5 accent-cyan-300" />
+                  تذكرني
+                </label>
+                <Link href="/login?forgot=password" className="inline-flex min-h-[44px] items-center font-black text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70">
+                  نسيت كلمة المرور؟
+                </Link>
+              </div>
+
+              <button type="submit" disabled={loading} className="flex min-h-[58px] w-full items-center justify-center gap-3 rounded-[20px] bg-gradient-to-l from-cyan-300 to-sky-500 text-base font-black text-slate-950 shadow-[0_12px_28px_rgba(14,165,233,0.22)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60">
+                {loading ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
+                <span aria-hidden="true">←</span>
+              </button>
+            </form>
+          </section>
+
+          <p className="mt-auto pt-7 text-center text-xs font-bold text-slate-600">© 2026 AFEX POS</p>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -470,19 +534,6 @@ export default function PosLoginPage() {
                   </span>
                 </button>
 
-                <div className="flex items-center gap-4 text-slate-500">
-                  <span className="h-px flex-1 bg-cyan-200/12" />
-                  <span className="text-sm font-bold">أو</span>
-                  <span className="h-px flex-1 bg-cyan-200/12" />
-                </div>
-
-                <button
-                  type="button"
-                  className="flex min-h-[50px] w-full items-center justify-center gap-3 rounded-2xl border border-cyan-300/55 bg-cyan-300/5 text-base font-black text-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.08)] transition hover:bg-cyan-300/10 active:scale-[0.99]"
-                >
-                  <FingerprintIcon className="h-6 w-6" />
-                  تسجيل الدخول بالبصمة
-                </button>
               </form>
 
               <div className="mt-auto flex items-center justify-center gap-2 pt-4 text-center text-sm font-semibold text-slate-400">
