@@ -158,6 +158,8 @@ export function InvoiceCustomerStep({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const customerSearchRequestIdRef = useRef(0)
   const customerPhoneInputRef = useRef<HTMLInputElement | null>(null)
+  const addCustomerButtonRef = useRef<HTMLButtonElement | null>(null)
+  const newCustomerFirstNameInputRef = useRef<HTMLInputElement | null>(null)
 
   const normalizedCustomerPhone = customerPhone.replace(/[\s()-]/g, '')
   const isValidSaudiPhone = /^(?:\+?966|0)?5\d{8}$/.test(normalizedCustomerPhone)
@@ -456,6 +458,18 @@ export function InvoiceCustomerStep({
     return () => window.clearTimeout(timeoutId)
   }, [allowed, variant])
 
+  useEffect(() => {
+    if (!addCustomerOpen) {
+      return
+    }
+
+    const focusTimeoutId = window.setTimeout(() => {
+      newCustomerFirstNameInputRef.current?.focus({ preventScroll: true })
+    }, 0)
+
+    return () => window.clearTimeout(focusTimeoutId)
+  }, [addCustomerOpen])
+
   const handleNext = () => {
     if (!isValid) {
       alert(
@@ -512,6 +526,23 @@ export function InvoiceCustomerStep({
     setAddCustomerOpen(false)
     setNewCustomerError('')
     setNewCustomerPhoneError('')
+    window.setTimeout(() => {
+      addCustomerButtonRef.current?.focus({ preventScroll: true })
+    }, 0)
+  }
+
+  const changeSelectedCustomer = () => {
+    setSelectedCustomerId(null)
+    window.setTimeout(() => {
+      customerPhoneInputRef.current?.focus({ preventScroll: true })
+    }, 0)
+  }
+
+  const removeSelectedCustomer = () => {
+    handleReset()
+    window.setTimeout(() => {
+      customerPhoneInputRef.current?.focus({ preventScroll: true })
+    }, 0)
   }
 
   const handleCreateCustomer = async () => {
@@ -742,9 +773,58 @@ export function InvoiceCustomerStep({
           </aside>
 
           <aside className="contents sm:order-2 sm:flex sm:w-[250px] sm:shrink-0 sm:flex-col sm:overflow-hidden sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.68)] sm:p-3.5 sm:shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.12)] sm:backdrop-blur-2xl sm:[direction:rtl] xl:w-[268px] xl:p-4">
-            <h2 className="order-2 px-1 text-right text-xl font-black text-white sm:order-none">العميل الحالي</h2>
+            <h2 className="hidden px-1 text-right text-xl font-black text-white sm:order-none sm:block">العميل الحالي</h2>
 
-            <div className="order-2 mt-4 rounded-[24px] bg-[rgba(6,20,38,0.52)] p-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] sm:order-none">
+            <div className="order-2 min-w-0 rounded-[24px] bg-[rgba(6,20,38,0.66)] p-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] [direction:rtl] sm:hidden">
+              {selectedCustomerId ? (
+                <>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.22)]">
+                      <PosCustomerIcon name="user" className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black text-emerald-200">العميل المحدد</p>
+                      <p className="mt-1 break-words text-base font-black text-white">
+                        {customerName.trim()}
+                      </p>
+                      <p dir="ltr" className="mt-1 break-all text-right text-sm font-bold text-cyan-100">
+                        {customerPhone.trim()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={changeSelectedCustomer}
+                      className="min-h-[44px] rounded-[15px] bg-cyan-300/10 px-3 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] active:scale-[0.98]"
+                    >
+                      تغيير العميل
+                    </button>
+                    <button
+                      type="button"
+                      onClick={removeSelectedCustomer}
+                      className="min-h-[44px] rounded-[15px] bg-red-400/10 px-3 text-sm font-black text-red-100 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.18)] active:scale-[0.98]"
+                    >
+                      إزالة الاختيار
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex min-h-[72px] items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-300/10 text-cyan-100">
+                    <PosCustomerIcon name="user" className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-black text-white">لم يتم اختيار عميل</p>
+                    <p className="mt-1 text-xs font-bold leading-5 text-slate-400">
+                      ابحث بالجوال أو الاسم، ثم اختر بطاقة العميل.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="hidden rounded-[24px] bg-[rgba(6,20,38,0.52)] p-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] sm:order-none sm:mt-4 sm:block">
               <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(34,211,238,0.08)] text-[#22D3EE] shadow-[0_0_28px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.12)]">
                 <PosCustomerIcon name="user" className="h-7 w-7" />
               </span>
@@ -764,6 +844,7 @@ export function InvoiceCustomerStep({
 
             <div className="contents sm:mt-4 sm:grid sm:gap-3">
               <button
+                ref={addCustomerButtonRef}
                 type="button"
                 onClick={openAddCustomerModal}
                 className="order-5 flex min-h-[68px] items-center justify-between rounded-[22px] bg-[rgba(2,8,23,0.72)] px-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] transition hover:bg-[rgba(34,211,238,0.07)] active:scale-[0.98] sm:order-none"
@@ -817,10 +898,10 @@ export function InvoiceCustomerStep({
           </aside>
 
           <main className="contents sm:order-1 sm:flex sm:min-h-0 sm:min-w-0 sm:flex-1 sm:flex-col sm:overflow-hidden sm:rounded-[30px] sm:bg-transparent sm:p-1 sm:[direction:rtl]">
-            <header className="order-1 flex shrink-0 items-start justify-between gap-5 px-1 [direction:rtl]">
+            <header data-pos-mobile-customer-header className="order-1 flex shrink-0 items-start justify-between gap-5 px-1 [direction:rtl]">
               <div className="text-right">
                 <p className="text-sm font-black text-[#22D3EE]">بيانات العميل</p>
-                <h2 className="mt-4 text-4xl font-black leading-tight text-white xl:text-[44px]">
+                <h2 className="mt-2 text-[30px] font-black leading-tight text-white sm:mt-4 sm:text-4xl xl:text-[44px]">
                   بيانات العميل
                 </h2>
                 <p className="mt-3 text-sm font-bold leading-6 text-slate-400">
@@ -834,7 +915,7 @@ export function InvoiceCustomerStep({
               </div>
             </header>
 
-            <section className="order-3 mt-7 shrink-0 rounded-[28px] bg-[rgba(2,8,23,0.62)] p-5 shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] [direction:rtl] xl:p-6">
+            <section data-pos-mobile-customer-search className="order-3 mt-4 shrink-0 rounded-[24px] bg-[rgba(2,8,23,0.62)] p-4 shadow-[0_0_26px_rgba(34,211,238,0.07),inset_0_0_0_1px_rgba(34,211,238,0.12)] [direction:rtl] sm:mt-7 sm:rounded-[28px] sm:p-5 xl:p-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-sm font-black text-slate-300">
@@ -891,10 +972,12 @@ export function InvoiceCustomerStep({
               ) : null}
             </section>
 
-            <section className="order-4 mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] bg-[rgba(2,8,23,0.56)] p-5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] [direction:rtl] xl:p-6">
+            <section data-pos-mobile-customer-results className="order-4 mt-4 flex min-h-0 flex-1 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.56)] p-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] [direction:rtl] sm:mt-5 sm:overflow-hidden sm:rounded-[28px] sm:p-5 xl:p-6">
               <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
                 <div className="text-right">
-                  <h3 className="text-2xl font-black text-white">العملاء الأخيرون</h3>
+                  <h3 className="text-xl font-black text-white sm:text-2xl">
+                    {customerSearch.active ? 'نتائج البحث' : 'العملاء الأخيرون'}
+                  </h3>
                   <p className="mt-1 text-xs font-bold text-slate-500">
                     نتائج البحث وآخر العملاء بنفس نمط بطاقات POS.
                   </p>
@@ -910,7 +993,7 @@ export function InvoiceCustomerStep({
                 </div>
               ) : null}
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="min-h-0 flex-1 overflow-visible overscroll-contain sm:overflow-y-auto sm:pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {customerCardsLoading ? (
                   <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
                     <p className="text-sm font-bold leading-7 text-slate-400">
@@ -918,7 +1001,45 @@ export function InvoiceCustomerStep({
                     </p>
                   </div>
                 ) : visibleCustomerCards.length > 0 ? (
-                  <div className="rounded-[24px] bg-[rgba(6,20,38,0.42)] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] sm:overflow-hidden">
+                  <>
+                    <div className="grid gap-3 sm:hidden">
+                      {visibleCustomerCards.slice(0, customerListLimit).map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          onClick={() => selectExistingCustomer(customer)}
+                          aria-pressed={selectedCustomerId === customer.id}
+                          className={`min-h-[118px] min-w-0 rounded-[22px] p-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.99] ${
+                            selectedCustomerId === customer.id
+                              ? 'bg-emerald-400/12'
+                              : 'bg-[rgba(6,20,38,0.62)]'
+                          }`}
+                        >
+                          <span className="flex min-w-0 items-start justify-between gap-3">
+                            <span className="min-w-0 flex-1">
+                              <span className="block break-words text-base font-black text-white">
+                                {customer.name || '—'}
+                              </span>
+                              <span dir="ltr" className="mt-2 block break-all text-right text-sm font-bold text-cyan-100">
+                                {customer.phone || '—'}
+                              </span>
+                            </span>
+                            <span className={`inline-flex min-h-[44px] shrink-0 items-center rounded-[15px] px-3 text-xs font-black ${
+                              selectedCustomerId === customer.id
+                                ? 'bg-emerald-400/18 text-emerald-100'
+                                : 'bg-cyan-300/10 text-cyan-100'
+                            }`}>
+                              {selectedCustomerId === customer.id ? 'تم الاختيار' : 'اختيار العميل'}
+                            </span>
+                          </span>
+                          <span className="mt-4 grid grid-cols-2 gap-2 border-t border-cyan-300/10 pt-3 text-xs font-bold text-slate-400">
+                            <span>الزيارات: <strong className="text-cyan-50">{customer.visitsCount ?? 0}</strong></span>
+                            <span>إجمالي الصرف: <strong className="text-white">{formatPosCustomerAmount(customer.totalSpent)}</strong></span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="hidden rounded-[24px] bg-[rgba(6,20,38,0.42)] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] sm:block sm:overflow-hidden">
                     <div className="sm:overflow-x-auto">
                       <table className="block w-full text-right sm:table sm:min-w-[860px] sm:border-separate sm:border-spacing-0">
                         <thead className="hidden sm:table-header-group">
@@ -996,17 +1117,25 @@ export function InvoiceCustomerStep({
                         </tbody>
                       </table>
                     </div>
-                  </div>
+                    </div>
+                  </>
                 ) : customerSearch.active && !customerSearchLoading ? (
-                  <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
+                  <div className="flex min-h-[170px] flex-col items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
                     <p className="text-sm font-bold leading-7 text-slate-400">
                       لا يوجد عميل مطابق للبحث. يمكنك إضافة عميل جديد.
                     </p>
+                    <button
+                      type="button"
+                      onClick={openAddCustomerModal}
+                      className="mt-4 min-h-[48px] rounded-[16px] bg-cyan-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.18)] active:scale-[0.98] sm:hidden"
+                    >
+                      إضافة عميل جديد
+                    </button>
                   </div>
                 ) : (
                   <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
                     <p className="text-sm font-bold leading-7 text-slate-400">
-                      لا يوجد عملاء حتى الآن
+                      ابدأ البحث برقم الجوال أو الاسم لاختيار العميل.
                     </p>
                   </div>
                 )}
@@ -1030,9 +1159,9 @@ export function InvoiceCustomerStep({
         </div>
 
         {addCustomerOpen ? (
-          <div className="absolute inset-0 z-30 flex items-start justify-center overflow-y-auto bg-[#020817]/72 px-3 py-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl [direction:rtl] sm:items-center sm:px-5">
-            <div role="dialog" aria-modal="true" aria-labelledby="add-customer-title" className="my-auto w-full max-w-[450px] rounded-[30px] bg-[rgba(2,8,23,0.86)] p-4 text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)] xl:p-5">
-              <div className="flex items-start justify-between gap-4">
+          <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-[#020817]/72 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl [direction:rtl] sm:absolute sm:items-center sm:overflow-y-auto sm:px-5 sm:py-[max(0.75rem,env(safe-area-inset-top))]">
+            <div role="dialog" aria-modal="true" aria-labelledby="add-customer-title" className="flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-[450px] flex-col overflow-hidden rounded-t-[30px] bg-[rgba(2,8,23,0.96)] text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)] sm:my-auto sm:max-h-[calc(100%-1.5rem)] sm:rounded-[30px] sm:bg-[rgba(2,8,23,0.86)]">
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-cyan-300/10 p-4 sm:border-b-0 sm:pb-0 xl:px-5 xl:pt-5">
                 <div>
                   <p className="text-xs font-black tracking-[0.24em] text-[#22D3EE]">
                     عميل AFEX
@@ -1052,13 +1181,15 @@ export function InvoiceCustomerStep({
                 </button>
               </div>
 
-              <div className="mt-5 grid gap-3">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:mt-5 sm:overflow-visible sm:pb-0 xl:px-5">
+                <div className="grid gap-3">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="mb-2 block text-[13px] font-black text-slate-300">
                       الاسم الأول
                     </span>
                     <input
+                      ref={newCustomerFirstNameInputRef}
                       type="text"
                       value={newCustomerFirstName}
                       onChange={(event) => setNewCustomerFirstName(event.target.value)}
@@ -1141,15 +1272,16 @@ export function InvoiceCustomerStep({
                     className="min-h-[80px] w-full resize-none rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 py-3 text-right text-[15px] font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60 touch-manipulation"
                   />
                 </label>
+                </div>
+
+                {newCustomerError ? (
+                  <div className="mt-3 rounded-[18px] border border-red-300/18 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">
+                    {newCustomerError}
+                  </div>
+                ) : null}
               </div>
 
-              {newCustomerError ? (
-                <div className="mt-3 rounded-[18px] border border-red-300/18 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">
-                  {newCustomerError}
-                </div>
-              ) : null}
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="grid shrink-0 gap-3 border-t border-cyan-300/10 bg-[rgba(2,8,23,0.98)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:mt-5 sm:grid-cols-2 sm:border-t-0 sm:bg-transparent sm:pb-4 xl:px-5 xl:pb-5">
                 <button
                   type="button"
                   onClick={handleCreateCustomer}
