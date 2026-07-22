@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ReceiptView } from '@/components/receipt-view'
 import { useSystemSettings } from '@/hooks/use-system-settings'
+import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import {
   renderThermalInvoiceHtml,
   renderThermalShopCopyHtml,
@@ -191,6 +192,24 @@ function SuccessCheckIcon() {
   )
 }
 
+function PrintIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+      <path d="M7 9V4h10v5M7 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 14h10v6H7z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+      <path d="M20 11.6a8 8 0 0 1-11.8 7L4 20l1.4-4A8 8 0 1 1 20 11.6Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 8.5c.4 2.8 2.2 4.6 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function ReceiptLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 items-start justify-between gap-3">
@@ -262,6 +281,7 @@ function buildCombinedThermalPrintHtml(
 
 export default function PosSaleSuccessPage() {
   const router = useRouter()
+  const isMobileViewport = useMobileViewport()
   const successFeedbackPlayedRef = useRef(false)
   const runningInCapacitor = useMemo(() => isCapacitorWebView(), [])
   const [snapshot] = useState<InvoiceSuccessSnapshot | null>(() => {
@@ -271,7 +291,7 @@ export default function PosSaleSuccessPage() {
       sessionStorage.getItem(INVOICE_SUCCESS_STORAGE_KEY)
     )
   })
-  const [redirectCountdown, setRedirectCountdown] = useState(10)
+  const [redirectCountdown, setRedirectCountdown] = useState(30)
   const [printing, setPrinting] = useState(false)
   const [whatsappOpening, setWhatsappOpening] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
@@ -494,7 +514,7 @@ export default function PosSaleSuccessPage() {
 
     const redirectTimer = window.setTimeout(() => {
       router.push('/pos')
-    }, 10000)
+    }, 30000)
 
     const countdownTimer = window.setInterval(() => {
       setRedirectCountdown((current) => Math.max(0, current - 1))
@@ -632,6 +652,64 @@ export default function PosSaleSuccessPage() {
 
       <div className="receipt-print-hide fixed inset-0 h-[100svh] w-screen overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#020817] text-white md:overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_80%_82%,rgba(20,184,166,0.12),transparent_36%),linear-gradient(135deg,#020817_0%,#061426_54%,#020817_100%)]" />
+        {isMobileViewport ? (
+          <main className="pos-success-enter relative min-h-full w-full overflow-x-hidden px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-right [direction:rtl]">
+            <section className="flex flex-col items-center text-center">
+              <div className="relative grid h-20 w-20 animate-[success-pop_240ms_ease-out] place-items-center rounded-full bg-cyan-300/10 text-cyan-100 shadow-[0_0_34px_rgba(34,211,238,0.18),inset_0_0_0_1px_rgba(34,211,238,0.32)]">
+                <div className="absolute inset-3 rounded-full border border-cyan-300/14" />
+                <SuccessCheckIcon />
+              </div>
+              <p className="mt-4 text-[11px] font-black tracking-[0.22em] text-cyan-300">AFEX POS</p>
+              <h1 className="mt-2 text-[26px] font-black leading-tight text-white">تم إنشاء الفاتورة بنجاح</h1>
+              <p className="mt-2 text-sm font-bold leading-6 text-slate-400">تم حفظ العملية وإصدار الفاتورة بنجاح</p>
+              {actionMessage ? (
+                <p role="alert" className="mt-4 w-full rounded-[18px] bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.18)]">{actionMessage}</p>
+              ) : null}
+            </section>
+
+            <section className="mt-6 rounded-[24px] bg-white/[0.035] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,0.16),inset_0_0_0_1px_rgba(34,211,238,0.18)]">
+              <p className="text-xs font-black text-cyan-100">الإجمالي النهائي</p>
+              <p className="mt-2 break-words text-[36px] font-black leading-none text-white">{formatCurrency(snapshot.finalTotal)}</p>
+            </section>
+
+            <section className="mt-4 divide-y divide-cyan-300/10 overflow-hidden rounded-[24px] bg-white/[0.035] px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.11)]">
+              <div className="flex items-center justify-between gap-4 py-3.5"><span className="text-sm font-bold text-slate-400">رقم الفاتورة</span><span className="min-w-0 break-words text-left text-sm font-black text-white [overflow-wrap:anywhere]">{snapshot.invoiceNumber || '—'}</span></div>
+              <div className="flex items-center justify-between gap-4 py-3.5"><span className="text-sm font-bold text-slate-400">رقم الطلب</span><span className="min-w-0 break-words text-left text-sm font-black text-white [overflow-wrap:anywhere]">{snapshot.orderNumber || '—'}</span></div>
+              <div className="flex items-center justify-between gap-4 py-3.5"><span className="text-sm font-bold text-slate-400">العميل</span><span className="min-w-0 truncate text-left text-sm font-black text-white">{snapshot.customerName || '—'}</span></div>
+              {snapshot.customerPhone ? <div className="flex items-center justify-between gap-4 py-3.5"><span className="text-sm font-bold text-slate-400">رقم الجوال</span><span dir="ltr" className="text-left text-sm font-black text-cyan-100">{snapshot.customerPhone}</span></div> : null}
+              <div className="flex items-center justify-between gap-4 py-3.5"><span className="text-sm font-bold text-slate-400">التاريخ والوقت</span><span className="text-left text-xs font-black text-white">{issuedAtLabel}</span></div>
+            </section>
+
+            <button type="button" onClick={handleNewSale} className="mt-6 flex min-h-[62px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-lg font-black text-[#020817] shadow-[0_0_28px_rgba(34,211,238,0.22)] transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100/80">
+              بيع جديد
+            </button>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <button type="button" onClick={handlePagePrint} disabled={!printingEnabled || printing} title={printingEnabled ? undefined : 'ميزة الطباعة غير مفعلة من إعدادات النظام.'} className="flex min-h-[54px] items-center justify-center gap-2 rounded-[19px] bg-cyan-300/[0.07] px-3 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:cursor-not-allowed disabled:text-slate-600">
+                <PrintIcon />
+                {printing ? 'جارٍ التجهيز...' : 'طباعة الفاتورة'}
+              </button>
+              <button type="button" onClick={handleWhatsApp} disabled={!snapshot.customerPhone || !whatsappEnabled || whatsappOpening} title={whatsappEnabled ? undefined : 'ميزة الواتساب غير مفعلة من إعدادات النظام.'} className="flex min-h-[54px] items-center justify-center gap-2 rounded-[19px] bg-cyan-300/[0.07] px-3 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:cursor-not-allowed disabled:text-slate-600">
+                <WhatsAppIcon />
+                {whatsappOpening ? 'جارٍ الفتح...' : 'إرسال واتساب'}
+              </button>
+            </div>
+
+            <details className="mt-4 rounded-[20px] bg-white/[0.025] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+              <summary className="flex min-h-[50px] cursor-pointer list-none items-center justify-between px-4 text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70">معاينة الإيصال<span aria-hidden="true" className="text-lg">↓</span></summary>
+              <div className="space-y-2 border-t border-cyan-300/10 px-4 py-4">
+                <ReceiptLine label="الدفع" value={getPaymentMethodLabel(snapshot.paymentMethod)} />
+                {snapshot.invoiceItems.map((item) => <ReceiptLine key={`${item.item_name}-${item.quantity}-${item.unit_price}`} label={`${item.quantity} × ${item.item_name}`} value={formatCurrency(item.unit_price * item.quantity)} />)}
+              </div>
+            </details>
+
+            <section className="mt-4 rounded-[20px] bg-cyan-300/[0.035] p-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+              <p className="text-xs font-bold leading-6 text-slate-400">عودة تلقائية إلى نقطة البيع خلال</p>
+              <p dir="ltr" className="mt-1 text-xl font-black tabular-nums text-cyan-100">00:{String(redirectCountdown).padStart(2, '0')}</p>
+              <button type="button" onClick={() => router.push('/pos')} className="mt-2 min-h-11 px-4 text-sm font-black text-cyan-200 underline decoration-cyan-300/25 underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70">العودة الآن</button>
+            </section>
+          </main>
+        ) : (
         <div className="pos-success-enter relative grid min-h-full w-full gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] [direction:ltr] md:h-full md:grid-cols-[minmax(0,1fr)_300px] md:overflow-hidden md:p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:p-5">
           <main className="flex min-w-0 flex-col justify-between gap-4 rounded-[28px] border border-cyan-300/10 bg-[#020817]/62 p-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_70px_rgba(2,8,23,0.36)] backdrop-blur-2xl [direction:rtl] md:overflow-hidden md:rounded-[34px] lg:p-6">
             <section className="flex min-h-0 flex-1 flex-col items-center justify-center py-3 text-center sm:py-5 md:py-0">
@@ -823,6 +901,7 @@ export default function PosSaleSuccessPage() {
             </div>
           </aside>
         </div>
+        )}
       </div>
     </div>
   )

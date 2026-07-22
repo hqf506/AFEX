@@ -46,6 +46,7 @@ import {
   type PosOfflineDraftSyncState,
 } from '@/lib/pos-offline-draft'
 import { supabase } from '@/lib/supabase/client'
+import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
@@ -906,19 +907,7 @@ export default function PosPage() {
               ) : null}
             </section>
 
-            <nav aria-label="تنقل نقطة البيع" className="grid grid-cols-3 gap-2 rounded-[22px] border border-cyan-300/10 bg-[rgba(2,8,23,0.78)] p-2 backdrop-blur-xl">
-              {sidebarItems.filter((item) => !item.disabled).map((item) => (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  aria-current={item.active ? 'page' : undefined}
-                  className={`flex min-h-[54px] min-w-0 flex-col items-center justify-center gap-1 rounded-[16px] text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97] ${item.active ? 'bg-cyan-300/10 text-cyan-100' : 'text-slate-400'}`}
-                >
-                  <PosIcon name={item.icon} className="h-5 w-5" />
-                  <span className="max-w-full truncate">{item.label}</span>
-                </Link>
-              ))}
-            </nav>
+            <PosMobileBottomNavigation />
           </div>
 
           {showMobileRecentOrders ? (

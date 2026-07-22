@@ -736,13 +736,6 @@ export default function PosSaleCheckoutPage() {
                 <p dir="ltr" className="mt-1 truncate text-right text-xs font-bold text-slate-400">{customerPhone || 'بدون رقم جوال'}</p>
                 {selectedBranchName ? <p className="mt-1 truncate text-[11px] font-bold text-cyan-100/70">{selectedBranchName}</p> : null}
               </div>
-              <button
-                type="button"
-                onClick={() => router.push('/pos/sale/customer')}
-                className="min-h-11 shrink-0 rounded-[14px] bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 active:scale-[0.98]"
-              >
-                تغيير
-              </button>
             </section>
 
             <section className="mt-6">
@@ -1214,26 +1207,24 @@ export default function PosSaleCheckoutPage() {
       )}
 
       {isMobileViewport && showInvoiceConfirmation ? (
-        <div
-          className="fixed inset-0 z-[90] flex items-end bg-black/70 backdrop-blur-md [direction:rtl]"
-          onClick={() => {
-            if (!checkout.loading) setShowInvoiceConfirmation(false)
-          }}
-          role="presentation"
-        >
+        <div className="fixed inset-0 z-[90] h-[100svh] overflow-hidden bg-[#020817] [direction:rtl]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.13),transparent_30%),linear-gradient(180deg,#020817_0%,#041224_56%,#020817_100%)]" />
           <section
-            role="dialog"
-            aria-modal="true"
             aria-labelledby="invoice-confirmation-title"
-            onClick={(event) => event.stopPropagation()}
-            className="pos-checkout-enter w-full rounded-t-[30px] bg-[rgba(2,8,23,0.98)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-right text-white shadow-[0_-24px_70px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(34,211,238,0.20)]"
+            className="pos-checkout-enter relative h-full overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-right text-white"
           >
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-600/80" />
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-black tracking-[0.20em] text-cyan-300">CONFIRM</p>
-                <h2 id="invoice-confirmation-title" className="mt-1 text-xl font-black text-white">تأكيد إنشاء الفاتورة</h2>
-                <p className="mt-1 text-xs font-bold text-slate-400">راجع البيانات النهائية قبل المتابعة</p>
+            <header className="flex items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-cyan-300/10 text-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.25)]">
+                  <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7" aria-hidden="true">
+                    <path d="M12 3 5 6v5c0 4.6 2.9 8.3 7 10 4.1-1.7 7-5.4 7-10V6l-7-3Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <div className="min-w-0">
+                  <h2 id="invoice-confirmation-title" className="text-[25px] font-black leading-tight text-white">تأكيد إنشاء الفاتورة</h2>
+                  <p className="mt-2 text-sm font-bold leading-6 text-slate-400">راجع التفاصيل النهائية قبل إنشاء الفاتورة</p>
+                </div>
               </div>
               <button
                 type="button"
@@ -1244,23 +1235,44 @@ export default function PosSaleCheckoutPage() {
               >
                 ×
               </button>
+            </header>
+
+            <div className="mt-7 flex items-center gap-4 rounded-[24px] bg-white/[0.035] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.18),inset_0_0_0_1px_rgba(34,211,238,0.14)]">
+              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-2xl font-black text-cyan-100 shadow-[0_0_26px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.38)]">
+                {(customerName.trim().charAt(0) || 'ع').toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black text-slate-400">العميل</p>
+                <p className="mt-1 truncate text-lg font-black text-white">{customerName || 'بدون اسم'}</p>
+                <p dir="ltr" className="mt-2 truncate text-right text-sm font-bold text-slate-400">{customerPhone || 'بدون رقم جوال'}</p>
+              </div>
             </div>
 
-            <div className="mt-5 divide-y divide-cyan-300/10 overflow-hidden rounded-[22px] bg-white/[0.035] px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.11)]">
-              <SummaryMetric label="العميل" value={customerName || 'بدون اسم'} />
-              <div className="py-3"><SummaryMetric label="عدد العناصر" value={`${invoiceItems.length}`} /></div>
-              <div className="py-3"><SummaryMetric label="طريقة الدفع" value={selectedPaymentLabel} /></div>
-              <div className="flex items-end justify-between gap-4 py-4">
-                <span className="text-sm font-black text-cyan-100">الإجمالي المستحق</span>
-                <span className="text-2xl font-black text-white">{formatCurrency(checkout.finalTotal)}</span>
+            <div className="mt-4 divide-y divide-cyan-300/10 overflow-hidden rounded-[24px] bg-white/[0.035] px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.11)]">
+              <div className="flex items-center justify-between gap-4 py-4">
+                <span className="text-sm font-bold text-slate-400">عدد العناصر</span>
+                <span className="text-base font-black text-white">{invoiceItems.length} عنصر</span>
               </div>
+              <div className="flex items-center justify-between gap-4 py-4">
+                <span className="text-sm font-bold text-slate-400">طريقة الدفع</span>
+                <span className="rounded-full bg-cyan-300/10 px-4 py-2 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.18)]">{selectedPaymentLabel}</span>
+              </div>
+              <div className="flex items-end justify-between gap-4 py-5">
+                <span className="text-sm font-bold text-slate-400">الإجمالي المستحق</span>
+                <span className="text-[28px] font-black leading-none text-cyan-300">{formatCurrency(checkout.finalTotal)}</span>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-start gap-3 rounded-[22px] bg-cyan-300/[0.045] p-4 text-sm font-bold leading-7 text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.18)]">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-cyan-300/50 text-lg font-black text-cyan-300">i</span>
+              <p>بعد إنشاء الفاتورة لا يمكن تعديلها.<br />يرجى التأكد من صحة البيانات قبل المتابعة.</p>
             </div>
 
             <button
               type="button"
               onClick={handleCreateInvoice}
               disabled={!canSubmitInvoice}
-              className="mt-5 flex min-h-[60px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-base font-black text-[#020817] shadow-[0_0_28px_rgba(34,211,238,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
+              className="mt-6 flex min-h-[64px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-lg font-black text-[#020817] shadow-[0_0_30px_rgba(34,211,238,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
             >
               {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
             </button>
@@ -1268,7 +1280,7 @@ export default function PosSaleCheckoutPage() {
               type="button"
               onClick={() => setShowInvoiceConfirmation(false)}
               disabled={checkout.loading}
-              className="mt-2 flex min-h-11 w-full items-center justify-center text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:opacity-50"
+              className="mt-3 flex min-h-[56px] w-full items-center justify-center rounded-[20px] border border-cyan-300/45 bg-transparent text-base font-black text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:opacity-50"
             >
               رجوع
             </button>

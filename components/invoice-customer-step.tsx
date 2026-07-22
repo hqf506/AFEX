@@ -998,7 +998,8 @@ export function InvoiceCustomerStep({
                   title="إضافة عميل جديد"
                   className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-cyan-200 shadow-[0_0_22px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] transition hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-95"
                 >
-                  <PosCustomerIcon name="plus" className="h-6 w-6" />
+                  <PosCustomerIcon name="userPlus" className="h-6 w-6 sm:hidden" />
+                  <PosCustomerIcon name="plus" className="hidden h-6 w-6 sm:block" />
                 </button>
               </div>
 
@@ -1583,6 +1584,7 @@ function PosCustomerIcon({
     | 'settings'
     | 'trash'
     | 'user'
+    | 'userPlus'
     | 'users'
   className?: string
 }) {
@@ -1680,6 +1682,13 @@ function PosCustomerIcon({
         <svg {...props}>
           <path d="M12 5v14M5 12h14" />
           <circle cx="12" cy="12" r="9" />
+        </svg>
+      )
+    case 'userPlus':
+      return (
+        <svg {...props}>
+          <circle cx="9" cy="7" r="4" />
+          <path d="M3 21v-2a6 6 0 0 1 12 0v2M19 8v6M16 11h6" />
         </svg>
       )
     case 'trash':
