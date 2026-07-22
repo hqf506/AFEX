@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { PosStepIndicator } from '@/components/pos-step-indicator'
+import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import {
   clearClientResourcesByPrefix,
@@ -197,6 +198,7 @@ export function InvoiceCustomerStep({
     ? customerSearchError
     : recentCustomersError
   const canLoadMoreCustomers = visibleCustomerCards.length > customerListLimit
+  const isMobileViewport = useMobileViewport()
 
   useEffect(() => {
     if (!allowed) return
@@ -1029,7 +1031,8 @@ export function InvoiceCustomerStep({
                   </div>
                 ) : visibleCustomerCards.length > 0 ? (
                   <>
-                    <div className="grid gap-3 sm:hidden">
+                    {isMobileViewport ? (
+                    <div className="grid gap-3">
                       {visibleCustomerCards.slice(0, customerListLimit).map((customer) => (
                         <button
                           key={customer.id}
@@ -1066,7 +1069,8 @@ export function InvoiceCustomerStep({
                         </button>
                       ))}
                     </div>
-                    <div className="hidden rounded-[24px] bg-[rgba(6,20,38,0.42)] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] sm:block sm:overflow-hidden">
+                    ) : (
+                    <div className="rounded-[24px] bg-[rgba(6,20,38,0.42)] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.09)] sm:overflow-hidden">
                     <div className="sm:overflow-x-auto">
                       <table className="block w-full text-right sm:table sm:min-w-[860px] sm:border-separate sm:border-spacing-0">
                         <thead className="hidden sm:table-header-group">
@@ -1145,6 +1149,7 @@ export function InvoiceCustomerStep({
                       </table>
                     </div>
                     </div>
+                    )}
                   </>
                 ) : customerSearch.active && !customerSearchLoading ? (
                   <div className="flex min-h-[170px] flex-col items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">

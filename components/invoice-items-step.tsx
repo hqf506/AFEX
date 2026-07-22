@@ -19,6 +19,7 @@ import { PageHero } from '@/components/page-hero'
 import { PosStepIndicator } from '@/components/pos-step-indicator'
 import { SummaryRow } from '@/components/summary-row'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
+import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import {
   useInvoiceCheckout,
   type CheckoutDiscountOption,
@@ -541,6 +542,7 @@ export function InvoiceItemsStep({
   const [recentlyAddedItemId, setRecentlyAddedItemId] = useState<string | null>(null)
   const [pressedItemId, setPressedItemId] = useState<string | null>(null)
   const [stockErrorMessage, setStockErrorMessage] = useState('')
+  const isMobileViewport = useMobileViewport()
 
   useEffect(() => {
     if (!allowed) return
@@ -1361,7 +1363,8 @@ export function InvoiceItemsStep({
                 </div>
               ) : (
                 <div className="flex h-full min-h-0 flex-col gap-3">
-                  <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto overscroll-contain pe-1 sm:hidden">
+                  {isMobileViewport ? (
+                  <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto overscroll-contain pe-1">
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
@@ -1465,8 +1468,8 @@ export function InvoiceItemsStep({
                       )
                     })}
                   </div>
-
-                  <div className="hidden min-h-0 flex-1 auto-rows-[232px] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pe-1 sm:grid lg:grid-cols-4">
+                  ) : (
+                  <div className="grid min-h-0 flex-1 auto-rows-[232px] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pe-1 lg:grid-cols-4">
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
@@ -1544,6 +1547,7 @@ export function InvoiceItemsStep({
                       )
                     })}
                   </div>
+                  )}
 
                   {totalCatalogPages > 1 ? (
                     <div className="flex shrink-0 items-center justify-center gap-2 border-t border-cyan-300/10 pt-3">
