@@ -15,7 +15,6 @@ import {
   type OrderStatus,
 } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
-import { supabase } from '@/lib/supabase/client'
 
 type ActiveOrderStatus = Extract<OrderStatus, 'in_progress' | 'ready'>
 
@@ -199,17 +198,24 @@ export default function PosOrderStatusPage() {
     setOrderErrors((current) => ({ ...current, [order.id]: '' }))
 
     const currentStatus = order.status
-    const { data: updatedOrder, error } = await supabase
-      .from('orders')
-      .update({ status: nextStatus })
-      .eq('id', order.id)
-      .eq('tenant_id', access.tenantId)
-      .eq('branch_id', access.branchId)
-      .eq('status', currentStatus)
-      .select('id, status')
-      .maybeSingle()
+    const response = await fetch(`/api/admin/orders/${order.id}/status`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus }),
+    })
+    const result = await response.json().catch(() => null)
+    const persistedStatus = result?.order?.status
 
-    if (error || !updatedOrder || updatedOrder.status !== nextStatus) {
+    if (!response.ok || !result?.success || persistedStatus !== nextStatus) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[POS ORDER STATUS] Update failed.', {
+          transition: `${currentStatus}->${nextStatus}`,
+          orderId: `${order.id.slice(0, 4)}...${order.id.slice(-4)}`,
+          code: result?.code || `HTTP_${response.status}`,
+          message: typeof result?.error === 'string' ? result.error : 'Order status update failed',
+        })
+      }
       setOrderErrors((current) => ({ ...current, [order.id]: 'تعذر تحديث حالة الطلب. حاول مرة أخرى.' }))
       updatingOrderIdsRef.current.delete(order.id)
       setUpdatingOrderIds((current) => ({ ...current, [order.id]: false }))

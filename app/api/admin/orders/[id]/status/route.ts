@@ -48,7 +48,7 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireApiAuth(request, ['admin', 'employee'])
+  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
 
   if (!auth.ok) {
     return auth.response
