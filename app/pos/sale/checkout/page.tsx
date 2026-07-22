@@ -10,6 +10,7 @@ import {
   type CheckoutVatSetting,
 } from '@/hooks/use-invoice-checkout'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   loadClientResource,
@@ -152,6 +153,7 @@ function parseThermalReceiptSettings(
 
 export default function PosSaleCheckoutPage() {
   const router = useRouter()
+  const isMobileViewport = useMobileViewport()
   const currentPathname =
     typeof window === 'undefined' ? 'server' : window.location.pathname
   const authState = useAuthState()
@@ -198,6 +200,7 @@ export default function PosSaleCheckoutPage() {
   )
   const [loadingVat, setLoadingVat] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showInvoiceConfirmation, setShowInvoiceConfirmation] = useState(false)
   const [isOffline, setIsOffline] = useState(false)
   const cashReceivedInputRef = useRef<HTMLInputElement | null>(null)
   const submitLockedRef = useRef(false)
@@ -506,6 +509,27 @@ export default function PosSaleCheckoutPage() {
   }, [])
 
   useEffect(() => {
+    if (!showInvoiceConfirmation || !isMobileViewport) {
+      return
+    }
+
+    const previousBodyOverflow = document.body.style.overflow
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !checkout.loading) {
+        setShowInvoiceConfirmation(false)
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [checkout.loading, isMobileViewport, showInvoiceConfirmation])
+
+  useEffect(() => {
     if (!ready || initializedDefaultPayment.current) return
 
     initializedDefaultPayment.current = true
@@ -670,6 +694,193 @@ export default function PosSaleCheckoutPage() {
         </div>
       ) : null}
 
+      {isMobileViewport ? (
+        <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white [direction:rtl]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(34,211,238,0.11),transparent_30%),linear-gradient(180deg,#020817_0%,#041224_54%,#020817_100%)]" />
+          <div className="pos-checkout-enter relative h-full overflow-y-auto overscroll-contain px-4 pb-48 pt-[max(1rem,env(safe-area-inset-top))]">
+            <header className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-black tracking-[0.24em] text-cyan-300">CHECKOUT</p>
+                <h1 className="mt-1 text-[28px] font-black leading-tight text-white">ملخص الفاتورة</h1>
+                <p className="mt-2 text-sm font-bold leading-6 text-slate-400">راجع الفاتورة قبل إنشاء عملية البيع</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push('/pos/sale/items')}
+                aria-label="العودة إلى العناصر"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-cyan-300/[0.07] text-xl text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-95"
+              >
+                ←
+              </button>
+            </header>
+
+            {checkout.successMessage ? (
+              <div className="mb-3 rounded-[18px] bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.20)]">{checkout.successMessage}</div>
+            ) : null}
+            {checkout.errorMessage ? (
+              <div className="mb-3 rounded-[18px] bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.18)]">{checkout.errorMessage}</div>
+            ) : null}
+            {checkout.offlineDraftMessage ? (
+              <div className="mb-3 rounded-[18px] bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.20)]">{checkout.offlineDraftMessage}</div>
+            ) : null}
+            {isOffline ? (
+              <div className="mb-3 rounded-[18px] bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.18)]">أنت غير متصل، سيتم حفظ الفاتورة كمسودة فقط</div>
+            ) : null}
+
+            <section className="flex items-center gap-3 rounded-[22px] bg-white/[0.035] p-3.5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-base font-black text-cyan-100">
+                {(customerName.trim().charAt(0) || 'ع').toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-black text-white">{customerName || 'بدون اسم'}</p>
+                <p dir="ltr" className="mt-1 truncate text-right text-xs font-bold text-slate-400">{customerPhone || 'بدون رقم جوال'}</p>
+                {selectedBranchName ? <p className="mt-1 truncate text-[11px] font-bold text-cyan-100/70">{selectedBranchName}</p> : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push('/pos/sale/customer')}
+                className="min-h-11 shrink-0 rounded-[14px] bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 active:scale-[0.98]"
+              >
+                تغيير
+              </button>
+            </section>
+
+            <section className="mt-6">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-base font-black text-white">العناصر</h2>
+                <span className="text-xs font-black text-cyan-100">{invoiceItems.length} عنصر</span>
+              </div>
+              <div className="divide-y divide-cyan-300/10 overflow-hidden rounded-[22px] bg-white/[0.03] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
+                {invoiceItems.map((item) => (
+                  <div key={item.item_name} className="flex min-w-0 items-center gap-3 px-3.5 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 break-words text-sm font-black text-white">{item.item_name}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">{item.quantity} × {formatCurrency(item.unit_price)}</p>
+                    </div>
+                    <p className="shrink-0 text-sm font-black text-cyan-100">{formatCurrency(item.quantity * item.unit_price)}</p>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveItem(item.item_name)}
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] text-red-300 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 active:scale-95"
+                      aria-label={`حذف ${item.item_name}`}
+                    >
+                      <Trash2 />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="mt-6">
+              <h2 className="mb-3 text-base font-black text-white">طريقة الدفع</h2>
+              <div className="grid grid-cols-2 gap-2.5">
+                {PAYMENT_METHODS.map((option) => {
+                  const selected = checkout.paymentMethod === option.id
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => handleSelectPayment(option)}
+                      aria-pressed={selected}
+                      className={`flex min-h-[54px] items-center justify-center rounded-[18px] px-3 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-[0.98] ${selected ? 'bg-cyan-300/15 text-cyan-50 shadow-[0_0_22px_rgba(34,211,238,0.13),inset_0_0_0_1px_rgba(34,211,238,0.50)]' : 'bg-white/[0.035] text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.11)]'}`}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+
+            <div className="mt-4 grid gap-3">
+              <DiscountSelectorCard
+                discounts={availableDiscounts}
+                loading={loadingDiscounts}
+                selectedDiscount={checkout.selectedDiscount}
+                onClear={checkout.clearAppliedDiscount}
+                onSelect={checkout.setSelectedDiscount}
+              />
+              <VatInfoCard rate={checkout.vatRate} enabled={checkout.vatEnabled} loading={loadingVat} />
+            </div>
+
+            {normalizedPaymentMethod === 'cash' ? (
+              <section className="mt-4 rounded-[22px] bg-white/[0.035] p-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+                <label className="mb-2 block text-xs font-black text-slate-400">المبلغ المستلم</label>
+                <input
+                  ref={cashReceivedInputRef}
+                  type="number"
+                  value={checkout.cashReceived}
+                  onChange={(event) => checkout.setCashReceived(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      handleCreateInvoice()
+                    }
+                  }}
+                  placeholder="المبلغ المستلم"
+                  inputMode="decimal"
+                  enterKeyHint="done"
+                  readOnly={!checkout.isReceivedAmountEditable}
+                  disabled={!checkout.isReceivedAmountEditable}
+                  className="h-14 w-full rounded-[18px] border-0 bg-[#020817]/70 px-4 text-right text-xl font-black text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.18)] outline-none placeholder:text-slate-600 focus:shadow-[0_0_18px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.42)] disabled:text-slate-500"
+                />
+                <div className="mt-3 grid grid-cols-5 gap-1.5">
+                  {([{ label: '+50', value: 50 }, { label: '+100', value: 100 }, { label: '+200', value: 200 }, { label: '+500', value: 500 }, { label: 'كامل', value: 'full' as const }]).map((amountOption) => (
+                    <button key={amountOption.label} type="button" onClick={() => handleApplyQuickAmount(amountOption.value)} disabled={!checkout.isReceivedAmountEditable} className="min-h-11 rounded-[14px] bg-cyan-300/[0.06] px-1 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] disabled:text-slate-600">
+                      {amountOption.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-[16px] bg-[#020817]/55 p-3">
+                    <p className="text-[11px] font-bold text-slate-400">المتبقي</p>
+                    <p className="mt-1 text-sm font-black text-amber-100">{formatCurrency(checkout.remainingFromCustomer)}</p>
+                  </div>
+                  <div className="rounded-[16px] bg-emerald-400/[0.07] p-3">
+                    <p className="text-[11px] font-bold text-slate-400">الباقي للعميل</p>
+                    <p className="mt-1 text-sm font-black text-emerald-100">{formatCurrency(checkout.cashChange)}</p>
+                  </div>
+                </div>
+                {checkout.numericCashReceived <= 0 ? <p className="mt-3 text-sm font-bold text-amber-100">أدخل المبلغ المستلم قبل إنشاء الفاتورة.</p> : null}
+                {cashWarningMessage ? <p className="mt-3 text-sm font-bold leading-6 text-amber-100">{cashWarningMessage}</p> : null}
+              </section>
+            ) : null}
+
+            <section className="mt-4 rounded-[22px] bg-white/[0.035] p-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+              <div className="space-y-2.5">
+                <SummaryMetric label="المجموع الفرعي" value={formatCurrency(checkout.subtotal)} />
+                <SummaryMetric label="الخصم" value={formatCurrency(checkout.discountAmount)} />
+                <SummaryMetric label="VAT" value={formatCurrency(checkout.taxAmount)} />
+              </div>
+              <div className="mt-4 flex items-end justify-between gap-4 border-t border-cyan-300/12 pt-4">
+                <p className="text-sm font-black text-cyan-100">الإجمالي المستحق</p>
+                <p className="text-[28px] font-black leading-none text-white">{formatCurrency(checkout.finalTotal)}</p>
+              </div>
+            </section>
+
+            <section className="mt-4">
+              <label className="mb-2 block text-xs font-black text-slate-400">ملاحظة</label>
+              <textarea value={checkout.note} onChange={(event) => checkout.setNote(event.target.value)} placeholder="اكتب ملاحظة..." className="min-h-[86px] w-full resize-none rounded-[20px] border-0 bg-white/[0.035] px-4 py-3 text-right text-sm font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] outline-none placeholder:text-slate-600 focus:shadow-[0_0_18px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.36)]" />
+            </section>
+
+            <button type="button" onClick={handleCancelInvoice} className="mt-5 min-h-11 px-3 text-sm font-black text-red-200/80 underline decoration-red-300/20 underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60">
+              إلغاء الفاتورة
+            </button>
+          </div>
+
+          <div className="absolute inset-x-0 bottom-0 z-20 border-t border-cyan-300/10 bg-[#020817]/94 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-2xl">
+            <div className="mb-2 flex items-center justify-between gap-3 px-1">
+              <span className="text-xs font-black text-slate-400">المبلغ المطلوب</span>
+              <span className="text-lg font-black text-white">{formatCurrency(checkout.finalTotal)}</span>
+            </div>
+            <button type="button" onClick={() => setShowInvoiceConfirmation(true)} disabled={!canSubmitInvoice} className="flex min-h-[60px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-base font-black text-[#020817] shadow-[0_0_28px_rgba(34,211,238,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none">
+              إنشاء الفاتورة
+            </button>
+            <button type="button" onClick={() => router.push('/pos/sale/items')} className="mt-2 flex min-h-11 w-full items-center justify-center text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70">
+              الرجوع إلى العناصر
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_82%_82%,rgba(14,165,233,0.10),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
         <div className="pos-checkout-enter relative flex h-full w-full flex-col gap-3 overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:overflow-hidden md:p-4 xl:p-5">
@@ -1000,6 +1211,70 @@ export default function PosSaleCheckoutPage() {
           </aside>
         </div>
       </div>
+      )}
+
+      {isMobileViewport && showInvoiceConfirmation ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-end bg-black/70 backdrop-blur-md [direction:rtl]"
+          onClick={() => {
+            if (!checkout.loading) setShowInvoiceConfirmation(false)
+          }}
+          role="presentation"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invoice-confirmation-title"
+            onClick={(event) => event.stopPropagation()}
+            className="pos-checkout-enter w-full rounded-t-[30px] bg-[rgba(2,8,23,0.98)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-right text-white shadow-[0_-24px_70px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(34,211,238,0.20)]"
+          >
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-600/80" />
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-black tracking-[0.20em] text-cyan-300">CONFIRM</p>
+                <h2 id="invoice-confirmation-title" className="mt-1 text-xl font-black text-white">تأكيد إنشاء الفاتورة</h2>
+                <p className="mt-1 text-xs font-bold text-slate-400">راجع البيانات النهائية قبل المتابعة</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInvoiceConfirmation(false)}
+                disabled={checkout.loading}
+                aria-label="إغلاق التأكيد"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-white/[0.04] text-xl text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5 divide-y divide-cyan-300/10 overflow-hidden rounded-[22px] bg-white/[0.035] px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.11)]">
+              <SummaryMetric label="العميل" value={customerName || 'بدون اسم'} />
+              <div className="py-3"><SummaryMetric label="عدد العناصر" value={`${invoiceItems.length}`} /></div>
+              <div className="py-3"><SummaryMetric label="طريقة الدفع" value={selectedPaymentLabel} /></div>
+              <div className="flex items-end justify-between gap-4 py-4">
+                <span className="text-sm font-black text-cyan-100">الإجمالي المستحق</span>
+                <span className="text-2xl font-black text-white">{formatCurrency(checkout.finalTotal)}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCreateInvoice}
+              disabled={!canSubmitInvoice}
+              className="mt-5 flex min-h-[60px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-base font-black text-[#020817] shadow-[0_0_28px_rgba(34,211,238,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
+            >
+              {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowInvoiceConfirmation(false)}
+              disabled={checkout.loading}
+              className="mt-2 flex min-h-11 w-full items-center justify-center text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:opacity-50"
+            >
+              رجوع
+            </button>
+          </section>
+        </div>
+      ) : null}
 
       <div id="print-area" dir="rtl" className="hidden print:block">
         <div

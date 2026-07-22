@@ -540,13 +540,6 @@ export function InvoiceCustomerStep({
     }, 0)
   }
 
-  const removeSelectedCustomer = () => {
-    handleReset()
-    window.setTimeout(() => {
-      customerPhoneInputRef.current?.focus({ preventScroll: true })
-    }, 0)
-  }
-
   const handleCreateCustomer = async () => {
     if (newCustomerSaving) {
       return
@@ -804,40 +797,26 @@ export function InvoiceCustomerStep({
           <aside className="contents sm:order-2 sm:flex sm:w-[250px] sm:shrink-0 sm:flex-col sm:overflow-hidden sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.68)] sm:p-3.5 sm:shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.12)] sm:backdrop-blur-2xl sm:[direction:rtl] xl:w-[268px] xl:p-4">
             <h2 className="hidden px-1 text-right text-xl font-black text-white sm:order-none sm:block">العميل الحالي</h2>
 
-            <div className={`order-2 min-w-0 rounded-[22px] bg-[rgba(6,20,38,0.62)] p-4 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] [direction:rtl] sm:hidden ${selectedCustomerId ? 'block' : 'hidden'}`}>
+            <div className={`order-2 min-w-0 rounded-[20px] bg-[rgba(6,20,38,0.62)] px-4 py-3 text-right shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] [direction:rtl] sm:hidden ${selectedCustomerId ? 'block' : 'hidden'}`}>
               {selectedCustomerId ? (
-                <>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.22)]">
-                      <PosCustomerIcon name="user" className="h-5 w-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-black text-emerald-200">العميل المحدد</p>
-                      <p className="mt-1 break-words text-base font-black text-white">
-                        {customerName.trim()}
-                      </p>
-                      <p dir="ltr" className="mt-1 break-all text-right text-sm font-bold text-cyan-100">
-                        {customerPhone.trim()}
-                      </p>
-                    </div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-400/14 text-base font-black text-emerald-200 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.22)]">
+                    ✓
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-black text-white">{customerName.trim()}</p>
+                    <p dir="ltr" className="mt-1 truncate text-right text-xs font-bold text-cyan-100/80">
+                      {customerPhone.trim()}
+                    </p>
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={changeSelectedCustomer}
-                      className="min-h-[44px] rounded-[15px] bg-cyan-300/10 px-3 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] active:scale-[0.98]"
-                    >
-                      تغيير العميل
-                    </button>
-                    <button
-                      type="button"
-                      onClick={removeSelectedCustomer}
-                      className="min-h-[44px] rounded-[15px] bg-red-400/10 px-3 text-sm font-black text-red-100 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.18)] active:scale-[0.98]"
-                    >
-                      إزالة الاختيار
-                    </button>
-                  </div>
-                </>
+                  <button
+                    type="button"
+                    onClick={changeSelectedCustomer}
+                    className="min-h-[44px] shrink-0 rounded-[14px] bg-cyan-300/10 px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 active:scale-[0.98]"
+                  >
+                    تغيير
+                  </button>
+                </div>
               ) : (
                 <div className="flex min-h-[72px] items-center gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-300/10 text-cyan-100">
@@ -872,21 +851,6 @@ export function InvoiceCustomerStep({
             </div>
 
             <div className="contents sm:mt-4 sm:grid sm:gap-3">
-              <button
-                ref={addCustomerButtonRef}
-                type="button"
-                onClick={openAddCustomerModal}
-                className="order-5 flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-[24px] border border-dashed border-cyan-300/25 bg-cyan-300/[0.035] px-5 text-center text-white transition hover:bg-cyan-300/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] sm:order-none sm:min-h-[68px] sm:flex-row sm:justify-between sm:rounded-[22px] sm:border-0 sm:bg-[rgba(2,8,23,0.72)] sm:px-4 sm:text-right sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] sm:hover:bg-[rgba(34,211,238,0.07)]"
-              >
-                <span className="grid h-12 w-12 place-items-center rounded-[18px] border border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-300 sm:contents">
-                  <PosCustomerIcon name="plus" className="h-6 w-6 text-cyan-300" />
-                </span>
-                <span>
-                  <span className="block text-base font-black text-white">إضافة عميل جديد</span>
-                  <span className="mt-1 block text-xs font-bold text-slate-400"><span className="sm:hidden">سجل عميل جديد بسرعة</span><span className="hidden sm:inline">إنشاء عميل جديد</span></span>
-                </span>
-              </button>
-
               <button
                 type="button"
                 onClick={handleNext}
@@ -1017,14 +981,26 @@ export function InvoiceCustomerStep({
                 </label>
               </div>
 
-              <button
-                type="button"
-                onClick={() => customerPhoneInputRef.current?.blur()}
-                className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[20px] bg-gradient-to-l from-cyan-300/25 to-blue-600/40 text-base font-black text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.55),0_12px_28px_rgba(14,165,233,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-[0.98] sm:hidden"
-              >
-                بحث
-                <PosCustomerIcon name="search" className="h-5 w-5" />
-              </button>
+              <div className="mt-5 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => customerPhoneInputRef.current?.blur()}
+                  className="flex min-h-[56px] flex-1 items-center justify-center gap-3 rounded-[20px] bg-gradient-to-l from-cyan-300/25 to-blue-600/40 text-base font-black text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.55),0_12px_28px_rgba(14,165,233,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-[0.98] sm:hidden"
+                >
+                  بحث
+                  <PosCustomerIcon name="search" className="h-5 w-5" />
+                </button>
+                <button
+                  ref={addCustomerButtonRef}
+                  type="button"
+                  onClick={openAddCustomerModal}
+                  aria-label="إضافة عميل جديد"
+                  title="إضافة عميل جديد"
+                  className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-cyan-200 shadow-[0_0_22px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] transition hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-95"
+                >
+                  <PosCustomerIcon name="plus" className="h-6 w-6" />
+                </button>
+              </div>
 
               {customerSearchLoading ? (
                 <p className="mt-3 text-xs font-black text-cyan-100">بحث...</p>
@@ -1191,15 +1167,8 @@ export function InvoiceCustomerStep({
                 ) : customerSearch.active && !customerSearchLoading ? (
                   <div className="flex min-h-[170px] flex-col items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
                     <p className="text-sm font-bold leading-7 text-slate-400">
-                      لا يوجد عميل مطابق للبحث. يمكنك إضافة عميل جديد.
+                      لا يوجد عميل مطابق للبحث. استخدم زر + لإضافة عميل جديد.
                     </p>
-                    <button
-                      type="button"
-                      onClick={openAddCustomerModal}
-                      className="mt-4 min-h-[48px] rounded-[16px] bg-cyan-300 px-5 text-sm font-black text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.18)] active:scale-[0.98] sm:hidden"
-                    >
-                      إضافة عميل جديد
-                    </button>
                   </div>
                 ) : (
                   <div className="flex min-h-[150px] items-center justify-center rounded-[24px] border border-dashed border-[rgba(34,211,238,0.18)] bg-[rgba(6,20,38,0.40)] px-5 text-center">
@@ -1228,14 +1197,11 @@ export function InvoiceCustomerStep({
         </div>
 
         {addCustomerOpen ? (
-          <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-[#020817]/72 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl [direction:rtl] sm:absolute sm:items-center sm:overflow-y-auto sm:px-5 sm:py-[max(0.75rem,env(safe-area-inset-top))]">
-            <div role="dialog" aria-modal="true" aria-labelledby="add-customer-title" className="pos-customer-sheet-enter flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-[450px] flex-col overflow-hidden rounded-t-[30px] bg-[rgba(2,8,23,0.96)] text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)] sm:my-auto sm:max-h-[calc(100%-1.5rem)] sm:rounded-[30px] sm:bg-[rgba(2,8,23,0.86)]">
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#020817]/75 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl [direction:rtl]">
+            <div role="dialog" aria-modal="true" aria-labelledby="add-customer-title" className="pos-customer-sheet-enter flex max-h-[calc(100dvh-2rem)] w-full max-w-[450px] flex-col overflow-hidden rounded-[30px] bg-[rgba(2,8,23,0.94)] text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)]">
               <div className="flex shrink-0 items-start justify-between gap-4 border-b border-cyan-300/10 p-4 sm:border-b-0 sm:pb-0 xl:px-5 xl:pt-5">
                 <div>
-                  <p className="text-xs font-black tracking-[0.24em] text-[#22D3EE]">
-                    عميل AFEX
-                  </p>
-                  <h3 id="add-customer-title" className="mt-3 text-[26px] font-black text-white">
+                  <h3 id="add-customer-title" className="text-[26px] font-black text-white">
                     إضافة عميل جديد
                   </h3>
                 </div>
