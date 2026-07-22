@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useAuthState } from '@/components/auth-state-provider'
+import { useSystemSettings } from '@/hooks/use-system-settings'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { getRoleLabel } from '@/lib/app-roles'
 import { canAccessPos } from '@/lib/permissions'
@@ -117,6 +118,9 @@ export default function PosEmployeePinPage() {
   const allowed = Boolean(
     authState.profile && canAccessPos(authState.profile.role)
   )
+  const { settings: systemSettings } = useSystemSettings(
+    !authState.loading && allowed
+  )
   const currentBranchId = authState.profile?.branch_id ?? null
   const employeeName = authState.profile?.full_name || 'موظف AFEX'
   const employeeRole = getRoleLabel(authState.profile?.role) || 'موظف POS'
@@ -128,6 +132,7 @@ export default function PosEmployeePinPage() {
     : 'فرع نقطة البيع'
   const organizationLabel =
     authState.profile?.tenant_name?.trim() || branchLabel || 'لم يُحدد اسم المنشأة'
+  const activityName = systemSettings?.store_name?.trim() || organizationLabel
   const formattedTime = now.toLocaleTimeString('ar-SA', {
     hour: '2-digit',
     minute: '2-digit',
@@ -453,6 +458,11 @@ export default function PosEmployeePinPage() {
           dir="ltr"
           className="relative grid h-full min-h-0 w-full overflow-hidden bg-[#020817] text-white sm:rounded-[28px] sm:border sm:border-cyan-300/20 sm:shadow-[inset_0_0_70px_rgba(34,211,238,0.06)] lg:grid-cols-[38%_62%]"
         >
+          <div title={activityName} className="absolute right-5 top-[max(1rem,env(safe-area-inset-top))] z-30 hidden min-h-10 max-w-[calc(100%-2.5rem)] items-center gap-2 rounded-full border border-cyan-200/25 bg-[#07111f]/88 px-3.5 text-xs font-black text-slate-200 shadow-[0_10px_28px_rgba(0,0,0,0.24)] backdrop-blur-xl max-sm:flex" dir="rtl">
+            <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.85)]" />
+            <svg viewBox="0 0 24 24" className="h-4 w-4 text-cyan-100" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6l-7-3Z" strokeLinejoin="round"/><path d="m9 12 2 2 4-5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <span className="truncate">{activityName}</span>
+          </div>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_36%,rgba(34,211,238,0.2),transparent_30%),radial-gradient(circle_at_74%_36%,rgba(14,165,233,0.18),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#071b2d_100%)] max-sm:hidden" />
           <div className="pointer-events-none absolute inset-0 opacity-[0.11] [background-image:linear-gradient(rgba(34,211,238,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.14)_1px,transparent_1px)] [background-size:54px_54px] max-sm:hidden" />
           <div className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-[72%] -translate-x-1/2 rounded-[50%] border border-cyan-300/20 shadow-[0_0_85px_rgba(34,211,238,0.22)] max-sm:hidden" />
@@ -507,29 +517,29 @@ export default function PosEmployeePinPage() {
             }`}
             dir="rtl"
           >
-            <div className="w-full max-w-[480px] text-center">
-              <Image src="/brand/afex-logo.png" alt="AFEX POS" width={720} height={260} priority className="mx-auto mb-5 h-auto w-40 object-contain sm:hidden" />
+            <div className="w-full max-w-[480px] text-center max-sm:pb-16 max-sm:pt-10">
+              <Image src="/brand/afex-logo.png" alt="AFEX POS" width={720} height={260} priority className="mx-auto mb-7 h-auto w-64 object-contain drop-shadow-[0_0_26px_rgba(34,211,238,0.20)] sm:hidden" />
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-300/10 text-cyan-200 shadow-[0_0_30px_rgba(34,211,238,0.22)] max-sm:hidden">
                 <span className="text-xl font-black">#</span>
               </div>
               <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-300 max-sm:hidden">
                 AFEX POS
               </p>
-              <h1 className="mt-2.5 text-[28px] font-black text-white xl:text-4xl">
+              <h1 className="mt-2.5 text-[30px] font-black leading-tight text-white xl:text-4xl">
                 إدخال الرقم السري
               </h1>
-              <p className="mt-2.5 text-xs font-semibold text-slate-400">
+              <p className="mt-2.5 text-sm font-semibold text-slate-400 sm:text-xs">
                 أدخل رمز الموظف لفتح جلسة نقطة البيع.
               </p>
 
-              <div className="mt-5 flex justify-center gap-6" dir="ltr">
+              <div className="mt-6 flex justify-center gap-7" dir="ltr">
                 {dots.map((filled, index) => (
                   <span
                     key={`pin-dot-${index}`}
                     className={`h-4 w-4 rounded-full border transition ${
                       filled
                         ? 'border-cyan-300 bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.65)]'
-                        : 'border-cyan-200/25 bg-[rgba(2,8,23,0.72)]'
+                        : 'border-cyan-300/70 bg-transparent shadow-[0_0_10px_rgba(34,211,238,0.10)] sm:border-cyan-200/25 sm:bg-[rgba(2,8,23,0.72)]'
                     }`}
                   />
                 ))}
@@ -551,14 +561,14 @@ export default function PosEmployeePinPage() {
                 )}
               </div>
 
-              <div className="mx-auto mt-5 grid max-w-[390px] grid-cols-3 gap-3.5" dir="ltr">
+              <div className="mx-auto mt-6 grid max-w-[390px] grid-cols-3 gap-3.5" dir="ltr">
                 {keypadDigits.slice(0, 9).map((digit) => (
                   <button
                     key={digit}
                     type="button"
                     onClick={() => appendDigit(digit)}
                     disabled={inputDisabled}
-                    className="min-h-[64px] rounded-[18px] border border-cyan-300/20 bg-[#07111f] text-3xl font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_10px_28px_rgba(0,0,0,0.18)] transition hover:border-cyan-300/60 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[60px] sm:rounded-2xl"
+                    className="min-h-[68px] rounded-[20px] border border-slate-500/45 bg-[#07111f] text-3xl font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_10px_28px_rgba(0,0,0,0.18)] transition duration-150 hover:border-cyan-300/55 hover:shadow-[0_0_22px_rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/65 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[60px] sm:rounded-2xl sm:border-cyan-300/25"
                   >
                     {digit}
                   </button>
@@ -568,7 +578,7 @@ export default function PosEmployeePinPage() {
                   type="button"
                   onClick={clearPin}
                   disabled={inputDisabled || pin.length === 0}
-                  className="min-h-[60px] rounded-2xl border border-cyan-300/25 bg-[rgba(2,8,23,0.62)] text-base font-black text-cyan-300 transition hover:border-cyan-300/60 hover:text-cyan-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="min-h-[68px] rounded-[20px] border border-slate-500/45 bg-[#07111f] text-base font-black text-cyan-300 transition duration-150 hover:border-cyan-300/60 hover:shadow-[0_0_22px_rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/65 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-[60px] sm:rounded-2xl sm:border-cyan-300/25 sm:bg-[rgba(2,8,23,0.62)]"
                 >
                   مسح
                 </button>
@@ -577,7 +587,7 @@ export default function PosEmployeePinPage() {
                   type="button"
                   onClick={() => appendDigit('0')}
                   disabled={inputDisabled}
-                  className="min-h-[60px] rounded-2xl border border-cyan-300/25 bg-[rgba(2,8,23,0.72)] text-3xl font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:border-cyan-300/60 hover:shadow-[0_0_26px_rgba(34,211,238,0.18)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="min-h-[68px] rounded-[20px] border border-slate-500/45 bg-[#07111f] text-3xl font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_10px_28px_rgba(0,0,0,0.18)] transition duration-150 hover:border-cyan-300/60 hover:shadow-[0_0_22px_rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/65 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[60px] sm:rounded-2xl sm:border-cyan-300/25 sm:bg-[rgba(2,8,23,0.72)]"
                 >
                   0
                 </button>
@@ -586,7 +596,7 @@ export default function PosEmployeePinPage() {
                   type="button"
                   onClick={deleteDigit}
                   disabled={inputDisabled || pin.length === 0}
-                  className="min-h-[60px] rounded-2xl border border-cyan-300/25 bg-[rgba(2,8,23,0.62)] text-base font-black text-cyan-300 transition hover:border-cyan-300/60 hover:text-cyan-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="min-h-[68px] rounded-[20px] border border-slate-500/45 bg-[#07111f] text-base font-black text-cyan-300 transition duration-150 hover:border-cyan-300/60 hover:shadow-[0_0_22px_rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/65 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-[60px] sm:rounded-2xl sm:border-cyan-300/25 sm:bg-[rgba(2,8,23,0.62)]"
                 >
                   حذف
                 </button>
@@ -597,7 +607,7 @@ export default function PosEmployeePinPage() {
 
           <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-20 text-center text-xs font-semibold text-slate-500">
             <Image src="/brand/afex-logo.png" alt="AFEX" width={720} height={260} className="mx-auto mb-1.5 hidden h-auto w-20 object-contain max-sm:block" />
-            <p><span className="sm:hidden">نظام إدارة الطلبات والفواتير · </span>© 2026 AFEX POS</p>
+            <p>© 2026 AFEX POS</p>
           </div>
         </section>
       </div>

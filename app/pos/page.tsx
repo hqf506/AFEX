@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
+import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
@@ -367,12 +368,14 @@ function formatOrderTime(createdAt: string) {
 export default function PosPage() {
   const router = useRouter()
   const pathname = usePathname()
+  const isMobileViewport = useMobileViewport()
   const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
   const [loggingOut, setLoggingOut] = useState(false)
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [ordersError, setOrdersError] = useState('')
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
+  const [showMobileRecentOrders, setShowMobileRecentOrders] = useState(false)
   const [activePosEmployee, setActivePosEmployee] =
     useState<ActivePosEmployee | null>(null)
   const [currentNow, setCurrentNow] = useState(() => new Date())
@@ -392,6 +395,8 @@ export default function PosPage() {
 
   const storeName = settings?.store_name?.trim() || 'AFEX POS'
   const branchName = settings?.branch_name?.trim() || storeName
+  const mobileStoreName = /^leather\s*fix$/i.test(storeName) ? 'AFEX' : storeName
+  const mobileBranchName = /^leather\s*fix$/i.test(branchName) ? 'AFEX' : branchName
   const employeeDisplayName = getPosEmployeeDisplayName(activePosEmployee)
   const resolvedPosBranchId =
     activePosEmployee?.branch_id ||
@@ -714,6 +719,11 @@ export default function PosPage() {
     router.push('/pos/sale/items')
   }
 
+  const handleOpenRecentOrders = () => {
+    triggerPosClickFeedback()
+    setShowMobileRecentOrders(true)
+  }
+
   if (access.authError === 'timeout') {
     console.warn('[POS PAGE] auth timeout', pathname, access.authStatus)
     return (
@@ -756,6 +766,208 @@ export default function PosPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(34,211,238,0.10),transparent_30%),radial-gradient(circle_at_82%_2%,rgba(34,211,238,0.08),transparent_28%),linear-gradient(135deg,#020817_0%,#04101F_48%,#061426_100%)]" />
       <div className="pointer-events-none absolute inset-x-28 top-0 h-px bg-[#22D3EE]/25 blur-sm" />
 
+      {isMobileViewport ? (
+        <div className="relative z-10 h-full overflow-y-auto overscroll-contain px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] [direction:rtl]">
+          <div className="mx-auto flex min-h-full w-full max-w-md flex-col gap-4">
+            <header className="flex items-center justify-between gap-3 px-1">
+              <div className="min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black tracking-[0.14em] text-white">AFEX</span>
+                  <span className="text-xs font-black tracking-[0.22em] text-cyan-300">POS</span>
+                </div>
+                <p className="mt-1 truncate text-xs font-bold text-slate-400">{mobileStoreName}</p>
+              </div>
+              <div className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 text-xs font-black text-emerald-200">
+                <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.75)]" />
+                جاهز للبيع
+              </div>
+            </header>
+
+            <section className="rounded-[26px] border border-cyan-300/12 bg-[rgba(6,20,38,0.68)] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
+              <p className="text-sm font-bold text-cyan-300">مرحباً بك</p>
+              <h1 className="mt-2 truncate text-2xl font-black text-white">{employeeDisplayName}</h1>
+              <div className="mt-4 flex items-center gap-2 text-sm font-bold text-slate-300">
+                <PosIcon name="home" className="h-4 w-4 text-cyan-300" />
+                <span className="truncate">{mobileBranchName}</span>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[22px] border border-cyan-300/10 bg-[rgba(2,8,23,0.62)] px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-white">{dayName}</p>
+                <p className="mt-1 truncate text-xs font-bold text-slate-400">{dateLabel}</p>
+              </div>
+              <p className="text-2xl font-black tabular-nums text-cyan-200">{timeLabel}</p>
+            </section>
+
+            <section aria-label="إجراءات نقطة البيع" className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'بيع جديد', icon: 'shoppingCart' as const, onClick: handleStartSale },
+                { label: 'عميل سريع', icon: 'zap' as const, onClick: handleQuickCustomer },
+                { label: 'إضافة عميل', icon: 'user' as const, onClick: handleQuickCustomer },
+                { label: 'آخر الطلبات', icon: 'clipboard' as const, onClick: handleOpenRecentOrders },
+              ].map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={action.onClick}
+                  className="group flex min-h-[112px] flex-col items-center justify-center gap-3 rounded-[24px] border border-cyan-300/10 bg-[rgba(6,20,38,0.68)] px-3 text-center shadow-[0_14px_34px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.035)] transition duration-150 hover:border-cyan-300/20 hover:bg-cyan-300/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97]"
+                >
+                  <span className="grid h-12 w-12 place-items-center rounded-[18px] bg-cyan-300/10 text-cyan-200 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] transition group-active:scale-95">
+                    <PosIcon name={action.icon} className="h-6 w-6" />
+                  </span>
+                  <span className="text-sm font-black text-white">{action.label}</span>
+                </button>
+              ))}
+            </section>
+
+            <section aria-label="ملخص حالات الطلبات" className="grid grid-cols-3 gap-2">
+              {mobileOrderStatusSummary.map(({ status, count }) => {
+                const statusUi = POS_ORDER_STATUS_UI[status]
+
+                return (
+                  <div key={status} className="min-w-0 rounded-[20px] border border-cyan-300/10 bg-[#07111f] p-3 text-center">
+                    <span className={`mx-auto block h-2 w-2 rounded-full ${statusUi.dotClassName}`} />
+                    <p className="mt-2 text-2xl font-black text-white">{count}</p>
+                    <p className="mt-1 truncate text-[11px] font-black text-slate-400">{statusUi.label}</p>
+                  </div>
+                )
+              })}
+            </section>
+
+            <section className="mt-auto rounded-[24px] border border-cyan-300/10 bg-[rgba(6,20,38,0.62)] p-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-cyan-300 text-base font-black text-slate-950">
+                  {employeeDisplayName.charAt(0)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-black text-white">{employeeDisplayName}</p>
+                  <p className="mt-1 truncate text-xs font-bold text-slate-400">جلسة نشطة · {mobileBranchName}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  aria-label="تسجيل الخروج"
+                  className="grid min-h-[44px] min-w-[44px] place-items-center rounded-2xl text-slate-400 transition hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 active:scale-[0.96] disabled:opacity-60"
+                >
+                  <PosIcon name="logout" className="h-5 w-5" />
+                </button>
+              </div>
+              {offlineDraftSyncState.draftsCount > 0 || offlineDraftSyncState.isSyncing ? (
+                <Link href="/pos/offline-drafts" className="mt-3 flex min-h-[44px] items-center justify-between rounded-2xl bg-cyan-300/[0.07] px-3 text-xs font-black text-cyan-100">
+                  <span>{offlineDraftSyncState.isSyncing ? 'مزامنة المسودات' : 'مسودات معلقة'}</span>
+                  <span>{offlineDraftSyncState.draftsCount}</span>
+                </Link>
+              ) : null}
+            </section>
+
+            <nav aria-label="تنقل نقطة البيع" className="grid grid-cols-3 gap-2 rounded-[22px] border border-cyan-300/10 bg-[rgba(2,8,23,0.78)] p-2 backdrop-blur-xl">
+              {sidebarItems.filter((item) => !item.disabled).map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  aria-current={item.active ? 'page' : undefined}
+                  className={`flex min-h-[54px] min-w-0 flex-col items-center justify-center gap-1 rounded-[16px] text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97] ${item.active ? 'bg-cyan-300/10 text-cyan-100' : 'text-slate-400'}`}
+                >
+                  <PosIcon name={item.icon} className="h-5 w-5" />
+                  <span className="max-w-full truncate">{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          {showMobileRecentOrders ? (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mobile-recent-orders-title"
+              className="fixed inset-0 z-50 flex items-end bg-slate-950/80 backdrop-blur-sm"
+            >
+              <button
+                type="button"
+                aria-label="إغلاق آخر الطلبات"
+                onClick={() => setShowMobileRecentOrders(false)}
+                className="absolute inset-0 cursor-default"
+              />
+              <section className="relative z-10 flex max-h-[82svh] w-full flex-col rounded-t-[30px] border-x border-t border-cyan-300/15 bg-[#06101e] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-24px_70px_rgba(0,0,0,0.45)]">
+                <span aria-hidden="true" className="mx-auto h-1 w-12 rounded-full bg-slate-600" />
+                <header className="flex items-center justify-between gap-3 py-4">
+                  <div>
+                    <h2 id="mobile-recent-orders-title" className="text-xl font-black text-white">آخر الطلبات</h2>
+                    <p className="mt-1 text-xs font-bold text-slate-400">آخر عمليات البيع المتاحة لنقطة البيع</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileRecentOrders(false)}
+                    className="min-h-[44px] rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.06] px-4 text-xs font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97]"
+                  >
+                    إغلاق
+                  </button>
+                </header>
+
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-1">
+                  {ordersError ? (
+                    <div className="rounded-[18px] border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">
+                      {ordersError}
+                    </div>
+                  ) : null}
+
+                  {!ordersError && ordersLoading ? (
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <div key={`mobile-recent-order-skeleton-${index}`} className="h-[138px] animate-pulse rounded-[22px] bg-slate-800/70" />
+                    ))
+                  ) : null}
+
+                  {!ordersError && !ordersLoading && recentOrders.length === 0 ? (
+                    <div className="rounded-[22px] border border-dashed border-cyan-300/15 bg-cyan-300/[0.04] px-5 py-10 text-center text-sm font-black text-slate-300">
+                      لا توجد طلبات حديثة.
+                    </div>
+                  ) : null}
+
+                  {!ordersError && !ordersLoading ? recentOrders.map((order) => {
+                    const statusKey = resolvePosKanbanStatus(order.status)
+                    const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
+                    const nextStatus = getNextPosOrderStatus(order.status)
+                    const isUpdatingOrder = updatingOrderId === order.id
+
+                    return (
+                      <article key={order.id} className={`rounded-[22px] border border-cyan-300/10 bg-[#071524] p-4 ${isUpdatingOrder ? 'opacity-60' : 'opacity-100'}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-lg font-black text-white">{order.order_number}</p>
+                            <p className="mt-2 truncate text-sm font-bold text-slate-200">{order.customer_name || 'عميل نقدي'}</p>
+                            <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                              {new Date(order.created_at).toLocaleDateString('ar-SA')} · {formatOrderTime(order.created_at)}
+                            </p>
+                          </div>
+                          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${statusUi?.badgeClassName || 'bg-slate-300/10 text-slate-200'}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${statusUi?.dotClassName || 'bg-slate-400'}`} />
+                            {statusUi?.label || order.status}
+                          </span>
+                        </div>
+                        <div className="mt-4 flex items-end justify-between gap-3 border-t border-cyan-300/10 pt-3">
+                          <p className="text-xl font-black text-cyan-100">{formatCurrency(order.total)}</p>
+                          {nextStatus ? (
+                            <button
+                              type="button"
+                              onClick={() => handleAdvanceOrderStatus(order)}
+                              disabled={isUpdatingOrder}
+                              className="min-h-[44px] rounded-2xl bg-cyan-300/[0.08] px-3 text-xs font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97] disabled:opacity-60"
+                            >
+                              {isUpdatingOrder ? 'جارٍ...' : order.status === 'in_progress' ? 'جاهز' : 'تم تسليم'}
+                            </button>
+                          ) : null}
+                        </div>
+                      </article>
+                    )
+                  }) : null}
+                </div>
+              </section>
+            </div>
+          ) : null}
+        </div>
+      ) : (
       <div className="relative z-10 grid h-full w-full gap-3 overflow-y-auto overscroll-contain p-3 [direction:rtl] lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6 lg:overflow-hidden lg:p-6 xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8 xl:p-8">
         <aside className="flex min-h-0 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] lg:overflow-hidden lg:rounded-[26px]">
           <div className="mb-5 hidden rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] lg:block">
@@ -1107,6 +1319,7 @@ export default function PosPage() {
           </section>
         </main>
       </div>
+      )}
       </section>
     </main>
   )
