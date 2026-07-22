@@ -10,6 +10,7 @@ import {
 } from '@/lib/pos-offline-draft'
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
+import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 
 type CreateOrderResponse = {
   success?: boolean
@@ -23,16 +24,8 @@ type CreateOrderResponse = {
 }
 
 function formatDraftDate(value: string) {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return 'وقت غير معروف'
-  }
-
-  return new Intl.DateTimeFormat('ar-SA', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
+  const formatted = formatPosGregorianDateTime(value)
+  return formatted === '—' ? 'وقت غير معروف' : formatted
 }
 
 function getDraftPaymentStatus(draft: PosOfflineInvoiceDraft) {

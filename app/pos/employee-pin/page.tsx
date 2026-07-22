@@ -8,6 +8,7 @@ import { useSystemSettings } from '@/hooks/use-system-settings'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { getRoleLabel } from '@/lib/app-roles'
 import { canAccessPos } from '@/lib/permissions'
+import { formatPosGregorianDate, formatPosTime } from '@/lib/pos/date-format'
 import {
   hasPosLoggedOut,
   clearActivePosEmployee,
@@ -133,15 +134,8 @@ export default function PosEmployeePinPage() {
   const organizationLabel =
     authState.profile?.tenant_name?.trim() || branchLabel || 'لم يُحدد اسم المنشأة'
   const activityName = systemSettings?.store_name?.trim() || organizationLabel
-  const formattedTime = now.toLocaleTimeString('ar-SA', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  const formattedDate = now.toLocaleDateString('ar-SA', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-  })
+  const formattedTime = formatPosTime(now)
+  const formattedDate = formatPosGregorianDate(now)
 
   const dots = useMemo(
     () => Array.from({ length: PIN_LENGTH }, (_, index) => index < pin.length),

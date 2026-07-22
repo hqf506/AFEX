@@ -19,6 +19,7 @@ import { formatCurrency } from '@/lib/orders/format'
 import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
+import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -302,10 +303,7 @@ export default function PosSaleSuccessPage() {
   const issuedAtLabel = useMemo(() => {
     if (!snapshot || !snapshot.createdAt) return '—'
 
-    return new Intl.DateTimeFormat('ar-SA', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(snapshot.createdAt))
+    return formatPosGregorianDateTime(snapshot.createdAt)
   }, [snapshot])
 
   const loadThermalInvoiceSettings = useCallback(() => {

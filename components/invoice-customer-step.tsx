@@ -30,6 +30,7 @@ import {
 } from '@/lib/pos-employee-session'
 import { getRoleLabel } from '@/lib/app-roles'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
+import { formatPosGregorianDate } from '@/lib/pos/date-format'
 
 type ExistingCustomer = {
   id: string
@@ -1551,18 +1552,7 @@ function formatPosCustomerAmount(value: number | null | undefined) {
 }
 
 function formatPosCustomerDate(value: string | null | undefined) {
-  if (!value) return '—'
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return '—'
-  }
-
-  return new Intl.DateTimeFormat('ar-SA', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
+  return formatPosGregorianDate(value)
 }
 
 function PosCustomerIcon({

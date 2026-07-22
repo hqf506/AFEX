@@ -15,6 +15,7 @@ import {
   type OrderStatus,
 } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
+import { formatPosGregorianDateTime, formatPosTime } from '@/lib/pos/date-format'
 
 type ActiveOrderStatus = Extract<OrderStatus, 'in_progress' | 'ready'>
 
@@ -52,12 +53,7 @@ function formatRelativeOrderTime(value: string, now: number) {
   const elapsedHours = Math.floor(elapsedMinutes / 60)
   if (elapsedHours < 24) return `منذ ${elapsedHours} ساعة`
 
-  return new Intl.DateTimeFormat('ar-SA', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(createdAt))
+  return formatPosGregorianDateTime(createdAt)
 }
 
 function ClipboardStatusIcon() {
@@ -311,7 +307,7 @@ export default function PosOrderStatusPage() {
               <span className="grid h-16 w-16 place-items-center rounded-full bg-cyan-300/[0.06] text-cyan-200"><ClipboardStatusIcon /></span>
               <h2 className="mt-4 text-xl font-black text-white">لا توجد طلبات حالية</h2>
               <p className="mt-2 text-sm font-bold text-slate-400">{search.trim() ? 'لا توجد نتائج مطابقة للبحث.' : 'جميع الطلبات تم تسليمها'}</p>
-              {lastRefreshedAt ? <p className="mt-4 text-xs font-bold text-slate-500">آخر تحديث: {new Intl.DateTimeFormat('ar-SA', { hour: '2-digit', minute: '2-digit' }).format(lastRefreshedAt)}</p> : null}
+              {lastRefreshedAt ? <p className="mt-4 text-xs font-bold text-slate-500">آخر تحديث: {formatPosTime(lastRefreshedAt)}</p> : null}
             </section>
           ) : (
             <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

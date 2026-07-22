@@ -3,6 +3,7 @@
 import type { InvoiceSuccessSnapshot } from '@/lib/invoices/success'
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
+import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 
 type ReceiptViewProps = {
   snapshot: InvoiceSuccessSnapshot
@@ -14,10 +15,9 @@ export function ReceiptView({
   storeName = 'AFEX',
 }: ReceiptViewProps) {
   const isCashOnDelivery = snapshot.paymentMethod === 'cod'
-  const issuedAtLabel = new Intl.DateTimeFormat('ar-SA', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(snapshot.createdAt || new Date().toISOString()))
+  const issuedAtLabel = formatPosGregorianDateTime(
+    snapshot.createdAt || new Date().toISOString()
+  )
 
   return (
     <section

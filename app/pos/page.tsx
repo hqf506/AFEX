@@ -46,6 +46,11 @@ import {
   type PosOfflineDraftSyncState,
 } from '@/lib/pos-offline-draft'
 import { supabase } from '@/lib/supabase/client'
+import {
+  formatPosGregorianDate,
+  formatPosTime,
+  formatPosWeekday,
+} from '@/lib/pos/date-format'
 import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
@@ -354,16 +359,8 @@ function getPosEmployeeDisplayName(employee: ActivePosEmployee | null) {
 }
 
 function formatOrderTime(createdAt: string) {
-  const date = new Date(createdAt)
-
-  if (Number.isNaN(date.getTime())) {
-    return '--:--'
-  }
-
-  return new Intl.DateTimeFormat('ar-SA', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
+  const formatted = formatPosTime(createdAt)
+  return formatted === '—' ? '--:--' : formatted
 }
 
 export default function PosPage() {
@@ -430,18 +427,9 @@ export default function PosPage() {
       count: orders.filter((order) => order.status === 'closed').length,
     },
   ]
-  const dayName = new Intl.DateTimeFormat('ar-SA', {
-    weekday: 'long',
-  }).format(currentNow)
-  const dateLabel = new Intl.DateTimeFormat('ar-SA', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(currentNow)
-  const timeLabel = new Intl.DateTimeFormat('ar-SA', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(currentNow)
+  const dayName = formatPosWeekday(currentNow)
+  const dateLabel = formatPosGregorianDate(currentNow)
+  const timeLabel = formatPosTime(currentNow)
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -977,7 +965,7 @@ export default function PosPage() {
                             <p className="truncate text-lg font-black text-white">{order.order_number}</p>
                             <p className="mt-2 truncate text-sm font-bold text-slate-200">{order.customer_name || 'عميل نقدي'}</p>
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
-                              <span>{new Date(order.created_at).toLocaleDateString('ar-SA')}</span>
+                              <span>{formatPosGregorianDate(order.created_at)}</span>
                               <span aria-hidden="true">•</span>
                               <span>{formatOrderTime(order.created_at)}</span>
                             </div>
@@ -1044,7 +1032,7 @@ export default function PosPage() {
                               <p dir="ltr" className="mt-2 text-right text-sm font-bold text-slate-400">{selectedMobileOrder.customer_phone}</p>
                             ) : null}
                             <p className="mt-2 text-xs font-bold text-slate-500">
-                              {new Date(selectedMobileOrder.created_at).toLocaleDateString('ar-SA')} · {formatOrderTime(selectedMobileOrder.created_at)}
+                              {formatPosGregorianDate(selectedMobileOrder.created_at)} · {formatOrderTime(selectedMobileOrder.created_at)}
                             </p>
                           </div>
                           <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${selectedMobileOrderStatusUi?.badgeClassName || 'bg-slate-300/10 text-slate-200'}`}>
@@ -1425,7 +1413,7 @@ export default function PosPage() {
                               {order.customer_name || 'عميل نقدي'}
                             </p>
                             <p className="mt-1 truncate text-xs font-semibold text-slate-500">
-                              {new Date(order.created_at).toLocaleDateString('ar-SA')} · {formatOrderTime(order.created_at)}
+                              {formatPosGregorianDate(order.created_at)} · {formatOrderTime(order.created_at)}
                             </p>
                           </div>
 

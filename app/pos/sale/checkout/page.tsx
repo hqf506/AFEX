@@ -38,6 +38,7 @@ import {
   PAYMENT_METHODS,
 } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
+import { formatPosGregorianDate, formatPosTime } from '@/lib/pos/date-format'
 import {
   readActivePosEmployee,
   type ActivePosEmployee,
@@ -220,21 +221,11 @@ export default function PosSaleCheckoutPage() {
     thermalReceiptSettings.thermalReceiptLogoUrl || null
   const printIssuedAt = useMemo(() => new Date(), [])
   const printDateLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat('ar-SA', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(printIssuedAt),
+    () => formatPosGregorianDate(printIssuedAt),
     [printIssuedAt]
   )
   const printTimeLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat('ar-SA', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      }).format(printIssuedAt),
+    () => formatPosTime(printIssuedAt),
     [printIssuedAt]
   )
 
