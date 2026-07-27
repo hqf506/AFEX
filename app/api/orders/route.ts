@@ -601,7 +601,20 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  const timing = createServerTiming('orders-post')
+  const response = await handleCreateOrderPost(request, timing)
+
+  timing.measureSync('response_serialization', () => undefined)
+  return timing.finish(response)
+}
+
+async function handleCreateOrderPost(
+  request: NextRequest,
+  timing: ReturnType<typeof createServerTiming>
+) {
+  const auth = await timing.measure('auth_session', () =>
+    requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  )
 
   if (!auth.ok) {
     return auth.response
@@ -683,9 +696,12 @@ export async function POST(request: NextRequest) {
         persistSession: false,
       },
     })
-    const profileTenantId =
-      normalizeUuidString(auth.profile.tenant_id) ||
-      (await resolveProfileTenantId(serviceSupabase, auth.profile.id))
+    const profileTenantId = await timing.measure(
+      'profile_tenant',
+      async () =>
+        normalizeUuidString(auth.profile.tenant_id) ||
+        (await resolveProfileTenantId(serviceSupabase, auth.profile.id))
+    )
 
     if (!profileTenantId) {
       console.error('[api/orders] missing profile tenant id for order creation', {
@@ -704,22 +720,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const ordersDisabledResponse = await disabledFeatureResponse(
-      auth.response,
-      profileTenantId,
-      'enable_orders',
-      ORDERS_FEATURE_DISABLED_MESSAGE
+    const ordersDisabledResponse = await timing.measure(
+      'feature_orders',
+      () => disabledFeatureResponse(
+        auth.response,
+        profileTenantId,
+        'enable_orders',
+        ORDERS_FEATURE_DISABLED_MESSAGE
+      )
     )
 
     if (ordersDisabledResponse) {
       return ordersDisabledResponse
     }
 
-    const posDisabledResponse = await disabledFeatureResponse(
-      auth.response,
-      profileTenantId,
-      'enable_pos',
-      POS_FEATURE_DISABLED_MESSAGE
+    const posDisabledResponse = await timing.measure(
+      'feature_pos',
+      () => disabledFeatureResponse(
+        auth.response,
+        profileTenantId,
+        'enable_pos',
+        POS_FEATURE_DISABLED_MESSAGE
+      )
     )
 
     if (posDisabledResponse) {
@@ -765,12 +787,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: orderBranch, error: orderBranchError } = await serviceSupabase
-      .from('branches')
-      .select('id')
-      .eq('tenant_id', profileTenantId)
-      .eq('id', branchId)
-      .maybeSingle()
+    const { data: orderBranch, error: orderBranchError } =
+      await timing.measure('branch_validation', () =>
+        serviceSupabase
+          .from('branches')
+          .select('id')
+          .eq('tenant_id', profileTenantId)
+          .eq('id', branchId)
+          .maybeSingle()
+      )
 
     if (orderBranchError || !orderBranch) {
       return jsonWithAuthCookies(
@@ -823,10 +848,12 @@ export async function POST(request: NextRequest) {
       : null
 
     if (clientIdempotencyKey && idempotencyCommand) {
-      const resolution = await idempotencyService.resolveBeforeExecution({
-        clientKey: clientIdempotencyKey,
-        command: idempotencyCommand,
-      })
+      const resolution = await timing.measure('idempotency_lookup', () =>
+        idempotencyService.resolveBeforeExecution({
+          clientKey: clientIdempotencyKey,
+          command: idempotencyCommand,
+        })
+      )
 
       if (resolution.kind === 'replay') {
         scheduleInvoiceCostSnapshot({
@@ -888,13 +915,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const employeeResolution = createdByEmployeeId
-      ? await resolveCreatedByEmployeeIdForRpc(
-          serviceSupabase,
-          createdByEmployeeId,
-          profileTenantId
-        )
-      : { rpcEmployeeId: null, posEmployeeId: null }
+    const employeeResolution = await timing.measure(
+      'employee_resolution',
+      () => createdByEmployeeId
+        ? resolveCreatedByEmployeeIdForRpc(
+            serviceSupabase,
+            createdByEmployeeId,
+            profileTenantId
+          )
+        : Promise.resolve({ rpcEmployeeId: null, posEmployeeId: null })
+    )
 
     let validCatalogItemsQuery = serviceSupabase
       .from('catalog_items')
@@ -907,7 +937,7 @@ export async function POST(request: NextRequest) {
     )
 
     const { data: validCatalogItems, error: validCatalogItemsError } =
-      await validCatalogItemsQuery
+      await timing.measure('catalog_validation', () => validCatalogItemsQuery)
 
     if (validCatalogItemsError) {
       return jsonWithAuthCookies(
@@ -943,7 +973,10 @@ export async function POST(request: NextRequest) {
         profileTenantId
       )
 
-      const { data: branchCatalogItems } = await branchCatalogItemsQuery
+      const { data: branchCatalogItems } = await timing.measure(
+        'branch_catalog_fallback',
+        () => branchCatalogItemsQuery
+      )
 
       const normalizedBranchCatalogItems = (Array.isArray(branchCatalogItems)
         ? branchCatalogItems
@@ -1034,7 +1067,9 @@ export async function POST(request: NextRequest) {
       p_branch_id: branchId,
     }
 
-    const { data, error } = await serviceSupabase.rpc(rpcName, rpcPayload)
+    const { data, error } = await timing.measure('atomic_rpc', () =>
+      serviceSupabase.rpc(rpcName, rpcPayload)
+    )
 
     if (error) {
       if (clientIdempotencyKey && idempotencyCommand) {
@@ -1143,14 +1178,16 @@ export async function POST(request: NextRequest) {
 
     if (paymentSnapshot) {
       try {
-        await persistAndConfirmInvoicePaymentSnapshot({
-          supabase: serviceSupabase,
-          tenantId: profileTenantId,
-          invoiceId,
-          paymentMethod,
-          cashReceived: paymentSnapshot.cashReceived,
-          invoiceTotal: totalValue,
-        })
+        await timing.measure('payment_snapshot', () =>
+          persistAndConfirmInvoicePaymentSnapshot({
+            supabase: serviceSupabase,
+            tenantId: profileTenantId,
+            invoiceId,
+            paymentMethod,
+            cashReceived: paymentSnapshot.cashReceived,
+            invoiceTotal: totalValue,
+          })
+        )
       } catch (error) {
         paymentSnapshotError = error
         console.error('[api/orders] invoice payment snapshot persistence failed', {
@@ -1163,11 +1200,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (employeeResolution.posEmployeeId && orderId) {
-      const { error: updateEmployeeError } = await serviceSupabase
-        .from('orders')
-        .update({ created_by_employee_id: employeeResolution.posEmployeeId })
-        .eq('id', orderId)
-        .eq('tenant_id', profileTenantId)
+      const { error: updateEmployeeError } = await timing.measure(
+        'employee_patch',
+        () => serviceSupabase
+          .from('orders')
+          .update({ created_by_employee_id: employeeResolution.posEmployeeId })
+          .eq('id', orderId)
+          .eq('tenant_id', profileTenantId)
+      )
 
       if (updateEmployeeError) {
         console.warn('[api/orders] unable to attach POS employee to order', {
@@ -1180,11 +1220,13 @@ export async function POST(request: NextRequest) {
 
     if (employeeResolution.posEmployeeId && invoiceId) {
       const { data: invoiceItemRows, error: invoiceItemsError } =
-        await serviceSupabase
-          .from('invoice_items')
-          .select('id')
-          .eq('tenant_id', profileTenantId)
-          .eq('invoice_id', invoiceId)
+        await timing.measure('invoice_items_lookup', () =>
+          serviceSupabase
+            .from('invoice_items')
+            .select('id')
+            .eq('tenant_id', profileTenantId)
+            .eq('invoice_id', invoiceId)
+        )
 
       if (invoiceItemsError) {
         console.warn('[api/orders] unable to load invoice items for inventory actor', {
@@ -1213,12 +1255,15 @@ export async function POST(request: NextRequest) {
         .eq('tenant_id', profileTenantId)
         .eq('movement_type', 'sale')
 
-      const { error: updateInventoryActorError } = await (
-        sourceIdFilter
-          ? updateInventoryActorQuery.or(sourceIdFilter)
-          : updateInventoryActorQuery
-              .eq('source_type', 'invoice')
-              .eq('source_id', invoiceId)
+      const { error: updateInventoryActorError } = await timing.measure(
+        'inventory_actor_patch',
+        () => (
+          sourceIdFilter
+            ? updateInventoryActorQuery.or(sourceIdFilter)
+            : updateInventoryActorQuery
+                .eq('source_type', 'invoice')
+                .eq('source_id', invoiceId)
+        )
       )
 
       if (updateInventoryActorError) {
@@ -1230,25 +1275,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await writeAuditLog({
-      auth,
-      request,
-      action: 'order.created',
-      entityType: 'order',
-      entityId: orderId || null,
-      branchId: branchId || null,
-      metadata: {
-        order_number: orderNumber || null,
-        invoice_id: invoiceId || null,
-        invoice_number: invoiceNumber || null,
-        created_by_employee_id: createdByEmployeeId || null,
-        branch_id: branchId || null,
-        items_count: validItems.length,
-        payment_method: getPersistedInvoicePaymentMethod(paymentMethod),
-        total: Number.isFinite(totalValue) ? totalValue : null,
-        source: 'pos',
-      },
-    })
+    await timing.measure('audit_write', () =>
+      writeAuditLog({
+        auth,
+        request,
+        action: 'order.created',
+        entityType: 'order',
+        entityId: orderId || null,
+        branchId: branchId || null,
+        metadata: {
+          order_number: orderNumber || null,
+          invoice_id: invoiceId || null,
+          invoice_number: invoiceNumber || null,
+          created_by_employee_id: createdByEmployeeId || null,
+          branch_id: branchId || null,
+          items_count: validItems.length,
+          payment_method: getPersistedInvoicePaymentMethod(paymentMethod),
+          total: Number.isFinite(totalValue) ? totalValue : null,
+          source: 'pos',
+        },
+      })
+    )
 
     scheduleInvoiceCostSnapshot({
       supabase: serviceSupabase,
