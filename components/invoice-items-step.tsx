@@ -6,6 +6,7 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
 } from 'react'
@@ -36,7 +37,7 @@ import {
   prefetchClientResource,
 } from '@/lib/client-resource-cache'
 import {
-  clearBranchInvoiceCatalogCache,
+  isBranchInvoiceCatalogPageFresh,
   loadBranchInvoiceCatalogPage,
   peekBranchInvoiceCatalog,
   type PosInvoiceCatalogProduct,
@@ -480,11 +481,11 @@ export function InvoiceItemsStep({
     },
     []
   )
+  const catalogReloadInFlightRef = useRef(false)
   const forceReloadCatalog = useCallback(
     async (options: { showRefreshing?: boolean } = {}) => {
-      if (!invoiceBranchId) return
-
-      clearBranchInvoiceCatalogCache(invoiceBranchId, tenantId)
+      if (!invoiceBranchId || catalogReloadInFlightRef.current) return
+      catalogReloadInFlightRef.current = true
 
       if (options.showRefreshing) {
         setCatalogRefreshing(true)
@@ -522,6 +523,7 @@ export function InvoiceItemsStep({
         setCatalogError(true)
         triggerPosFeedback('error')
       } finally {
+        catalogReloadInFlightRef.current = false
         setCatalogLoading(false)
         setCatalogRefreshing(false)
       }
@@ -671,14 +673,28 @@ export function InvoiceItemsStep({
 
     let reloadTimeoutId: number | null = null
     const scheduleCatalogReload = () => {
-      clearBranchInvoiceCatalogCache(invoiceBranchId, tenantId)
+      const catalogPageParams = {
+        branchId: invoiceBranchId,
+        tenantId,
+        page: currentCatalogPage,
+        pageSize: CATALOG_ITEMS_PER_PAGE,
+        search: deferredSearch,
+        category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
+      }
+
+      if (isBranchInvoiceCatalogPageFresh(catalogPageParams)) {
+        return
+      }
 
       if (reloadTimeoutId) {
         window.clearTimeout(reloadTimeoutId)
       }
 
       reloadTimeoutId = window.setTimeout(() => {
-        void forceReloadCatalog({ showRefreshing: true })
+        reloadTimeoutId = null
+        if (!isBranchInvoiceCatalogPageFresh(catalogPageParams)) {
+          void forceReloadCatalog({ showRefreshing: true })
+        }
       }, 400)
     }
 
@@ -704,6 +720,9 @@ export function InvoiceItemsStep({
     ready,
     tenantId,
     invoiceBranchId,
+    currentCatalogPage,
+    deferredSearch,
+    activeFilter,
     hasUnavailablePosBranchContext,
     variant,
     forceReloadCatalog,

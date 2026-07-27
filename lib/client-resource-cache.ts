@@ -20,6 +20,7 @@ const PROTECTED_RESOURCE_CACHE_PREFIXES = [
   'admin-discounts:',
   'admin-vat:',
   'pos-runtime:',
+  'pos-home-orders:',
   'invoice-catalog:',
 ] as const
 

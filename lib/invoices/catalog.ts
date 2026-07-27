@@ -6,6 +6,7 @@ import {
   clearClientResource,
   clearClientResourcesByPrefix,
   createProtectedResourceAuthError,
+  isClientResourceFresh,
   loadClientResource,
   markProtectedResourcesUnauthorized,
   peekClientResource,
@@ -128,6 +129,20 @@ export function getInvoiceCatalogPageCacheKey(params: {
     params.search || '',
     params.category || '',
   ].join(':')
+}
+
+export function isBranchInvoiceCatalogPageFresh(params: {
+  branchId: string | null
+  tenantId?: string | null
+  page: number
+  pageSize: number
+  search?: string
+  category?: string
+}) {
+  const cacheKey = getInvoiceCatalogPageCacheKey(params)
+  return cacheKey
+    ? isClientResourceFresh(cacheKey, INVOICE_CATALOG_PAGE_CACHE_TTL_MS)
+    : false
 }
 
 export function clearBranchInvoiceCatalogCache(

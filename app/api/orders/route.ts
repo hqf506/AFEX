@@ -34,9 +34,11 @@ import { createIdempotencyService } from '@/lib/idempotency/service'
 import { normalizeSaudiCustomerPhone } from '@/lib/customers'
 import {
   disabledFeatureResponse,
+  getFeatureStates,
   ORDERS_FEATURE_DISABLED_MESSAGE,
   POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
+import type { ServerTiming } from '@/lib/performance/server-timing'
 import type { OrderStatus } from '@/lib/orders/normalize'
 import {
   resolveEffectiveOrderStatus,
@@ -793,14 +795,32 @@ async function handleCreateOrderPost(
       )
     }
 
+    const featureStates = await timing.measure(
+      'feature_settings_lookup',
+      () =>
+        getFeatureStates(
+          profileTenantId,
+          ['enable_orders', 'enable_pos'] as const
+        )
+    )
+    // These request-scoped markers retain the existing feature gate names
+    // without counting the shared remote lookup twice.
     const ordersDisabledResponse = await timing.measure(
       'feature_orders',
-      () => disabledFeatureResponse(
-        auth.response,
-        profileTenantId,
-        'enable_orders',
-        ORDERS_FEATURE_DISABLED_MESSAGE
-      )
+      () =>
+        Promise.resolve(
+          featureStates.enable_orders
+            ? null
+            : jsonWithAuthCookies(
+                auth.response,
+                {
+                  success: false,
+                  error: ORDERS_FEATURE_DISABLED_MESSAGE,
+                  message: ORDERS_FEATURE_DISABLED_MESSAGE,
+                },
+                403
+              )
+        )
     )
 
     if (ordersDisabledResponse) {
@@ -809,12 +829,20 @@ async function handleCreateOrderPost(
 
     const posDisabledResponse = await timing.measure(
       'feature_pos',
-      () => disabledFeatureResponse(
-        auth.response,
-        profileTenantId,
-        'enable_pos',
-        POS_FEATURE_DISABLED_MESSAGE
-      )
+      () =>
+        Promise.resolve(
+          featureStates.enable_pos
+            ? null
+            : jsonWithAuthCookies(
+                auth.response,
+                {
+                  success: false,
+                  error: POS_FEATURE_DISABLED_MESSAGE,
+                  message: POS_FEATURE_DISABLED_MESSAGE,
+                },
+                403
+              )
+        )
     )
 
     if (posDisabledResponse) {
@@ -988,13 +1016,14 @@ async function handleCreateOrderPost(
       }
     }
 
-    const employeeResolution = await timing.measure(
+    const employeeResolutionPromise = timing.measure(
       'employee_resolution',
       () => createdByEmployeeId
         ? resolveCreatedByEmployeeIdForRpc(
             serviceSupabase,
             createdByEmployeeId,
-            profileTenantId
+            profileTenantId,
+            timing
           )
         : Promise.resolve({ rpcEmployeeId: null, posEmployeeId: null })
     )
@@ -1009,8 +1038,18 @@ async function handleCreateOrderPost(
       profileTenantId
     )
 
-    const { data: validCatalogItems, error: validCatalogItemsError } =
-      await timing.measure('catalog_validation', () => validCatalogItemsQuery)
+    const catalogValidationPromise = timing.measure(
+      'catalog_validation',
+      () => validCatalogItemsQuery
+    )
+    const [employeeResolution, catalogValidation] = await Promise.all([
+      employeeResolutionPromise,
+      catalogValidationPromise,
+    ])
+    const {
+      data: validCatalogItems,
+      error: validCatalogItemsError,
+    } = catalogValidation
 
     if (validCatalogItemsError) {
       return jsonWithAuthCookies(
@@ -1248,8 +1287,9 @@ async function handleCreateOrderPost(
     }
 
     let paymentSnapshotError: unknown = null
+    const paymentSnapshotTask = async () => {
+      if (!paymentSnapshot) return
 
-    if (paymentSnapshot) {
       try {
         await timing.measure('payment_snapshot', () =>
           persistAndConfirmInvoicePaymentSnapshot({
@@ -1271,8 +1311,9 @@ async function handleCreateOrderPost(
         })
       }
     }
+    const employeePatchTask = async () => {
+      if (!employeeResolution.posEmployeeId || !orderId) return
 
-    if (employeeResolution.posEmployeeId && orderId) {
       const { error: updateEmployeeError } = await timing.measure(
         'employee_patch',
         () => serviceSupabase
@@ -1290,8 +1331,9 @@ async function handleCreateOrderPost(
         })
       }
     }
+    const invoiceAttributionTask = async () => {
+      if (!employeeResolution.posEmployeeId || !invoiceId) return
 
-    if (employeeResolution.posEmployeeId && invoiceId) {
       const { data: invoiceItemRows, error: invoiceItemsError } =
         await timing.measure('invoice_items_lookup', () =>
           serviceSupabase
@@ -1347,6 +1389,12 @@ async function handleCreateOrderPost(
         })
       }
     }
+
+    await Promise.all([
+      paymentSnapshotTask(),
+      employeePatchTask(),
+      invoiceAttributionTask(),
+    ])
 
     await timing.measure('audit_write', () =>
       writeAuditLog({
@@ -2066,14 +2114,28 @@ async function resolveProfileTenantId(supabase: unknown, profileId: string) {
 async function resolveCreatedByEmployeeIdForRpc(
   supabase: unknown,
   employeeId: string,
-  tenantId: string
+  tenantId: string,
+  timing: ServerTiming
 ) {
   const client = supabase as EmployeeTenantLookupClient
-  const { data: profileData, error: profileError } = await client
-    .from('profiles')
-    .select('tenant_id')
-    .eq('id', employeeId)
-    .maybeSingle()
+  const profileLookup = timing.measure('employee_profile_lookup', () =>
+    client
+      .from('profiles')
+      .select('tenant_id')
+      .eq('id', employeeId)
+      .maybeSingle()
+  )
+  const posProfileLookup = timing.measure('employee_pos_profile_lookup', () =>
+    client
+      .from('pos_profiles')
+      .select('tenant_id')
+      .eq('id', employeeId)
+      .maybeSingle()
+  )
+  const [
+    { data: profileData, error: profileError },
+    { data: posProfileData, error: posProfileError },
+  ] = await Promise.all([profileLookup, posProfileLookup])
 
   if (profileError) {
     console.warn('[api/orders] unable to resolve profile employee', {
@@ -2085,12 +2147,6 @@ async function resolveCreatedByEmployeeIdForRpc(
   if (normalizeUuidString(profileData?.tenant_id) === tenantId) {
     return { rpcEmployeeId: employeeId, posEmployeeId: null }
   }
-
-  const { data: posProfileData, error: posProfileError } = await client
-    .from('pos_profiles')
-    .select('tenant_id')
-    .eq('id', employeeId)
-    .maybeSingle()
 
   if (posProfileError) {
     console.warn('[api/orders] unable to resolve POS employee', {

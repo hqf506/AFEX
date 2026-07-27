@@ -20,13 +20,12 @@ export type FeatureToggleKey =
   | 'enable_users'
   | 'enable_pos'
 
-export async function isFeatureEnabled(
-  tenantId: string,
-  key: FeatureToggleKey
-) {
+export async function getFeatureStates<
+  const Keys extends readonly FeatureToggleKey[],
+>(tenantId: string, keys: Keys) {
   let query = supabaseAdmin
     .from('system_settings')
-    .select(key)
+    .select(keys.join(','))
     .limit(1)
 
   query = applyTenantFilter(query, tenantId)
@@ -39,7 +38,17 @@ export async function isFeatureEnabled(
 
   const row = data as Partial<Record<FeatureToggleKey, boolean | null>> | null
 
-  return row?.[key] !== false
+  return Object.fromEntries(
+    keys.map((key) => [key, row?.[key] !== false])
+  ) as Record<Keys[number], boolean>
+}
+
+export async function isFeatureEnabled(
+  tenantId: string,
+  key: FeatureToggleKey
+) {
+  const states = await getFeatureStates(tenantId, [key] as const)
+  return states[key]
 }
 
 export async function disabledFeatureResponse(

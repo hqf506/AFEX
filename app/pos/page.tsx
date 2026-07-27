@@ -9,7 +9,9 @@ import { useSystemSettings } from '@/hooks/use-system-settings'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
+  clearClientResource,
   createProtectedResourceAuthError,
+  loadClientResource,
   markProtectedResourcesUnauthorized,
   prefetchClientResource,
 } from '@/lib/client-resource-cache'
@@ -56,7 +58,8 @@ import {
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
-const POS_HOME_ORDERS_PAGE_SIZE = 100
+const POS_HOME_ORDERS_PAGE_SIZE = 6
+const POS_HOME_ORDERS_CACHE_TTL_MS = 15_000
 const POS_CLICK_SOUND_COOLDOWN_MS = 140
 let posClickSound: HTMLAudioElement | null = null
 let lastPosClickSoundAt = 0
@@ -557,6 +560,13 @@ export default function PosPage() {
     }
 
     let cancelled = false
+    const ordersCacheKey = [
+      'pos-home-orders',
+      access.tenantId || 'unknown',
+      access.scopeType || 'unknown',
+      access.branchId || 'all',
+      POS_HOME_ORDERS_PAGE_SIZE,
+    ].join(':')
 
     const fetchOrders = async () => {
       setOrdersLoading(true)
@@ -571,17 +581,28 @@ export default function PosPage() {
           searchParams.set('branchId', access.branchId)
         }
 
-        const response = await fetch(`/api/orders?${searchParams.toString()}`, {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
-        })
+        const result = await loadClientResource(
+          ordersCacheKey,
+          async () => {
+            const response = await fetch(`/api/orders?${searchParams.toString()}`, {
+              method: 'GET',
+              credentials: 'include',
+              cache: 'no-store',
+            })
 
-        const result = await response.json().catch(() => null)
+            const payload = await response.json().catch(() => null)
 
-        if (!response.ok || !result?.success) {
-          throw new Error(result?.message || 'تعذر تحميل الطلبات')
-        }
+            if (!response.ok || !payload?.success) {
+              throw new Error(payload?.message || 'تعذر تحميل الطلبات')
+            }
+
+            return payload
+          },
+          {
+            ttlMs: POS_HOME_ORDERS_CACHE_TTL_MS,
+            protectedResource: true,
+          }
+        )
 
         const rows = Array.isArray(result.items)
           ? (result.items as OrderSourceRow[])
@@ -612,7 +633,13 @@ export default function PosPage() {
     return () => {
       cancelled = true
     }
-  }, [access.allowed, access.branchId, access.scopeType, isPosLoginPage])
+  }, [
+    access.allowed,
+    access.branchId,
+    access.scopeType,
+    access.tenantId,
+    isPosLoginPage,
+  ])
 
   const handleAdvanceOrderStatus = async (order: OrderRecord) => {
     const currentStatus = resolvePosKanbanStatus(order.status)
@@ -676,6 +703,13 @@ export default function PosPage() {
           : currentOrder
       )
     )
+    clearClientResource([
+      'pos-home-orders',
+      access.tenantId,
+      access.scopeType || 'unknown',
+      access.branchId || 'all',
+      POS_HOME_ORDERS_PAGE_SIZE,
+    ].join(':'))
     setUpdatingOrderId(null)
   }
 

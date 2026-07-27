@@ -7,6 +7,7 @@ import { PosStepIndicator } from '@/components/pos-step-indicator'
 import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
 import {
+  isClientResourceFresh,
   loadClientResource,
   peekClientResource,
   prefetchClientResource,
@@ -196,6 +197,22 @@ export function InvoiceCustomerStep({
     customerSearchRequestIdRef.current = requestId
     const cachedMatches =
       peekClientResource<ExistingCustomer[]>(customerSearch.cacheKey) || []
+
+    if (
+      isClientResourceFresh(
+        customerSearch.cacheKey,
+        CUSTOMER_SEARCH_CACHE_TTL_MS
+      )
+    ) {
+      const cachedTimeoutId = window.setTimeout(() => {
+        setCustomerMatches(cachedMatches)
+        setCustomerSearchError('')
+        setCustomerSearchLoading(false)
+      }, 0)
+
+      return () => window.clearTimeout(cachedTimeoutId)
+    }
+
     let cachedTimeoutId: number | null = null
 
     if (cachedMatches.length > 0) {
