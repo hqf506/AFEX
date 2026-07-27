@@ -92,24 +92,28 @@ export function createServerTiming(debugLabel = '') {
         record(name, performance.now() - entryStartedAt)
       }
     },
-    finish<T extends Response>(response: T): T {
+    finish<T extends Response>(response: T): Response {
       if (!enabled) return response
-      try {
-        record('total', performance.now() - startedAt)
-        const headerValue = entries
-          .map(({ name, duration }) => `${name};dur=${duration.toFixed(1)}`)
-          .join(', ')
-        response.headers.set('Server-Timing', headerValue)
-        if (
-          debugLabel &&
-          process.env.AFEX_SERVER_TIMING_LOGS === 'true'
-        ) {
-          console.info(`[server-timing:${debugLabel}] ${headerValue}`)
-        }
-      } catch {
-        // Instrumentation must never change the route response.
+
+      record('total', performance.now() - startedAt)
+      const headerValue = entries
+        .map(({ name, duration }) => `${name};dur=${duration.toFixed(1)}`)
+        .join(', ')
+      const headers = new Headers(response.headers)
+      headers.set('Server-Timing', headerValue)
+
+      if (
+        debugLabel &&
+        process.env.AFEX_SERVER_TIMING_LOGS === 'true'
+      ) {
+        console.info(`[server-timing:${debugLabel}] ${headerValue}`)
       }
-      return response
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      })
     },
   }
 }
