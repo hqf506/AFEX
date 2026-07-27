@@ -73,6 +73,65 @@ type OrdersApiPayload = {
   employeeNames?: Record<string, string>
 }
 
+let hasHandledOrderPerformanceRequest = false
+
+function getOrderPerformanceErrorCategory(status: number) {
+  if (status >= 200 && status < 300) return null
+  if (status === 400) return 'invalid_request'
+  if (status === 401) return 'unauthenticated'
+  if (status === 403) return 'forbidden'
+  if (status === 409) return 'conflict'
+  if (status === 422) return 'validation_failed'
+  if (status === 429) return 'rate_limited'
+  if (status >= 500) return 'internal_error'
+  return 'http_error'
+}
+
+function emitOrderPerformanceSummary({
+  requestReference,
+  status,
+  coldStartHint,
+  timings,
+}: {
+  requestReference: string
+  status: number
+  coldStartHint: boolean
+  timings: Record<string, number>
+}) {
+  if (process.env.AFEX_POS_PERFORMANCE_LOGS !== 'true') {
+    return
+  }
+
+  console.info(JSON.stringify({
+    event: 'afex_pos_order_performance',
+    request_reference: requestReference,
+    environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
+    route: 'POST /api/orders',
+    status,
+    error_category: getOrderPerformanceErrorCategory(status),
+    cold_start_hint: coldStartHint,
+    timings_ms: timings,
+  }))
+}
+
+function attachOrderPerformanceReference(
+  response: Response,
+  requestReference: string
+) {
+  if (process.env.AFEX_POS_PERFORMANCE_LOGS !== 'true') {
+    return response
+  }
+
+  const headers = new Headers(response.headers)
+  headers.set('X-AFEX-POS-Performance-Reference', requestReference)
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 type CreateOrderItemInput = {
   item_id?: string | null
   item_name?: string
@@ -602,10 +661,24 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const timing = createServerTiming('orders-post')
+  const requestReference = crypto.randomUUID()
+  const coldStartHint = !hasHandledOrderPerformanceRequest
+  hasHandledOrderPerformanceRequest = true
   const response = await handleCreateOrderPost(request, timing)
 
   timing.measureSync('response_serialization', () => undefined)
-  return timing.finish(response)
+  const finalResponse = timing.finish(response)
+  const responseWithReference = attachOrderPerformanceReference(
+    finalResponse,
+    requestReference
+  )
+  emitOrderPerformanceSummary({
+    requestReference,
+    status: responseWithReference.status,
+    coldStartHint,
+    timings: timing.getDurations(),
+  })
+  return responseWithReference
 }
 
 async function handleCreateOrderPost(

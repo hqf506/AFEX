@@ -55,7 +55,8 @@ export function isServerTimingEnabled() {
     process.env.VERCEL_ENV === 'preview' ||
     process.env.VERCEL_ENV === 'production' ||
     process.env.NODE_ENV === 'development' ||
-    process.env.AFEX_SERVER_TIMING_ENABLED === 'true'
+    process.env.AFEX_SERVER_TIMING_ENABLED === 'true' ||
+    process.env.AFEX_POS_PERFORMANCE_LOGS === 'true'
   )
 }
 
@@ -91,6 +92,14 @@ export function createServerTiming(debugLabel = '') {
       } finally {
         record(name, performance.now() - entryStartedAt)
       }
+    },
+    getDurations() {
+      return Object.fromEntries(
+        entries.map(({ name, duration }) => [
+          name,
+          Number(duration.toFixed(1)),
+        ])
+      ) as Record<string, number>
     },
     finish<T extends Response>(response: T): Response {
       if (!enabled) return response
