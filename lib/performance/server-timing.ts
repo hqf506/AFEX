@@ -53,6 +53,7 @@ export type ServerTiming = ReturnType<typeof createServerTiming>
 export function isServerTimingEnabled() {
   return (
     process.env.VERCEL_ENV === 'preview' ||
+    process.env.VERCEL_ENV === 'production' ||
     process.env.NODE_ENV === 'development' ||
     process.env.AFEX_SERVER_TIMING_ENABLED === 'true'
   )
