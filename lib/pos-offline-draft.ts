@@ -64,7 +64,24 @@ function createLocalDraftId() {
 }
 
 export function createPosClientIdempotencyKey() {
-  return `pos_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return `pos_${crypto.randomUUID()}`
+  }
+
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.getRandomValues === 'function'
+  ) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    return `pos_${Array.from(bytes, (byte) =>
+      byte.toString(16).padStart(2, '0')
+    ).join('')}`
+  }
+
+  throw new Error('Secure idempotency key generation is unavailable')
 }
 
 function isPosOfflineInvoiceDraft(value: unknown): value is PosOfflineInvoiceDraft {

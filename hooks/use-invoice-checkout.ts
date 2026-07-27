@@ -360,19 +360,6 @@ export function useInvoiceCheckout({
 
     const result = createOrderResult.data
 
-    if (result?.invoice_id) {
-      await fetch('/api/invoices/cost-snapshot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          invoice_id: result.invoice_id,
-          items: validItems,
-        }),
-      })
-    }
-
     setLastInvoiceNumber(result?.invoice_number || '')
     setLastOrderNumber(result?.order_number || '')
       setSuccessMessage(

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
 import { isFullAdmin } from '@/lib/permissions'
@@ -6,9 +7,10 @@ import {
   buildSaudiPhoneCandidatePattern,
   buildCustomerSearchFilter,
   CUSTOMER_PHONE_ERRORS,
+  isMissingCustomerIdentityColumnError,
   normalizeCustomerSearchTerm,
   normalizeSaudiCustomerPhone,
-  validateSaudiCustomerPhone,
+  prepareCustomerIdentity,
 } from '@/lib/customers'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { createServerTiming } from '@/lib/performance/server-timing'
@@ -27,6 +29,13 @@ type CustomerDatabaseError = {
   hint?: string | null
 }
 
+type CustomerIdentityLookupOptions = {
+  tenantId: string
+  normalizedPhone: string
+  branchId?: string | null
+  limit?: number
+}
+
 function resolveCustomerConstraint(error: CustomerDatabaseError) {
   const diagnosticText = [error.message, error.details, error.hint]
     .filter((value): value is string => typeof value === 'string')
@@ -35,9 +44,80 @@ function resolveCustomerConstraint(error: CustomerDatabaseError) {
   return [
     'customers_phone_key',
     'customers_tenant_phone_normalized_key',
+    'customers_tenant_phone_normalized_uidx',
     'customers_branch_id_fkey',
     'customers_created_by_fkey',
   ].find((name) => diagnosticText.includes(name)) || null
+}
+
+async function findCustomersByNormalizedIdentity(
+  supabase: SupabaseClient,
+  {
+    tenantId,
+    normalizedPhone,
+    branchId,
+    limit = FULL_PHONE_CANDIDATE_LIMIT,
+  }: CustomerIdentityLookupOptions
+) {
+  let normalizedQuery = supabase
+    .from('customers')
+    .select('id, name, phone')
+    .eq('phone_normalized', normalizedPhone)
+    .order('name', { ascending: true })
+    .limit(limit)
+
+  normalizedQuery = applyTenantFilter(normalizedQuery, tenantId)
+
+  if (branchId) {
+    normalizedQuery = normalizedQuery.eq('branch_id', branchId)
+  }
+
+  const normalizedResult = await normalizedQuery
+
+  if (
+    !normalizedResult.error &&
+    Array.isArray(normalizedResult.data) &&
+    normalizedResult.data.length > 0
+  ) {
+    return normalizedResult
+  }
+
+  if (
+    normalizedResult.error &&
+    !isMissingCustomerIdentityColumnError(
+      normalizedResult.error,
+      'phone_normalized'
+    )
+  ) {
+    return normalizedResult
+  }
+
+  let legacyQuery = supabase
+    .from('customers')
+    .select('id, name, phone')
+    .ilike('phone', buildSaudiPhoneCandidatePattern(normalizedPhone))
+    .order('name', { ascending: true })
+    .limit(limit)
+
+  legacyQuery = applyTenantFilter(legacyQuery, tenantId)
+
+  if (branchId) {
+    legacyQuery = legacyQuery.eq('branch_id', branchId)
+  }
+
+  const legacyResult = await legacyQuery
+
+  if (legacyResult.error) {
+    return legacyResult
+  }
+
+  return {
+    ...legacyResult,
+    data: (legacyResult.data || []).filter(
+      (customer: CustomerListRow) =>
+        normalizeSaudiCustomerPhone(customer.phone) === normalizedPhone
+    ),
+  }
 }
 
 function logCustomerDatabaseFailure(
@@ -175,35 +255,38 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  let query = auth.supabase
-    .from('customers')
-    .select('id, name, phone', {
-      count: paginated ? 'exact' : undefined,
-    })
-    .order('name', { ascending: true })
+  const customerResult = normalizedFullPhone
+    ? await timing.measure('customers', () =>
+        findCustomersByNormalizedIdentity(auth.supabase, {
+          tenantId: auth.profile.tenant_id as string,
+          normalizedPhone: normalizedFullPhone,
+          branchId:
+            !isSystemScoped && profileBranchId ? profileBranchId : null,
+        })
+      )
+    : await timing.measure('customers', async () => {
+        let query = auth.supabase
+          .from('customers')
+          .select('id, name, phone', {
+            count: paginated ? 'exact' : undefined,
+          })
+          .order('name', { ascending: true })
 
-  query = applyTenantFilter(query, auth.profile.tenant_id)
+        query = applyTenantFilter(query, auth.profile.tenant_id)
 
-  if (normalizedFullPhone) {
-    query = query.ilike(
-      'phone',
-      buildSaudiPhoneCandidatePattern(normalizedFullPhone)
-    )
-  } else if (searchFilter) {
-    query = query.or(searchFilter)
-  }
+        if (searchFilter) {
+          query = query.or(searchFilter)
+        }
 
-  if (!isSystemScoped && profileBranchId) {
-    query = query.eq('branch_id', profileBranchId)
-  }
+        if (!isSystemScoped && profileBranchId) {
+          query = query.eq('branch_id', profileBranchId)
+        }
 
-  query = normalizedFullPhone
-    ? query.limit(FULL_PHONE_CANDIDATE_LIMIT)
-    : paginated
-      ? query.range((page - 1) * pageSize, page * pageSize - 1)
-      : query.limit(pageSize)
-
-  const { data, error, count } = await timing.measure('customers', () => query)
+        return paginated
+          ? query.range((page - 1) * pageSize, page * pageSize - 1)
+          : query.limit(pageSize)
+      })
+  const { data, error, count } = customerResult
 
   if (error) {
     logCustomerDatabaseFailure('lookup', error, 500)
@@ -220,12 +303,7 @@ export async function GET(request: NextRequest) {
   const candidateCustomers = Array.isArray(data)
     ? (data as CustomerListRow[])
     : []
-  const exactPhoneMatches = normalizedFullPhone
-    ? candidateCustomers.filter(
-        (customer) =>
-          normalizeSaudiCustomerPhone(customer.phone) === normalizedFullPhone
-      )
-    : candidateCustomers
+  const exactPhoneMatches = candidateCustomers
   const exactPhoneTotal = exactPhoneMatches.length
   const customers = normalizedFullPhone
     ? paginated
@@ -399,7 +477,7 @@ export async function POST(request: NextRequest) {
   const branchId = isSystemScoped
     ? requestedBranchId || profileBranchId || null
     : profileBranchId || null
-  const phoneValidation = validateSaudiCustomerPhone(phone)
+  const customerIdentity = prepareCustomerIdentity(phone)
 
   if (!name) {
     return jsonWithAuthCookies(
@@ -412,13 +490,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!phoneValidation.valid) {
+  if (!customerIdentity.ok) {
     return jsonWithAuthCookies(
       auth.response,
       {
         success: false,
-        error: phoneValidation.message,
-        code: phoneValidation.code,
+        error: customerIdentity.message,
+        code: customerIdentity.code,
       },
       400
     )
@@ -435,24 +513,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  let duplicatePhoneQuery = auth.supabase
-    .from('customers')
-    .select('id, phone')
-    .ilike(
-      'phone',
-      buildSaudiPhoneCandidatePattern(phoneValidation.normalizedPhone)
-    )
-    .limit(FULL_PHONE_CANDIDATE_LIMIT)
-
-  duplicatePhoneQuery = applyTenantFilter(
-    duplicatePhoneQuery,
-    auth.profile.tenant_id
-  )
-
   const {
     data: duplicatePhoneCandidates,
     error: duplicatePhoneError,
-  } = await duplicatePhoneQuery
+  } = await findCustomersByNormalizedIdentity(auth.supabase, {
+    tenantId: auth.profile.tenant_id,
+    normalizedPhone: customerIdentity.identity.phoneNormalized,
+  })
 
   if (duplicatePhoneError) {
     logCustomerDatabaseFailure('lookup', duplicatePhoneError, 500)
@@ -467,11 +534,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const duplicatePhoneCustomer = (duplicatePhoneCandidates || []).find(
-    (candidate) =>
-      normalizeSaudiCustomerPhone(candidate.phone) ===
-      phoneValidation.normalizedPhone
-  )
+  const duplicatePhoneCustomer = duplicatePhoneCandidates?.[0]
 
   if (duplicatePhoneCustomer) {
     return jsonWithAuthCookies(
@@ -491,7 +554,7 @@ export async function POST(request: NextRequest) {
       tenant_id: auth.profile.tenant_id,
       branch_id: branchId,
       name,
-      phone,
+      phone: customerIdentity.identity.phone,
       email,
       notes,
     })
@@ -504,7 +567,8 @@ export async function POST(request: NextRequest) {
     const isPhoneConflict =
       isUniqueConflict &&
       (constraint === 'customers_phone_key' ||
-        constraint === 'customers_tenant_phone_normalized_key')
+        constraint === 'customers_tenant_phone_normalized_key' ||
+        constraint === 'customers_tenant_phone_normalized_uidx')
     const status = isUniqueConflict ? 409 : 500
     logCustomerDatabaseFailure('insert', error, status)
     return jsonWithAuthCookies(
@@ -516,13 +580,11 @@ export async function POST(request: NextRequest) {
           : isUniqueConflict
             ? 'Customer already exists'
             : 'Failed to create customer',
-        ...(isUniqueConflict
-          ? {
-              code: isPhoneConflict
-                ? 'CUSTOMER_PHONE_CONFLICT'
-                : 'CUSTOMER_CONFLICT',
-            }
-          : {}),
+        code: isUniqueConflict
+          ? isPhoneConflict
+            ? 'CUSTOMER_PHONE_CONFLICT'
+            : 'CUSTOMER_CONFLICT'
+          : 'CUSTOMER_PERSISTENCE_FAILED',
       },
       status
     )

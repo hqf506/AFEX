@@ -37,12 +37,45 @@ export type CustomerPhoneValidationResult =
       normalizedPhone: null
     }
 
+export type CustomerIdentity = {
+  phone: string
+  phoneNormalized: string
+}
+
+export type CustomerEngineErrorCode =
+  | Exclude<
+      CustomerPhoneValidationResult['code'],
+      'CUSTOMER_PHONE_VALID'
+    >
+  | 'CUSTOMER_PHONE_CONFLICT'
+  | 'CUSTOMER_PHONE_LOOKUP_FAILED'
+  | 'CUSTOMER_VERSION_CONFLICT'
+  | 'CUSTOMER_PERSISTENCE_FAILED'
+
+const ARABIC_INDIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
+const EASTERN_ARABIC_INDIC_DIGITS = '۰۱۲۳۴۵۶۷۸۹'
+
+export function normalizeCustomerPhoneDigits(value: string | null) {
+  return normalizeCustomerSearchTerm(value).replace(
+    /[٠-٩۰-۹]/g,
+    (digit) => {
+      const arabicIndicIndex = ARABIC_INDIC_DIGITS.indexOf(digit)
+
+      if (arabicIndicIndex >= 0) {
+        return `${arabicIndicIndex}`
+      }
+
+      return `${EASTERN_ARABIC_INDIC_DIGITS.indexOf(digit)}`
+    }
+  )
+}
+
 export function normalizeCustomerSearchTerm(value: string | null) {
   return (value || '').trim()
 }
 
 export function normalizeSaudiCustomerPhone(value: string | null) {
-  const phone = normalizeCustomerSearchTerm(value)
+  const phone = normalizeCustomerPhoneDigits(value)
 
   if (!phone || !/^[+]?[0-9\s().-]+$/.test(phone)) {
     return null
@@ -64,7 +97,7 @@ export function normalizeSaudiCustomerPhone(value: string | null) {
 export function validateSaudiCustomerPhone(
   value: string | null
 ): CustomerPhoneValidationResult {
-  const phone = normalizeCustomerSearchTerm(value)
+  const phone = normalizeCustomerPhoneDigits(value)
 
   if (!phone) {
     return {
@@ -132,6 +165,54 @@ export function validateSaudiCustomerPhone(
     message: null,
     normalizedPhone,
   }
+}
+
+export function prepareCustomerIdentity(
+  value: string | null
+):
+  | { ok: true; identity: CustomerIdentity }
+  | {
+      ok: false
+      code: Exclude<
+        CustomerPhoneValidationResult['code'],
+        'CUSTOMER_PHONE_VALID'
+      >
+      message: string
+    } {
+  const validation = validateSaudiCustomerPhone(value)
+
+  if (!validation.valid) {
+    return {
+      ok: false,
+      code: validation.code,
+      message: validation.message,
+    }
+  }
+
+  return {
+    ok: true,
+    identity: {
+      phone: normalizeCustomerPhoneDigits(value),
+      phoneNormalized: validation.normalizedPhone,
+    },
+  }
+}
+
+export function isMissingCustomerIdentityColumnError(
+  error: {
+    code?: string | null
+    message?: string | null
+    details?: string | null
+  } | null,
+  column: 'phone_normalized' | 'record_version'
+) {
+  if (!error || !['42703', 'PGRST204'].includes(error.code || '')) {
+    return false
+  }
+
+  return `${error.message || ''} ${error.details || ''}`
+    .toLowerCase()
+    .includes(column)
 }
 
 export function buildSaudiPhoneCandidatePattern(normalizedPhone: string) {

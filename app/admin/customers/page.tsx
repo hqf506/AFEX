@@ -2,6 +2,10 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { AdminAlert, AdminEmptyState, AdminGlassSection } from '@/components/admin-ui'
+import {
+  isMissingCustomerIdentityColumnError,
+  prepareCustomerIdentity,
+} from '@/lib/customers'
 import { isFullAdmin } from '@/lib/permissions'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
@@ -19,6 +23,7 @@ type CustomerRow = {
   tax_number: string | null
   notes: string | null
   branch_id: string | null
+  record_version: number | null
   firstVisitAt?: string | null
   lastActivityAt?: string | null
   visitsCount?: number
@@ -71,6 +76,7 @@ const CUSTOMER_PAGE_SIZE = 25
 const EMPTY_VALUE = '—'
 const CUSTOMER_SELECT =
   'id, name, email, phone, address, city, district, postal_code, country, customer_code, tax_number, notes, branch_id'
+const CUSTOMER_SELECT_WITH_VERSION = `${CUSTOMER_SELECT}, record_version`
 
 function normalizeCustomerRow(row: Partial<CustomerRow> | null | undefined) {
   if (!row || typeof row.id !== 'string') return null
@@ -89,6 +95,8 @@ function normalizeCustomerRow(row: Partial<CustomerRow> | null | undefined) {
     tax_number: row.tax_number ?? null,
     notes: row.notes ?? null,
     branch_id: row.branch_id ?? null,
+    record_version:
+      typeof row.record_version === 'number' ? row.record_version : null,
   } satisfies CustomerRow
 }
 
@@ -318,6 +326,13 @@ async function updateCustomer(formData: FormData) {
   const name = normalizeFormValue(formData.get('name'))
   const email = normalizeFormValue(formData.get('email'))
   const phone = normalizeFormValue(formData.get('phone'))
+  const customerIdentity = prepareCustomerIdentity(phone)
+  const expectedRecordVersionValue = normalizeFormValue(
+    formData.get('recordVersion')
+  )
+  const expectedRecordVersion = expectedRecordVersionValue
+    ? Number(expectedRecordVersionValue)
+    : null
   const address = normalizeFormValue(formData.get('address'))
   const city = normalizeFormValue(formData.get('city'))
   const district = normalizeFormValue(formData.get('district'))
@@ -327,10 +342,14 @@ async function updateCustomer(formData: FormData) {
   const tax_number = normalizeFormValue(formData.get('tax_number'))
   const notes = normalizeFormValue(formData.get('notes'))
 
+  if (!customerIdentity.ok) {
+    redirect(`/admin/customers?customerId=${customerId}&error=save`)
+  }
+
   const fullUpdatePayload = {
     name,
     email,
-    phone,
+    phone: customerIdentity.identity.phone,
     address,
     city,
     district,
@@ -341,13 +360,27 @@ async function updateCustomer(formData: FormData) {
     notes,
   }
 
-  const { data, error: updateError } = await supabase
+  let updateQuery = supabase
     .from('customers')
     .update(fullUpdatePayload)
     .eq('id', customerId)
     .eq('tenant_id', tenantId)
+
+  if (
+    expectedRecordVersion !== null &&
+    Number.isSafeInteger(expectedRecordVersion) &&
+    expectedRecordVersion >= 1
+  ) {
+    updateQuery = updateQuery.eq('record_version', expectedRecordVersion)
+  }
+
+  const { data, error: updateError } = await updateQuery
     .select('id')
     .maybeSingle()
+
+  if (!updateError && !data && expectedRecordVersion !== null) {
+    redirect(`/admin/customers?customerId=${customerId}&error=conflict`)
+  }
 
   if (updateError || !data) {
     redirect(`/admin/customers?customerId=${customerId}&error=save`)
@@ -427,12 +460,31 @@ export default async function AdminCustomersPage({
       }
 
     if (customerId) {
-      const { data: customerData, error: customerError } = await supabase
+      const customerResult = await supabase
         .from('customers')
-        .select(CUSTOMER_SELECT)
+        .select(CUSTOMER_SELECT_WITH_VERSION)
         .eq('id', customerId)
         .eq('tenant_id', tenantId)
         .maybeSingle()
+      let customerData = customerResult.data as Partial<CustomerRow> | null
+      let customerError = customerResult.error
+
+      if (
+        isMissingCustomerIdentityColumnError(
+          customerError,
+          'record_version'
+        )
+      ) {
+        const legacyCustomerResult = await supabase
+          .from('customers')
+          .select(CUSTOMER_SELECT)
+          .eq('id', customerId)
+          .eq('tenant_id', tenantId)
+          .maybeSingle()
+
+        customerData = legacyCustomerResult.data as Partial<CustomerRow> | null
+        customerError = legacyCustomerResult.error
+      }
 
       if (!customerError && customerData) {
         selectedCustomer = normalizeCustomerRow(customerData as Partial<CustomerRow>)
@@ -750,6 +802,13 @@ export default async function AdminCustomersPage({
               className="animate-[customers-drawer-in_420ms_cubic-bezier(0.16,1,0.3,1)] relative flex h-full min-h-0 w-full max-w-xl flex-col overflow-hidden border-l border-cyan-300/15 bg-[radial-gradient(circle_at_50%_8%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#07111d_0%,#050b16_100%)] text-right shadow-[0_24px_90px_rgba(0,0,0,0.45)]"
             >
               <input type="hidden" name="customerId" value={selectedCustomer.id} />
+              {typeof selectedCustomer.record_version === 'number' ? (
+                <input
+                  type="hidden"
+                  name="recordVersion"
+                  value={selectedCustomer.record_version}
+                />
+              ) : null}
 
               <header className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
 

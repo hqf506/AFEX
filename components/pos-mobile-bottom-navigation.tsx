@@ -29,7 +29,7 @@ function BottomNavigationIcon({ name }: { name: 'home' | 'clipboard' | 'settings
 const items = [
   { label: 'الرئيسية', href: '/pos', icon: 'home' as const },
   { label: 'حالة الطلبات', href: '/pos/order-status', icon: 'clipboard' as const },
-  { label: 'الإعدادات', href: '/pos/offline-drafts', icon: 'settings' as const },
+  { label: 'الإعدادات', href: '/pos/settings', icon: 'settings' as const },
 ]
 
 export function PosMobileBottomNavigation() {

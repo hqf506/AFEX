@@ -1,0 +1,769 @@
+# AFEX Core V2 — Final Execution Dependency Reconciliation
+
+Status: **STATIC RECONCILIATION COMPLETE — IMPLEMENTATION PACKAGE REQUIRED**
+
+This report is documentation and static analysis only. It does not authorize
+SQL execution, migration, activation, grants, fixtures, evidence recording, or
+database access.
+
+## 1. Scope and method
+
+Repository:
+`C:\Users\NSC-LUA\Desktop\leather-fix-erp-clean`
+
+Branch observed: `master`
+
+The complete `database-reconciliation/core-v2/i5.9/` directory was inspected.
+Classification used file contents, executable preflights, DDL bodies,
+transaction boundaries, comments, object references, and supersession history;
+it was not inferred from filenames alone.
+
+Static statement counts below are lexical counts of active statements beginning
+on a line. They are inventory aids, not proof that a package is safe to run.
+SQL comments and disabled runbooks are classified separately.
+
+## 2. Complete artifact inventory
+
+### 2.1 SQL artifacts
+
+| File | Label and intent | Lines | Bytes | SHA-256 | CREATE | CREATE OR REPLACE | ALTER | DROP | GRANT | REVOKE | Tx | CIC | Classification |
+|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|---|
+| `01-read-only-preflight.sql` | Package 1R, hardened read-only preflight | 1,277 | 41,920 | `8ad84ff0f9b7193bc4ef0cd1ae9003398a62d94b1c7a025c2f3829320dff4c5a` | 0 | 0 | 0 | 0 | 0 | 0 | none | 0 | Read-only executable; hash not approved |
+| `02-schema-foundation.sql` | Package 2R, additive schema foundation | 944 | 46,979 | `01348e1f7c3eae61b1478b56e1e1c9e87c52e480beb33b582bff3e5f49a5551b` | 16 | 0 | 1 | 0 | 0 | 0 | 1 BEGIN/COMMIT | 0 | Clean-install/upgrade foundation; hash not approved |
+| `02b-existing-table-indexes.sql` | Package 2B, hot-table support indexes | 142 | 6,122 | `c69d3280e64a4742bffac5827b8171307e663eb81c1cf9617aed9ee694ac59c6` | 15 | 0 | 0 | 0 | 0 | 0 | none | 15 | Upgrade/index package; hash not approved |
+| `02c-security-foundation.sql` | Package 2B-S, authorization-context schema | 636 | 22,765 | `009395af590b53c39a33004c3ad63d1e28a176291d5cfbaa6feb9b71329e591d` | 9 | 0 | 5 | 0 | 0 | 0 | 1 BEGIN/COMMIT | 4 | Approved foundation with split CIC/transaction |
+| `03-backfill.sql` | Package 3R, evidence-only backfill/validation | 1,010 | 32,151 | `58156d78b3b6dfab381bdc42b4f9faf75ff096acce986e2bca4d7300faf52208` | 1 | 0 | 3 | 0 | 0 | 0 | 3 BEGIN/COMMIT | 1 | Upgrade/backfill; hash not approved |
+| `04-atomic-core.sql` | Package 4T, final atomic core replacement | 3,248 | 121,830 | `40900e9e2bed32ef1f3064881081892719037924d19dfb9a6ff37f5d2feecfe7` | 0 | 17 | 0 | 1 | 0 | 17 | 1 BEGIN/COMMIT | 0 | Approved replacement; not standalone clean install |
+| `05-security.sql` | Package 5R-B, ownership/least privilege/security replacement | 1,246 | 48,509 | `eb5ad92396a57022f35cd7a58f6c6f85e7ea735c3306f40040c084e82ecb13b7` | 10 | 7 | 35 | 7 | 14 | 16 | 1 BEGIN/COMMIT | 0 | Approved security replacement; precursor-dependent |
+| `06-activation.sql` | Package 6-Sync, fail-closed role/static readiness plus disabled runbook | 853 | 35,241 | `06b7c27a249b07d0fc58c8e22dd046376a85fb7e507a050a9d33f10e1c8205e3` | 1 | 1 | 0 | 0 | 1 | 5 | 1 BEGIN/COMMIT; one commented rollback | 0 | Approved synchronization replacement; no activation |
+| `06a-activation-foundation.sql` | Package 6A-B, activation/evidence/readiness V2 foundation | 2,447 | 80,256 | `30875dfdff59eda1aec4254d6ce1e610e09bfdf857506f682f9e8c8bae3f3a08` | 44 | 0 | 33 | 0 | 5 | 3 | 1 BEGIN/COMMIT | 0 | Approved additive/replacement hybrid; precursor-dependent |
+| `06b-authoritative-quote.sql` | Package 6B, authoritative advisory quote and shared validator | 1,419 | 46,912 | `46c0db2c04a2f48dd1519f72a8f627ca2ceae3ad0ad6af21a7897bc2bc3914ff` | 7 | 0 | 5 | 1 | 1 | 3 | 1 BEGIN/COMMIT | 0 | Approved additive patch; explicitly precursor-dependent |
+| `07-final-verification.sql` | Package 7-Sync, final test harness | 1,000 | 73,041 | `d7c19fac7b822efc93c89a30b5af43e67e37bd5a9d40027968ec0525530a652a` | 4 session-local | 0 | 0 | 0 | 0 | 0 | 1 BEGIN/ROLLBACK | 0 | Approved test-only harness; runtime NOT EXECUTED |
+| `07-verification.sql` | Original Package 7 read-only verifier | 365 | 11,627 | `b5a30b748698f764b798ceaec55dbae3b1a98c88369dcd578cee0ea55fbca4ab` | 0 | 0 | 0 | 0 | 0 | 0 | none | 0 | Superseded verification artifact |
+
+`02c-security-foundation.sql` contains four active concurrent indexes. Text in
+its header describes “three”; the executable statements at lines 157–167 are
+the authoritative inventory. This documentation discrepancy requires external
+review but does not itself alter the approved hash.
+
+### 2.2 Markdown/report artifacts
+
+| File | Lines | Bytes | SHA-256 | Classification |
+|---|---:|---:|---|---|
+| `08-execution-readiness.md` | 795 | 45,567 | `5663429eb6133d984ee0c8e97b28037e275b5eeb0ce0dd0da499ff1cb851eea3` | Documentation-only readiness pack; informational hash |
+| `09-execution-dependency-reconciliation.md` | Generated by this phase | Determined after write | Determined after write | Documentation-only reconciliation |
+
+No standalone rollback SQL, precursor Package 4S, Package 5R-A, Package 6A-A,
+patch directory, or clean-install consolidation artifact is present.
+
+## 3. Objects produced and consumed
+
+### 3.1 Package 1R
+
+- Produces: no persistent objects.
+- Reads: baseline tables/catalogs and current Core V2 collisions.
+- Purpose: identity, schema, customer, scope, numbering, inventory, snapshot and
+  migration-risk evidence.
+- Referenced by: every mutating package as externally reviewed preflight.
+
+### 3.2 Package 2R
+
+- Creates tables: `financial_quotes`, `idempotency_commands`, `atomic_outbox`
+  (`02-schema-foundation.sql:23–145`).
+- Adds nullable foundation columns to `customers`, `orders`, `invoices`,
+  `invoice_items`, `inventory_stock`, `inventory_movements`, and `audit_logs`
+  (`:147–267`).
+- Creates exact checks/FKs and indexes for the three new empty tables
+  (`:268–943`).
+- Does not create functions, triggers, roles, RLS or grants.
+- Required by 2B, 2B-S, 3R, 4T, 5R-B, 6B and both verification files.
+
+### 3.3 Package 2B
+
+- Creates 15 partial support indexes on existing tables
+  (`02b-existing-table-indexes.sql:97–142`).
+- Requires Package 2R columns at index creation time.
+- Later packages use these for bounded lookup/performance but do not recreate
+  them.
+
+### 3.4 Package 2B-S
+
+- Creates four composite unique scope indexes on `branches`, `profiles` and
+  `pos_profiles` (`02c-security-foundation.sql:157–167`).
+- Creates `atomic_authorization_contexts` (`:175–427`), enables RLS, and creates
+  three local indexes (`:428–445`).
+- Alters `financial_quotes`, adds context linkage constraints/columns, and
+  creates `uq_financial_quotes_authorization_context` (`:448–556`).
+- Requires Package 2R's `financial_quotes` and `atomic_outbox` definitions in
+  its immediately executed preflight (`:39–95`).
+- Required by 4T, 5R-B, 6B, 6-Sync, 6A-B and 7-Sync.
+
+### 3.5 Package 3R
+
+- Backfills only evidence-derived `customers.phone_normalized`,
+  `customers.record_version`, and `inventory_stock.record_version` in bounded
+  batches (`03-backfill.sql:527–633`).
+- Creates `uq_customers_tenant_phone_normalized` concurrently when its decision
+  section requires it (`:809–858`).
+- Validates/enforces the reviewed customer/version constraints in separate
+  sections (`:896–1009`).
+- Does not create functions used by final runtime packages.
+
+### 3.6 Package 4T
+
+Creates/replaces 17 functions (`04-atomic-core.sql:185–3059`):
+
+- authorization compatibility: `resolve_atomic_authorization_v2`;
+- customer identity: `normalize_customer_phone_v2`,
+  `resolve_customer_identity_v2`, `resolve_customer_identity_result_v2`;
+- request/idempotency: `build_atomic_request_fingerprint_v2`,
+  `acquire_idempotency_command_v2`, `build_atomic_order_response_v1`;
+- numbering: `allocate_branch_monthly_number_v2`;
+- trigger safety: `assert_atomic_legacy_triggers_safe_v2`;
+- inventory resolution/locking/evidence/mutation;
+- semantic outbox UUID and enqueue;
+- `derive_atomic_financial_snapshot_v2`;
+- final `create_order_atomic_v2`.
+
+It immediately requires before its transaction:
+
+- `consume_atomic_authorization_context_v1` from Package 5R-B;
+- `issue_authoritative_financial_quote_v1`,
+  `verify_authoritative_quote_hash_v1`, and
+  `validate_atomic_authorization_context_internal_v1` from Package 6B;
+- 2R/2B-S tables, quote columns/FK/index (`04-atomic-core.sql:50–173`).
+
+Its final bodies call Package 6B's quote verification/validation contract during
+runtime. Its preflight converts those semantic runtime requirements into
+installation-time requirements.
+
+### 3.7 Package 5R-B
+
+Creates roles when absent: `afex_core_owner`, `afex_context_issuer`,
+`afex_outbox_worker` (`05-security.sql:240–294`).
+
+Creates/replaces:
+
+- `issue_atomic_authorization_context_v1`;
+- `issue_pos_atomic_authorization_context_v1`;
+- `revoke_atomic_authorization_context_v1`;
+- `consume_atomic_authorization_context_v1`;
+- outbox claim/complete/fail functions (`:516–929`).
+
+It alters owners of Package 4T functions, establishes RLS/policies and
+least-privilege ACLs (`:295–511`, `:930–973`).
+
+Its preflight immediately requires:
+
+- all 17 final Package 4T signatures (`:66–138`);
+- Package 6B shared validator with exact result/security/owner and no exposed
+  EXECUTE (`:140–219`);
+- `atomic_authorization_contexts`, `financial_quotes`,
+  `idempotency_commands`, `atomic_outbox`;
+- baseline PIN verifier and `pgcrypto` functions (`:46–64`).
+
+The final `consume_atomic_authorization_context_v1` delegates to the Package 6B
+shared internal validator. That is a semantic dependency as well as a preflight
+dependency.
+
+### 3.8 Package 6-Sync
+
+- Creates `afex_core_runtime` if absent (`06-activation.sql:213–286`).
+- Creates/replaces historical/static
+  `verify_core_v2_activation_readiness_v1` (`:287–437`).
+- Keeps all activation/cutover commands in comments (`:600–839`).
+- Immediately requires exact issuer, consumer, Package 6B, readiness V2,
+  atomic, and outbox functions plus five pre-existing NOLOGIN roles
+  (`:51–210`).
+- Therefore it runs only after 4T, 5R-B, 6A-B and 6B object states exist.
+
+### 3.9 Package 6A-B
+
+Creates roles `afex_core_activation_owner` and
+`afex_core_activation_operator` (`06a-activation-foundation.sql:200–285`).
+
+Creates:
+
+- activation singleton/tenant/branch metadata tables;
+- immutable verification evidence;
+- managed identities;
+- issuer rate-limit configuration/windows;
+- supporting indexes, triggers, RLS and policies (`:286–2026`);
+- controlled functions for immutable changes, row versions, canary decision,
+  rate limiting, quote-context validation, evidence, managed identities,
+  deactivation, and readiness V2 (`:751–1900`).
+
+Its immediately executed preflight requires:
+
+- 4T `create_order_atomic_v2`;
+- 5R-B issuer/consumer/outbox functions;
+- 6B internal validator/quote/hash functions;
+- 6-Sync readiness V1;
+- roles created across 5R-B and 6-Sync (`:37–198`).
+
+### 3.10 Package 6B
+
+Creates:
+
+- `validate_atomic_authorization_context_internal_v1`;
+- `normalize_authoritative_quote_request_v1`;
+- `verify_authoritative_quote_hash_v1`;
+- immutable quote trigger function/trigger;
+- `issue_authoritative_financial_quote_v1`
+  (`06b-authoritative-quote.sql:165–1115`).
+
+Its preflight immediately requires:
+
+- 4T `create_order_atomic_v2`, `derive_atomic_financial_snapshot_v2`,
+  `build_atomic_request_fingerprint_v2`;
+- 5R issuer/consumer functions;
+- 6A `validate_atomic_authorization_context_for_quote_v1` and readiness V2;
+- 2R/2B-S tables and quote context constraint/index;
+- 5R-created `afex_core_owner` with exact safe attributes
+  (`06b-authoritative-quote.sql:44–163`).
+
+The quote issuer invokes 4T financial/fingerprint functions and the 6A quote
+context validator at runtime, so the cross-package relationship is substantive,
+not comment-only.
+
+### 3.11 Package 7-Sync
+
+- Creates only session-local harness configuration/manifest/results objects
+  inside `BEGIN`, then ends with `ROLLBACK`.
+- Expects every final function/table/role/policy/flag and the exact dependency
+  chain (`07-final-verification.sql:16–209`).
+- Contains 130 manifest rows and nine manually coordinated concurrency plans.
+- Does not install Core V2 and cannot certify runtime without execution evidence.
+
+## 4. Package label-to-file mapping and status
+
+| Package | Exact file | Status | Clean install | Upgrade | Package 7 | Production cutover |
+|---|---|---|---|---|---|---|
+| 1R | `01-read-only-preflight.sql` | **REQUIRED — HASH NOT YET APPROVED** | Required | Required | Required as evidence | Required before any change |
+| 2R | `02-schema-foundation.sql` | **REQUIRED — HASH NOT YET APPROVED** | Required | Required unless exact objects already exist | Required indirectly | Required for absent foundation |
+| 2B | `02b-existing-table-indexes.sql` | **REQUIRED — HASH NOT YET APPROVED** | Required for final support-index contract | Required unless exact valid indexes exist | Required for intended performance/readiness | Conditional when exact indexes pre-exist |
+| 2B-S | `02c-security-foundation.sql` | Approved final foundation | Required | Required unless exact objects exist | Required | Required |
+| 3R | `03-backfill.sql` | **REQUIRED — HASH NOT YET APPROVED** | Required when restored baseline has legacy rows; validation still required even if empty | Required for legacy data | Required for normalized identity/version invariants | Required before final identity enforcement |
+| 4T | `04-atomic-core.sql` | Approved replacement candidate | Needs clean-install orchestration | Final replacement | Required | Required |
+| 5R-B | `05-security.sql` | Approved replacement candidate | Needs clean-install orchestration | Final replacement | Required | Required |
+| 6-Sync | `06-activation.sql` | Approved synchronization candidate | Needs clean-install orchestration | Final synchronization | Required | Required, activation section still prohibited |
+| 6A-B | `06a-activation-foundation.sql` | Approved hybrid candidate | Needs clean-install orchestration | Final replacement/addition | Required | Required |
+| 6B | `06b-authoritative-quote.sql` | Approved additive patch candidate | Needs clean-install orchestration | Runs after precursor state, before final replacements | Required | Required |
+| 7-Sync | `07-final-verification.sql` | Approved final harness | After all final objects | After all final objects | It is the harness | Runtime PASS prerequisite |
+| original 7 | `07-verification.sql` | **NOT REQUIRED — FULLY SUPERSEDED** | No | No | No | No |
+
+No located later package fully incorporates Package 1R, 2R, 2B or 3R.
+Their exact responsibilities remain unique.
+
+## 5. Object-level dependency graph
+
+```text
+Production baseline
+  ├─ Package 1R (read-only evidence)
+  └─ Package 2R
+       ├─ financial_quotes
+       ├─ idempotency_commands
+       ├─ atomic_outbox
+       └─ additive legacy-table columns/checks/FKs
+            ├─ Package 2B indexes
+            ├─ Package 2B-S
+            │    ├─ scope indexes
+            │    ├─ atomic_authorization_contexts
+            │    └─ financial_quotes context FK/index
+            └─ Package 3R
+                 └─ normalized identity/version + unique index
+
+Final runtime object cluster:
+
+Package 4T
+  creates/replaces atomic/customer/idempotency/financial/inventory/order funcs
+  install preflight requires:
+    consume_atomic_authorization_context_v1        [Package 5R-B]
+    issue_authoritative_financial_quote_v1         [Package 6B]
+    verify_authoritative_quote_hash_v1              [Package 6B]
+    validate_atomic_authorization_context_internal_v1 [Package 6B]
+
+Package 5R-B
+  creates roles + issuer/consumer/outbox funcs + owners/RLS/ACL
+  install preflight requires:
+    all 17 Package 4T functions
+    validate_atomic_authorization_context_internal_v1 [Package 6B]
+
+Package 6A-B
+  creates activation/evidence/rate-limit tables and readiness functions
+  install preflight requires:
+    create_order_atomic_v2                          [Package 4T]
+    issuer/consumer/outbox functions                [Package 5R-B]
+    Package 6B validator/issuer/hash
+    verify_core_v2_activation_readiness_v1          [Package 6-Sync]
+    afex_core_runtime                               [Package 6-Sync]
+
+Package 6B
+  creates shared validator + quote issuer/hash/immutability
+  install preflight requires:
+    three Package 4T functions
+    issuer/consumer functions                       [Package 5R-B]
+    quote-context validator + readiness V2          [Package 6A-B]
+    afex_core_owner                                 [Package 5R-B]
+
+Package 6-Sync
+  creates runtime role + readiness V1
+  install preflight requires:
+    Package 4T, Package 5R-B, Package 6B,
+    readiness V2 [Package 6A-B], and activation roles [Package 6A-B]
+
+Package 7-Sync
+  requires the completed final cluster and exact external hash attestation.
+```
+
+## 6. PostgreSQL creation-time dependency analysis
+
+| Dependency form | When PostgreSQL requires it | Relevance here |
+|---|---|---|
+| Top-level `DO` preflight using `to_regprocedure`, casts to `regclass`/`regrole`, catalog predicates, or explicit exceptions | Immediately when the `DO` executes | This is the primary blocking cycle. All cited package preflights execute before package DDL. |
+| Function argument/return types | At `CREATE FUNCTION` parse time | Current cross-package signatures use built-in scalar/JSONB/table return types, not a missing custom type. |
+| PL/pgSQL body references in string/dollar-quoted body | Body syntax is checked; most table/function resolution occurs when statements are prepared at first execution | Most 4T/5R-B/6B semantic calls could be installed in a topological bootstrap order if the immediate preflight guards were not ahead of them. |
+| SQL-language function body | Parsed/validated at creation when body checking applies; referenced relations/functions may be required immediately | 4T's three SQL helpers are self-contained/built-in-oriented; 6B hash helper is built-in/extension-oriented. 6A-B readiness V2 is created after its own tables but queries final evidence/control objects. Exact clean-install package must preserve this order. |
+| `CREATE TRIGGER` | Target table and trigger function must exist at trigger creation | 6B correctly defines its immutability function before its quote trigger. 6A-B defines trigger functions/tables before triggers. |
+| `CREATE POLICY` | Table, roles named in `TO`, columns and policy-expression functions must resolve at creation | Security/activation roles and tables must be created before policies. |
+| `GRANT/REVOKE ... FUNCTION` | Exact function signature and grantee role must exist | 4T revokes its own created functions; 5R-B/6A-B/6B ownership/ACL stages require functions/roles already created. |
+| `ALTER FUNCTION ... OWNER` | Exact function and target role must exist | Requires Package 4T/6B function creation and Package 5R-B roles in the proper bootstrap sequence. |
+| Foreign key creation | Both tables/columns and a suitable referenced unique/PK key must exist | 2R and 2B-S enforce this with scope indexes before composite FKs. |
+| Index creation | Target table/columns/functions must exist; CIC cannot be in a transaction | Packages 2B, 2B-S and 3R must remain split. |
+| Runtime function call | Required only when invoked, unless converted into a preflight gate | Package bodies have runtime semantic dependencies; the existing top-level preflights intentionally convert them into replacement-state assertions. |
+
+Conclusion: PostgreSQL does not inherently require every PL/pgSQL cross-call
+before function creation. The blockers are chiefly deliberately executable
+replacement preflights, followed by real runtime semantic relationships.
+
+## 7. Clean-install analysis
+
+Target: Production baseline schema/data, no Core V2 objects.
+
+1. Packages 1R → 2R → 2B → 2B-S → 3R form an acyclic foundation, subject to
+   external hash approval and Package 3 data gates.
+2. Package 4T cannot run next because its preflight requires 5R-B and 6B
+   functions.
+3. Package 5R-B cannot run because its preflight requires all Package 4T
+   functions and the 6B shared validator.
+4. Package 6B cannot run because its preflight requires 4T, 5R-B, 6A-B and
+   roles/functions those packages create.
+5. Package 6A-B cannot run because its preflight requires 4T, 5R-B, 6B and
+   6-Sync.
+6. Package 6-Sync cannot run because its preflight requires 4T, 5R-B, 6B and
+   6A-B.
+
+No member of the final runtime cluster is a valid first package on a clean
+install. The cycle therefore blocks clean installation and Package 7 testing.
+It cannot be resolved by reordering the current final files alone.
+
+## 8. Upgrade and reconciliation analysis
+
+If an environment already contains exact Package 4S, 5R-A, 6, and 6A precursor
+objects with safe roles/ACLs:
+
+1. Package 6B may pass its stated precursor preflight.
+2. Package 4T may then replace the atomic core against 6B.
+3. Package 5R-B may replace/delegate authorization against 4T and 6B.
+4. Package 6-Sync may synchronize against the final function cluster.
+5. Package 6A-B may replace/add readiness V2 and final metadata.
+6. Final verification may follow.
+
+That is a **replacement/reconciliation path**, not a clean-install path. It is
+safe only after exact precursor definitions, owners, ACLs, RLS, hashes and
+overloads are externally proven. The precursor SQL files are absent here, so
+this path is conditional and cannot be treated as generally executable.
+
+Reapplication on an already-final environment is closer to supported: all
+preflights may pass, and `CREATE OR REPLACE`/drift guards enforce the expected
+cluster. It still needs clone validation for ownership, trigger and policy
+idempotency.
+
+## 9. Confirmed cycle inventory
+
+### CYCLE-01 — Atomic/quote/security replacement loop
+
+- Packages: 4T, 5R-B, 6B.
+- Statements:
+  - 4T preflight `04-atomic-core.sql:50–173`;
+  - 5R-B preflight `05-security.sql:39–235`;
+  - 6B preflight `06b-authoritative-quote.sql:44–163`.
+- Objects:
+  - 4T functions;
+  - `consume_atomic_authorization_context_v1`;
+  - `validate_atomic_authorization_context_internal_v1`;
+  - quote issuer/hash functions;
+  - `afex_core_owner`.
+- Cause: final replacement packages assert the presence/security of the already
+  installed counterpart before defining their own final bodies.
+- Syntactic or semantic: immediately blocking due to executable preflights;
+  semantic at runtime because functions call each other.
+- Clean install: blocked.
+- Package 7: blocked.
+- Reordering alone: no.
+- Bootstrap stub: no current stub exists.
+- `CREATE OR REPLACE` sequencing: can solve only within a separately reviewed
+  bootstrap/consolidated package that creates roles and functions in dependency
+  order; current file-level guards still block.
+- Classification: **BOOTSTRAP REPLACEMENT PATTERN + EXISTING-ENVIRONMENT
+  ASSUMPTION**.
+
+### CYCLE-02 — Activation/readiness loop
+
+- Packages: 6-Sync, 6A-B, 6B, plus 4T/5R-B.
+- Statements:
+  - 6-Sync preflight `06-activation.sql:51–210`;
+  - 6A-B preflight `06a-activation-foundation.sql:37–198`;
+  - 6B preflight `06b-authoritative-quote.sql:44–163`.
+- Objects:
+  - `verify_core_v2_activation_readiness_v1`;
+  - `verify_core_v2_activation_readiness_v2`;
+  - activation owner/operator/runtime roles;
+  - quote/context/atomic/outbox functions.
+- Cause: final synchronized packages validate both predecessor and successor
+  readiness generations before installing/replacing their own generation.
+- Clean install: blocked.
+- Upgrade: works only with verified prior 6/6A precursor state.
+- Reordering alone: no.
+- Classification: **EXISTING-ENVIRONMENT ASSUMPTION + ORDERING DEFECT**.
+
+### CYCLE-03 — Security ownership/privilege closure
+
+- Packages: 4T, 5R-B, 6B.
+- Objects/statements:
+  - 4T creates/revokes functions;
+  - 5R-B creates owner roles, alters Package 4T owners, and creates consumer;
+  - 6B requires `afex_core_owner`, creates quote functions, transfers ownership;
+  - 5R-B final preflight requires the 6B shared validator already owned by
+    `afex_core_owner`.
+- Cause: role bootstrap, function creation and final security closure are
+  combined with replacement-state validation.
+- Clean install: blocked at package boundaries.
+- SQL-level inevitability: no; roles can be created first, then functions, then
+  ownership/RLS/revocation closure.
+- Classification: **ORDERING DEFECT**.
+
+No unresolved object identity remains in these cycles; the uncertainty is which
+new artifact will be approved to install them safely.
+
+## 10. False-positive dependency inventory
+
+- Package comments stating a predecessor hash are supply-chain documentation,
+  not PostgreSQL object dependencies by themselves.
+- A PL/pgSQL body mentioning a later function is not automatically a
+  creation-time dependency; it is usually resolved when the statement first
+  executes.
+- Package 7's hash manifest does not install or activate its dependencies.
+- `07-verification.sql` is not a runtime foundation merely because it queries
+  Package 1–6 objects.
+- Package 3 is not part of the runtime function cycle; it is a required data
+  readiness dependency.
+- Package 2B indexes do not syntactically enable function creation, though they
+  remain part of the intended production performance contract.
+- Package 6-Sync's commented grants, trigger changes and rollback commands are
+  not active execution dependencies.
+
+## 11. Bootstrap root cause
+
+The root cause is a mixture:
+
+1. **Install-versus-replace mismatch:** 4T, 5R-B, 6-Sync and 6A-B are final
+   replacement/synchronization artifacts built to validate earlier installed
+   versions.
+2. **Existing-environment assumption:** 6B explicitly expects 4S, 5R-A, 6 and
+   6A precursor objects that are not included as final artifacts.
+3. **Ordering defect:** role creation, function creation, security closure and
+   final cross-validation are packaged in an order that has no clean-install
+   entry point.
+4. **Real runtime coupling:** atomic order, authorization context and quote
+   functions do call one another; a bootstrap must preserve exact final
+   semantics and least privilege.
+5. **Not an inherent PostgreSQL type/table cycle:** no custom argument/return
+   type forces the observed whole-cluster loop. A topologically ordered
+   installation is feasible.
+
+## 12. Resolution options
+
+### Option A — Corrected order only
+
+- Files affected: none.
+- Hash impact: none.
+- Feasibility: only for an environment with externally proven exact precursor
+  4S/5R-A/6/6A state.
+- Security/operational risk: high if silently generalized to clean install.
+- Rollback: inherits missing precursor rollback evidence.
+- Package 7: compatible after final reconciliation.
+- Decision: **not recommended as the universal model**; retain only as a
+  separately attested upgrade path.
+
+### Option B — Small bootstrap amendment plus existing final packages
+
+- Proposed file: `database-reconciliation/core-v2/i5.9/10-runtime-bootstrap.sql`.
+- Scope: create safe NOLOGIN roles and only the minimum prerequisite function
+  surface/stubs necessary to let existing preflights run, followed by final
+  replacements.
+- Hash impact: new hash only; existing approved files unchanged.
+- Risk: apparently small but high semantic/security risk. A stub can be invoked
+  accidentally, can have wrong return/security contracts, and may satisfy
+  preflights without final behavior.
+- Rollback: complex if a stub survives partial execution.
+- Package 7: compatible only after proof that no bootstrap body remains.
+- Decision: **not recommended** unless stubs fail closed, are non-executable,
+  unmistakably versioned, and a final absence proof is added. Current
+  preflights also validate owners/security/return definitions, so the amendment
+  would not remain truly small.
+
+### Option C — Consolidated clean-install package
+
+- Proposed files:
+  - `10-clean-install-core.sql` for transactional roles/tables/functions/security
+    in topological order;
+  - `10b-clean-install-concurrent-indexes.sql` only if existing approved CIC
+    sections cannot remain separate.
+- Existing files: preserve byte-for-byte as reviewed source artifacts and
+  upgrade/reconciliation packages.
+- Method: mechanically compose approved final bodies in this order:
+  schema → roles → metadata tables → base functions → cross-calling final
+  functions → triggers/policies → ownership/revokes → exact final postflight.
+- Hash impact: new hashes; all new content requires full external review.
+- Security risk: medium but explicit; least privilege can be checked once after
+  final object creation.
+- Operational risk: medium; deterministic clean install with no hidden
+  precursor.
+- Rollback: can be designed by transactional section and separately reviewed
+  post-COMMIT plan.
+- Package 7: requires synchronized dependency/manifest evidence for the new
+  clean-install package hash while retaining component provenance.
+- Decision: viable.
+
+### Option D — Separate clean-install and upgrade packages
+
+- Clean install:
+  - retain Packages 1R/2R/2B/2B-S/3R after hash approval;
+  - add `10-clean-install-runtime.sql`, a consolidated topological runtime and
+    security installer sourced from the approved 4T/5R-B/6-Sync/6A-B/6B bodies.
+- Upgrade/reconciliation:
+  - retain existing approved 4T, 5R-B, 6-Sync, 6A-B and 6B byte-for-byte;
+  - use them only when exact precursor/final state passes their own preflights.
+- Hash impact: one new clean-install hash; current seven remain unchanged.
+- Review: full review of composition/order/security but no intentional business
+  body redesign.
+- Security risk: lowest of workable options because it avoids permissive stubs
+  and explicitly closes privileges after all definitions exist.
+- Operational risk: low-to-medium after clone tests; path selection is explicit.
+- Rollback: clean-install package gets its own reviewed rollback/forward-fix;
+  upgrade packages retain existing controls.
+- Package 7: compatible after its dependency metadata/readiness attestation is
+  amended to distinguish clean-install artifact provenance from upgrade
+  component provenance.
+- Decision: **recommended**.
+
+## 13. Preferred final execution model
+
+**Model D — separate clean-install and upgrade/reconciliation paths.**
+
+Reasons:
+
+- preserves every approved SQL file byte-for-byte;
+- avoids hidden dependence on absent precursor objects;
+- keeps previously reviewed function bodies and moves only installation order;
+- provides deterministic role → object → function → security closure;
+- avoids executable bootstrap stubs;
+- makes path selection auditable;
+- supports exact new external hash attestation;
+- allows a separately reviewed rollback and lock model;
+- retains existing final packages for environments they were designed to
+  reconcile.
+
+The clean-install artifact must be generated mechanically from exact approved
+sections and must include source file/hash/line provenance for every copied
+body. Any semantic edit is prohibited unless separately scoped and reviewed.
+
+## 14. Hash and approval impact
+
+### Current approved hashes retained unchanged
+
+- 2B-S:
+  `009395af590b53c39a33004c3ad63d1e28a176291d5cfbaa6feb9b71329e591d`
+- 4T:
+  `40900e9e2bed32ef1f3064881081892719037924d19dfb9a6ff37f5d2feecfe7`
+- 5R-B:
+  `eb5ad92396a57022f35cd7a58f6c6f85e7ea735c3306f40040c084e82ecb13b7`
+- 6-Sync:
+  `06b7c27a249b07d0fc58c8e22dd046376a85fb7e507a050a9d33f10e1c8205e3`
+- 6A-B:
+  `30875dfdff59eda1aec4254d6ce1e610e09bfdf857506f682f9e8c8bae3f3a08`
+- 6B:
+  `46c0db2c04a2f48dd1519f72a8f627ca2ceae3ad0ad6af21a7897bc2bc3914ff`
+- 7-Sync:
+  `d7c19fac7b822efc93c89a30b5af43e67e37bd5a9d40027968ec0525530a652a`
+
+### Missing approvals
+
+- 1R current hash:
+  `8ad84ff0f9b7193bc4ef0cd1ae9003398a62d94b1c7a025c2f3829320dff4c5a`
+- 2R current hash:
+  `01348e1f7c3eae61b1478b56e1e1c9e87c52e480beb33b582bff3e5f49a5551b`
+- 2B current hash:
+  `c69d3280e64a4742bffac5827b8171307e663eb81c1cf9617aed9ee694ac59c6`
+- 3R current hash:
+  `58156d78b3b6dfab381bdc42b4f9faf75ff096acce986e2bca4d7300faf52208`
+
+Existence does not mean approval.
+
+### New hashes/re-review required
+
+- New `10-clean-install-runtime.sql` requires a new SHA and full external review.
+- A future Package 7 dependency synchronization amendment requires a new hash
+  if the SQL file is changed.
+- `08` and `09` Markdown hashes are informational only.
+
+### Superseded
+
+- `07-verification.sql`;
+- absent precursor Package 4S, 5R-A and 6A-A as final execution artifacts;
+- older Package 6 evidence.
+
+No approved hash may be described as retained if its file changes. The preferred
+model changes none of the seven approved files.
+
+## 15. Required next implementation package
+
+Name: **Package 10 — Deterministic Clean-Install Runtime Composition**
+
+Exact target:
+
+`database-reconciliation/core-v2/i5.9/10-clean-install-runtime.sql`
+
+Optional second target only if static design proves unavoidable:
+
+`database-reconciliation/core-v2/i5.9/10b-clean-install-runtime-concurrent.sql`
+
+The optional file must not be created merely for convenience; current runtime
+cluster has no CIC, so the expected result is one transactional/runtime package
+and continued reuse of Packages 2B/2B-S/3R for CIC.
+
+Expected starting hashes are the seven approved hashes listed in section 14,
+plus the four unapproved foundation hashes as provenance only.
+
+Allowed changes:
+
+- create a new SQL file only;
+- copy exact approved final function/table/policy/ownership/revoke bodies with
+  source hash and line provenance;
+- reorder installation into an acyclic clean-install sequence;
+- replace replacement-only preflight assumptions with clean-install preflight
+  assertions;
+- add exact final postflight proving function definitions, owners, RLS,
+  policies, ACLs, default privileges, roles, overload absence and disabled
+  flags;
+- split transactional sections only where PostgreSQL requires it;
+- remain fail-closed and ungranted to runtime/browser roles.
+
+Prohibited:
+
+- modifying Packages 1–7 or documentation;
+- changing function signatures, return contracts, business logic, financial
+  rules, authorization semantics, quote/idempotency/inventory/outbox behavior;
+- adding runtime grants, activation, evidence, fixtures or credentials;
+- using permissive callable stubs;
+- relying on Package 4S/5R-A/6A-A or any pre-existing Core V2 object;
+- executing SQL.
+
+Required invariants:
+
+- install starts from Production baseline plus approved Packages 2R/2B/2B-S/3R;
+- all roles are NOLOGIN, non-inheriting and without privileged attributes;
+- every SECURITY DEFINER function has exact owner and `search_path`;
+- no PUBLIC/anon/authenticated/service_role/runtime EXECUTE is introduced;
+- Core V2 flags remain disabled and kill switch true;
+- no provider delivery or trigger cutover;
+- final object definitions are byte/semantic equivalent to approved bodies;
+- no unexpected overload or bootstrap object remains;
+- transaction and lock behavior is explicit and reversible.
+
+How it eliminates the cycle:
+
+1. Creates roles before owner/GRANT operations.
+2. Creates metadata tables before functions/policies that reference them.
+3. Creates PL/pgSQL base functions without replacement-state preflight gates.
+4. Creates context and quote functions after their tables and roles.
+5. Creates final cross-calling atomic functions before any execution grant.
+6. Applies ownership, RLS, policies and revocations after all objects exist.
+7. Runs exact final postflight against the completed cluster.
+
+Package 7 synchronization afterward:
+
+- define a separate Package 7-Sync amendment that records the new Package 10
+  hash and path type (`clean_install`);
+- retain the seven component hashes as source provenance;
+- distinguish clean-install evidence from upgrade/reconciliation evidence;
+- preserve all 130 tests and nine concurrency plans unchanged;
+- do not infer runtime PASS from Package 10 installation.
+
+Package 10 is SQL generation in a future phase. It was not created here.
+
+## 16. Execution Readiness Pack impact
+
+After Package 10 and foundation hashes are externally approved,
+`08-execution-readiness.md` requires a separately reviewed documentation-only
+amendment:
+
+| Section | Required change |
+|---|---|
+| Final artifact inventory | Add Package 10 and approved 1R/2R/2B/3R hashes; distinguish clean-install vs upgrade artifacts. |
+| Superseded inventory | Preserve original Package 7 and precursor classifications. |
+| Exact execution order | Replace the blocked cluster with two explicit paths: clean install and precursor-backed upgrade. |
+| Run cards | Add Package 10 run card; mark 4T/5R-B/6-Sync/6A-B/6B as upgrade/reconciliation cards for that path. |
+| Transaction handling | Document Package 10 exact transaction boundaries and keep all foundation CIC separation. |
+| Rollback plan | Add reviewed Package 10 rollback/forward-fix and path-specific legacy restoration. |
+| Package 7 prerequisites | Require the path-specific dependency hash/evidence amendment. |
+| Application readiness | No architectural change; reference the selected database installation path. |
+| Operator checklist | Add explicit path selection, Package 10 hash/postflight, and prohibition on mixing paths. |
+
+The current `08` file was not modified.
+
+## 17. Remaining blockers
+
+1. Package 1R, 2R, 2B and 3R hashes are not externally approved.
+2. Package 10 has not been generated or reviewed.
+3. Exact source-section composition and postflight for Package 10 remain to be
+   designed statically before SQL generation.
+4. Package 7 dependency synchronization for the new clean-install path has not
+   been generated or approved.
+5. Package-specific post-COMMIT rollback/forward-fix remains required.
+6. No clone/staging runtime evidence, fixtures, managed identities, provider
+   disablement, worker, application adoption or legacy closure exists.
+
+These are execution blockers, not ambiguity in the dependency diagnosis.
+
+## 18. Static validation
+
+- Only `09-execution-dependency-reconciliation.md` was created in this phase.
+- No SQL file was modified.
+- No SQL was executed.
+- No database/Supabase/Production connection was made.
+- No migration, activation, grant, role, fixture, credential or evidence was
+  created.
+- No application file was modified.
+- Every SQL and Markdown artifact in I5.9 was inventoried.
+- Packages 1R/2R/2B/3R were mapped exactly.
+- Object-level dependencies and line evidence were recorded.
+- Clean-install, precursor-upgrade and final reapplication paths were separated.
+- PostgreSQL creation-time and runtime dependency behavior was distinguished.
+- Every confirmed cycle has concrete objects/statements and a classification.
+- The preferred resolution contains no hidden precursor dependency.
+- Existing approved hashes remain unchanged.
+
+Static result: **PASS**
+
+## 19. Final decision
+
+**EXECUTION DEPENDENCY RECONCILIATION APPROVED**
+
+The dependency cycle is fully explained, the foundational packages are mapped,
+and a deterministic acyclic resolution is defined as a separate clean-install
+composition alongside the existing upgrade/reconciliation packages.
+
+This approval is for external dependency review only. It is not execution
+readiness, SQL approval, runtime PASS, canary approval, or activation authority.

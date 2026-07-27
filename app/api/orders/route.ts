@@ -26,6 +26,13 @@ import {
   type OrderPaymentMethod,
 } from '@/lib/invoices/order-payment'
 import {
+  createInvoiceCostSnapshot,
+  InvoiceCostSnapshotError,
+} from '@/lib/invoices/create-cost-snapshot'
+import { buildOrderCommandIntent } from '@/lib/idempotency/core'
+import { createIdempotencyService } from '@/lib/idempotency/service'
+import { normalizeSaudiCustomerPhone } from '@/lib/customers'
+import {
   disabledFeatureResponse,
   ORDERS_FEATURE_DISABLED_MESSAGE,
   POS_FEATURE_DISABLED_MESSAGE,
@@ -171,18 +178,6 @@ type SupabaseErrorLike = {
   details?: string
   hint?: string
   message?: string
-}
-type IdempotencyOrderQuery = {
-  eq(column: string, value: string): IdempotencyOrderQuery
-  maybeSingle(): Promise<{
-    data: unknown
-    error: SupabaseErrorLike | null
-  }>
-}
-type IdempotencyLookupClient = {
-  from(table: 'orders'): {
-    select(columns: string): IdempotencyOrderQuery
-  }
 }
 type TenantProfileLookupClient = {
   from(table: 'profiles'): {
@@ -788,19 +783,108 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (clientIdempotencyKey) {
-      const existingOrder = await findOrderByIdempotencyKey(
-        serviceSupabase,
-        clientIdempotencyKey,
-        profileTenantId
-      )
+    const idempotencyService = createIdempotencyService({
+      supabase: serviceSupabase,
+      tenantId: profileTenantId,
+      branchId,
+      actor: {
+        type: 'user',
+        id: auth.user.id,
+      },
+      correlationId: auth.context.correlationId,
+      engineVersion: 'v1',
+    })
+    const idempotencyCommand = clientIdempotencyKey
+      ? idempotencyService.createCommand({
+          clientKey: clientIdempotencyKey,
+          commandType: 'order.create',
+          intent: buildOrderCommandIntent({
+            tenantId: profileTenantId,
+            branchId,
+            actor: {
+              type: 'user',
+              id: auth.user.id,
+            },
+            customerName: body.customerName,
+            customerPhoneNormalized:
+              normalizeSaudiCustomerPhone(
+                typeof body.customerPhone === 'string'
+                  ? body.customerPhone
+                  : null
+              ) || body.customerPhone,
+            items: normalizedItems,
+            paymentMethod,
+            amountTendered: paymentSnapshot
+              ? paymentSnapshot.cashReceived
+              : null,
+            note: body.note,
+          }),
+        })
+      : null
 
-      if (existingOrder) {
+    if (clientIdempotencyKey && idempotencyCommand) {
+      const resolution = await idempotencyService.resolveBeforeExecution({
+        clientKey: clientIdempotencyKey,
+        command: idempotencyCommand,
+      })
+
+      if (resolution.kind === 'replay') {
+        scheduleInvoiceCostSnapshot({
+          supabase: serviceSupabase,
+          tenantId: profileTenantId,
+          branchId,
+          invoiceId: resolution.result.invoice_id,
+        })
+
         return jsonWithAuthCookies(auth.response, {
           success: true,
-          data: existingOrder,
+          data: resolution.result,
           duplicate: true,
         })
+      }
+
+      if (resolution.kind === 'conflict') {
+        return jsonWithAuthCookies(
+          auth.response,
+          {
+            success: false,
+            message: 'Ù…ÙØªØ§Ø­ Ø§Ù„Ø·Ù„Ø¨ Ù…Ø³ØªØ®Ø¯Ù… Ù„Ø·Ù„Ø¨ Ù…Ø®ØªÙ„Ù',
+          },
+          409
+        )
+      }
+
+      if (resolution.kind === 'in_progress') {
+        return jsonWithAuthCookies(
+          auth.response,
+          {
+            success: false,
+            message: 'Ø§Ù„Ø·Ù„Ø¨ Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§Ù„Ø¬Ø©ØŒ Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰ Ø¨Ø¹Ø¯ Ù„Ø­Ø¸Ø§Øª',
+          },
+          409
+        )
+      }
+
+      if (resolution.kind === 'terminal') {
+        return jsonWithAuthCookies(
+          auth.response,
+          {
+            success: false,
+            message: 'تعذر إعادة تنفيذ هذا الطلب.',
+          },
+          409
+        )
+      }
+
+      if (resolution.kind === 'invalid') {
+        return jsonWithAuthCookies(
+          auth.response,
+          {
+            success: false,
+            message: 'تعذر التحقق من حالة الطلب بأمان.',
+          },
+          500
+        )
       }
     }
 
@@ -950,22 +1034,58 @@ export async function POST(request: NextRequest) {
       p_branch_id: branchId,
     }
 
-    const { data, error } = await auth.supabase.rpc(rpcName, rpcPayload)
+    const { data, error } = await serviceSupabase.rpc(rpcName, rpcPayload)
 
     if (error) {
-      if (clientIdempotencyKey && isIdempotencyDuplicateError(error)) {
-        const existingOrder = await findOrderByIdempotencyKey(
-          serviceSupabase,
-          clientIdempotencyKey,
-          profileTenantId
-        )
+      if (clientIdempotencyKey && idempotencyCommand) {
+        const recovery =
+          await idempotencyService.recoverAfterUncertainResult({
+            clientKey: clientIdempotencyKey,
+            command: idempotencyCommand,
+          })
 
-        if (existingOrder) {
+        if (recovery.kind === 'replay') {
+          scheduleInvoiceCostSnapshot({
+            supabase: serviceSupabase,
+            tenantId: profileTenantId,
+            branchId,
+            invoiceId: recovery.result.invoice_id,
+          })
+
           return jsonWithAuthCookies(auth.response, {
             success: true,
-            data: existingOrder,
+            data: recovery.result,
             duplicate: true,
           })
+        }
+
+        if (
+          recovery.kind === 'conflict' ||
+          recovery.kind === 'in_progress' ||
+          recovery.kind === 'terminal'
+        ) {
+          return jsonWithAuthCookies(
+            auth.response,
+            {
+              success: false,
+              message:
+                recovery.kind === 'in_progress'
+                  ? 'الطلب قيد المعالجة، حاول مرة أخرى بعد لحظات.'
+                  : 'تعذر إعادة تنفيذ هذا الطلب.',
+            },
+            409
+          )
+        }
+
+        if (recovery.kind === 'invalid') {
+          return jsonWithAuthCookies(
+            auth.response,
+            {
+              success: false,
+              message: 'تعذر التحقق من حالة الطلب بأمان.',
+            },
+            500
+          )
         }
       }
 
@@ -1130,6 +1250,13 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    scheduleInvoiceCostSnapshot({
+      supabase: serviceSupabase,
+      tenantId: profileTenantId,
+      branchId,
+      invoiceId,
+    })
+
     if (paymentSnapshotError) {
       await writeAuditLog({
         auth,
@@ -1186,6 +1313,41 @@ export async function POST(request: NextRequest) {
       500
     )
   }
+}
+
+function scheduleInvoiceCostSnapshot({
+  supabase,
+  tenantId,
+  branchId,
+  invoiceId,
+}: {
+  supabase: OrderCreationServiceClient
+  tenantId: string
+  branchId: string
+  invoiceId: string
+}) {
+  if (!invoiceId) {
+    return
+  }
+
+  after(async () => {
+    try {
+      await createInvoiceCostSnapshot({
+        supabase,
+        tenantId,
+        branchId,
+        invoiceId,
+      })
+    } catch (error) {
+      console.error('[api/orders] background cost snapshot task failed', {
+        invoiceId: maskId(invoiceId),
+        category:
+          error instanceof InvoiceCostSnapshotError
+            ? error.code
+            : 'UNKNOWN_SNAPSHOT_FAILURE',
+      })
+    }
+  })
 }
 
 async function sendCreatedInvoicePdfOverWhatsApp({
@@ -1859,20 +2021,6 @@ function stringValue(value: unknown) {
   return typeof value === 'string' ? value : ''
 }
 
-function isIdempotencyDuplicateError(error: {
-  code?: string
-  details?: string
-  message?: string
-}) {
-  const searchableText = `${error.message || ''} ${error.details || ''}`
-
-  return (
-    error.code === '23505' &&
-    (searchableText.includes('orders_idempotency_key_unique') ||
-      searchableText.includes('client_idempotency_key'))
-  )
-}
-
 function isInsufficientStockError(error: {
   details?: string
   hint?: string
@@ -1893,85 +2041,6 @@ function getInsufficientStockItemName(error: {
   }
 
   return details
-}
-
-async function findOrderByIdempotencyKey(
-  supabase: unknown,
-  clientIdempotencyKey: string,
-  tenantId: string
-) {
-  const client = supabase as IdempotencyLookupClient
-  let query = client
-    .from('orders')
-    .select(
-      `
-        id,
-        order_number,
-        customer_id,
-        status,
-        invoices (
-          id,
-          invoice_number
-        )
-      `
-    )
-    .eq('client_idempotency_key', clientIdempotencyKey)
-
-  query = applyTenantFilter(query, tenantId)
-
-  const { data, error } = await query
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-
-  if (!data) {
-    return null
-  }
-
-  const row = data as {
-    id?: string | null
-    order_number?: string | null
-    customer_id?: string | null
-    status?: string | null
-    invoices?: unknown
-  }
-  const invoice = normalizeCreatedInvoiceRecord(row.invoices)
-  const orderId = row.id || ''
-  const orderNumber = row.order_number || ''
-  const invoiceId = invoice?.id || ''
-  const invoiceNumber = invoice?.invoice_number || ''
-  const customerId = row.customer_id || ''
-  const status = row.status || ''
-
-  return {
-    customer_id: customerId,
-    order_id: orderId,
-    order_number: orderNumber,
-    invoice_id: invoiceId,
-    invoice_number: invoiceNumber,
-    status,
-    customerId,
-    orderId,
-    orderNumber,
-    invoiceId,
-    invoiceNumber,
-  }
-}
-
-function normalizeCreatedInvoiceRecord(value: unknown) {
-  if (Array.isArray(value)) {
-    return (value[0] as
-      | { id?: string | null; invoice_number?: string | null }
-      | undefined) || null
-  }
-
-  if (value && typeof value === 'object') {
-    return value as { id?: string | null; invoice_number?: string | null }
-  }
-
-  return null
 }
 
 function normalizeOrdersSearch(value: string | null) {

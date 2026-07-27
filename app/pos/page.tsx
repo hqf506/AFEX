@@ -7,18 +7,16 @@ import { usePageAccess } from '@/hooks/use-page-access'
 import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { getClientErrorMessage } from '@/lib/api/client-error'
+import { getRoleLabel } from '@/lib/app-roles'
 import {
   createProtectedResourceAuthError,
   markProtectedResourcesUnauthorized,
   prefetchClientResource,
 } from '@/lib/client-resource-cache'
-import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
 import {
   clearAllInvoiceCatalogCache,
   prefetchBranchInvoiceCatalog,
 } from '@/lib/invoices/catalog'
-import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
-import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
 import {
   clearCompletedInvoiceSaleState,
   hasCompletedInvoiceSaleState,
@@ -35,7 +33,6 @@ import {
 import { formatCurrency } from '@/lib/orders/format'
 import {
   clearActivePosEmployee,
-  markPosLoggedOut,
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
@@ -52,6 +49,10 @@ import {
   formatPosWeekday,
 } from '@/lib/pos/date-format'
 import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
+import {
+  PosAddCustomerModal,
+  type CreatedPosCustomer,
+} from '@/components/pos-add-customer-modal'
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
@@ -153,7 +154,7 @@ const sidebarItems = [
   {
     id: 'settings',
     label: 'الإعدادات',
-    href: '/pos/offline-drafts',
+    href: '/pos/settings',
     active: false,
     disabled: false,
     icon: 'settings' as const,
@@ -212,7 +213,6 @@ type IconName =
   | 'clock'
   | 'creditCard'
   | 'home'
-  | 'logout'
   | 'package'
   | 'shoppingCart'
   | 'settings'
@@ -325,14 +325,6 @@ function PosIcon({
           <path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.06.06a2.1 2.1 0 0 1-2.97 2.97l-.06-.06a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.66V21a2.1 2.1 0 0 1-4.2 0v-.1a1.8 1.8 0 0 0-1.08-1.65 1.8 1.8 0 0 0-2 .36l-.06.06a2.1 2.1 0 0 1-2.97-2.97l.06-.06a1.8 1.8 0 0 0 .36-2 1.8 1.8 0 0 0-1.66-1.1H2a2.1 2.1 0 0 1 0-4.2h.1a1.8 1.8 0 0 0 1.65-1.08 1.8 1.8 0 0 0-.36-2l-.06-.06a2.1 2.1 0 0 1 2.97-2.97l.06.06a1.8 1.8 0 0 0 2 .36h.01A1.8 1.8 0 0 0 9.45 2V2a2.1 2.1 0 0 1 4.2 0v.1a1.8 1.8 0 0 0 1.08 1.65 1.8 1.8 0 0 0 2-.36l.06-.06a2.1 2.1 0 0 1 2.97 2.97l-.06.06a1.8 1.8 0 0 0-.36 2v.01A1.8 1.8 0 0 0 21 9.45h.1a2.1 2.1 0 0 1 0 4.2H21a1.8 1.8 0 0 0-1.6 1.35Z" />
         </svg>
       )
-    case 'logout':
-      return (
-        <svg {...props}>
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-          <path d="M16 17l5-5-5-5" />
-          <path d="M21 12H9" />
-        </svg>
-      )
   }
 }
 
@@ -368,12 +360,13 @@ export default function PosPage() {
   const pathname = usePathname()
   const isMobileViewport = useMobileViewport()
   const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
-  const [loggingOut, setLoggingOut] = useState(false)
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [ordersError, setOrdersError] = useState('')
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const [showMobileRecentOrders, setShowMobileRecentOrders] = useState(false)
+  const [showMobileAddCustomer, setShowMobileAddCustomer] = useState(false)
+  const [mobileCustomerSuccess, setMobileCustomerSuccess] = useState('')
   const [selectedMobileOrderId, setSelectedMobileOrderId] = useState<string | null>(null)
   const [activePosEmployee, setActivePosEmployee] =
     useState<ActivePosEmployee | null>(null)
@@ -686,35 +679,6 @@ export default function PosPage() {
     setUpdatingOrderId(null)
   }
 
-  const handleLogout = async () => {
-    const hasActiveSale = Boolean(
-      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY) ||
-        localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
-    )
-
-    if (
-      hasActiveSale &&
-      !window.confirm(
-        'لديك عملية بيع غير مكتملة. هل تريد تسجيل الخروج وتركها محفوظة؟'
-      )
-    ) {
-      return
-    }
-
-    try {
-      setLoggingOut(true)
-      clearAllInvoiceCatalogCache()
-      clearActivePosEmployee()
-      sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
-      markPosLoggedOut()
-      setActivePosEmployee(null)
-      router.push('/pos/login')
-    } finally {
-      clearActivePosEmployee()
-      setLoggingOut(false)
-    }
-  }
-
   const handleSwitchEmployee = () => {
     clearAllInvoiceCatalogCache()
     clearActivePosEmployee()
@@ -740,6 +704,17 @@ export default function PosPage() {
   const handleScanProduct = () => {
     triggerPosClickFeedback()
     router.push('/pos/sale/items')
+  }
+
+  const handleOpenAddCustomer = () => {
+    triggerPosClickFeedback()
+    setMobileCustomerSuccess('')
+    setShowMobileAddCustomer(true)
+  }
+
+  const handleMobileCustomerCreated = (customer: CreatedPosCustomer) => {
+    setShowMobileAddCustomer(false)
+    setMobileCustomerSuccess(`تمت إضافة العميل ${customer.name} بنجاح.`)
   }
 
   const handleOpenRecentOrders = () => {
@@ -835,24 +810,63 @@ export default function PosPage() {
 
             <section aria-label="إجراءات نقطة البيع" className="grid grid-cols-2 gap-3">
               {[
-                { label: 'بيع جديد', icon: 'shoppingCart' as const, onClick: handleStartSale },
-                { label: 'عميل سريع', icon: 'zap' as const, onClick: handleQuickCustomer },
-                { label: 'إضافة عميل', icon: 'user' as const, onClick: handleQuickCustomer },
-                { label: 'آخر الطلبات', icon: 'clipboard' as const, onClick: handleOpenRecentOrders },
+                {
+                  label: 'بيع جديد',
+                  subtitle: 'بدء عملية بيع جديدة',
+                  icon: 'shoppingCart' as const,
+                  onClick: handleStartSale,
+                  className: 'col-span-2 min-h-[108px] bg-cyan-300/[0.08]',
+                },
+                {
+                  label: 'إضافة عميل',
+                  subtitle: 'تسجيل عميل جديد',
+                  icon: 'user' as const,
+                  onClick: handleOpenAddCustomer,
+                  className: 'min-h-[104px]',
+                },
+                {
+                  label: 'آخر الطلبات',
+                  subtitle: 'عرض آخر 6 طلبات',
+                  icon: 'clipboard' as const,
+                  onClick: handleOpenRecentOrders,
+                  className: 'min-h-[104px]',
+                },
               ].map((action) => (
                 <button
                   key={action.label}
                   type="button"
                   onClick={action.onClick}
-                  className="group flex min-h-[112px] flex-col items-center justify-center gap-3 rounded-[24px] border border-cyan-300/10 bg-[rgba(6,20,38,0.68)] px-3 text-center shadow-[0_14px_34px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.035)] transition duration-150 hover:border-cyan-300/20 hover:bg-cyan-300/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97]"
+                  className={`group flex flex-col items-center justify-center gap-2 rounded-[24px] border border-cyan-300/10 bg-[rgba(6,20,38,0.68)] px-3 text-center shadow-[0_14px_34px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.035)] transition duration-150 hover:border-cyan-300/20 hover:bg-cyan-300/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97] ${action.className}`}
                 >
-                  <span className="grid h-12 w-12 place-items-center rounded-[18px] bg-cyan-300/10 text-cyan-200 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] transition group-active:scale-95">
+                  <span className="grid h-11 w-11 place-items-center rounded-[17px] bg-cyan-300/10 text-cyan-200 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] transition group-active:scale-95">
                     <PosIcon name={action.icon} className="h-6 w-6" />
                   </span>
                   <span className="text-sm font-black text-white">{action.label}</span>
+                  <span className="text-[11px] font-bold text-slate-400">{action.subtitle}</span>
                 </button>
               ))}
+
+              <Link
+                href="/pos/offline-drafts"
+                className="col-span-2 flex min-h-[76px] items-center gap-3 rounded-[22px] border border-cyan-300/10 bg-[rgba(6,20,38,0.58)] px-4 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition hover:border-cyan-300/20 hover:bg-cyan-300/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98]"
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[16px] bg-cyan-300/10 text-cyan-200">
+                  <PosIcon name="creditCard" className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-black text-white">مسودات الفواتير</span>
+                  <span className="mt-1 block text-[11px] font-bold text-slate-400">
+                    عرض وإكمال الفواتير غير المرسلة
+                  </span>
+                </span>
+              </Link>
             </section>
+
+            {mobileCustomerSuccess ? (
+              <div role="status" aria-live="polite" className="rounded-[18px] border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-100">
+                {mobileCustomerSuccess}
+              </div>
+            ) : null}
 
             <section aria-label="ملخص حالات الطلبات" className="grid grid-cols-3 gap-2">
               {mobileOrderStatusSummary.map(({ status, count }) => {
@@ -875,16 +889,16 @@ export default function PosPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-black text-white">{employeeDisplayName}</p>
-                  <p className="mt-1 truncate text-xs font-bold text-slate-400">جلسة نشطة · {mobileBranchName}</p>
+                  <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                    {activePosEmployee ? getRoleLabel(activePosEmployee.role) : access.roleLabel} · {mobileBranchName}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  aria-label="تسجيل الخروج"
-                  className="grid min-h-[44px] min-w-[44px] place-items-center rounded-2xl text-slate-400 transition hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 active:scale-[0.96] disabled:opacity-60"
+                  onClick={handleSwitchEmployee}
+                  className="min-h-[44px] shrink-0 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06] px-3 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.97]"
                 >
-                  <PosIcon name="logout" className="h-5 w-5" />
+                  تبديل المستخدم
                 </button>
               </div>
               {offlineDraftSyncState.draftsCount > 0 || offlineDraftSyncState.isSyncing ? (
@@ -897,6 +911,14 @@ export default function PosPage() {
 
             <PosMobileBottomNavigation />
           </div>
+
+          {showMobileAddCustomer ? (
+            <PosAddCustomerModal
+              branchId={resolvedPosBranchId}
+              onClose={() => setShowMobileAddCustomer(false)}
+              onCreated={handleMobileCustomerCreated}
+            />
+          ) : null}
 
           {showMobileRecentOrders ? (
             <div
@@ -1216,15 +1238,6 @@ export default function PosPage() {
               </Link>
             ) : null}
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[18px] bg-[rgba(6,20,38,0.46)] px-3 text-xs font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] transition hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 lg:px-4 lg:text-sm"
-            >
-              <PosIcon name="logout" className="h-5 w-5" />
-              {loggingOut ? 'جارٍ تسجيل الخروج...' : 'تسجيل الخروج'}
-            </button>
           </div>
         </aside>
 
