@@ -67,3 +67,6 @@ next-env.d.ts
 /supabase/full_backup_roles.sql
 /supabase/manual-migration/
 .env*.local
+
+# Local Core V2 Production evidence
+/database-reconciliation/core-v2/P2D/evidence/
