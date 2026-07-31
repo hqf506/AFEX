@@ -14,6 +14,13 @@ export const CORE_V2_FORBIDDEN_IMPORT_RULES = Object.freeze([
   'route_core_v2_activation',
   'contract_forbidden_import',
   'contract_forbidden_runtime_access',
+  'adapter_forbidden_package_import',
+  'adapter_environment_access',
+  'adapter_generic_query_surface',
+  'adapter_dynamic_surface_construct',
+  'adapter_direct_p2d20_call',
+  'adapter_caller_role_target',
+  'adapter_test_fake_production_export',
 ] as const)
 
 export type CoreV2ForbiddenImportRule =
