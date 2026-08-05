@@ -1,0 +1,403 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:afex:a2.5:pooldriver:result:v1",
+  "title": "AFEX A2.5 Pool Driver Scenario Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "scenario_id",
+    "pool_mode",
+    "runtime_mode",
+    "driver",
+    "driver_version",
+    "borrower_a_identity",
+    "borrower_b_identity",
+    "application_client_reuse_status",
+    "backend_reuse_status",
+    "backend_pid_a",
+    "backend_pid_b",
+    "transaction_state_before_release",
+    "transaction_state_after_cleanup",
+    "contamination_type",
+    "release_action",
+    "reset_action",
+    "destroy_reason",
+    "borrower_b_observation",
+    "expected_result",
+    "actual_result",
+    "result",
+    "failure_code",
+    "source_artifact_hashes",
+    "stdout_sha256",
+    "stderr_sha256",
+    "recorded_utc"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "A25_POOLDRIVER_RESULT_V1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 40,
+      "pattern": "^A25PD-[0-9]{8}T[0-9]{9}Z-[A-F0-9]{8}$"
+    },
+    "scenario_id": {
+      "enum": [
+        "A25-PD-001",
+        "A25-PD-002",
+        "A25-PD-003",
+        "A25-PD-004",
+        "A25-PD-005",
+        "A25-PD-006",
+        "A25-PD-007",
+        "A25-PD-008",
+        "A25-PD-009",
+        "A25-PD-010",
+        "A25-PD-011",
+        "A25-PD-012",
+        "A25-PD-013",
+        "A25-PD-014",
+        "A25-PD-015",
+        "A25-PD-016",
+        "A25-PD-017",
+        "A25-PD-018",
+        "A25-PD-019",
+        "A25-PD-020",
+        "A25-PD-021",
+        "A25-PD-022",
+        "A25-PD-023"
+      ]
+    },
+    "pool_mode": {
+      "enum": ["DIRECT", "SESSION_POOL", "TRANSACTION_POOL", "POSTGREST_RPC"]
+    },
+    "runtime_mode": {
+      "enum": ["LOCAL_NODE", "VERCEL_FLUID_NODE", "PROVIDER_TRANSACTION_POOL", "POSTGREST_HTTP"]
+    },
+    "driver": {
+      "enum": ["PG_NODE", "SUPABASE_JS_POSTGREST"]
+    },
+    "driver_version": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 32,
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]{1,20})?$"
+    },
+    "borrower_a_identity": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$"
+    },
+    "borrower_b_identity": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$"
+    },
+    "application_client_reuse_status": {
+      "enum": ["SAME_CLIENT", "DIFFERENT_CLIENT", "NOT_OBSERVABLE", "NOT_APPLICABLE", "INCONCLUSIVE"]
+    },
+    "backend_reuse_status": {
+      "enum": [
+        "PROVEN_SAME_BACKEND",
+        "PROVEN_DIFFERENT_BACKEND",
+        "SANITATION_PROVEN_WITHOUT_SAME_BACKEND",
+        "NOT_OBSERVABLE",
+        "NOT_APPLICABLE",
+        "INCONCLUSIVE"
+      ]
+    },
+    "backend_pid_a": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "backend_pid_b": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "transaction_state_before_release": {
+      "$ref": "#/$defs/transaction_state"
+    },
+    "transaction_state_after_cleanup": {
+      "$ref": "#/$defs/transaction_state"
+    },
+    "contamination_type": {
+      "enum": [
+        "NONE",
+        "TRANSACTION_STATE",
+        "TRANSACTION_LOCAL_CONTEXT",
+        "FAILED_TRANSACTION",
+        "TIMEOUT_STATE",
+        "CANCELLATION_STATE",
+        "ROLE_STATE",
+        "SESSION_GUC",
+        "SEARCH_PATH",
+        "TIMEOUT_GUC",
+        "AUTHORIZATION_CONTEXT",
+        "PREPARED_STATE",
+        "TEMP_OBJECT",
+        "ADVISORY_LOCK",
+        "CURSOR_STATE",
+        "LISTEN_STATE",
+        "UNKNOWN_CONNECTION_STATE",
+        "REUSE_IDENTITY",
+        "BORROWER_CONTEXT",
+        "BACKEND_PINNING",
+        "RUNTIME_LIFECYCLE",
+        "CONNECTION_CAPACITY"
+      ]
+    },
+    "release_action": {
+      "enum": [
+        "COMMIT_RELEASE",
+        "ROLLBACK_RELEASE",
+        "ERROR_ROLLBACK_RELEASE",
+        "CANCEL_ROLLBACK_RELEASE",
+        "DESTROY",
+        "HTTP_TRANSACTION_END",
+        "NONE"
+      ]
+    },
+    "reset_action": {
+      "enum": [
+        "TRANSACTION_END",
+        "RESET_ROLE_BASELINE",
+        "RESET_ALL_BASELINE",
+        "DISCARD_ALL",
+        "POOLER_RESET",
+        "DESTROY",
+        "POSTGREST_TRANSACTION_END",
+        "NONE"
+      ]
+    },
+    "destroy_reason": {
+      "enum": [
+        "NONE",
+        "UNKNOWN_TRANSACTION_STATE",
+        "ROLLBACK_FAILED",
+        "CANCELLATION_UNRESOLVED",
+        "SOCKET_ERROR",
+        "PROTOCOL_ERROR",
+        "IDENTITY_MISMATCH",
+        "SANITATION_FAILED",
+        "TIMEOUT_UNRESOLVED",
+        "PROVIDER_STATE_UNKNOWN"
+      ]
+    },
+    "borrower_b_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_status",
+        "authorization_context_status",
+        "transaction_status",
+        "guc_status",
+        "prepared_state_status",
+        "temporary_object_status",
+        "advisory_lock_status",
+        "cursor_status",
+        "listen_status",
+        "client_status",
+        "backend_status",
+        "checks"
+      ],
+      "properties": {
+        "identity_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "authorization_context_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "transaction_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "guc_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "prepared_state_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "temporary_object_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "advisory_lock_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "cursor_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "listen_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "client_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "backend_status": {
+          "$ref": "#/$defs/observation_status"
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "ROLE_BASELINE",
+              "SESSION_AUTH_BASELINE",
+              "TRANSACTION_IDLE",
+              "SEARCH_PATH_BASELINE",
+              "TIMEOUT_BASELINE",
+              "RLS_BASELINE",
+              "TENANT_CONTEXT_ABSENT",
+              "BRANCH_CONTEXT_ABSENT",
+              "USER_CONTEXT_ABSENT",
+              "AUTHORIZATION_CONTEXT_ABSENT",
+              "PREPARED_STATE_ABSENT",
+              "TEMP_OBJECT_ABSENT",
+              "ADVISORY_LOCK_ABSENT",
+              "CURSOR_ABSENT",
+              "LISTEN_ABSENT",
+              "CLIENT_DESTROYED",
+              "CLIENT_HEALTHY",
+              "BACKEND_PINNED",
+              "CONNECTION_BUDGET_VALID",
+              "FLUID_IDLE_CLOSED"
+            ]
+          }
+        }
+      }
+    },
+    "expected_result": {
+      "enum": ["CLEAN", "CLEAN_OR_DESTROYED", "DESTROYED", "REUSE_CLASSIFIED", "PINNED", "LIFECYCLE_CLEAN", "WITHIN_BUDGET", "NOT_APPLICABLE"]
+    },
+    "actual_result": {
+      "enum": ["CLEAN", "CONTAMINATED", "DESTROYED", "REUSE_CLASSIFIED", "PINNED", "LIFECYCLE_CLEAN", "WITHIN_BUDGET", "NOT_PROVEN", "NOT_APPLICABLE"]
+    },
+    "result": {
+      "enum": ["PASS", "FAIL", "INCONCLUSIVE", "NOT_APPLICABLE"]
+    },
+    "failure_code": {
+      "enum": [
+        "NONE",
+        "BASELINE_DIRTY",
+        "REUSE_NOT_PROVEN",
+        "ROLE_LEAK",
+        "SESSION_AUTH_LEAK",
+        "GUC_LEAK",
+        "SEARCH_PATH_LEAK",
+        "TIMEOUT_GUC_LEAK",
+        "AUTH_CONTEXT_LEAK",
+        "PREPARED_STATE_LEAK",
+        "TEMP_OBJECT_LEAK",
+        "ADVISORY_LOCK_LEAK",
+        "OPEN_TRANSACTION",
+        "FAILED_TRANSACTION",
+        "CURSOR_LEAK",
+        "LISTEN_LEAK",
+        "CANCEL_STATE_UNRESOLVED",
+        "RETURNED_WHEN_DESTROY_REQUIRED",
+        "NEXT_BORROWER_CONTAMINATED",
+        "CLEANUP_FAILED",
+        "UNSUPPORTED_MODE",
+        "EVIDENCE_INVALID",
+        "DATABASE_TIMEOUT_NOT_ENFORCED",
+        "CLIENT_TIMEOUT_NOT_ENFORCED",
+        "APPLICATION_CLIENT_REUSE_NOT_PROVEN",
+        "BACKEND_PINNING_NOT_PROVEN",
+        "FLUID_POOL_SUSPEND_CLEANUP_FAILED",
+        "CONNECTION_BUDGET_EXCEEDED",
+        "DRIVER_VERSION_MISMATCH",
+        "RELEASE_STATE_INVALID",
+        "DESTROY_POLICY_NOT_ENFORCED",
+        "TIMEOUT_UNRESOLVED",
+        "PROVIDER_STATE_UNKNOWN",
+        "SANITATION_FAILED"
+      ]
+    },
+    "source_artifact_hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design_sha256",
+        "scenario_matrix_sha256",
+        "result_schema_sha256",
+        "adr_amendment_sha256",
+        "harness_sha256",
+        "sql_setup_sha256",
+        "sql_observation_sha256",
+        "sql_cleanup_sha256",
+        "sql_post_cleanup_sha256"
+      ],
+      "properties": {
+        "design_sha256": {
+          "$ref": "#/$defs/nullable_hash"
+        },
+        "scenario_matrix_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "result_schema_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "adr_amendment_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "harness_sha256": {
+          "$ref": "#/$defs/nullable_hash"
+        },
+        "sql_setup_sha256": {
+          "$ref": "#/$defs/nullable_hash"
+        },
+        "sql_observation_sha256": {
+          "$ref": "#/$defs/nullable_hash"
+        },
+        "sql_cleanup_sha256": {
+          "$ref": "#/$defs/nullable_hash"
+        },
+        "sql_post_cleanup_sha256": {
+          "$ref": "#/$defs/nullable_hash"
+        }
+      }
+    },
+    "stdout_sha256": {
+      "$ref": "#/$defs/hash"
+    },
+    "stderr_sha256": {
+      "$ref": "#/$defs/hash"
+    },
+    "recorded_utc": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 20,
+      "maxLength": 32,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    }
+  },
+  "$defs": {
+    "transaction_state": {
+      "enum": ["IDLE", "ACTIVE", "FAILED", "UNKNOWN", "NOT_OBSERVABLE", "NOT_APPLICABLE"]
+    },
+    "observation_status": {
+      "enum": ["CLEAN", "CONTAMINATED", "NOT_OBSERVABLE", "NOT_APPLICABLE", "INCONCLUSIVE"]
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_hash": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/hash"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
