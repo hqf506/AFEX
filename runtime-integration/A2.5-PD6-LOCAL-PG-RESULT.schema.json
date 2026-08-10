@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:afex:a2.5:pd6:local-pg-result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenario_id", "evidence_tier", "endpoint_class", "driver_version", "postgres_version",
+    "terminal_classification", "release_action", "failure_code", "sqlstate",
+    "transaction_status_before", "transaction_status_after", "rollback_attempts",
+    "retry_attempted", "client_destroyed", "replacement_observed", "decoded_value_class", "pass"
+  ],
+  "properties": {
+    "scenario_id": {
+      "enum": [
+        "PD6-D-001", "PD6-D-002", "PD6-D-003", "PD6-D-004", "PD6-D-005", "PD6-D-006", "PD6-D-007", "PD6-D-008", "PD6-D-009", "PD6-D-010",
+        "PD6-D-011", "PD6-D-012", "PD6-D-013", "PD6-D-014", "PD6-D-015", "PD6-D-016", "PD6-D-017", "PD6-D-018", "PD6-D-019", "PD6-D-020",
+        "PD6-D-021", "PD6-D-022", "PD6-D-023", "PD6-D-024", "PD6-D-025", "PD6-D-026", "PD6-D-027", "PD6-D-028", "PD6-D-029", "PD6-D-030",
+        "PD6-D-031", "PD6-D-032", "PD6-D-033", "PD6-D-034", "PD6-D-035", "PD6-D-036", "PD6-D-037"
+      ]
+    },
+    "evidence_tier": { "enum": ["PD6C_DIRECT", "PD6F_POOLER", "PROVIDER", "NOT_SAFE_LOCAL"] },
+    "endpoint_class": { "enum": ["DIRECT_POSTGRESQL", "PGBOUNCER_TRANSACTION_POOL", "SUPAVISOR_TRANSACTION_POOL", "NOT_APPLICABLE"] },
+    "driver_version": { "const": "8.22.0" },
+    "postgres_version": { "type": ["string", "null"], "minLength": 1, "maxLength": 32 },
+    "terminal_classification": { "enum": ["COMPLETED_SAFE", "ROLLED_BACK_SAFE", "DESTROYED_UNSAFE", "CHECKOUT_REJECTED", "CONNECTION_REJECTED", "POOL_EVENT_ONLY", "PERMISSION_DENIED_SAFE", "DEFERRED_NOT_EXECUTED"] },
+    "release_action": { "enum": ["NORMAL_RELEASE", "DESTROY_RELEASE", "NO_RELEASE"] },
+    "failure_code": { "enum": [null, "PG_POOL_CHECKOUT_TIMEOUT", "PG_POOL_SHUTDOWN", "PG_CONNECTION_TIMEOUT", "PG_QUERY_FAILED", "PG_QUERY_TIMEOUT_LOCAL", "PG_STATEMENT_TIMEOUT", "PG_LOCK_TIMEOUT", "PG_CANCEL_REQUEST_FAILED", "PG_CANCEL_SETTLEMENT_TIMEOUT", "PG_QUERY_SETTLEMENT_UNKNOWN", "PG_TRANSACTION_STATUS_UNKNOWN", "PG_ROLLBACK_FAILED", "PG_ROLLBACK_TIMEOUT", "PG_COMMIT_FAILED", "PG_COMMIT_OUTCOME_UNKNOWN", "PG_SOCKET_ERROR", "PG_PROTOCOL_ERROR", "PG_CLIENT_ERROR", "PG_POOL_ERROR", "PG_IDENTITY_MISMATCH", "PG_SANITATION_FAILED", "PG_RELEASE_STATE_INVALID", "PG_CLIENT_DESTROY_REQUIRED"] },
+    "sqlstate": { "enum": [null, "57014", "55P03", "40001", "40P01", "25P02", "08000", "08001", "08003", "08004", "08006", "08007", "08P01"] },
+    "transaction_status_before": { "enum": [null, "IDLE", "IN_TRANSACTION", "FAILED_TRANSACTION", "UNKNOWN", "NOT_APPLICABLE"] },
+    "transaction_status_after": { "enum": [null, "IDLE", "IN_TRANSACTION", "FAILED_TRANSACTION", "UNKNOWN", "NOT_APPLICABLE"] },
+    "rollback_attempts": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "retry_attempted": { "const": false },
+    "client_destroyed": { "type": "boolean" },
+    "replacement_observed": { "type": "boolean" },
+    "decoded_value_class": { "enum": [null, "NUMBER", "STRING", "BOOLEAN", "OBJECT", "BUFFER", "ARRAY", "NULL", "DATE", "NOT_APPLICABLE"] },
+    "pass": { "type": "boolean" }
+  }
+}
