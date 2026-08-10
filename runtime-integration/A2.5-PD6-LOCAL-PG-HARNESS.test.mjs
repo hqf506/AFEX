@@ -24,8 +24,12 @@ import { FAILURE_CODES, SQLSTATE_ALLOWLIST } from './A2.5-PD5-REAL-DRIVER-ERROR-
 import {
   LOCAL_PG_OPERATION_IDS,
   LOCAL_PG_OPERATIONS,
+  TYPE_FIXTURE_BASELINE,
   createLocalPgControls,
-  resolveLocalPgOperation
+  resolveLocalPgOperation,
+  validateDenialObjectAbsent,
+  validateServerVersionRow,
+  validateTypeFixtureBaseline
 } from './A2.5-PD6-LOCAL-PG-FIXTURES.mjs';
 
 const PASSWORD = 'operator-only-test-value';
@@ -386,6 +390,103 @@ test('46 late callback rejection is observed without state mutation or repeated 
   assert.equal(FakeControlClient.instances[0].actions.filter((action) => action === 'ROLLBACK').length, 1);
   assert.equal(FakeControlClient.instances[0].actions.filter((action) => action === 'END').length, 1);
 });
+test('47 interface amendment adds only four minimum trusted operations', () => {
+  assert.equal(LOCAL_PG_OPERATION_IDS.length, 18);
+  const additions = LOCAL_PG_OPERATION_IDS.filter((id) => [
+    'READ_SERVER_VERSION', 'READ_LOCK_TARGET',
+    'VERIFY_PUBLIC_DENIAL_OBJECT_ABSENT', 'VERIFY_EVIDENCE_DENIAL_OBJECT_ABSENT'
+  ].includes(id));
+  assert.deepEqual(additions, [
+    'READ_SERVER_VERSION', 'READ_LOCK_TARGET',
+    'VERIFY_PUBLIC_DENIAL_OBJECT_ABSENT', 'VERIFY_EVIDENCE_DENIAL_OBJECT_ABSENT'
+  ]);
+});
+test('48 server version operation is static and validator is bounded', () => {
+  const operation = resolveLocalPgOperation({ operationId: 'READ_SERVER_VERSION', values: [] });
+  assert.match(operation.text, /current_setting\('server_version'\)/);
+  assert.equal(operation.values.length, 0);
+  assert.equal(validateServerVersionRow({ postgres_version: '17.10' }), '17.10');
+  for (const value of ['', '17', '17.10 build text', 17.1]) {
+    assert.throws(() => validateServerVersionRow({ postgres_version: value }), /SERVER_VERSION_INVALID/);
+  }
+});
+test('49 lock baseline operation is fixed qualified and non-mutating', () => {
+  const operation = resolveLocalPgOperation({ operationId: 'READ_LOCK_TARGET', values: [] });
+  assert.match(operation.text, /FROM pd6_evidence\.lock_target WHERE fixture_id = 1/);
+  assert.doesNotMatch(operation.text, /UPDATE|INSERT|DELETE/i);
+  assert.throws(() => resolveLocalPgOperation({ operationId: 'READ_LOCK_TARGET', values: [2] }), /VALUES_INVALID/);
+});
+test('50 denial absence operations are fixed to the two approved objects', () => {
+  assert.match(LOCAL_PG_OPERATIONS.VERIFY_PUBLIC_DENIAL_OBJECT_ABSENT.text, /public\.a25_pd6_denial_probe/);
+  assert.match(LOCAL_PG_OPERATIONS.VERIFY_EVIDENCE_DENIAL_OBJECT_ABSENT.text, /pd6_evidence\.a25_pd6_denial_probe/);
+  assert.throws(() => resolveLocalPgOperation({ operationId: 'VERIFY_ARBITRARY_OBJECT_ABSENT', values: [] }), /UNKNOWN/);
+  assert.throws(() => resolveLocalPgOperation({
+    operationId: 'VERIFY_PUBLIC_DENIAL_OBJECT_ABSENT', values: ['other']
+  }), /VALUES_INVALID/);
+});
+test('51 denial absence validator fails closed on presence or malformed evidence', () => {
+  assert.equal(validateDenialObjectAbsent({ absent: true }), true);
+  assert.throws(() => validateDenialObjectAbsent({ absent: false }), /DENIAL_OBJECT_PRESENT/);
+  assert.throws(() => validateDenialObjectAbsent({}), /DENIAL_OBJECT_PRESENT/);
+});
+test('52 exact type baseline authority is deeply frozen', () => {
+  assert.equal(Object.isFrozen(TYPE_FIXTURE_BASELINE), true);
+  assert.equal(Object.isFrozen(TYPE_FIXTURE_BASELINE.json_value), true);
+  assert.equal(TYPE_FIXTURE_BASELINE.int8_value, '9007199254740993');
+  assert.equal(TYPE_FIXTURE_BASELINE.numeric_value, '1234567890.123456789');
+});
+test('53 type baseline validator accepts exact logical seed independently of object key order', () => {
+  const row = baselineTypeRow();
+  row.json_value = { ordinal: 1, format: 'json', kind: 'pd6' };
+  row.jsonb_value = { ordinal: 1, kind: 'pd6', format: 'jsonb' };
+  assert.equal(validateTypeFixtureBaseline(row), true);
+});
+test('54 type baseline validator detects every scalar and collection drift', () => {
+  for (const [key, value] of [
+    ['fixture_id', 2], ['int4_value', 0], ['int8_value', '9007199254740992'],
+    ['numeric_value', '1234567890.123456788'], ['boolean_value', false],
+    ['uuid_value', '12345678-1234-5678-9abc-def012345679'],
+    ['json_value', { kind: 'other' }], ['jsonb_value', { kind: 'other' }],
+    ['bytea_value', Buffer.from([0, 1, 2, 254])], ['text_array_value', ['alpha', 'gamma']],
+    ['nullable_text_value', 'not-null']
+  ]) assert.equal(validateTypeFixtureBaseline({ ...baselineTypeRow(), [key]: value }), false, key);
+});
+test('55 type baseline preserves exact byte and ordered-array authority', () => {
+  const row = baselineTypeRow();
+  assert.deepEqual([...row.bytea_value], [0, 1, 2, 254, 255]);
+  assert.deepEqual(row.text_array_value, ['alpha', 'beta', 'gamma']);
+  assert.equal(validateTypeFixtureBaseline(row), true);
+});
+test('56 timestamp baseline preserves microseconds separately from JavaScript Date millisecond decoding', () => {
+  const operation = LOCAL_PG_OPERATIONS.READ_TYPE_FIXTURE.text;
+  assert.match(operation, /AT TIME ZONE 'UTC'/);
+  assert.match(operation, /timestamptz_logical_value/);
+  assert.match(operation, /timestamp_logical_value/);
+  assert.equal(TYPE_FIXTURE_BASELINE.timestamptz_logical_value, '2026-01-02T03:04:05.678901Z');
+  assert.equal(TYPE_FIXTURE_BASELINE.timestamp_logical_value, '2026-01-02 03:04:05.678901');
+  const logicalMicroseconds = Number(TYPE_FIXTURE_BASELINE.timestamptz_logical_value.match(/\.(\d{6})Z$/)[1]);
+  const dateObservation = new Date('2026-01-02T03:04:05.678Z');
+  assert.equal(logicalMicroseconds, 678901);
+  assert.equal(dateObservation.getUTCMilliseconds(), 678);
+  assert.equal(logicalMicroseconds % 1000, 901);
+  assert.equal(dateObservation.toISOString(), '2026-01-02T03:04:05.678Z');
+  assert.notEqual(dateObservation.toISOString(), TYPE_FIXTURE_BASELINE.timestamptz_logical_value);
+  assert.equal(TYPE_FIXTURE_BASELINE.timestamp_logical_value.endsWith('Z'), false);
+});
+test('57 arbitrary descriptors remain rejected after the interface amendment', () => {
+  assert.throws(() => resolveLocalPgOperation({ operationId: 'READ_SERVER_VERSION', text: 'SELECT version()' }), /INVALID/);
+  assert.equal(LOCAL_PG_OPERATION_IDS.some((id) => /GENERIC|ARBITRARY|CATALOG_EXPLORER/.test(id)), false);
+});
+
+function baselineTypeRow() {
+  return {
+    ...TYPE_FIXTURE_BASELINE,
+    json_value: { ...TYPE_FIXTURE_BASELINE.json_value },
+    jsonb_value: { ...TYPE_FIXTURE_BASELINE.jsonb_value },
+    bytea_value: Buffer.from(TYPE_FIXTURE_BASELINE.bytea_value),
+    text_array_value: [...TYPE_FIXTURE_BASELINE.text_array_value]
+  };
+}
 
 const outcomes = [];
 for (const entry of tests) {

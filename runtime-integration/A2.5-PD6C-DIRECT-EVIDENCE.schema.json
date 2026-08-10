@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:afex:a2.5:pd6c:direct-evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "driver_version", "postgres_version", "endpoint_class",
+    "scenario_count", "scenario_order", "results", "aggregate_pass", "canonical_digest"
+  ],
+  "properties": {
+    "schema_version": { "const": "A2.5-PD6C-DIRECT-1" },
+    "driver_version": { "const": "8.22.0" },
+    "postgres_version": { "type": "string", "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}(\\.[0-9]{1,3})?$" },
+    "endpoint_class": { "const": "DIRECT_POSTGRESQL" },
+    "scenario_count": { "const": 30 },
+    "scenario_order": {
+      "type": "array", "minItems": 30, "maxItems": 30, "uniqueItems": true,
+      "prefixItems": [
+        { "const": "PD6-D-001" }, { "const": "PD6-D-002" },
+        { "const": "PD6-D-004" }, { "const": "PD6-D-020" }, { "const": "PD6-D-021" },
+        { "const": "PD6-D-022" }, { "const": "PD6-D-023" }, { "const": "PD6-D-024" },
+        { "const": "PD6-D-025" }, { "const": "PD6-D-026" }, { "const": "PD6-D-027" },
+        { "const": "PD6-D-028" }, { "const": "PD6-D-029" }, { "const": "PD6-D-030" },
+        { "const": "PD6-D-031" }, { "const": "PD6-D-003" }, { "const": "PD6-D-006" },
+        { "const": "PD6-D-007" }, { "const": "PD6-D-005" }, { "const": "PD6-D-008" },
+        { "const": "PD6-D-010" }, { "const": "PD6-D-009" }, { "const": "PD6-D-016" },
+        { "const": "PD6-D-017" }, { "const": "PD6-D-018" }, { "const": "PD6-D-019" },
+        { "const": "PD6-D-011" }, { "const": "PD6-D-012" }, { "const": "PD6-D-013" },
+        { "const": "PD6-D-014" }
+      ],
+      "items": false
+    },
+    "results": {
+      "type": "array", "minItems": 30, "maxItems": 30,
+      "items": { "$ref": "urn:afex:a2.5:pd6:local-pg-result" }
+    },
+    "aggregate_pass": { "type": "boolean" },
+    "canonical_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}
