@@ -1,0 +1,26 @@
+services:
+  pd6f-pgbouncer:
+    image: afex-pd6f-pgbouncer:1.25.2
+    container_name: afex-pd6f-pgbouncer
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:56432:6432"
+    volumes:
+      - ./pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ${AFEX_A25_PD6F_USERLIST_PATH:?operator userlist path required}:/run/secrets/userlist.txt:ro
+    networks:
+      pd6f-isolated:
+    read_only: true
+    tmpfs:
+      - /tmp:size=1m,mode=0700
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  pd6f-isolated:
+    external: true
+    name: afex-pd6f-isolated
