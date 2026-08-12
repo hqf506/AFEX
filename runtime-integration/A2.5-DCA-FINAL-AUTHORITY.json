@@ -1,0 +1,497 @@
+{
+  "authorityState": "DESIGN_APPROVED_NON_EXECUTABLE_DRAFT",
+  "baseRule": {
+    "expectedBaseCommit": "3c90ca74758f0511c2bdc10009bf15d618de39e8",
+    "onAdvancement": "FAIL_CLOSED_REVIEW_REQUIRED"
+  },
+  "blockerRegister": [
+    {
+      "id": "BL-01",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-02",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-03",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-04",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-05",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "BL-06",
+      "previousCategory": "APPROVAL_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "BL-07",
+      "previousCategory": "APPROVAL_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "BL-08",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-09",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-10",
+      "previousCategory": "EXECUTION_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "BL-11",
+      "previousCategory": "EXECUTION_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "PARTIAL_IMPLEMENTATION_EVIDENCE"
+    },
+    {
+      "id": "BL-12",
+      "previousCategory": "EXECUTION_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "BL-13",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "BL-14",
+      "previousCategory": "SHARED_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "BL-15",
+      "previousCategory": "EXECUTION_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "NOT_APPLICABLE_TO_VERIFICATION_ONLY_SCOPE"
+    },
+    {
+      "id": "BL-16",
+      "previousCategory": "OPEN_HUMAN_DECISION",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-17",
+      "previousCategory": "OPEN_HUMAN_DECISION",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-18",
+      "previousCategory": "OPEN_HUMAN_DECISION",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-19",
+      "previousCategory": "REDESIGN_PREREQUISITE",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "BL-20",
+      "previousCategory": "REDESIGN_PREREQUISITE",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-21",
+      "previousCategory": "REDESIGN_PREREQUISITE",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "BL-22",
+      "previousCategory": "REDESIGN_PREREQUISITE",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "BL-23",
+      "previousCategory": "DEFERRABLE_WITHOUT_AUTHORITY_EXPANSION",
+      "previousStatus": "CLOSED IN REPORTING; artifact documentation remains for redesign",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "BL-24",
+      "previousCategory": "DEFERRABLE_WITHOUT_AUTHORITY_EXPANSION",
+      "previousStatus": "DEFERRABLE ONLY UNDER FAIL-CLOSED REJECTION",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "BL-25",
+      "previousCategory": "APPROVAL_BLOCKER",
+      "previousStatus": "OPEN",
+      "semanticDisposition": "REMAINS_OPEN"
+    }
+  ],
+  "canonicalizationVersion": "A2.5-DCA-C14N-1",
+  "decisions": {
+    "HD-01": "Option A",
+    "HD-03": "H3-D",
+    "HD-04": "H4-A",
+    "HD-05": "O5-A",
+    "HD-06": "O6-B",
+    "HD-07": "O7-A",
+    "HD-08": "O8-A",
+    "HD-09": "O9-A",
+    "HD-10": "O10-A",
+    "HD-11": "O11-A",
+    "HD-12": "O12-B",
+    "HD-13": "O13-B",
+    "HD-14": "O14-A",
+    "HD-15": "O15-A"
+  },
+  "digestAlgorithm": "sha256",
+  "evidenceStatus": {
+    "authenticatedHostProvenance": "NOT_ISSUED",
+    "authenticatedRevocation": "NOT_ISSUED",
+    "authenticatedTrustedTime": "NOT_ISSUED",
+    "executionAuthorization": "NOT_ISSUED",
+    "fabricatedRuntimeEvidence": false,
+    "terminalApproval": "NOT_ISSUED"
+  },
+  "executionPolicy": {
+    "dockerShellCommandGeneration": "PROHIBITED",
+    "dynamicMutationHooks": "PROHIBITED",
+    "engineDockerMutationAuthority": "PROHIBITED",
+    "executionDisposition": "VERIFICATION_AND_INTENT_ONLY",
+    "genericDockerMutationExecutor": "PROHIBITED",
+    "manualExecutionAuthorityFromIntent": "NONE",
+    "manualExecutionOutsideEngine": "SEPARATELY_AUTHORIZED_ONLY",
+    "mutationCallbacksAccepted": false,
+    "operationSpecificDockerMutationExecutor": "PROHIBITED",
+    "realDockerMutationAuthorized": false,
+    "runtimeCompletion": "VERIFIED_NON_EXECUTABLE_INTENT"
+  },
+  "failClosedConditions": [
+    "ALREADY_CONSUMED",
+    "AMBIGUOUS",
+    "CONFLICTING",
+    "DIGEST_MISMATCH",
+    "DUPLICATE",
+    "ILLEGAL_TRANSITION",
+    "MALFORMED",
+    "MISSING",
+    "OVER_SCOPED",
+    "PROVIDER_UNAVAILABLE",
+    "REPLAYED",
+    "REVOKED",
+    "STALE",
+    "SUPERSEDED",
+    "UNKNOWN",
+    "UNSUPPORTED",
+    "UNVERIFIABLE_EVIDENCE"
+  ],
+  "invariantRegister": [
+    {
+      "id": "INV-REPO-ID",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-BASE",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "PARTIAL_IMPLEMENTATION_EVIDENCE"
+    },
+    {
+      "id": "INV-REPO-LIFE",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN"
+    },
+    {
+      "id": "INV-LOCAL-TRANSPORT",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-HOST",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-CTX",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-ENDPOINT",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-ENDPOINT-CLASS",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-DAEMON",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-CLONE",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-RESTORE",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-ORCH",
+      "previousStatus": "CONTRADICTORY",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-REP",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-SCHEMA",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-PARSER",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-C14N",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-C14N-VERSION",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-ALGO",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-CANON-INT",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-FILE-INT",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "PARTIAL_IMPLEMENTATION_EVIDENCE"
+    },
+    {
+      "id": "INV-COVERAGE",
+      "previousStatus": "CONTRADICTORY",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-APP-ID",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-APP-AUTH",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-APP-TRANS",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-FINAL-DIGEST",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-APP-TIME",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-APP-IMM",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-SUPER",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-REVOKE",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-TTL",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-CLOCK",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-REUSE",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "PARTIAL_IMPLEMENTATION_EVIDENCE"
+    },
+    {
+      "id": "INV-RECON",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-ATOMIC",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "NOT_APPLICABLE_TO_VERIFICATION_ONLY_SCOPE"
+    },
+    {
+      "id": "INV-TOCTOU",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "NOT_APPLICABLE_TO_VERIFICATION_ONLY_SCOPE"
+    },
+    {
+      "id": "INV-RESTART",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-PARTIAL",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-UNIQUE",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-SCOPE",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-PROHIBITED",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-FAIL",
+      "previousStatus": "CONTRADICTORY",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-DRAFT",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "TESTED_PENDING_INDEPENDENT_REVIEW"
+    },
+    {
+      "id": "INV-UNKNOWN",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_RUNTIME_PROOF_REQUIRED"
+    },
+    {
+      "id": "INV-CROSSHOST",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-RESET",
+      "previousStatus": "PARTIAL",
+      "semanticDisposition": "REMAINS_OPEN_EXTERNAL_PROVIDER_REQUIRED"
+    },
+    {
+      "id": "INV-SUPPORT",
+      "previousStatus": "UNSATISFIED",
+      "semanticDisposition": "REMAINS_OPEN"
+    }
+  ],
+  "legacyArtifactDisposition": {
+    "legacyArtifactApprovalAuthority": "NONE",
+    "legacyArtifactExecutionAuthority": "NONE",
+    "legacyArtifactMustNotBeDeletedYet": "YES",
+    "legacyArtifactStatus": "SUPERSEDED_AS_DESIGN_SOURCE_ONLY",
+    "supersessionAuthentication": "NOT_CLAIMED_WITHOUT_LINEAGE_PROVIDER"
+  },
+  "normativeRepresentation": "SOLE_NORMATIVE_MACHINE_RECORD",
+  "operations": {
+    "intentTemplates": [
+      "PD6G-STOP-CONTAINER",
+      "PD6G-REMOVE-CONTAINER",
+      "PD6G-DISCONNECT-POSTGRES",
+      "PD6G-REMOVE-NETWORK"
+    ],
+    "prohibited": [
+      "PD6G-PROHIBIT-COMPOSE-DOWN",
+      "PD6G-PROHIBIT-FORCE-REMOVE",
+      "PD6G-PROHIBIT-PRUNE",
+      "PD6G-PROHIBIT-IMAGE-REMOVE",
+      "PD6G-PROHIBIT-VOLUME-REMOVE"
+    ],
+    "readOnly": [
+      "PD6G-OBSERVE-GATE"
+    ]
+  },
+  "providerStatus": {
+    "categories": [
+      "HOST_PROVENANCE",
+      "THRESHOLD_APPROVAL",
+      "TRUSTED_TIME",
+      "LINEAGE_CURRENT_POINTER",
+      "REVOCATION",
+      "EXECUTION_AUTHORIZATION",
+      "DURABLE_CONSUMPTION_AUDIT",
+      "DOCKER_READ_ONLY_OBSERVATION"
+    ],
+    "selection": "UNSELECTED_AND_UNAVAILABLE",
+    "unconfiguredBehavior": "FAIL_CLOSED"
+  },
+  "recordType": "A2.5_DCA_FINAL_AUTHORITY",
+  "repositoryRule": {
+    "origin": "https://github.com/hqf506/AFEX.git",
+    "repository": "hqf506/AFEX",
+    "runtimeMatchRequired": true
+  },
+  "schemaVersion": "A2.5-DCA-SCHEMA-1",
+  "serverVersionPolicy": "EXACT_PIN_REQUIRED"
+}
