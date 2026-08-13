@@ -56,6 +56,11 @@ const clickButton = async (page, label) => {
   }
   throw new Error('Expected button unavailable.')
 }
+const clickLink = async (page, href) => {
+  const link = await page.$(`a[href="${href}"]`)
+  if (!link) throw new Error(`Expected link unavailable: ${href}`)
+  await link.click()
+}
 
 async function applyNetwork(page, profile) {
   if (profile !== '4g') return
@@ -86,7 +91,6 @@ async function authenticate(page, origin) {
   await page.waitForFunction(() => document.querySelectorAll('button').length >= 10, { timeout: 20_000 })
   for (const digit of credentials.pin) {
     await clickButton(page, digit)
-    await new Promise((resolve) => setTimeout(resolve, 75))
   }
   await waitForPath(page, '/pos')
   await page.waitForFunction(() => document.body.innerText.includes('مرحب'), { timeout: 20_000 })
@@ -105,7 +109,9 @@ async function measureTarget(origin) {
       const posToOrders = []
       const ordersToPos = []
       const catalog = []
+      const catalogServerTiming = []
       const customer = []
+      const customerServerTiming = []
       const requestCounts = []
       for (let index = 0; index < samples; index += 1) {
         const context = await browser.createBrowserContext()
@@ -124,29 +130,42 @@ async function measureTarget(origin) {
         warm.push(Math.round(performance.now() - started))
 
         started = performance.now()
-        await page.goto(`${origin}/admin/orders`, { waitUntil: 'domcontentloaded', timeout: 30_000 })
-        await page.waitForFunction(() => document.body.innerText.length > 100, { timeout: 20_000 })
+        await clickLink(page, '/admin/orders')
+        await waitForPath(page, '/admin/orders')
+        await page.waitForFunction(() => document.body.innerText.includes('AFEX Orders'), { timeout: 20_000 })
         posToOrders.push(Math.round(performance.now() - started))
 
         started = performance.now()
-        await page.goto(`${origin}/pos`, { waitUntil: 'domcontentloaded', timeout: 30_000 })
+        await clickLink(page, '/pos')
+        await waitForPath(page, '/pos')
         await page.waitForFunction(() => document.body.innerText.includes('مرحب'), { timeout: 20_000 })
         ordersToPos.push(Math.round(performance.now() - started))
 
-        catalog.push(await page.evaluate(async (branchId) => {
+        const catalogSample = await page.evaluate(async (branchId) => {
           const startedAt = performance.now()
           const response = await fetch(`/api/invoice/catalog?branchId=${encodeURIComponent(branchId)}&page=1&pageSize=24`, { cache: 'no-store' })
           await response.json()
-          return Math.round(performance.now() - startedAt)
-        }, credentials.branchId))
+          return {
+            duration: Math.round(performance.now() - startedAt),
+            serverTiming: response.headers.get('server-timing'),
+          }
+        }, credentials.branchId)
+        catalog.push(catalogSample.duration)
+        catalogServerTiming.push(catalogSample.serverTiming)
 
-        if (credentials.uniqueCustomerPhone) {
-          customer.push(await page.evaluate(async (phone, branchId) => {
+        const customerPhone = credentials.uniqueCustomerPhone || credentials.customerPhone
+        if (customerPhone) {
+          const customerSample = await page.evaluate(async (phone, branchId) => {
             const startedAt = performance.now()
             const response = await fetch(`/api/customers?q=${encodeURIComponent(phone)}&branchId=${encodeURIComponent(branchId)}&limit=10`, { cache: 'no-store' })
             await response.json()
-            return Math.round(performance.now() - startedAt)
-          }, credentials.uniqueCustomerPhone, credentials.branchId))
+            return {
+              duration: Math.round(performance.now() - startedAt),
+              serverTiming: response.headers.get('server-timing'),
+            }
+          }, customerPhone, credentials.branchId)
+          customer.push(customerSample.duration)
+          customerServerTiming.push(customerSample.serverTiming)
         }
         requestCounts.push(requestCount)
         await context.close()
@@ -157,7 +176,9 @@ async function measureTarget(origin) {
         posToOrders: summarize(posToOrders),
         ordersToPos: summarize(ordersToPos),
         catalogApi: summarize(catalog),
+        catalogServerTiming,
         uniqueCustomerSearch: customer.length ? summarize(customer) : null,
+        customerServerTiming,
         xhrFetchRequestCount: summarize(requestCounts),
       }
     }
