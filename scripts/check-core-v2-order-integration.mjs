@@ -32,6 +32,8 @@ const checks = [
   ['in-progress disposition', adapter.includes("acquiredResult === 'in_progress'")],
   ['reconciliation disposition', adapter.includes("kind: 'reconciliation'")],
   ['replay suppresses follow-up', route.includes('if (coreResult.duplicate)')],
+  ['replay suppresses duplicate print', checkout.includes('shouldAutoPrintThermal: createOrderResult.duplicate !== true')],
+  ['closed Arabic disposition surfaced', checkout.includes('createOrderResult?.message')],
   ['tenant phone identity', customerRoute.includes(".eq('normalized_phone', normalizedPhone)")],
   ['atomic customer creation', customerRoute.includes(".rpc('create_customer_with_phone_identity_v1'")],
   ['ambiguous phone not canonicalized', customers.includes('AMBIGUOUS') || customerRoute.includes('duplicatePhoneCandidates')],
