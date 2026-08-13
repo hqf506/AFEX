@@ -325,7 +325,9 @@ export async function GET(request: NextRequest) {
     }
   >()
 
-  if (customerIds.length > 0) {
+  // Exact phone lookup is the POS identity-selection fast path. Activity is
+  // presentation-only and must not delay the visible identity result.
+  if (customerIds.length > 0 && !normalizedFullPhone) {
     let activityQuery = auth.supabase
       .from('invoices')
       .select('customer_id, created_at, total, payment_status, cash_received, remaining_from_customer')

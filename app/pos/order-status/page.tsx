@@ -16,6 +16,7 @@ import {
 } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime, formatPosTime } from '@/lib/pos/date-format'
+import { peekClientResource } from '@/lib/client-resource-cache'
 
 type ActiveOrderStatus = Extract<OrderStatus, 'in_progress' | 'ready'>
 
@@ -132,11 +133,18 @@ export default function PosOrderStatusPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      if (access.allowed && access.tenantId) {
+        const homeOrdersCacheKey = ['pos-home-orders', access.tenantId, access.scopeType || 'unknown', access.branchId || 'all', 6].join(':')
+        const cached = peekClientResource<{ items?: OrderSourceRow[] }>(homeOrdersCacheKey)
+        if (Array.isArray(cached?.items)) {
+          setOrders(cached.items.map((row, index) => normalizeOrderRecord(row, index)).map(mapOrderSummaryToOrderRecord).filter((order) => isActiveOrderStatus(order.status)))
+        }
+      }
       void loadOrders()
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [loadOrders])
+  }, [access.allowed, access.branchId, access.scopeType, access.tenantId, loadOrders])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(Date.now()), 60_000)
