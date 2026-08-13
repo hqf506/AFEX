@@ -86,6 +86,8 @@ async function measureCell(origin, viewport, networkProfile) {
   page.on('response', async (response) => { const value = response.headers()['server-timing']; if (value) serverTiming.push({ path: new URL(response.url()).pathname, value }) })
   await authenticate(page, origin)
   const orders = [], catalog = [], requests = []
+  await timedClick(page, () => clickLink(page, '/pos/order-status'), '/pos/order-status', () => Boolean(document.querySelector('.pos-order-status-page input')) && !document.querySelector('.pos-order-status-page .animate-pulse'))
+  await timedClick(page, () => page.click('button[aria-label]'), '/pos', () => Boolean(document.querySelector('a[href="/pos/order-status"]')))
   for (let index = 0; index < samples; index += 1) {
     const startedRequests = requestCount
     orders.push(await timedClick(page, () => clickLink(page, '/pos/order-status'), '/pos/order-status', () => Boolean(document.querySelector('.pos-order-status-page input')) && !document.querySelector('.pos-order-status-page .animate-pulse')))
