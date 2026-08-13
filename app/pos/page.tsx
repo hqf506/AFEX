@@ -141,7 +141,7 @@ const sidebarItems = [
   {
     id: 'orders',
     label: 'الطلبات',
-    href: '/admin/orders',
+    href: '/pos/order-status',
     active: false,
     disabled: false,
     icon: 'clipboard' as const,
@@ -515,6 +515,7 @@ export default function PosPage() {
     router.prefetch('/pos/sale/customer')
     router.prefetch('/pos/sale/items')
     router.prefetch('/pos/sale/checkout')
+    router.prefetch('/pos/order-status')
 
     void prefetchClientResource(
       ADMIN_CATEGORIES_CACHE_KEY,
@@ -1408,7 +1409,7 @@ export default function PosPage() {
                     <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M7 12h10M10 17h4" strokeLinecap="round"/><path d="M7 4v6M17 9v6" strokeLinecap="round"/></svg>
                   </span>
                   <Link
-                    href="/admin/orders"
+                    href="/pos/order-status"
                     className="hidden min-h-[44px] items-center rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:inline-flex"
                   >
                     عرض الكل

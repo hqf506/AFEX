@@ -130,9 +130,9 @@ async function measureTarget(origin) {
         warm.push(Math.round(performance.now() - started))
 
         started = performance.now()
-        await clickLink(page, '/admin/orders')
-        await waitForPath(page, '/admin/orders')
-        await page.waitForFunction(() => document.body.innerText.includes('AFEX Orders'), { timeout: 20_000 })
+        await clickLink(page, '/pos/order-status')
+        await waitForPath(page, '/pos/order-status')
+        await page.waitForFunction(() => document.querySelector('input[type="search"], input[placeholder*="بحث"]'), { timeout: 20_000 })
         posToOrders.push(Math.round(performance.now() - started))
 
         started = performance.now()
