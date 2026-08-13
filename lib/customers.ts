@@ -204,7 +204,7 @@ export function isMissingCustomerIdentityColumnError(
     message?: string | null
     details?: string | null
   } | null,
-  column: 'phone_normalized' | 'record_version'
+  column: 'normalized_phone' | 'record_version'
 ) {
   if (!error || !['42703', 'PGRST204'].includes(error.code || '')) {
     return false

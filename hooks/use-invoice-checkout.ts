@@ -345,6 +345,8 @@ export function useInvoiceCheckout({
           success?: boolean
           data?: CreatedInvoiceRecord
           error?: string
+          message?: string
+          coreDisposition?: string
           duplicate?: boolean
         }
       | null
@@ -354,7 +356,12 @@ export function useInvoiceCheckout({
       !createOrderResult?.success ||
       !createOrderResult.data
     ) {
-        setErrorMessage(POS_UX_MESSAGES.orderFailure)
+        setErrorMessage(
+          typeof createOrderResult?.message === 'string' &&
+            createOrderResult.message.trim()
+            ? createOrderResult.message
+            : POS_UX_MESSAGES.orderFailure
+        )
         return
       }
 
@@ -386,7 +393,7 @@ export function useInvoiceCheckout({
         cashChange,
         note,
         invoiceItems,
-        shouldAutoPrintThermal: true,
+        shouldAutoPrintThermal: createOrderResult.duplicate !== true,
       })
     )
 

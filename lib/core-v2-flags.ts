@@ -8,6 +8,10 @@ export function coreV2AtomicOrderEnabled(explicit?: boolean) {
   return enabled('AFEX_CORE_V2_ATOMIC_ORDER_ENABLED', explicit)
 }
 
+export function coreV2OrderExecutionEnabled(explicit?: boolean) {
+  return enabled('AFEX_CORE_V2_ORDER_EXECUTION_ENABLED', explicit)
+}
+
 export function coreV2FinancialQuotesEnabled(explicit?: boolean) {
   return enabled('AFEX_CORE_V2_FINANCIAL_QUOTES', explicit)
 }

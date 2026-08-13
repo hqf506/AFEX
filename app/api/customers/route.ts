@@ -19,6 +19,7 @@ type CustomerListRow = {
   id: string | null
   name: string | null
   phone: string | null
+  display_phone?: string | null
   [key: string]: unknown
 }
 
@@ -61,8 +62,8 @@ async function findCustomersByNormalizedIdentity(
 ) {
   let normalizedQuery = supabase
     .from('customers')
-    .select('id, name, phone')
-    .eq('phone_normalized', normalizedPhone)
+    .select('id, name, phone, display_phone')
+    .eq('normalized_phone', normalizedPhone)
     .order('name', { ascending: true })
     .limit(limit)
 
@@ -86,7 +87,7 @@ async function findCustomersByNormalizedIdentity(
     normalizedResult.error &&
     !isMissingCustomerIdentityColumnError(
       normalizedResult.error,
-      'phone_normalized'
+      'normalized_phone'
     )
   ) {
     return normalizedResult
@@ -94,7 +95,7 @@ async function findCustomersByNormalizedIdentity(
 
   let legacyQuery = supabase
     .from('customers')
-    .select('id, name, phone')
+    .select('id, name, phone, display_phone')
     .ilike('phone', buildSaudiPhoneCandidatePattern(normalizedPhone))
     .order('name', { ascending: true })
     .limit(limit)
@@ -267,7 +268,7 @@ export async function GET(request: NextRequest) {
     : await timing.measure('customers', async () => {
         let query = auth.supabase
           .from('customers')
-          .select('id, name, phone', {
+          .select('id, name, phone, display_phone', {
             count: paginated ? 'exact' : undefined,
           })
           .order('name', { ascending: true })
@@ -412,6 +413,7 @@ export async function GET(request: NextRequest) {
 
     return {
       ...customer,
+      phone: customer.display_phone || customer.phone,
       lastPurchaseAmount: activity?.lastPurchaseAmount ?? null,
       firstVisitAt: activity?.firstVisitAt ?? null,
       lastActivityAt: activity?.lastActivityAt ?? null,
@@ -549,26 +551,27 @@ export async function POST(request: NextRequest) {
   }
 
   const { data, error } = await auth.supabase
-    .from('customers')
-    .insert({
-      tenant_id: auth.profile.tenant_id,
-      branch_id: branchId,
-      name,
-      phone: customerIdentity.identity.phone,
-      email,
-      notes,
+    .rpc('create_customer_with_phone_identity_v1', {
+      p_tenant_id: auth.profile.tenant_id,
+      p_branch_id: branchId,
+      p_name: name,
+      p_display_phone: customerIdentity.identity.phone,
+      p_email: email,
+      p_notes: notes,
     })
-    .select('id, name, phone')
     .single()
 
   if (error) {
     const constraint = resolveCustomerConstraint(error)
-    const isUniqueConflict = error.code === '23505'
+    const isRegistryConflict =
+      error.code === 'P0001' && error.message === 'CUSTOMER_SCOPE_CONFLICT'
+    const isUniqueConflict = error.code === '23505' || isRegistryConflict
     const isPhoneConflict =
       isUniqueConflict &&
       (constraint === 'customers_phone_key' ||
         constraint === 'customers_tenant_phone_normalized_key' ||
-        constraint === 'customers_tenant_phone_normalized_uidx')
+        constraint === 'customers_tenant_phone_normalized_uidx' ||
+        isRegistryConflict)
     const status = isUniqueConflict ? 409 : 500
     logCustomerDatabaseFailure('insert', error, status)
     return jsonWithAuthCookies(
@@ -590,10 +593,16 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  const createdCustomer = data as {
+    id: string
+    name: string
+    phone: string
+  }
+
   return jsonWithAuthCookies(auth.response, {
     success: true,
     customer: {
-      ...data,
+      ...createdCustomer,
       lastPurchaseAmount: null,
       firstVisitAt: null,
       lastActivityAt: null,
