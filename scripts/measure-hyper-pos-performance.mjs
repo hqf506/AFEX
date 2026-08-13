@@ -17,7 +17,7 @@ const credentials = JSON.parse(await fs.readFile(credentialPath, 'utf8'))
 const browser = await puppeteer.launch({ executablePath: chromePath, headless: true, args: ['--no-first-run', '--disable-background-networking'] })
 let authenticatedState = null
 const percentile = (values, ratio) => [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.ceil(values.length * ratio) - 1)]
-const summarize = (values) => ({ samples: values.length, min: Math.min(...values), p50: percentile(values, .5), p75: percentile(values, .75), p95: percentile(values, .95), max: Math.max(...values) })
+const summarize = (values) => ({ values, samples: values.length, min: Math.min(...values), p50: percentile(values, .5), p75: percentile(values, .75), p95: percentile(values, .95), max: Math.max(...values) })
 const waitForPath = (page, path) => page.waitForFunction((expected) => location.pathname === expected, { timeout: 20_000 }, path)
 const clickButton = async (page, label) => {
   for (const button of await page.$$('button')) if ((await button.evaluate((node) => node.textContent?.trim())) === label) return button.click()
