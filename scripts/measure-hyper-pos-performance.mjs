@@ -102,8 +102,9 @@ async function measureCustomerCell(origin, viewport, networkProfile) {
   const api = [], visible = [], debounce = [], requestCount = [], serverTiming = []
   const context = await browser.createBrowserContext(), page = await context.newPage(); await preparePage(page, viewport, networkProfile); await authenticate(page, origin)
   let networkStarted = 0, networkEnded = 0, requests = 0, timing = null
-  page.on('request', (request) => { if (new URL(request.url()).pathname === '/api/customers') { requests += 1; networkStarted = performance.now() } })
-  page.on('response', (response) => { if (new URL(response.url()).pathname === '/api/customers') { networkEnded = performance.now(); timing = response.headers()['server-timing'] || null } })
+  const isCustomerLookup = (url) => ['/api/customers', '/rest/v1/rpc/lookup_customer_phone_identity_v1'].includes(new URL(url).pathname)
+  page.on('request', (request) => { if (isCustomerLookup(request.url())) { requests += 1; networkStarted = performance.now() } })
+  page.on('response', (response) => { if (isCustomerLookup(response.url())) { networkEnded = performance.now(); timing = response.headers()['server-timing'] || null } })
   for (let index = 0; index < samples; index += 1) {
     await page.goto(`${origin}/pos/sale/customer`, { waitUntil: 'domcontentloaded', timeout: 30_000 }); await waitForPath(page, '/pos/sale/customer')
     const input = await page.waitForSelector('input[placeholder="05xxxxxxxx"], input[placeholder="رقم الجوال"]', { timeout: 20_000 })
