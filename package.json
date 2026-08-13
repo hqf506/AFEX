@@ -33,6 +33,7 @@
     "check:atomic-inventory": "node scripts/check-atomic-inventory-foundation.mjs",
     "check:atomic-persistence": "node scripts/check-atomic-persistence-foundation.mjs",
     "check:atomic-application": "node scripts/check-atomic-application-foundation.mjs",
+    "check:core-v2-order-integration": "node scripts/check-core-v2-order-integration.mjs",
     "check:server-timing": "node scripts/check-server-timing.mjs",
     "check:support-center": "node scripts/check-support-center.mjs",
     "check:support-ui": "node scripts/check-support-ui.mjs",

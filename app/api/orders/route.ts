@@ -48,6 +48,8 @@ import { maskId, maskPhone, redactSensitive } from '@/lib/security/redaction'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 import { isSendableWhatsAppPhone } from '@/lib/whatsapp/messages'
 import { sendWhatsAppFile } from '@/lib/whatsapp/service'
+import { coreV2OrderExecutionEnabled } from '@/lib/core-v2-flags'
+import { executeCoreV2AtomicOrder } from '@/lib/server/core-v2/atomic-order'
 
 type OrdersApiQuery = {
   mode: 'full' | 'meta' | 'details'
@@ -715,6 +717,7 @@ async function handleCreateOrderPost(
     const clientIdempotencyKey = normalizeClientIdempotencyKey(
       body.clientIdempotencyKey
     )
+    const coreV2Enabled = coreV2OrderExecutionEnabled()
     const createdByEmployeeId = normalizeUuidString(body.employee_id)
     const branchId = normalizeUuidString(body.branch_id)
 
@@ -920,7 +923,7 @@ async function handleCreateOrderPost(
       correlationId: auth.context.correlationId,
       engineVersion: 'v1',
     })
-    const idempotencyCommand = clientIdempotencyKey
+    const idempotencyCommand = !coreV2Enabled && clientIdempotencyKey
       ? idempotencyService.createCommand({
           clientKey: clientIdempotencyKey,
           commandType: 'order.create',
@@ -948,7 +951,7 @@ async function handleCreateOrderPost(
         })
       : null
 
-    if (clientIdempotencyKey && idempotencyCommand) {
+    if (!coreV2Enabled && clientIdempotencyKey && idempotencyCommand) {
       const resolution = await timing.measure('idempotency_lookup', () =>
         idempotencyService.resolveBeforeExecution({
           clientKey: clientIdempotencyKey,
@@ -976,7 +979,7 @@ async function handleCreateOrderPost(
           auth.response,
           {
             success: false,
-            message: 'Ù…ÙØªØ§Ø­ Ø§Ù„Ø·Ù„Ø¨ Ù…Ø³ØªØ®Ø¯Ù… Ù„Ø·Ù„Ø¨ Ù…Ø®ØªÙ„Ù',
+            message: 'مفتاح الطلب مستخدم لطلب مختلف',
           },
           409
         )
@@ -987,7 +990,7 @@ async function handleCreateOrderPost(
           auth.response,
           {
             success: false,
-            message: 'Ø§Ù„Ø·Ù„Ø¨ Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§Ù„Ø¬Ø©ØŒ Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰ Ø¨Ø¹Ø¯ Ù„Ø­Ø¸Ø§Øª',
+            message: 'الطلب قيد المعالجة، حاول مرة أخرى بعد لحظات',
           },
           409
         )
@@ -1179,9 +1182,93 @@ async function handleCreateOrderPost(
       p_branch_id: branchId,
     }
 
-    const { data, error } = await timing.measure('atomic_rpc', () =>
-      serviceSupabase.rpc(rpcName, rpcPayload)
-    )
+    let data: unknown
+    let error: { message: string; details?: string; hint?: string; code?: string } | null = null
+
+    if (coreV2Enabled) {
+      if (!clientIdempotencyKey) {
+        return jsonWithAuthCookies(
+          auth.response,
+          { success: false, message: 'تعذر التحقق من هوية محاولة الطلب بأمان.' },
+          400
+        )
+      }
+      const normalizedCustomerPhone = normalizeSaudiCustomerPhone(
+        typeof body.customerPhone === 'string' ? body.customerPhone : null
+      )
+      if (!normalizedCustomerPhone) {
+        return jsonWithAuthCookies(
+          auth.response,
+          { success: false, message: 'رقم جوال العميل غير صالح.' },
+          400
+        )
+      }
+      const corePaymentMethod = getPersistedInvoicePaymentMethod(paymentMethod)
+      if (!['cash', 'mada', 'visa', 'cod'].includes(corePaymentMethod)) {
+        return jsonWithAuthCookies(
+          auth.response,
+          { success: false, message: 'طريقة الدفع غير مدعومة في مسار Core V2.' },
+          400
+        )
+      }
+      const coreResult = await timing.measure('core_v2_atomic_order', () =>
+        executeCoreV2AtomicOrder(serviceSupabase, {
+          actorId: auth.user.id,
+          tenantId: profileTenantId,
+          branchId,
+          clientRequestId: clientIdempotencyKey,
+          customerName: typeof body.customerName === 'string' ? body.customerName.trim() : '',
+          normalizedCustomerPhone,
+          paymentMethod: corePaymentMethod as 'cash' | 'mada' | 'visa' | 'cod',
+          cashReceived: paymentSnapshot?.cashReceived ?? 0,
+          remainingFromCustomer: paymentSnapshot?.remainingFromCustomer ?? 0,
+          cashChange: paymentSnapshot?.cashChange ?? 0,
+          discountAmount: typeof body.discountAmount === 'number' ? body.discountAmount : 0,
+          taxAmount: typeof body.taxAmount === 'number' ? body.taxAmount : 0,
+          note: typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null,
+          items: validItems.map((item) => ({
+            item_id: item.item_id!,
+            quantity: typeof item.quantity === 'number' ? item.quantity : 0,
+            unit_price: item.unit_price,
+          })),
+        })
+      )
+
+      if (coreResult.kind !== 'success' || !coreResult.snapshot) {
+        const status = coreResult.kind === 'in_progress' || coreResult.kind === 'conflict' || coreResult.kind === 'reconciliation' ? 409 : 500
+        return jsonWithAuthCookies(
+          auth.response,
+          { success: false, message: coreResult.message, coreDisposition: coreResult.kind },
+          status
+        )
+      }
+      const snapshot = coreResult.snapshot
+      data = {
+        customer_id: snapshot.customerId,
+        order_id: snapshot.orderId,
+        order_number: snapshot.orderNumber,
+        invoice_id: snapshot.invoiceId,
+        invoice_number: snapshot.invoiceNumber,
+        status: 'in_progress',
+        subtotal: snapshot.subtotal,
+        discount: snapshot.discount,
+        tax: snapshot.tax,
+        total: snapshot.total,
+      }
+      if (coreResult.duplicate) {
+        return jsonWithAuthCookies(auth.response, {
+          success: true,
+          data,
+          duplicate: true,
+        })
+      }
+    } else {
+      const legacyResult = await timing.measure('atomic_rpc', () =>
+        serviceSupabase.rpc(rpcName, rpcPayload)
+      )
+      data = legacyResult.data
+      error = legacyResult.error
+    }
 
     if (error) {
       if (clientIdempotencyKey && idempotencyCommand) {
