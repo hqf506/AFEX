@@ -63,7 +63,8 @@ export function isServerTimingEnabled() {
   )
 }
 
-export function createServerTiming(debugLabel = '') {
+export function createServerTiming(_debugLabel = '') {
+  void _debugLabel
   const enabled = isServerTimingEnabled()
   const startedAt = performance.now()
   const entries: TimingEntry[] = []
@@ -113,13 +114,6 @@ export function createServerTiming(debugLabel = '') {
         .join(', ')
       const headers = new Headers(response.headers)
       headers.set('Server-Timing', headerValue)
-
-      if (
-        debugLabel &&
-        process.env.AFEX_SERVER_TIMING_LOGS === 'true'
-      ) {
-        console.info(`[server-timing:${debugLabel}] ${headerValue}`)
-      }
 
       return new Response(response.body, {
         status: response.status,

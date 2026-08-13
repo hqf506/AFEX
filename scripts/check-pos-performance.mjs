@@ -82,11 +82,15 @@ const allSettledCall = catalogRouteCalls.find(
   (call) => call.expression.getText(catalogRouteSourceFile) === 'Promise.allSettled'
 )
 const allSettledDeclaration = allSettledCall?.parent.parent
+const settingsGuardSource = settingsGuardInitializer?.getText(
+  catalogRouteSourceFile
+) || ''
 
 assert(
   settingsGuardInitializer &&
     !ts.isAwaitExpression(settingsGuardInitializer) &&
-    settingsGuardInitializer.getText(catalogRouteSourceFile).includes("timing.measure(\n      'settings'") &&
+    settingsGuardSource.includes('timing.measure') &&
+    settingsGuardSource.includes("'settings'") &&
     branchValidationInitializer &&
     !ts.isAwaitExpression(branchValidationInitializer) &&
     branchValidationInitializer.getText(catalogRouteSourceFile).includes("timing.measure('branches'") &&
@@ -282,7 +286,15 @@ assert(
   'Independent category and catalog queries must run in parallel.'
 )
 assert(
-  catalogRoute.includes(".in('catalog_item_id', stockItemIds)"),
+  catalogRoute.includes('branchOverridesPromise') &&
+    catalogRoute.includes('inventoryStockPromise') &&
+    /Promise\.all\(\[\s*branchOverridesPromise,\s*inventoryStockPromise,?\s*\]\)/s.test(
+      catalogRoute
+    ),
+  'Paged POS Catalog overrides and inventory stock must run in parallel.'
+)
+assert(
+  catalogRoute.includes(".in('catalog_item_id', catalogItemIds)"),
   'Inventory stock must be limited to the requested catalog items.'
 )
 assert(

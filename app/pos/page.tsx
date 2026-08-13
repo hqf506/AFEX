@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useMobileViewport } from '@/hooks/use-mobile-viewport'
@@ -397,6 +397,9 @@ export default function PosPage() {
     activePosEmployee?.branch_id ||
     (access.scopeType === 'branch' ? access.branchId : null)
   const recentOrders = orders.slice(0, 6)
+  const mapRecentOrders = (
+    renderOrder: (order: OrderRecord) => ReactNode
+  ) => recentOrders.map(renderOrder)
   const selectedMobileOrder = selectedMobileOrderId
     ? recentOrders.find((order) => order.id === selectedMobileOrderId) || null
     : null
@@ -1009,7 +1012,7 @@ export default function PosPage() {
                     </div>
                   ) : null}
 
-                  {!ordersError && !ordersLoading ? recentOrders.map((order) => {
+                  {!ordersError && !ordersLoading ? mapRecentOrders((order) => {
                     const statusKey = resolvePosKanbanStatus(order.status)
                     const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
                     const isUpdatingOrder = updatingOrderId === order.id
@@ -1436,9 +1439,9 @@ export default function PosPage() {
                 </div>
               ) : null}
 
-              {!ordersError && !ordersLoading && recentOrders.length > 0 ? (
+              {!showMobileRecentOrders && !ordersError && !ordersLoading && recentOrders.length > 0 ? (
                 <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-visible sm:grid-cols-2 lg:overflow-y-auto lg:overscroll-contain lg:pr-1 lg:[scrollbar-width:none] lg:[-ms-overflow-style:none] lg:[&::-webkit-scrollbar]:hidden xl:gap-4">
-                  {recentOrders.map((order) => {
+                  {mapRecentOrders((order) => {
                     const statusKey = resolvePosKanbanStatus(order.status)
                     const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
                     const nextStatus = getNextPosOrderStatus(order.status)
