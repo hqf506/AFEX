@@ -42,7 +42,7 @@ type ExistingCustomer = CreatedPosCustomer
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
 const CUSTOMER_SEARCH_CACHE_TTL_MS = 30_000
-const CUSTOMER_SEARCH_DEBOUNCE_MS = 0
+const CUSTOMER_SEARCH_DEBOUNCE_MS = 300
 const RECENT_CUSTOMERS_CACHE_TTL_MS = 30_000
 
 const posSidebarItems = [
@@ -320,7 +320,7 @@ export function InvoiceCustomerStep({
           console.timeEnd('customer search')
         }
       }
-    }, CUSTOMER_SEARCH_DEBOUNCE_MS)
+    }, normalizeSaudiCustomerPhone(customerSearch.query) ? 0 : CUSTOMER_SEARCH_DEBOUNCE_MS)
 
     return () => {
       customerSearchRequestIdRef.current += 1
