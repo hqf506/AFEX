@@ -92,10 +92,10 @@ export default function PosOrderStatusPage() {
   const [now, setNow] = useState(() => Date.now())
   const updatingOrderIdsRef = useRef(new Set<string>())
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (showLoader = true) => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
 
-    setLoading(true)
+    setLoading(showLoader)
     setPageError('')
 
     try {
@@ -133,14 +133,16 @@ export default function PosOrderStatusPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      let hasCachedSummary = false
       if (access.allowed && access.tenantId) {
         const homeOrdersCacheKey = ['pos-home-orders', access.tenantId, access.scopeType || 'unknown', access.branchId || 'all', 6].join(':')
         const cached = peekClientResource<{ items?: OrderSourceRow[] }>(homeOrdersCacheKey)
         if (Array.isArray(cached?.items)) {
+          hasCachedSummary = true
           setOrders(cached.items.map((row, index) => normalizeOrderRecord(row, index)).map(mapOrderSummaryToOrderRecord).filter((order) => isActiveOrderStatus(order.status)))
         }
       }
-      void loadOrders()
+      void loadOrders(!hasCachedSummary)
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
