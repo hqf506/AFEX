@@ -102,14 +102,20 @@ async function measureCustomerCell(origin, viewport, networkProfile) {
   const api = [], visible = [], debounce = [], requestCount = [], serverTiming = []
   const context = await browser.createBrowserContext(), page = await context.newPage(); await preparePage(page, viewport, networkProfile); await authenticate(page, origin)
   let networkStarted = 0, networkEnded = 0, requests = 0, timing = null
-  const isCustomerLookup = (url) => ['/api/customers', '/rest/v1/rpc/lookup_customer_phone_identity_v1'].includes(new URL(url).pathname)
-  page.on('request', (request) => { if (isCustomerLookup(request.url())) { requests += 1; networkStarted = performance.now() } })
-  page.on('response', (response) => { if (isCustomerLookup(response.url())) { networkEnded = performance.now(); timing = response.headers()['server-timing'] || null } })
+  const isCustomerLookup = (url) => new URL(url).pathname === '/rest/v1/rpc/lookup_customer_phone_identity_v1'
+  page.on('request', (request) => { if (isCustomerLookup(request.url()) && request.method() === 'POST') { requests += 1; networkStarted = performance.now() } })
+  page.on('response', (response) => { if (isCustomerLookup(response.url()) && response.request().method() === 'POST') { networkEnded = performance.now(); timing = response.headers()['server-timing'] || null } })
   for (let index = 0; index < samples; index += 1) {
     await page.goto(`${origin}/pos/sale/customer`, { waitUntil: 'domcontentloaded', timeout: 30_000 }); await waitForPath(page, '/pos/sale/customer')
     const input = await page.waitForSelector('input[placeholder="05xxxxxxxx"], input[placeholder="رقم الجوال"]', { timeout: 20_000 })
+    await page.waitForFunction(() => !document.querySelector('[data-pos-mobile-customer-results]')?.innerText.includes('جارٍ تحميل العملاء'), { timeout: 20_000 })
     networkStarted = 0; networkEnded = 0; requests = 0; timing = null
-    await input.click({ clickCount: 3 }); const inputStarted = performance.now(); await input.type(credentials.customerPhone)
+    await input.click({ clickCount: 3 }); const inputStarted = performance.now()
+    await input.evaluate((node, value) => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+      setter.call(node, value)
+      node.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }))
+    }, credentials.customerPhone)
     await page.waitForFunction((tag) => document.querySelector('[data-pos-mobile-customer-results]')?.innerText.includes(tag), { timeout: 20_000 }, credentials.tag)
     const rendered = performance.now(); if (requests !== 1 || !networkStarted || !networkEnded) throw new Error(`Customer request invariant failed: ${requests}`)
     api.push(Math.round(networkEnded - networkStarted)); visible.push(Math.round(rendered - inputStarted)); debounce.push(Math.round(networkStarted - inputStarted)); requestCount.push(requests); serverTiming.push(timing)

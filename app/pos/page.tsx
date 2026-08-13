@@ -516,6 +516,10 @@ export default function PosPage() {
     router.prefetch('/pos/sale/items')
     router.prefetch('/pos/sale/checkout')
     router.prefetch('/pos/order-status')
+    const orderStatusPrefetchIntervalId = window.setInterval(
+      () => router.prefetch('/pos/order-status'),
+      15_000
+    )
 
     void prefetchClientResource(
       ADMIN_CATEGORIES_CACHE_KEY,
@@ -548,6 +552,9 @@ export default function PosPage() {
     if (resolvedPosBranchId && access.tenantId) {
       void prefetchBranchInvoiceCatalog(resolvedPosBranchId, access.tenantId)
     }
+
+    return () => window.clearInterval(orderStatusPrefetchIntervalId)
+
   }, [
     access.allowed,
     access.branchId,
@@ -1410,6 +1417,7 @@ export default function PosPage() {
                   </span>
                   <Link
                     href="/pos/order-status"
+                    prefetch={true}
                     className="hidden min-h-[44px] items-center rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:inline-flex"
                   >
                     عرض الكل
