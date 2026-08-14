@@ -448,6 +448,7 @@ export function InvoiceItemsStep({
   const [ready, setReady] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
+  const [customerId, setCustomerId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState(INVOICE_ALL_FILTER)
   const [invoiceItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([])
@@ -564,6 +565,7 @@ export function InvoiceItemsStep({
     window.setTimeout(() => {
       setCustomerName(parsed.name)
       setCustomerPhone(parsed.phone)
+      setCustomerId(parsed.customerId)
       setInvoiceLineItems(parsedSaleItemsDraft?.items ?? [])
       setHydratedSaleDraft(true)
       setReady(true)
@@ -1002,6 +1004,7 @@ export function InvoiceItemsStep({
   }, [allowed, checkoutHref, invoiceBranchId, hasUnavailablePosBranchContext, ready, router, tenantId])
 
   const checkout = useInvoiceCheckout({
+    customerId,
     customerName,
     customerPhone,
     invoiceItems,

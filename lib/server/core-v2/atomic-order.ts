@@ -33,6 +33,7 @@ type Input = {
   tenantId: string
   branchId: string
   clientRequestId: string
+  customerId: string | null
   customerName: string
   normalizedCustomerPhone: string
   paymentMethod: 'cash' | 'mada' | 'visa' | 'cod'
@@ -138,7 +139,15 @@ export async function executeCoreV2AtomicOrder(client: SupabaseClient, input: In
   })
   if (customerLookup.error) throw new Error('CORE_CUSTOMER_LOOKUP_FAILED')
   let customers = Array.isArray(customerLookup.data) ? customerLookup.data as Array<Record<string, unknown>> : []
-  if (customers.length === 0) {
+  if (input.customerId) {
+    const selectedCustomers = customers.filter(
+      (customer) => customer.customer_id === input.customerId
+    )
+    if (selectedCustomers.length !== 1) {
+      return { kind: 'conflict', duplicate: false, message: 'تعارض في بيانات العميل أو المحاولة.' }
+    }
+    customers = selectedCustomers
+  } else if (customers.length === 0) {
     const created = await client.rpc('create_customer_with_phone_identity_v1', {
       p_tenant_id: input.tenantId,
       p_branch_id: input.branchId,
@@ -156,7 +165,10 @@ export async function executeCoreV2AtomicOrder(client: SupabaseClient, input: In
     if (refreshed.error) throw new Error('CORE_CUSTOMER_LOOKUP_FAILED')
     customers = Array.isArray(refreshed.data) ? refreshed.data as Array<Record<string, unknown>> : []
   }
-  if (customers.length !== 1 || customers[0].resolution_status !== 'RESOLVED') {
+  if (
+    customers.length !== 1 ||
+    (!input.customerId && customers[0].resolution_status !== 'RESOLVED')
+  ) {
     return { kind: 'conflict', duplicate: false, message: 'تعارض في بيانات العميل أو المحاولة.' }
   }
 

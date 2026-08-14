@@ -468,6 +468,7 @@ export function InvoiceCustomerStep({
 
     const timeoutId = window.setTimeout(() => {
       if (storedCustomer) {
+        setSelectedCustomerId(storedCustomer.customerId)
         setCustomerName(storedCustomer.name)
         setCustomerPhone(storedCustomer.phone)
       }
@@ -490,6 +491,7 @@ export function InvoiceCustomerStep({
     localStorage.setItem(
       INVOICE_CUSTOMER_STORAGE_KEY,
       serializeInvoiceCustomerDraft({
+        customerId: selectedCustomerId,
         name: customerName,
         phone: customerPhone,
       })
@@ -561,7 +563,11 @@ export function InvoiceCustomerStep({
     if (hasActiveSale) {
       localStorage.setItem(
         INVOICE_CUSTOMER_STORAGE_KEY,
-        serializeInvoiceCustomerDraft({ name: customerName, phone: customerPhone })
+        serializeInvoiceCustomerDraft({
+          customerId: selectedCustomerId,
+          name: customerName,
+          phone: customerPhone,
+        })
       )
     }
 

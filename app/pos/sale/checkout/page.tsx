@@ -191,6 +191,7 @@ export default function PosSaleCheckoutPage() {
   const [missingCheckoutData, setMissingCheckoutData] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
+  const [customerId, setCustomerId] = useState<string | null>(null)
   const [invoiceItems, setInvoiceItems] = useState<InvoiceLineItem[]>([])
   const [availableDiscounts, setAvailableDiscounts] = useState<
     CheckoutDiscountOption[]
@@ -251,6 +252,7 @@ export default function PosSaleCheckoutPage() {
       setMissingCheckoutData(false)
       setCustomerName(parsedCustomer.name)
       setCustomerPhone(parsedCustomer.phone)
+      setCustomerId(parsedCustomer.customerId)
       setInvoiceItems(parsedItems.items)
       setReady(true)
     }, 0)
@@ -338,6 +340,7 @@ export default function PosSaleCheckoutPage() {
   }, [allowed, checkoutBranchId, tenantId])
 
   const checkout = useInvoiceCheckout({
+    customerId,
     customerName,
     customerPhone,
     invoiceItems,
