@@ -35,7 +35,7 @@ if ($source -notmatch '(?s)^BEGIN;.*REVOKE afex_function_owner FROM postgres GRA
 & $PsqlPath -X -v ON_ERROR_STOP=1 -f $MigrationPath
 if ($LASTEXITCODE -ne 0) { throw "Observability migration failed with exit code $LASTEXITCODE." }
 
-$remainingEdges = & $PsqlPath -X -v ON_ERROR_STOP=1 -Atqc "select count(*) from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member where r.rolname='afex_function_owner' and u.rolname='postgres';"
+$remainingEdges = & $PsqlPath -X -v ON_ERROR_STOP=1 -Atqc "select count(*) from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor where r.rolname='afex_function_owner' and u.rolname='postgres' and g.rolname='postgres' and m.set_option;"
 if ($LASTEXITCODE -ne 0 -or [int]($remainingEdges | Select-Object -Last 1) -ne 0) {
   throw 'Temporary membership cleanup assertion failed.'
 }

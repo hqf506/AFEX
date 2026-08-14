@@ -13,8 +13,11 @@ BEGIN
     FROM pg_catalog.pg_auth_members AS membership
     JOIN pg_catalog.pg_roles AS granted_role ON granted_role.oid = membership.roleid
     JOIN pg_catalog.pg_roles AS member_role ON member_role.oid = membership.member
+    JOIN pg_catalog.pg_roles AS grantor_role ON grantor_role.oid = membership.grantor
     WHERE granted_role.rolname = 'afex_function_owner'
       AND member_role.rolname = 'postgres'
+      AND grantor_role.rolname = 'postgres'
+      AND membership.set_option
   ) THEN
     RAISE EXCEPTION USING errcode = '42501', message = 'OBSERVABILITY_TEMPORARY_MEMBERSHIP_PREEXISTS';
   END IF;
@@ -200,8 +203,11 @@ BEGIN
     FROM pg_catalog.pg_auth_members AS membership
     JOIN pg_catalog.pg_roles AS granted_role ON granted_role.oid = membership.roleid
     JOIN pg_catalog.pg_roles AS member_role ON member_role.oid = membership.member
+    JOIN pg_catalog.pg_roles AS grantor_role ON grantor_role.oid = membership.grantor
     WHERE granted_role.rolname = 'afex_function_owner'
       AND member_role.rolname = 'postgres'
+      AND grantor_role.rolname = 'postgres'
+      AND membership.set_option
   ) THEN
     RAISE EXCEPTION USING errcode = '42501', message = 'OBSERVABILITY_TEMPORARY_MEMBERSHIP_REMAINS';
   END IF;
