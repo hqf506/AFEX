@@ -1304,11 +1304,24 @@ async function handleCreateOrderPost(
 
       if (coreResult.kind !== 'success' || !coreResult.snapshot) {
         const status = coreResult.kind === 'in_progress' || coreResult.kind === 'conflict' || coreResult.kind === 'reconciliation' ? 409 : 500
+        if (coreResult.kind === 'failed') {
+          console.error('[core-v2-acquisition]', {
+            requestReference: clientIdempotencyKey,
+            phase: 'acquisition',
+            classification: coreResult.errorCode,
+            safeSqlState: coreResult.safeSqlState,
+            failurePhase: coreResult.failurePhase,
+          })
+        }
+        const safeMessage =
+          coreResult.kind === 'failed' && coreResult.errorCode === 'INTERNAL_ERROR'
+            ? `تعذر إتمام الطلب بسبب خطأ داخلي. مرجع الدعم: ${clientIdempotencyKey}`
+            : coreResult.message
         return jsonWithAuthCookies(
           auth.response,
           {
             success: false,
-            message: coreResult.message,
+            message: safeMessage,
             coreDisposition: coreResult.kind,
             errorCode: coreResult.errorCode,
           },

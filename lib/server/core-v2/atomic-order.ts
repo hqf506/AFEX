@@ -14,6 +14,46 @@ export type CoreV2Result = {
     | 'CUSTOMER_PHONE_MISMATCH'
     | 'CUSTOMER_IDENTITY_CONFLICT'
     | 'CUSTOMER_PHONE_AMBIGUOUS'
+    | 'UNAUTHORIZED'
+    | 'INTERNAL_ERROR'
+  safeSqlState?: string
+  failurePhase?: AcquisitionFailurePhase
+}
+
+type AcquisitionFailureCode = 'UNAUTHORIZED' | 'INTERNAL_ERROR'
+type AcquisitionFailurePhase =
+  | 'FACADE_VALIDATION'
+  | 'INTERNAL_ACQUISITION'
+  | 'AUTHORIZATION_CONTEXT_INSERT'
+  | 'COMMAND_INSERT'
+  | 'PAYLOAD_INSERT'
+  | 'AUDIT_INSERT'
+  | 'RESULT_CONSTRUCTION'
+  | 'UNKNOWN_INTERNAL'
+
+const ACQUISITION_FAILURE_PHASES = new Set<AcquisitionFailurePhase>([
+  'FACADE_VALIDATION',
+  'INTERNAL_ACQUISITION',
+  'AUTHORIZATION_CONTEXT_INSERT',
+  'COMMAND_INSERT',
+  'PAYLOAD_INSERT',
+  'AUDIT_INSERT',
+  'RESULT_CONSTRUCTION',
+  'UNKNOWN_INTERNAL',
+])
+
+function acquisitionFailureCode(value: unknown): AcquisitionFailureCode {
+  return value === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'INTERNAL_ERROR'
+}
+
+function safeSqlState(value: unknown) {
+  return typeof value === 'string' && /^[0-9A-Z]{5}$/.test(value) ? value : undefined
+}
+
+function acquisitionFailurePhase(value: unknown): AcquisitionFailurePhase | undefined {
+  return typeof value === 'string' && ACQUISITION_FAILURE_PHASES.has(value as AcquisitionFailurePhase)
+    ? value as AcquisitionFailurePhase
+    : undefined
 }
 
 type CatalogRow = {
@@ -251,7 +291,16 @@ export async function executeCoreV2AtomicOrder(client: SupabaseClient, input: In
   if (acquiredResult === 'replay') return { kind: 'success', duplicate: true, snapshot: acquired.responseSnapshot as Record<string, unknown>, message: 'الطلب نُفذ سابقًا وتم استرجاع نتيجته.' }
   if (acquiredResult === 'in_progress') return { kind: 'in_progress', duplicate: false, message: 'جاري معالجة الطلب.' }
   if (acquiredResult === 'fingerprint_conflict') return { kind: 'conflict', duplicate: false, message: 'تعارض في بيانات المحاولة.' }
-  if (acquiredResult !== 'created' || typeof acquired.commandId !== 'string') return { kind: 'failed', duplicate: false, message: 'فشل آمن دون إنشاء طلب.' }
+  if (acquiredResult !== 'created' || typeof acquired.commandId !== 'string') {
+    return {
+      kind: 'failed',
+      duplicate: false,
+      errorCode: acquisitionFailureCode(acquired.errorCode),
+      safeSqlState: safeSqlState(acquired.safeSqlState),
+      failurePhase: acquisitionFailurePhase(acquired.failurePhase),
+      message: 'تعذر إتمام الطلب بسبب خطأ داخلي. لم يتم تأكيد إنشاء الطلب.',
+    }
+  }
   const commandId = acquired.commandId
   const claimed = await rpc(client, 'claim_atomic_order_command_v1', { p: commandId })
   if (claimed.result !== 'claimed' || typeof claimed.claimToken !== 'string') return { kind: claimed.result === 'reconciliation_required' ? 'reconciliation' : 'failed', duplicate: false, message: 'العملية تحتاج مراجعة ولا يجوز إعادة الإرسال.' }

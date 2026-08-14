@@ -34,6 +34,7 @@
     "check:atomic-persistence": "node scripts/check-atomic-persistence-foundation.mjs",
     "check:atomic-application": "node scripts/check-atomic-application-foundation.mjs",
     "check:core-v2-order-integration": "node scripts/check-core-v2-order-integration.mjs",
+    "check:core-v2-acquisition-observability": "node scripts/check-core-v2-acquisition-observability.mjs",
     "check:customer-selection-binding": "node scripts/check-customer-selection-binding.mjs",
     "check:server-timing": "node scripts/check-server-timing.mjs",
     "check:support-center": "node scripts/check-support-center.mjs",
