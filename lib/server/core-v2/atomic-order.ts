@@ -8,6 +8,12 @@ export type CoreV2Result = {
   duplicate: boolean
   snapshot?: Record<string, unknown>
   message: string
+  errorCode?:
+    | 'CUSTOMER_ID_NOT_FOUND'
+    | 'CUSTOMER_TENANT_MISMATCH'
+    | 'CUSTOMER_PHONE_MISMATCH'
+    | 'CUSTOMER_IDENTITY_CONFLICT'
+    | 'CUSTOMER_PHONE_AMBIGUOUS'
 }
 
 type CatalogRow = {
@@ -135,7 +141,9 @@ export async function executeCoreV2AtomicOrder(client: SupabaseClient, input: In
   const customerLookup = await client.rpc('lookup_customer_phone_identity_v1', {
     p_tenant_id: input.tenantId,
     p_normalized_phone: input.normalizedCustomerPhone,
-    p_branch_id: input.branchId,
+    // Customers are tenant-wide. branch_id is historical attribution on the
+    // customer record, not an authorization boundary for POS eligibility.
+    p_branch_id: null,
   })
   if (customerLookup.error) throw new Error('CORE_CUSTOMER_LOOKUP_FAILED')
   let customers = Array.isArray(customerLookup.data) ? customerLookup.data as Array<Record<string, unknown>> : []
@@ -144,7 +152,22 @@ export async function executeCoreV2AtomicOrder(client: SupabaseClient, input: In
       (customer) => customer.customer_id === input.customerId
     )
     if (selectedCustomers.length !== 1) {
-      return { kind: 'conflict', duplicate: false, message: 'تعارض في بيانات العميل أو المحاولة.' }
+      const selected = await client
+        .from('customers')
+        .select('id,tenant_id,normalized_phone')
+        .eq('id', input.customerId)
+        .maybeSingle()
+
+      if (selected.error || !selected.data) {
+        return { kind: 'conflict', duplicate: false, errorCode: 'CUSTOMER_ID_NOT_FOUND', message: 'لم يعد سجل العميل المحدد متاحًا.' }
+      }
+      if (selected.data.tenant_id !== input.tenantId) {
+        return { kind: 'conflict', duplicate: false, errorCode: 'CUSTOMER_TENANT_MISMATCH', message: 'العميل المحدد غير متاح لهذه المنشأة.' }
+      }
+      if (selected.data.normalized_phone !== input.normalizedCustomerPhone) {
+        return { kind: 'conflict', duplicate: false, errorCode: 'CUSTOMER_PHONE_MISMATCH', message: 'رقم الجوال لا يطابق سجل العميل المحدد.' }
+      }
+      return { kind: 'conflict', duplicate: false, errorCode: 'CUSTOMER_IDENTITY_CONFLICT', message: 'تعذر التحقق من هوية العميل المحدد.' }
     }
     customers = selectedCustomers
   } else if (customers.length === 0) {
@@ -160,7 +183,7 @@ export async function executeCoreV2AtomicOrder(client: SupabaseClient, input: In
     const refreshed = await client.rpc('lookup_customer_phone_identity_v1', {
       p_tenant_id: input.tenantId,
       p_normalized_phone: input.normalizedCustomerPhone,
-      p_branch_id: input.branchId,
+      p_branch_id: null,
     })
     if (refreshed.error) throw new Error('CORE_CUSTOMER_LOOKUP_FAILED')
     customers = Array.isArray(refreshed.data) ? refreshed.data as Array<Record<string, unknown>> : []
@@ -169,7 +192,7 @@ export async function executeCoreV2AtomicOrder(client: SupabaseClient, input: In
     customers.length !== 1 ||
     (!input.customerId && customers[0].resolution_status !== 'RESOLVED')
   ) {
-    return { kind: 'conflict', duplicate: false, message: 'تعارض في بيانات العميل أو المحاولة.' }
+    return { kind: 'conflict', duplicate: false, errorCode: 'CUSTOMER_PHONE_AMBIGUOUS', message: 'يوجد أكثر من سجل لهذا الرقم. حدد العميل بشكل صريح.' }
   }
 
   const catalogIds = [...new Set(input.items.map((item) => item.item_id))]

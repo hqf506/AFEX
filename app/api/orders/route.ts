@@ -1306,7 +1306,12 @@ async function handleCreateOrderPost(
         const status = coreResult.kind === 'in_progress' || coreResult.kind === 'conflict' || coreResult.kind === 'reconciliation' ? 409 : 500
         return jsonWithAuthCookies(
           auth.response,
-          { success: false, message: coreResult.message, coreDisposition: coreResult.kind },
+          {
+            success: false,
+            message: coreResult.message,
+            coreDisposition: coreResult.kind,
+            errorCode: coreResult.errorCode,
+          },
           status
         )
       }
