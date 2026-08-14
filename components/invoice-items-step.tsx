@@ -826,6 +826,8 @@ export function InvoiceItemsStep({
       return
     }
 
+    performance.mark('afex-catalog-add-usable')
+
     const timeoutId = window.setTimeout(() => {
       setRecentlyAddedItemId(null)
     }, 220)
@@ -1064,6 +1066,7 @@ export function InvoiceItemsStep({
       return
     }
 
+    performance.mark('afex-catalog-add-start')
     setPressedItemId(normalizedCatalogItemId)
     addItem(product)
   }

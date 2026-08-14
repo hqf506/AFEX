@@ -9,10 +9,6 @@ import type {
 
 const PROVIDER_REQUEST_TIMEOUT_MS = 15_000
 
-function normalizeUltraMsgPhone(phone: string) {
-  return phone.replace(/\D/g, '')
-}
-
 async function fetchUltraMsg(url: string, init: RequestInit) {
   const controller = new AbortController()
   const timeoutId = setTimeout(
@@ -69,7 +65,7 @@ export class UltraMsgProviderAdapter
       },
       body: JSON.stringify({
         token: config.token,
-        to: normalizeUltraMsgPhone(input.to),
+        to: input.to.replace(/^\+/, ''),
         body: input.text,
       }),
     })
@@ -114,7 +110,7 @@ export class UltraMsgProviderAdapter
       },
       body: JSON.stringify({
         token: config.token,
-        to: normalizeUltraMsgPhone(input.to),
+        to: input.to.replace(/^\+/, ''),
         document: input.fileUrl,
         filename: input.filename,
         caption: input.caption,
@@ -161,7 +157,7 @@ export class UltraMsgProviderAdapter
       },
       body: JSON.stringify({
         token: config.token,
-        to: normalizeUltraMsgPhone(input.to),
+        to: input.to.replace(/^\+/, ''),
         image: input.imageUrl,
         caption: input.caption,
       }),

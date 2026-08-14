@@ -8,6 +8,12 @@ import type {
   WhatsAppSendImageInput,
   WhatsAppSendTextInput,
 } from '@/lib/whatsapp/types'
+import { normalizeWhatsAppDestination } from '@/lib/whatsapp/messages'
+
+function normalizeWhatsAppInput<T extends { to: string }>(input: T): T | null {
+  const destination = normalizeWhatsAppDestination(input.to)
+  return destination ? { ...input, to: destination } : null
+}
 
 function buildTextMessage(input: WhatsAppSendTextInput) {
   return input.text.trim()
@@ -54,6 +60,15 @@ export async function sendWhatsAppText(
   const mode = options.mode || 'text'
   const messageType = options.messageType || 'text'
   let providerKey: WhatsAppProviderKey = 'ultramsg'
+  const normalizedInput = normalizeWhatsAppInput(input)
+
+  if (!normalizedInput) {
+    return {
+      providerKey,
+      success: false,
+      errorMessage: 'SKIPPED_INVALID_PHONE',
+    }
+  }
 
   try {
     const config = await getBranchWhatsAppProviderConfig(
@@ -83,8 +98,8 @@ export async function sendWhatsAppText(
 
     const result = await provider.sendText(
       {
-        ...input,
-        text: buildTextMessage(input),
+        ...normalizedInput,
+        text: buildTextMessage(normalizedInput),
       },
       config
     )
@@ -126,6 +141,15 @@ export async function sendWhatsAppFile(
   const mode = options.mode || 'file'
   const messageType = options.messageType || 'file'
   let providerKey: WhatsAppProviderKey = 'ultramsg'
+  const normalizedInput = normalizeWhatsAppInput(input)
+
+  if (!normalizedInput) {
+    return {
+      providerKey,
+      success: false,
+      errorMessage: 'SKIPPED_INVALID_PHONE',
+    }
+  }
 
   try {
     const config = await getBranchWhatsAppProviderConfig(
@@ -153,7 +177,7 @@ export async function sendWhatsAppFile(
       }
     }
 
-    const result = await provider.sendFile(buildFileMessage(input), config)
+    const result = await provider.sendFile(buildFileMessage(normalizedInput), config)
 
     logWhatsAppSend({
       provider: providerKey,
@@ -192,6 +216,15 @@ export async function sendWhatsAppImage(
   const mode = options.mode || 'image'
   const messageType = options.messageType || 'image'
   let providerKey: WhatsAppProviderKey = 'ultramsg'
+  const normalizedInput = normalizeWhatsAppInput(input)
+
+  if (!normalizedInput) {
+    return {
+      providerKey,
+      success: false,
+      errorMessage: 'SKIPPED_INVALID_PHONE',
+    }
+  }
 
   try {
     const config = await getBranchWhatsAppProviderConfig(
@@ -219,7 +252,7 @@ export async function sendWhatsAppImage(
       }
     }
 
-    const result = await provider.sendImage(buildImageMessage(input), config)
+    const result = await provider.sendImage(buildImageMessage(normalizedInput), config)
 
     logWhatsAppSend({
       provider: providerKey,

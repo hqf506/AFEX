@@ -3,11 +3,12 @@ import { readFile } from 'node:fs/promises'
 
 const root = new URL('../', import.meta.url)
 const read = (path) => readFile(new URL(path, root), 'utf8')
-const [adapter, route, flags, checkout, customers, customerRoute, modal] = await Promise.all([
+const [adapter, route, flags, checkout, checkoutIdentity, customers, customerRoute, modal] = await Promise.all([
   read('lib/server/core-v2/atomic-order.ts'),
   read('app/api/orders/route.ts'),
   read('lib/core-v2-flags.ts'),
   read('hooks/use-invoice-checkout.ts'),
+  read('lib/pos-checkout-identity.ts'),
   read('lib/customers.ts'),
   read('app/api/customers/route.ts'),
   read('components/pos-add-customer-modal.tsx'),
@@ -23,7 +24,7 @@ const checks = [
   ['selected customer propagated', checkout.includes('customerId,') && route.includes('customerId,')],
   ['selected customer exact match', adapter.includes('customer.customer_id === input.customerId')],
   ['legacy ambiguity remains closed', adapter.includes("!input.customerId && customers[0].resolution_status !== 'RESOLVED'")],
-  ['stable request id', checkout.includes('clientIdempotencyKeyRef')],
+  ['stable request id', checkout.includes('acquirePosCheckoutIdentity') && checkoutIdentity.includes('sessionStorage')],
   ['submit lock', checkout.includes('if (loading) return')],
   ['acquire facade', adapter.includes("'acquire_atomic_order_command_result_v1'")],
   ['claim', adapter.includes("'claim_atomic_order_command_v1'")],
