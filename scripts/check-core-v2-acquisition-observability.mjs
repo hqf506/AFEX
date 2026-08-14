@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 
 const root = new URL('../', import.meta.url)
 const migration = await readFile(new URL('supabase/migrations/20260814170000_core_v2_acquisition_observability.sql', root), 'utf8')
+const authorizationMigration = await readFile(new URL('supabase/migrations/20260814190000_core_v2_system_scope_authorization.sql', root), 'utf8')
 const adapter = await readFile(new URL('lib/server/core-v2/atomic-order.ts', root), 'utf8')
 const route = await readFile(new URL('app/api/orders/route.ts', root), 'utf8')
 
@@ -34,6 +35,16 @@ assert(adapter.includes('safeSqlState: safeSqlState(acquired.safeSqlState)'))
 assert(adapter.includes('failurePhase: acquisitionFailurePhase(acquired.failurePhase)'))
 assert(route.includes('safeSqlState: coreResult.safeSqlState'))
 assert(route.includes('failurePhase: coreResult.failurePhase'))
+assert(authorizationMigration.includes("v_actor.role IN ('employee', 'cashier')"))
+assert(authorizationMigration.includes("v_actor.role NOT IN ('owner', 'admin', 'manager', 'employee', 'cashier')"))
+assert(authorizationMigration.includes("'authorizationReason', v_unauthorized_reason"))
+for (const reason of [
+  'ACTOR_MISSING', 'ACTOR_INVALID', 'TENANT_INVALID', 'BRANCH_INVALID',
+]) assert(authorizationMigration.includes(`'${reason}'`), `missing authorization reason ${reason}`)
+assert(/authorizationFailureReason\(\s*acquired\.authorizationReason\s*\)/.test(adapter))
+assert(adapter.includes("'UNKNOWN_AUTHORIZATION_FAILURE'"))
+assert(route.includes('authorizationReason: coreResult.authorizationReason'))
+assert(!/errorCode: coreResult\.errorCode,[\s\S]{0,160}authorizationReason/.test(route), 'authorization reason must not enter the response')
 assert(!/errorCode: coreResult\.errorCode,[\s\S]{0,120}safeSqlState/.test(route), 'safe diagnostics must not enter the response')
 
 console.log('Core V2 acquisition observability checks passed.')

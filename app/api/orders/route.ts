@@ -1309,6 +1309,7 @@ async function handleCreateOrderPost(
             requestReference: clientIdempotencyKey,
             phase: 'acquisition',
             classification: coreResult.errorCode,
+            authorizationReason: coreResult.authorizationReason,
             safeSqlState: coreResult.safeSqlState,
             failurePhase: coreResult.failurePhase,
           })
