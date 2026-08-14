@@ -17,6 +17,7 @@ export type PosOfflineInvoiceDraft = {
   createdAt: string
   attempts: number
   lastAttemptAt: string | null
+  customerId: string | null
   customerName: string
   customerPhone: string
   paymentMethod: PosPaymentMethod
@@ -94,6 +95,9 @@ function isPosOfflineInvoiceDraft(value: unknown): value is PosOfflineInvoiceDra
   return (
     typeof draft.localDraftId === 'string' &&
     typeof draft.createdAt === 'string' &&
+    (draft.customerId === null ||
+      draft.customerId === undefined ||
+      typeof draft.customerId === 'string') &&
     typeof draft.customerName === 'string' &&
     typeof draft.customerPhone === 'string' &&
     Array.isArray(draft.items)
@@ -105,6 +109,10 @@ function normalizeOfflineDraft(
 ): PosOfflineInvoiceDraft {
   return {
     ...draft,
+    customerId:
+      typeof draft.customerId === 'string' && draft.customerId.trim()
+        ? draft.customerId.trim()
+        : null,
     clientIdempotencyKey:
       typeof draft.clientIdempotencyKey === 'string' &&
       draft.clientIdempotencyKey.trim()
@@ -246,6 +254,7 @@ async function sendOfflineDraft(draft: PosOfflineInvoiceDraft) {
     body: JSON.stringify({
       customerName: draft.customerName,
       customerPhone: draft.customerPhone,
+      customerId: draft.customerId,
       clientIdempotencyKey: draft.clientIdempotencyKey,
       employee_id: draft.employee?.id ?? null,
       paymentMethod: draft.paymentMethod,

@@ -146,6 +146,7 @@ type CreateOrderItemInput = {
 
 type CreateOrderBody = {
   clientIdempotencyKey?: string
+  customerId?: string | null
   employee_id?: string | null
   branch_id?: string | null
   customerName?: string
@@ -159,6 +160,31 @@ type CreateOrderBody = {
   note?: string
   items?: CreateOrderItemInput[]
 }
+
+const CREATE_ORDER_ITEM_KEYS = new Set<keyof CreateOrderItemInput>([
+  'item_id',
+  'item_name',
+  'item_type',
+  'quantity',
+  'unit_price',
+])
+
+const CREATE_ORDER_BODY_KEYS = new Set<keyof CreateOrderBody>([
+  'clientIdempotencyKey',
+  'customerId',
+  'employee_id',
+  'branch_id',
+  'customerName',
+  'customerPhone',
+  'paymentMethod',
+  'cashReceived',
+  'remainingFromCustomer',
+  'cashChange',
+  'discountAmount',
+  'taxAmount',
+  'note',
+  'items',
+])
 
 type CreatedOrderInvoiceDeliveryRow = {
   id?: string | null
@@ -699,7 +725,38 @@ async function handleCreateOrderPost(
 
   try {
     const body = (await request.json()) as CreateOrderBody
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).some(
+        (key) => !CREATE_ORDER_BODY_KEYS.has(key as keyof CreateOrderBody)
+      )
+    ) {
+      return jsonWithAuthCookies(
+        auth.response,
+        { success: false, message: 'بيانات الطلب غير صالحة.' },
+        400
+      )
+    }
     const items = Array.isArray(body.items) ? body.items : []
+    if (
+      items.some(
+        (item) =>
+          !item ||
+          typeof item !== 'object' ||
+          Array.isArray(item) ||
+          Object.keys(item).some(
+            (key) => !CREATE_ORDER_ITEM_KEYS.has(key as keyof CreateOrderItemInput)
+          )
+      )
+    ) {
+      return jsonWithAuthCookies(
+        auth.response,
+        { success: false, message: 'بيانات عناصر الطلب غير صالحة.' },
+        400
+      )
+    }
     const rpcName = 'create_invoice_with_items_safe'
     const paymentMethod = normalizeOrderPaymentMethod(body.paymentMethod)
     const paymentSnapshot = normalizeCreateOrderPaymentSnapshot(body)
@@ -720,6 +777,15 @@ async function handleCreateOrderPost(
     const coreV2Enabled = coreV2OrderExecutionEnabled()
     const createdByEmployeeId = normalizeUuidString(body.employee_id)
     const branchId = normalizeUuidString(body.branch_id)
+    const customerId = normalizeUuidString(body.customerId)
+
+    if (body.customerId !== undefined && body.customerId !== null && !customerId) {
+      return jsonWithAuthCookies(
+        auth.response,
+        { success: false, message: 'هوية العميل غير صالحة.' },
+        400
+      )
+    }
 
     const normalizedItems = items.map((item) => ({
       ...item,
@@ -934,6 +1000,7 @@ async function handleCreateOrderPost(
               type: 'user',
               id: auth.user.id,
             },
+            customerId,
             customerName: body.customerName,
             customerPhoneNormalized:
               normalizeSaudiCustomerPhone(
@@ -1217,6 +1284,7 @@ async function handleCreateOrderPost(
           tenantId: profileTenantId,
           branchId,
           clientRequestId: clientIdempotencyKey,
+          customerId,
           customerName: typeof body.customerName === 'string' ? body.customerName.trim() : '',
           normalizedCustomerPhone,
           paymentMethod: corePaymentMethod as 'cash' | 'mada' | 'visa' | 'cod',

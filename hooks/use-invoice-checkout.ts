@@ -41,6 +41,7 @@ export type CheckoutVatSetting = {
 }
 
 type UseInvoiceCheckoutOptions = {
+  customerId: string | null
   customerName: string
   customerPhone: string
   invoiceItems: InvoiceLineItem[]
@@ -55,6 +56,7 @@ type UseInvoiceCheckoutOptions = {
 }
 
 export function useInvoiceCheckout({
+  customerId,
   customerName,
   customerPhone,
   invoiceItems,
@@ -286,6 +288,7 @@ export function useInvoiceCheckout({
       try {
         savePosOfflineInvoiceDraft({
           clientIdempotencyKey,
+          customerId,
           customerName,
           customerPhone,
           paymentMethod: safePaymentMethod,
@@ -323,6 +326,7 @@ export function useInvoiceCheckout({
       },
       body: JSON.stringify({
         clientIdempotencyKey,
+        customerId,
         employee_id: activePosEmployee?.id ?? null,
         branch_id: branchId,
         customerName,

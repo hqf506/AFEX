@@ -109,6 +109,7 @@ export default function PosOfflineDraftsPage() {
         body: JSON.stringify({
           clientIdempotencyKey: draft.clientIdempotencyKey,
           employee_id: draft.employee?.id ?? null,
+          customerId: draft.customerId,
           customerName: draft.customerName,
           customerPhone: draft.customerPhone,
           paymentMethod: draft.paymentMethod,

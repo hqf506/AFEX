@@ -26,6 +26,7 @@ export type OrderCommandIntent = {
   branchId: string
   actor: IdempotencyActor
   customer: {
+    id: string | null
     name: string | null
     phone: string | null
   }
@@ -106,6 +107,7 @@ export function buildOrderCommandIntent(input: {
   tenantId: string
   branchId: string
   actor: IdempotencyActor
+  customerId?: unknown
   customerName: unknown
   customerPhoneNormalized: unknown
   items: Array<{
@@ -123,6 +125,7 @@ export function buildOrderCommandIntent(input: {
     branchId: input.branchId,
     actor: input.actor,
     customer: {
+      id: normalizeText(input.customerId),
       name: normalizeText(input.customerName),
       phone: normalizeText(input.customerPhoneNormalized),
     },
