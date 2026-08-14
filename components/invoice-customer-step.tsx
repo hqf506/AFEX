@@ -34,6 +34,8 @@ import {
 import { getRoleLabel } from '@/lib/app-roles'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
 import { formatPosGregorianDate } from '@/lib/pos/date-format'
+import { normalizeSaudiCustomerPhone } from '@/lib/customers'
+import { supabase } from '@/lib/supabase/client'
 
 type ExistingCustomer = CreatedPosCustomer
 
@@ -238,6 +240,24 @@ export function InvoiceCustomerStep({
         const nextMatches = await loadClientResource(
           customerSearch.cacheKey,
           async () => {
+            const exactPhone = normalizeSaudiCustomerPhone(customerSearch.query)
+            if (exactPhone && tenantId) {
+              const { data, error } = await supabase.rpc(
+                'lookup_customer_phone_identity_v1',
+                {
+                  p_tenant_id: tenantId,
+                  p_normalized_phone: exactPhone,
+                  p_branch_id: customerSearchBranchId,
+                }
+              )
+              if (error) throw error
+              return (Array.isArray(data) ? data : []).map((row) => ({
+                id: row.customer_id,
+                name: row.customer_name,
+                phone: row.display_phone,
+              })) as ExistingCustomer[]
+            }
+
             const searchParams = new URLSearchParams({
               q: customerSearch.query,
             })
@@ -300,7 +320,7 @@ export function InvoiceCustomerStep({
           console.timeEnd('customer search')
         }
       }
-    }, CUSTOMER_SEARCH_DEBOUNCE_MS)
+    }, normalizeSaudiCustomerPhone(customerSearch.query) ? 0 : CUSTOMER_SEARCH_DEBOUNCE_MS)
 
     return () => {
       customerSearchRequestIdRef.current += 1
@@ -318,6 +338,7 @@ export function InvoiceCustomerStep({
     customerSearch.cacheKey,
     customerSearch.query,
     customerSearchBranchId,
+    tenantId,
     variant,
   ])
 

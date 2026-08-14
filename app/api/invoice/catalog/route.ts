@@ -259,31 +259,40 @@ export async function GET(request: NextRequest) {
       .map((item) => (typeof item.id === 'string' ? item.id.trim() : ''))
       .filter(Boolean)
 
-    let branchOverrides: BranchCatalogItemRow[] = []
-
-    if (catalogItemIds.length > 0) {
-      const { data: overrideRows, error: branchOverridesError } =
-        await timing.measure('overrides', () => supabaseAdmin
+    const branchOverridesPromise = catalogItemIds.length > 0
+      ? timing.measure('overrides', () => supabaseAdmin
           .from('branch_catalog_items')
           .select('id, catalog_item_id, price, is_active, display_order')
           .eq('branch_id', resolvedBranchId)
           .eq('tenant_id', tenantId)
           .in('catalog_item_id', catalogItemIds))
+      : Promise.resolve({ data: [], error: null })
+    const inventoryStockPromise = catalogItemIds.length > 0
+      ? timing.measure('stock', () => supabaseAdmin
+          .from('inventory_stock')
+          .select('catalog_item_id, quantity_on_hand, low_stock_threshold')
+          .eq('tenant_id', tenantId)
+          .eq('branch_id', resolvedBranchId)
+          .in('catalog_item_id', catalogItemIds))
+      : Promise.resolve({ data: [], error: null })
+    const [branchOverridesResult, inventoryStockResult] = await Promise.all([
+      branchOverridesPromise,
+      inventoryStockPromise,
+    ])
 
-      if (branchOverridesError) {
-        return withAuthCookies(
-          auth.response,
-          jsonResponse(
-            {
-              error: 'Failed to load branch catalog overrides',
-            },
-            500
-          )
+    if (branchOverridesResult.error) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse(
+          {
+            error: 'Failed to load branch catalog overrides',
+          },
+          500
         )
-      }
-
-      branchOverrides = (overrideRows || []) as BranchCatalogItemRow[]
+      )
     }
+
+    let branchOverrides = (branchOverridesResult.data || []) as BranchCatalogItemRow[]
 
     const disabledOverrideIds = new Set(
       branchOverrides
@@ -317,34 +326,18 @@ export async function GET(request: NextRequest) {
       branchOverrides = (legacyOverrides || []) as BranchCatalogItemRow[]
     }
 
-    const stockItemIds = (hasPagingParams ? visibleCatalogItems : catalogItems || [])
-      .map((item) => (typeof item.id === 'string' ? item.id.trim() : ''))
-      .filter(Boolean)
-
-    let inventoryStock: InventoryStockRow[] = []
-
-    if (stockItemIds.length > 0) {
-      const { data: stockRows, error: stockError } = await timing.measure('stock', () => supabaseAdmin
-        .from('inventory_stock')
-        .select('catalog_item_id, quantity_on_hand, low_stock_threshold')
-        .eq('tenant_id', tenantId)
-        .eq('branch_id', resolvedBranchId)
-        .in('catalog_item_id', stockItemIds))
-
-      if (stockError) {
-        return withAuthCookies(
-          auth.response,
-          jsonResponse(
-            {
-              error: 'Failed to load inventory stock',
-            },
-            500
-          )
+    if (inventoryStockResult.error) {
+      return withAuthCookies(
+        auth.response,
+        jsonResponse(
+          {
+            error: 'Failed to load inventory stock',
+          },
+          500
         )
-      }
-
-      inventoryStock = (stockRows || []) as InventoryStockRow[]
+      )
     }
+    const inventoryStock = (inventoryStockResult.data || []) as InventoryStockRow[]
 
     const items = timing.measureSync('map', () => mapBranchCatalogToInvoiceProducts(
       (hasPagingParams ? visibleCatalogItems : catalogItems || []) as CatalogItemRow[],

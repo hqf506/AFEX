@@ -733,8 +733,23 @@ export function InvoiceItemsStep({
       return []
     }
 
+    const normalizedSearch = search.trim().toLocaleLowerCase('ar')
+    if (variant === 'pos' && normalizedSearch) {
+      return Object.values(catalogProductById).filter((product) =>
+        [product.name, product.category].some((value) =>
+          value.toLocaleLowerCase('ar').includes(normalizedSearch)
+        )
+      )
+    }
+
     return catalogProducts
-  }, [catalogProducts, hasUnavailablePosBranchContext])
+  }, [
+    catalogProductById,
+    catalogProducts,
+    hasUnavailablePosBranchContext,
+    search,
+    variant,
+  ])
 
   const invoiceFilters = useMemo(() => {
     return buildInvoiceFilters(catalogCategoryFilters, visibleCatalogProducts)

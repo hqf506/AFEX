@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { useMobileViewport } from '@/hooks/use-mobile-viewport'
@@ -141,9 +141,9 @@ const sidebarItems = [
   {
     id: 'orders',
     label: 'الطلبات',
-    href: '/pos',
+    href: '/pos/order-status',
     active: false,
-    disabled: true,
+    disabled: false,
     icon: 'clipboard' as const,
   },
   {
@@ -397,6 +397,9 @@ export default function PosPage() {
     activePosEmployee?.branch_id ||
     (access.scopeType === 'branch' ? access.branchId : null)
   const recentOrders = orders.slice(0, 6)
+  const mapRecentOrders = (
+    renderOrder: (order: OrderRecord) => ReactNode
+  ) => recentOrders.map(renderOrder)
   const selectedMobileOrder = selectedMobileOrderId
     ? recentOrders.find((order) => order.id === selectedMobileOrderId) || null
     : null
@@ -512,6 +515,11 @@ export default function PosPage() {
     router.prefetch('/pos/sale/customer')
     router.prefetch('/pos/sale/items')
     router.prefetch('/pos/sale/checkout')
+    router.prefetch('/pos/order-status')
+    const orderStatusPrefetchIntervalId = window.setInterval(
+      () => router.prefetch('/pos/order-status'),
+      15_000
+    )
 
     void prefetchClientResource(
       ADMIN_CATEGORIES_CACHE_KEY,
@@ -544,6 +552,9 @@ export default function PosPage() {
     if (resolvedPosBranchId && access.tenantId) {
       void prefetchBranchInvoiceCatalog(resolvedPosBranchId, access.tenantId)
     }
+
+    return () => window.clearInterval(orderStatusPrefetchIntervalId)
+
   }, [
     access.allowed,
     access.branchId,
@@ -1009,7 +1020,7 @@ export default function PosPage() {
                     </div>
                   ) : null}
 
-                  {!ordersError && !ordersLoading ? recentOrders.map((order) => {
+                  {!ordersError && !ordersLoading ? mapRecentOrders((order) => {
                     const statusKey = resolvePosKanbanStatus(order.status)
                     const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
                     const isUpdatingOrder = updatingOrderId === order.id
@@ -1404,7 +1415,13 @@ export default function PosPage() {
                   <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-2xl text-cyan-300 sm:hidden">
                     <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M7 12h10M10 17h4" strokeLinecap="round"/><path d="M7 4v6M17 9v6" strokeLinecap="round"/></svg>
                   </span>
-                  <span className="hidden min-h-[44px] items-center rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] sm:inline-flex">عرض الكل</span>
+                  <Link
+                    href="/pos/order-status"
+                    prefetch={true}
+                    className="hidden min-h-[44px] items-center rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:inline-flex"
+                  >
+                    عرض الكل
+                  </Link>
                 </div>
               </div>
 
@@ -1436,9 +1453,9 @@ export default function PosPage() {
                 </div>
               ) : null}
 
-              {!ordersError && !ordersLoading && recentOrders.length > 0 ? (
+              {!showMobileRecentOrders && !ordersError && !ordersLoading && recentOrders.length > 0 ? (
                 <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-visible sm:grid-cols-2 lg:overflow-y-auto lg:overscroll-contain lg:pr-1 lg:[scrollbar-width:none] lg:[-ms-overflow-style:none] lg:[&::-webkit-scrollbar]:hidden xl:gap-4">
-                  {recentOrders.map((order) => {
+                  {mapRecentOrders((order) => {
                     const statusKey = resolvePosKanbanStatus(order.status)
                     const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
                     const nextStatus = getNextPosOrderStatus(order.status)

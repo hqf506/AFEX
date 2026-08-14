@@ -13,6 +13,7 @@ const paymentMethods = read('lib/invoices/payment-method.ts')
 const tabletFrame = read('components/pos-tablet-frame.tsx')
 const posHome = read('app/pos/page.tsx')
 const customerStep = read('components/invoice-customer-step.tsx')
+const addCustomerModal = read('components/pos-add-customer-modal.tsx')
 const itemsStep = read('components/invoice-items-step.tsx')
 const checkoutStep = read('app/pos/sale/checkout/page.tsx')
 const saleReset = read('lib/invoices/sale-reset.ts')
@@ -66,26 +67,36 @@ assert.equal(
 assert.ok(
   customerStep.includes('flex-col gap-4 overflow-y-auto') &&
     customerStep.includes('sm:flex-row sm:overflow-hidden') &&
-    customerStep.includes('order-6 flex w-full') &&
-    customerStep.includes('sm:w-[206px]'),
+    customerStep.includes('order-6 hidden w-full') &&
+    customerStep.includes('sm:order-3 sm:flex sm:w-[206px]'),
   'Customer POS sidebars must stack on phones and preserve tablet widths'
 )
 assert.equal(
   (customerStep.match(/visibleCustomerCards\.slice\(0, customerListLimit\)\.map/g) || []).length,
-  1,
-  'Customer results must keep one shared responsive map'
+  2,
+  'Customer results must keep one mobile-card map and one desktop-table map'
+)
+assert.ok(
+  customerStep.includes('{isMobileViewport ? (') &&
+    customerStep.includes(') : ('),
+  'Customer result variants must be mutually exclusive at runtime'
 )
 assert.equal(
-  (customerStep.match(/onClick=\{handleCreateCustomer\}/g) || []).length,
+  (addCustomerModal.match(/onClick=\{handleCreateCustomer\}/g) || []).length,
   1,
   'Customer creation must keep one guarded save action'
 )
 assert.ok(
+  addCustomerModal.includes('if (saving) return') &&
+    addCustomerModal.includes('disabled={saving || !phoneValidation.valid}'),
+  'Customer creation must reject duplicate saves and invalid phone input'
+)
+assert.ok(
   customerStep.includes('contents sm:order-1 sm:flex') &&
     customerStep.includes('contents sm:order-2 sm:flex') &&
-    customerStep.includes('role="dialog"') &&
-    customerStep.includes('aria-modal="true"') &&
-    customerStep.includes('items-start justify-center overflow-y-auto'),
+    addCustomerModal.includes('role="dialog"') &&
+    addCustomerModal.includes('aria-modal="true"') &&
+    addCustomerModal.includes('items-center justify-center overflow-y-auto'),
   'Customer step must preserve one responsive tree and a keyboard-safe dialog'
 )
 assert.ok(
@@ -94,8 +105,13 @@ assert.ok(
 )
 assert.equal(
   (activePosItemsLayout.match(/paginatedProducts\.map\(/g) || []).length,
-  1,
-  'Active POS items layout must render products from one shared map'
+  2,
+  'Active POS items layout must keep one mobile map and one desktop map'
+)
+assert.ok(
+  activePosItemsLayout.includes('{isMobileViewport ? (') &&
+    activePosItemsLayout.includes(') : ('),
+  'Active POS product variants must be mutually exclusive at runtime'
 )
 assert.equal(
   (activePosItemsLayout.match(/squarePosCategoryLabels\.map\(/g) || []).length,
@@ -121,10 +137,11 @@ assert.ok(
   'POS product browsing must remain single-tree, touch-first, and CSS responsive'
 )
 assert.ok(
-  activePosItemsLayout.includes("'fixed inset-0 z-50 flex'") &&
+  activePosItemsLayout.includes("'pos-mobile-sheet-enter fixed inset-0 z-50 flex'") &&
     activePosItemsLayout.includes('overflow-y-auto overscroll-contain rounded-none') &&
     activePosItemsLayout.includes('md:overflow-hidden md:rounded-[28px]') &&
-    activePosItemsLayout.includes('md:flex-1 md:overflow-y-auto') &&
+    activePosItemsLayout.includes('md:flex-1') &&
+    activePosItemsLayout.includes('md:overflow-y-auto') &&
     (activePosItemsLayout.match(/className="flex h-11 w-11/g) || []).length >= 3,
   'Phone cart must use one full-width scroll surface with accessible item controls'
 )
@@ -140,18 +157,23 @@ assert.ok(
 )
 assert.equal(
   (interactiveCheckoutLayout.match(/PAYMENT_METHODS\.map\(/g) || []).length,
-  1,
-  'Interactive POS checkout must render one payment-method control'
+  2,
+  'Interactive POS checkout must keep one mobile and one desktop payment-method control'
 )
 assert.equal(
   (interactiveCheckoutLayout.match(/invoiceItems\.map\(/g) || []).length,
-  1,
-  'Interactive POS checkout must render one order-item list'
+  2,
+  'Interactive POS checkout must keep one mobile and one desktop order-item list'
 )
 assert.equal(
   (interactiveCheckoutLayout.match(/placeholder="المبلغ المستلم"/g) || []).length,
-  1,
-  'Interactive POS checkout must render one cash input'
+  2,
+  'Interactive POS checkout must keep one mobile and one desktop cash input'
+)
+assert.ok(
+  interactiveCheckoutLayout.includes('{isMobileViewport ? (') &&
+    interactiveCheckoutLayout.includes(') : ('),
+  'Interactive POS checkout variants must be mutually exclusive at runtime'
 )
 assert.ok(
   !interactiveCheckoutLayout.includes('window.innerWidth'),
@@ -159,13 +181,17 @@ assert.ok(
 )
 assert.equal(
   (successStep.match(/snapshot\.invoiceItems\.map\(/g) || []).length,
-  1,
-  'POS success receipt items must render from one shared responsive tree'
+  2,
+  'POS success receipt must keep one mobile and one desktop item list'
+)
+assert.ok(
+  successStep.includes('{isMobileViewport ? (') && successStep.includes(') : ('),
+  'POS success receipt variants must be mutually exclusive at runtime'
 )
 assert.equal(
   (successStep.match(/onClick=\{handleNewSale\}/g) || []).length,
-  1,
-  'POS success page must keep one New Sale action'
+  2,
+  'POS success page must keep one mobile and one desktop New Sale action'
 )
 assert.ok(
   successStep.includes("router.push('/admin/orders')") &&

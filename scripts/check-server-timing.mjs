@@ -28,6 +28,7 @@ function loadHelper(env) {
     module: moduleValue,
     process: { env },
     performance,
+    Headers,
     Response,
     Set,
   }
@@ -60,8 +61,8 @@ for (const env of [
   })
   const response = createServerTiming().finish(new Response('{}'))
   assert(
-    !response.headers.has('Server-Timing'),
-    'Detailed timing must be disabled in production.'
+    response.headers.has('Server-Timing'),
+    'Production must retain safe, allowlisted Server-Timing evidence.'
   )
 }
 

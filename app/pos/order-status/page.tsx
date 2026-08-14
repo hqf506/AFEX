@@ -16,6 +16,7 @@ import {
 } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime, formatPosTime } from '@/lib/pos/date-format'
+import { peekClientResource, writeClientResource } from '@/lib/client-resource-cache'
 
 type ActiveOrderStatus = Extract<OrderStatus, 'in_progress' | 'ready'>
 
@@ -91,10 +92,10 @@ export default function PosOrderStatusPage() {
   const [now, setNow] = useState(() => Date.now())
   const updatingOrderIdsRef = useRef(new Set<string>())
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (showLoader = true) => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
 
-    setLoading(true)
+    setLoading(showLoader)
     setPageError('')
 
     try {
@@ -115,6 +116,8 @@ export default function PosOrderStatusPage() {
       }
 
       const rows = Array.isArray(result.items) ? (result.items as OrderSourceRow[]) : []
+      const homeOrdersCacheKey = ['pos-home-orders', access.tenantId, access.scopeType || 'unknown', access.branchId || 'all', 6].join(':')
+      writeClientResource(homeOrdersCacheKey, { items: rows.slice(0, 6) })
       const nextOrders = rows
         .map((row, index) => normalizeOrderRecord(row, index))
         .map(mapOrderSummaryToOrderRecord)
@@ -128,15 +131,24 @@ export default function PosOrderStatusPage() {
     } finally {
       setLoading(false)
     }
-  }, [access.allowed, access.branchId, access.tenantId])
+  }, [access.allowed, access.branchId, access.scopeType, access.tenantId])
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void loadOrders()
+      let hasCachedSummary = false
+      if (access.allowed && access.tenantId) {
+        const homeOrdersCacheKey = ['pos-home-orders', access.tenantId, access.scopeType || 'unknown', access.branchId || 'all', 6].join(':')
+        const cached = peekClientResource<{ items?: OrderSourceRow[] }>(homeOrdersCacheKey)
+        if (Array.isArray(cached?.items)) {
+          hasCachedSummary = true
+          setOrders(cached.items.map((row, index) => normalizeOrderRecord(row, index)).map(mapOrderSummaryToOrderRecord).filter((order) => isActiveOrderStatus(order.status)))
+        }
+      }
+      void loadOrders(!hasCachedSummary)
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [loadOrders])
+  }, [access.allowed, access.branchId, access.scopeType, access.tenantId, loadOrders])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(Date.now()), 60_000)
