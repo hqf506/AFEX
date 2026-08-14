@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 
 const root = new URL('../', import.meta.url)
 const read = (path) => readFile(new URL(path, root), 'utf8')
-const [draft, customerStep, itemsStep, checkoutPage, checkoutHook, route, adapter] =
+const [draft, customerStep, itemsStep, checkoutPage, checkoutHook, route, adapter, customerRoute] =
   await Promise.all([
     read('lib/invoices/customer.ts'),
     read('components/invoice-customer-step.tsx'),
@@ -12,6 +12,7 @@ const [draft, customerStep, itemsStep, checkoutPage, checkoutHook, route, adapte
     read('hooks/use-invoice-checkout.ts'),
     read('app/api/orders/route.ts'),
     read('lib/server/core-v2/atomic-order.ts'),
+    read('app/api/customers/route.ts'),
   ])
 
 const checks = [
@@ -28,6 +29,18 @@ const checks = [
   ['exact miss conflicts', adapter.includes('selectedCustomers.length !== 1')],
   ['legacy zero match creates', adapter.includes('else if (customers.length === 0)')],
   ['legacy ambiguity conflicts', adapter.includes("!input.customerId && customers[0].resolution_status !== 'RESOLVED'")],
+  ['core lookup is tenant-wide', /p_normalized_phone: input\.normalizedCustomerPhone,\s+p_branch_id: null/.test(adapter)],
+  ['created customer refresh is tenant-wide', (adapter.match(/p_branch_id: null/g) || []).length === 2],
+  ['POS lookup has no branch eligibility filter', !customerRoute.includes("normalizedQuery = normalizedQuery.eq('branch_id', branchId)")],
+  ['POS legacy lookup has no branch eligibility filter', !customerRoute.includes("legacyQuery = legacyQuery.eq('branch_id', branchId)")],
+  ['POS customer listing has no branch eligibility filter', !customerRoute.includes("query = query.eq('branch_id', profileBranchId)")],
+  ['customer mismatch vocabulary is closed', [
+    'CUSTOMER_ID_NOT_FOUND',
+    'CUSTOMER_TENANT_MISMATCH',
+    'CUSTOMER_PHONE_MISMATCH',
+    'CUSTOMER_IDENTITY_CONFLICT',
+    'CUSTOMER_PHONE_AMBIGUOUS',
+  ].every((code) => adapter.includes(code))],
 ]
 
 for (const [name, passed] of checks) assert.equal(passed, true, name)
@@ -52,5 +65,10 @@ assert.equal(resolveModel([], 'a'), 'conflict')
 assert.equal(resolveModel([a, b], null), 'conflict')
 assert.equal(resolveModel([{ id: 'a', status: 'RESOLVED' }], null), 'selected')
 assert.equal(resolveModel([], null), 'create')
+
+const tenantWideEligibility = (customer, tenantId) => customer.tenantId === tenantId
+assert.equal(tenantWideEligibility({ tenantId: 'tenant-a', branchId: 'branch-a' }, 'tenant-a'), true)
+assert.equal(tenantWideEligibility({ tenantId: 'tenant-a', branchId: 'branch-b' }, 'tenant-a'), true)
+assert.equal(tenantWideEligibility({ tenantId: 'tenant-b', branchId: 'branch-a' }, 'tenant-a'), false)
 
 console.log(`Customer selection binding checks: ${checks.length + 7}/${checks.length + 7} PASS`)

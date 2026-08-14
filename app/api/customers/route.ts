@@ -33,7 +33,6 @@ type CustomerDatabaseError = {
 type CustomerIdentityLookupOptions = {
   tenantId: string
   normalizedPhone: string
-  branchId?: string | null
   limit?: number
 }
 
@@ -56,7 +55,6 @@ async function findCustomersByNormalizedIdentity(
   {
     tenantId,
     normalizedPhone,
-    branchId,
     limit = FULL_PHONE_CANDIDATE_LIMIT,
   }: CustomerIdentityLookupOptions
 ) {
@@ -68,10 +66,6 @@ async function findCustomersByNormalizedIdentity(
     .limit(limit)
 
   normalizedQuery = applyTenantFilter(normalizedQuery, tenantId)
-
-  if (branchId) {
-    normalizedQuery = normalizedQuery.eq('branch_id', branchId)
-  }
 
   const normalizedResult = await normalizedQuery
 
@@ -101,10 +95,6 @@ async function findCustomersByNormalizedIdentity(
     .limit(limit)
 
   legacyQuery = applyTenantFilter(legacyQuery, tenantId)
-
-  if (branchId) {
-    legacyQuery = legacyQuery.eq('branch_id', branchId)
-  }
 
   const legacyResult = await legacyQuery
 
@@ -242,27 +232,11 @@ export async function GET(request: NextRequest) {
 
   const searchFilter = buildCustomerSearchFilter(search)
   const normalizedFullPhone = normalizeSaudiCustomerPhone(search)
-  const profileBranchId =
-    typeof auth.profile.branch_id === 'string' ? auth.profile.branch_id : null
-  const isSystemScoped = isFullAdmin(auth.profile.role)
-
-  if (!isSystemScoped && !profileBranchId) {
-    return jsonWithAuthCookies(auth.response, {
-      success: true,
-      customers: [],
-      total: 0,
-      page,
-      pageSize,
-    })
-  }
-
   const customerResult = normalizedFullPhone
     ? await timing.measure('customers', () =>
         findCustomersByNormalizedIdentity(auth.supabase, {
           tenantId: auth.profile.tenant_id as string,
           normalizedPhone: normalizedFullPhone,
-          branchId:
-            !isSystemScoped && profileBranchId ? profileBranchId : null,
         })
       )
     : await timing.measure('customers', async () => {
@@ -277,10 +251,6 @@ export async function GET(request: NextRequest) {
 
         if (searchFilter) {
           query = query.or(searchFilter)
-        }
-
-        if (!isSystemScoped && profileBranchId) {
-          query = query.eq('branch_id', profileBranchId)
         }
 
         return paginated
@@ -335,10 +305,6 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     activityQuery = applyTenantFilter(activityQuery, auth.profile.tenant_id)
-
-    if (!isSystemScoped && profileBranchId) {
-      activityQuery = activityQuery.eq('branch_id', profileBranchId)
-    }
 
     const { data: activityData, error: activityError } =
       await timing.measure('invoices', () => activityQuery)
