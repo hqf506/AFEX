@@ -130,5 +130,9 @@ assert(
     .some((unsafeValue) => timingNames.includes(unsafeValue)),
   'Timing names must not contain IDs, tokens, cookies, or URLs.'
 )
+assert(
+  helperSource.includes("'core_v2_atomic_order'"),
+  'Core V2 atomic order timing must be allowlisted.'
+)
 
 console.log('Server timing regression checks passed.')

@@ -39,6 +39,7 @@ const SAFE_TIMING_NAMES = new Set([
   'catalog_validation',
   'branch_catalog_fallback',
   'atomic_rpc',
+  'core_v2_atomic_order',
   'payment_snapshot',
   'employee_patch',
   'invoice_items_lookup',
