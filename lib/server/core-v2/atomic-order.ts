@@ -18,9 +18,20 @@ export type CoreV2Result = {
     | 'INTERNAL_ERROR'
   safeSqlState?: string
   failurePhase?: AcquisitionFailurePhase
+  authorizationReason?: AuthorizationFailureReason
 }
 
 type AcquisitionFailureCode = 'UNAUTHORIZED' | 'INTERNAL_ERROR'
+type AuthorizationFailureReason =
+  | 'EFFECTIVE_ROLE_INVALID'
+  | 'AUTH_ROLE_INVALID'
+  | 'ACTOR_MISSING'
+  | 'ACTOR_INVALID'
+  | 'TENANT_INVALID'
+  | 'BRANCH_INVALID'
+  | 'CONTEXT_SCHEMA_INVALID'
+  | 'PROVIDER_IDENTITY_INVALID'
+  | 'UNKNOWN_AUTHORIZATION_FAILURE'
 type AcquisitionFailurePhase =
   | 'FACADE_VALIDATION'
   | 'INTERNAL_ACQUISITION'
@@ -42,6 +53,18 @@ const ACQUISITION_FAILURE_PHASES = new Set<AcquisitionFailurePhase>([
   'UNKNOWN_INTERNAL',
 ])
 
+const AUTHORIZATION_FAILURE_REASONS = new Set<AuthorizationFailureReason>([
+  'EFFECTIVE_ROLE_INVALID',
+  'AUTH_ROLE_INVALID',
+  'ACTOR_MISSING',
+  'ACTOR_INVALID',
+  'TENANT_INVALID',
+  'BRANCH_INVALID',
+  'CONTEXT_SCHEMA_INVALID',
+  'PROVIDER_IDENTITY_INVALID',
+  'UNKNOWN_AUTHORIZATION_FAILURE',
+])
+
 function acquisitionFailureCode(value: unknown): AcquisitionFailureCode {
   return value === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'INTERNAL_ERROR'
 }
@@ -54,6 +77,12 @@ function acquisitionFailurePhase(value: unknown): AcquisitionFailurePhase | unde
   return typeof value === 'string' && ACQUISITION_FAILURE_PHASES.has(value as AcquisitionFailurePhase)
     ? value as AcquisitionFailurePhase
     : undefined
+}
+
+function authorizationFailureReason(value: unknown): AuthorizationFailureReason {
+  return typeof value === 'string' && AUTHORIZATION_FAILURE_REASONS.has(value as AuthorizationFailureReason)
+    ? value as AuthorizationFailureReason
+    : 'UNKNOWN_AUTHORIZATION_FAILURE'
 }
 
 type CatalogRow = {
@@ -298,6 +327,10 @@ export async function executeCoreV2AtomicOrder(client: SupabaseClient, input: In
       errorCode: acquisitionFailureCode(acquired.errorCode),
       safeSqlState: safeSqlState(acquired.safeSqlState),
       failurePhase: acquisitionFailurePhase(acquired.failurePhase),
+      authorizationReason:
+        acquisitionFailureCode(acquired.errorCode) === 'UNAUTHORIZED'
+          ? authorizationFailureReason(acquired.authorizationReason)
+          : undefined,
       message: 'تعذر إتمام الطلب بسبب خطأ داخلي. لم يتم تأكيد إنشاء الطلب.',
     }
   }
