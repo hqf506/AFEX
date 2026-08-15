@@ -9,5 +9,7 @@ The following migration identities are rejected and must not be installed:
 - `50cf0c214886002feda6d8a116e9f9e75db713540d3e0aded61f814a5a83cac8`
 - `9207966b13e0775ebe9122308b1af87d259e675407f553c4e341effc05949b74`
 - `52ff1e1f55fc35e596712bc0c8003cb682e52cb725b2a894e722e597b267e2ac` (superseded by the official-runner-compatible R4D identity)
+- `52d4df27e64c9c384a79b7a94e8789058205c2339828618e098134b5544a4a67` (R5C-R1 SELECT-only policies did not authorize the required `FOR SHARE` row-lock path)
+- `a6296734d6631c0875a450bf89104129334938aebc9cce5900ab9d170935064b` (R5C-R2 permissive UPDATE policies did not independently close effective write-policy composition)
 
 Only the final R4 migration identity reported after independent SQL review may be considered for a separately authorized installation phase. This register is not installation authority.
