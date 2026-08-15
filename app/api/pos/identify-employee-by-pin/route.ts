@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { createSupportReference } from '@/lib/api/safe-error'
 import type { AppRole } from '@/lib/app-roles'
 import { isFullAdmin } from '@/lib/permissions'
 import { redactSensitive, safeErrorDetails } from '@/lib/security/redaction'
@@ -14,6 +15,7 @@ import {
   issuePosActorSession,
   posActorCookieOptions,
 } from '@/lib/pos-actor-session-server'
+import { isPosActorSessionIssueError } from '@/lib/pos-actor-session-issue'
 
 type IdentifyEmployeeByPinBody = {
   pin?: string
@@ -151,6 +153,7 @@ function clearPinRateLimit(key: string) {
 
 export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  let actorSessionIssueReference: string | null = null
 
   if (!auth.ok) {
     return withFixedPinDelay(auth.response)
@@ -326,10 +329,18 @@ export async function POST(request: NextRequest) {
       return withFixedPinDelay(withAuthCookies(auth.response, missingBranchResponse))
     }
 
+    actorSessionIssueReference = createSupportReference()
     const actorSession = await issuePosActorSession({
       verifiedAuth: auth.context.verifiedAuth,
       rawPin: pin,
       requestedBranchId: effectiveBranchId,
+    })
+    console.info('[POS actor session]', {
+      reference: actorSessionIssueReference,
+      phase: 'actor_session_issue',
+      classification: 'ACTOR_SESSION_ISSUED',
+      httpStatus: 200,
+      rowCountClassification: 'ONE',
     })
 
     const response = jsonResponse({
@@ -347,6 +358,22 @@ export async function POST(request: NextRequest) {
 
     return withFixedPinDelay(withAuthCookies(auth.response, response))
   } catch (error) {
+    if (isPosActorSessionIssueError(error)) {
+      const response = jsonResponse(
+        {
+          error: PIN_INTERNAL_ERROR_MESSAGE,
+          reference: actorSessionIssueReference || createSupportReference(),
+          phase: 'actor_session_issue',
+          classification: error.assessment.classification,
+          upstreamCodeCategory: error.assessment.codeCategory,
+          upstreamHttpStatus: error.assessment.httpStatus,
+          rowCountClassification: error.assessment.rowCountClassification,
+        },
+        500
+      )
+      return withFixedPinDelay(withAuthCookies(auth.response, response))
+    }
+
     const response = jsonResponse(
       {
         error: PIN_INTERNAL_ERROR_MESSAGE,

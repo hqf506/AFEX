@@ -2,6 +2,10 @@ import 'server-only'
 
 import { createHash, randomBytes } from 'node:crypto'
 import type { AppRole } from '@/lib/app-roles'
+import {
+  assessActorSessionIssueResult,
+  PosActorSessionIssueError,
+} from '@/lib/pos-actor-session-issue'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type { VerifiedAuthContext } from '@/lib/verified-auth-context'
 
@@ -54,19 +58,33 @@ export async function issuePosActorSession(input: {
   requestedBranchId: string | null
 }) {
   const token = randomBytes(32).toString('base64url')
-  const { data, error } = await supabaseAdmin.rpc('issue_pos_actor_session_v1', {
-    p_token_hash: sha256(token),
-    p_authenticated_session_id: input.verifiedAuth.sessionId,
-    p_authenticated_subject_id: input.verifiedAuth.subjectId,
-    p_raw_pin: input.rawPin,
-    p_requested_branch_id: input.requestedBranchId,
-  })
-  const row = singleRow(data)
-  if (error || !row?.session_id || !row.expires_at || !row.actor_id ||
-      !row.tenant_id || !row.branch_id || !row.actor_role) {
-    throw new Error('POS_ACTOR_SESSION_ISSUE_FAILED')
+  let result: Awaited<ReturnType<typeof supabaseAdmin.rpc>>
+
+  try {
+    result = await supabaseAdmin.rpc('issue_pos_actor_session_v1', {
+      p_token_hash: sha256(token),
+      p_authenticated_session_id: input.verifiedAuth.sessionId,
+      p_authenticated_subject_id: input.verifiedAuth.subjectId,
+      p_raw_pin: input.rawPin,
+      p_requested_branch_id: input.requestedBranchId,
+    })
+  } catch {
+    throw new PosActorSessionIssueError({
+      classification: 'RPC_TRANSPORT_ERROR',
+      codeCategory: null,
+      httpStatus: null,
+      rowCountClassification: 'INVALID',
+      row: null,
+    })
   }
-  return { token, expiresAt: new Date(row.expires_at), actor: row }
+
+  const assessment = assessActorSessionIssueResult(result.data, result.error)
+  if (assessment.classification !== 'ACTOR_SESSION_ISSUED' || !assessment.row) {
+    throw new PosActorSessionIssueError(assessment)
+  }
+
+  const row = assessment.row as ActorSessionRow
+  return { token, expiresAt: new Date(row.expires_at as string), actor: row }
 }
 
 export async function resolvePosActorSession(
