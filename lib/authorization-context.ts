@@ -12,6 +12,15 @@ import {
 import { isFullAdmin } from '@/lib/permissions'
 import { safeErrorDetails } from '@/lib/security/redaction'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import {
+  requireVerifiedAuthContext,
+  type VerifiedAuthContext,
+} from '@/lib/verified-auth-context'
+import {
+  isPosActorRestrictionRequired,
+  POS_ACTOR_COOKIE,
+  resolvePosActorSession,
+} from '@/lib/pos-actor-session-server'
 
 export type AuthorizationCapability =
   | 'admin:full'
@@ -53,6 +62,8 @@ export type VerifiedPosEmployee = {
 export type AuthorizationContext = {
   correlationId: string
   user: User
+  authSessionId: string
+  verifiedAuth: VerifiedAuthContext
   profile: AuthorizationProfile
   tenantId: string | null
   role: AppRole
@@ -155,12 +166,8 @@ export async function requireAuthorizationContext(
 
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
+    const verifiedAuth = await requireVerifiedAuthContext(supabase)
+    if (!verifiedAuth) {
       return {
         ok: false,
         response: NextResponse.json(
@@ -173,6 +180,7 @@ export async function requireAuthorizationContext(
       }
     }
 
+    const user = verifiedAuth.user
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select(PROFILE_SELECT)
@@ -192,18 +200,18 @@ export async function requireAuthorizationContext(
       }
     }
 
-    const branchId =
+    const underlyingBranchId =
       typeof profile.branch_id === 'string' ? profile.branch_id : null
-    const tenantId =
+    const underlyingTenantId =
       typeof profile.tenant_id === 'string' ? profile.tenant_id : null
-    const typedProfile = {
+    const underlyingProfile = {
       ...(profile as Omit<AuthorizationProfile, 'branch_id' | 'scope_type'>),
-      branch_id: branchId,
-      tenant_id: tenantId,
+      branch_id: underlyingBranchId,
+      tenant_id: underlyingTenantId,
       scope_type: resolveAuthScopeType(profile.role as AppRole),
     } as AuthorizationProfile
 
-    if (!typedProfile.is_active) {
+    if (!underlyingProfile.is_active) {
       return {
         ok: false,
         response: NextResponse.json(
@@ -215,6 +223,44 @@ export async function requireAuthorizationContext(
         ),
       }
     }
+
+    const authSessionId = verifiedAuth.sessionId
+
+    const suppliedPosToken = request.cookies.get(POS_ACTOR_COOKIE)?.value
+    const effectivePosActor = suppliedPosToken
+      ? await resolvePosActorSession(suppliedPosToken, verifiedAuth)
+      : null
+
+    const missingCookieRestriction = !suppliedPosToken
+      ? await isPosActorRestrictionRequired(verifiedAuth)
+      : false
+
+    // A supplied-but-invalid POS token is an ambiguous/revoked authority state.
+    // Never fall back to the more privileged organization profile.
+    if ((suppliedPosToken && !effectivePosActor) || missingCookieRestriction) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: 'POS actor session is invalid or revoked' },
+          { status: 401 }
+        ),
+      }
+    }
+
+    const typedProfile: AuthorizationProfile = effectivePosActor
+      ? {
+          id: effectivePosActor.actorId,
+          role: effectivePosActor.role,
+          is_active: true,
+          username: null,
+          full_name: null,
+          contact_email: null,
+          phone: null,
+          tenant_id: effectivePosActor.tenantId,
+          branch_id: effectivePosActor.branchId,
+          scope_type: resolveAuthScopeType(effectivePosActor.role),
+        }
+      : underlyingProfile
 
     if (!roleIsAllowed(typedProfile.role, allowedRoles)) {
       return {
@@ -233,6 +279,7 @@ export async function requireAuthorizationContext(
       typedProfile.scope_type,
       typedProfile.branch_id
     )
+    const tenantId = typedProfile.tenant_id
     const capabilities = resolveCapabilities(String(typedProfile.role))
 
     const canAccessBranch = (candidateBranchId: string | null | undefined) => {
@@ -304,13 +351,23 @@ export async function requireAuthorizationContext(
       context: {
         correlationId: resolveCorrelationId(request),
         user,
+        authSessionId,
+        verifiedAuth,
         profile: typedProfile,
         tenantId,
         role: typedProfile.role,
         capabilities,
         branchAccess,
         activeBranchId: typedProfile.branch_id,
-        posEmployee: null,
+        posEmployee: effectivePosActor
+          ? {
+              id: effectivePosActor.actorId,
+              role: effectivePosActor.role,
+              branchId: effectivePosActor.branchId,
+              tenantId: effectivePosActor.tenantId,
+              source: 'pos_profile',
+            }
+          : null,
         can: (capability) => capabilities.has(capability),
         canAccessBranch,
         verifyPosEmployee,

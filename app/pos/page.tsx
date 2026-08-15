@@ -35,6 +35,7 @@ import {
 import { formatCurrency } from '@/lib/orders/format'
 import {
   clearActivePosEmployee,
+  endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
@@ -724,11 +725,11 @@ export default function PosPage() {
     setUpdatingOrderId(null)
   }
 
-  const handleSwitchEmployee = () => {
+  const handleSwitchEmployee = async () => {
     clearAllInvoiceCatalogCache()
-    clearActivePosEmployee()
+    await endPosActorSessionAndRequireReauthentication()
     setActivePosEmployee(null)
-    router.push('/pos/employee-pin')
+    router.push('/pos/login')
   }
 
   const handleStartSale = () => {

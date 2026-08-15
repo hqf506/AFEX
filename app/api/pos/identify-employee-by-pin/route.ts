@@ -9,6 +9,11 @@ import {
   disabledFeatureResponse,
   POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
+import {
+  POS_ACTOR_COOKIE,
+  issuePosActorSession,
+  posActorCookieOptions,
+} from '@/lib/pos-actor-session-server'
 
 type IdentifyEmployeeByPinBody = {
   pin?: string
@@ -312,13 +317,33 @@ export async function POST(request: NextRequest) {
 
     clearPinRateLimit(rateLimitKey)
 
+    const effectiveBranchId = employee.branch_id || branchId
+    if (!effectiveBranchId) {
+      const missingBranchResponse = jsonResponse(
+        { error: MISSING_POS_CONTEXT_MESSAGE },
+        400
+      )
+      return withFixedPinDelay(withAuthCookies(auth.response, missingBranchResponse))
+    }
+
+    const actorSession = await issuePosActorSession({
+      verifiedAuth: auth.context.verifiedAuth,
+      rawPin: pin,
+      requestedBranchId: effectiveBranchId,
+    })
+
     const response = jsonResponse({
       success: true,
       employee: {
         ...employee,
-        branch_id: employee.branch_id || branchId,
+        branch_id: effectiveBranchId,
       },
     })
+    response.cookies.set(
+      POS_ACTOR_COOKIE,
+      actorSession.token,
+      posActorCookieOptions()
+    )
 
     return withFixedPinDelay(withAuthCookies(auth.response, response))
   } catch (error) {

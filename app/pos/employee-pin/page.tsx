@@ -12,6 +12,7 @@ import { formatPosGregorianDate, formatPosTime } from '@/lib/pos/date-format'
 import {
   hasPosLoggedOut,
   clearActivePosEmployee,
+  endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   writeActivePosEmployee,
   markPosLoggedOut,
@@ -382,10 +383,9 @@ export default function PosEmployeePinPage() {
     setPin('')
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     clearAllInvoiceCatalogCache()
-    clearActivePosEmployee()
-    markPosLoggedOut()
+    await endPosActorSessionAndRequireReauthentication()
     router.replace('/pos/login')
   }
 
