@@ -22,6 +22,30 @@
   --afex-safe-right: env(safe-area-inset-right, 0px);
   --afex-safe-bottom: env(safe-area-inset-bottom, 0px);
   --afex-safe-left: env(safe-area-inset-left, 0px);
+  --afex-pos-base: #071521;
+  --afex-pos-raised: #0b1d2a;
+  --afex-pos-panel: #0e2433;
+  --afex-pos-card: #122b3b;
+  --afex-pos-hover: #17384a;
+  --afex-pos-border: #214457;
+  --afex-pos-text: #f4f8fa;
+  --afex-pos-text-secondary: #91a8b5;
+  --afex-pos-emerald: #28d7a1;
+  --afex-pos-emerald-strong: #17b984;
+  --afex-pos-cyan: #39d9f2;
+  --afex-pos-warning: #f5b84b;
+  --afex-pos-danger: #f06473;
+  --afex-pos-space-1: 0.25rem;
+  --afex-pos-space-2: 0.5rem;
+  --afex-pos-space-3: 0.75rem;
+  --afex-pos-space-4: 1rem;
+  --afex-pos-space-5: 1.25rem;
+  --afex-pos-space-6: 1.5rem;
+  --afex-pos-radius-sm: 0.75rem;
+  --afex-pos-radius-md: 0.875rem;
+  --afex-pos-radius-lg: 1.25rem;
+  --afex-pos-shadow-panel: 0 24px 70px rgb(0 0 0 / 0.28);
+  --afex-pos-focus: 0 0 0 3px rgb(57 217 242 / 0.45);
 }
 
 @media (min-width: 640px) {
@@ -189,6 +213,192 @@ body {
   min-height: 100%;
   margin: 0;
   padding: 0;
+}
+
+/* ================== AFEX POS responsive shell ================== */
+
+.afex-pos-app-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 276px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--afex-pos-base);
+  color: var(--afex-pos-text);
+  direction: ltr;
+}
+
+.afex-pos-shell-content {
+  grid-column: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--afex-pos-base);
+  direction: rtl;
+}
+
+.afex-pos-sidebar,
+.afex-pos-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--afex-pos-space-2);
+  background: var(--afex-pos-panel);
+  border-inline-start: 1px solid var(--afex-pos-border);
+  color: var(--afex-pos-text);
+  direction: rtl;
+}
+
+.afex-pos-sidebar {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 18px 16px;
+}
+
+.afex-pos-brand {
+  min-height: 36px;
+  text-align: center;
+  color: var(--afex-pos-emerald);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.afex-pos-identity {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 94px;
+  padding: 17px 14px 22px;
+  border: 1px solid var(--afex-pos-border);
+  border-radius: var(--afex-pos-radius-md);
+  background: var(--afex-pos-card);
+}
+
+.afex-pos-avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--afex-pos-emerald);
+  color: var(--afex-pos-base);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.afex-pos-identity-copy { min-width: 0; }
+.afex-pos-identity-copy strong,
+.afex-pos-identity-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.afex-pos-identity-copy strong { font-size: 15px; }
+.afex-pos-identity-copy span { margin-top: 3px; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 400; }
+.afex-pos-identity-copy b { margin-inline: 4px; }
+.afex-pos-session-status { position: absolute; inset-inline: 18px auto; bottom: 10px; display: inline-flex; align-items: center; gap: 7px; color: var(--afex-pos-emerald); font-size: 10px; font-weight: 600; }
+.afex-pos-session-status i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+.afex-pos-nav-label { margin: 10px 0 0; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 700; }
+.afex-pos-navigation,
+.afex-pos-session-actions { display: grid; gap: 8px; }
+.afex-pos-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  width: 100%;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--afex-pos-radius-sm);
+  background: transparent;
+  color: var(--afex-pos-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: start;
+  cursor: pointer;
+  transition: 140ms ease;
+}
+.afex-pos-nav-item:hover { background: var(--afex-pos-hover); }
+.afex-pos-nav-item:active { transform: scale(0.985); }
+.afex-pos-nav-item:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+.afex-pos-nav-item.is-active { border-color: var(--afex-pos-emerald); background: var(--afex-pos-hover); font-weight: 700; }
+.afex-pos-nav-item.is-active::before { content: ''; position: absolute; inset-block: 9px; inset-inline-end: -1px; width: 4px; border-radius: 2px; background: var(--afex-pos-emerald); }
+.afex-pos-nav-item.is-disabled { opacity: 0.46; cursor: not-allowed; }
+.afex-pos-nav-item.is-disabled:hover { background: transparent; }
+.afex-pos-nav-icon { display: grid; place-items: center; width: 32px; height: 32px; color: inherit; }
+.afex-pos-nav-icon svg { width: 20px; height: 20px; }
+.afex-pos-nav-item.is-active .afex-pos-nav-icon { color: var(--afex-pos-emerald); }
+
+.afex-pos-permission-note { margin-top: auto; display: grid; gap: 3px; min-height: 58px; padding: 10px 14px; border: 1px solid var(--afex-pos-border); border-radius: var(--afex-pos-radius-sm); background: var(--afex-pos-raised); }
+.afex-pos-permission-note strong { font-size: 12px; }
+.afex-pos-permission-note span { color: var(--afex-pos-text-secondary); font-size: 10px; }
+.afex-pos-responsive-header,
+.afex-pos-drawer-backdrop,
+.afex-pos-bottom-nav,
+.afex-pos-mobile-more { display: none; }
+
+.afex-pos-button { display: inline-flex; min-height: 54px; align-items: center; justify-content: center; border: 1px solid var(--afex-pos-border); border-radius: var(--afex-pos-radius-sm); background: var(--afex-pos-card); color: var(--afex-pos-text); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: 140ms ease; }
+.afex-pos-button:hover { background: var(--afex-pos-hover); }
+.afex-pos-button:active { transform: scale(0.985); }
+.afex-pos-button:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+.afex-pos-button:disabled { cursor: not-allowed; opacity: 0.55; }
+.afex-pos-button--danger { border-color: transparent; background: var(--afex-pos-danger); color: var(--afex-pos-base); }
+.afex-pos-button--danger:hover { background: #f47482; }
+.afex-pos-button--primary { border-color: transparent; background: var(--afex-pos-emerald); color: var(--afex-pos-base); }
+.afex-pos-badge { display: inline-flex; min-height: 26px; align-items: center; border-radius: 999px; padding: 2px 9px; background: color-mix(in srgb, var(--afex-pos-emerald) 14%, transparent); color: var(--afex-pos-emerald); font-size: 11px; font-weight: 700; }
+
+.afex-pos-dialog-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgb(2 7 11 / 0.72); }
+.afex-pos-dialog { display: grid; gap: 14px; width: min(420px, 100%); padding: 26px 16px 18px; border: 1px solid var(--afex-pos-border); border-radius: var(--afex-pos-radius-lg); background: var(--afex-pos-panel); box-shadow: var(--afex-pos-shadow-panel); text-align: center; }
+.afex-pos-dialog:focus { outline: none; }
+.afex-pos-dialog-handle { display: none; width: 60px; height: 4px; margin: -12px auto 12px; border-radius: 2px; background: var(--afex-pos-text-secondary); }
+.afex-pos-dialog h2 { margin: 0; font-size: 21px; }
+.afex-pos-dialog > p { margin: 0; color: var(--afex-pos-text-secondary); font-size: 12px; }
+.afex-pos-dialog section { padding: 12px 16px; border: 1px solid var(--afex-pos-border); border-radius: var(--afex-pos-radius-sm); background: var(--afex-pos-raised); text-align: start; }
+.afex-pos-dialog section strong { font-size: 12px; }
+.afex-pos-dialog ul { margin: 6px 0 0; padding-inline-start: 18px; color: var(--afex-pos-text-secondary); font-size: 11px; }
+.afex-pos-dialog small { color: var(--afex-pos-warning); font-size: 9px; }
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .afex-pos-app-shell { display: block; padding-top: 68px; }
+  .afex-pos-shell-content { height: 100%; }
+  .afex-pos-sidebar { display: none; }
+  .afex-pos-responsive-header { position: absolute; inset: 0 0 auto; z-index: 20; display: flex; height: 68px; align-items: center; justify-content: space-between; padding: 0 34px; border-inline-end: 5px solid var(--afex-pos-emerald); background: var(--afex-pos-raised); }
+  .afex-pos-responsive-header strong { font-size: 21px; }
+  .afex-pos-responsive-header button { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--afex-pos-text-secondary); font-size: 22px; cursor: pointer; }
+  .afex-pos-drawer-backdrop { position: fixed; inset: 0; z-index: 900; display: block; background: rgb(2 7 11 / 0.58); }
+  .afex-pos-drawer { position: absolute; inset-block: 0; right: 0; width: min(360px, 92vw); height: 100%; padding: 24px 18px 16px; overflow-y: auto; border-radius: 20px 0 0 20px; box-shadow: var(--afex-pos-shadow-panel); }
+}
+
+@media (max-width: 767px) {
+  .afex-pos-app-shell { display: block; padding: 68px 0 90px; }
+  .afex-pos-shell-content { height: 100%; }
+  .afex-pos-sidebar { display: none; }
+  .afex-pos-responsive-header { position: absolute; inset: 0 0 auto; z-index: 20; display: flex; height: 68px; align-items: center; justify-content: space-between; padding: 0 28px 0 20px; border-inline-end: 5px solid var(--afex-pos-emerald); background: var(--afex-pos-raised); }
+  .afex-pos-responsive-header strong { font-size: 21px; }
+  .afex-pos-responsive-header button { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--afex-pos-text-secondary); font-size: 22px; }
+  .afex-pos-drawer-backdrop { position: fixed; inset: 0; z-index: 900; display: block; background: rgb(2 7 11 / 0.72); }
+  .afex-pos-drawer { position: absolute; inset: 0; width: 100%; padding: 24px 16px 100px; overflow-y: auto; }
+  .afex-pos-bottom-nav { position: absolute; inset: auto 0 0; z-index: 30; display: grid; grid-template-columns: repeat(4, 1fr); min-height: 90px; padding: 8px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); background: var(--afex-pos-raised); }
+  .afex-pos-bottom-nav a,
+  .afex-pos-bottom-nav span { display: flex; min-width: 0; min-height: 54px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--afex-pos-text-secondary); text-decoration: none; font-size: 11px; }
+  .afex-pos-bottom-nav a:focus-visible { outline: none; box-shadow: inset var(--afex-pos-focus); }
+  .afex-pos-bottom-nav a[aria-current='page'] { color: var(--afex-pos-emerald); }
+  .afex-pos-bottom-nav span { opacity: 0.48; }
+  .afex-pos-bottom-nav svg { width: 20px; height: 20px; }
+  .afex-pos-bottom-nav b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .afex-pos-mobile-more { display: flex; min-height: 100%; flex-direction: column; gap: 8px; padding: 20px 16px 24px; background: var(--afex-pos-base); }
+  .afex-pos-mobile-more .afex-pos-brand { display: none; }
+  .afex-pos-mobile-more .afex-pos-identity { margin-bottom: 10px; }
+  .afex-pos-mobile-more .afex-pos-permission-note { margin-top: 20px; text-align: center; }
+  .afex-pos-shell-content.is-more-route .afex-pos-route-content { display: none; }
+  .afex-pos-dialog-backdrop { align-items: flex-end; }
+  .afex-pos-dialog { width: 100%; padding: 28px 16px 18px; border-radius: 20px 20px 0 0; }
+  .afex-pos-dialog-handle { display: block; }
 }
 
 body {

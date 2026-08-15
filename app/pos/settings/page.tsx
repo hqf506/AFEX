@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
 import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
@@ -77,9 +76,6 @@ export default function PosSettingsPage() {
         </div>
       </main>
 
-      <div className="mx-auto mt-3 w-full max-w-4xl pb-[max(0.25rem,env(safe-area-inset-bottom))]">
-        <PosMobileBottomNavigation />
-      </div>
     </div>
   )
 }

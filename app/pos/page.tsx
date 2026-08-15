@@ -34,7 +34,6 @@ import {
 } from '@/lib/orders/normalize'
 import { formatCurrency } from '@/lib/orders/format'
 import {
-  clearActivePosEmployee,
   endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   type ActivePosEmployee,
@@ -51,7 +50,6 @@ import {
   formatPosTime,
   formatPosWeekday,
 } from '@/lib/pos/date-format'
-import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
 import {
   PosAddCustomerModal,
   type CreatedPosCustomer,
@@ -802,7 +800,7 @@ export default function PosPage() {
   return (
     <main
       dir="rtl"
-      className="fixed inset-0 z-[60] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white"
+      className="pos-home-legacy-root relative h-full min-h-0 w-full overflow-hidden bg-[#020817] text-white"
     >
       <style jsx global>{`
         @keyframes pos-order-details-sheet-in {
@@ -955,7 +953,6 @@ export default function PosPage() {
               ) : null}
             </section>
 
-            <PosMobileBottomNavigation />
           </div>
 
           {showMobileAddCustomer ? (
@@ -1182,8 +1179,8 @@ export default function PosPage() {
           ) : null}
         </div>
       ) : (
-      <div className="relative z-10 grid h-full w-full gap-3 overflow-y-auto overscroll-contain p-3 [direction:rtl] lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6 lg:overflow-hidden lg:p-6 xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8 xl:p-8">
-        <aside className="flex min-h-0 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] lg:overflow-hidden lg:rounded-[26px]">
+      <div className="pos-home-desktop-layout relative z-10 grid h-full w-full gap-3 overflow-y-auto overscroll-contain p-3 [direction:rtl] lg:grid-cols-[minmax(0,1fr)] lg:gap-6 lg:overflow-hidden lg:p-6 xl:grid-cols-[minmax(0,1fr)] xl:gap-8 xl:p-8">
+        <aside className="pos-home-legacy-sidebar hidden">
           <div className="mb-5 hidden rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] lg:block">
             <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
               AFEX
