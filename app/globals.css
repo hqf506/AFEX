@@ -401,6 +401,238 @@ body {
   .afex-pos-dialog-handle { display: block; }
 }
 
+/* POS sale workspace — Figma 40:3 / 40:4 / 40:5 */
+.afex-sale-workspace {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--afex-pos-base);
+  color: var(--afex-pos-text);
+}
+
+.afex-sale-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 20px;
+  overflow: hidden;
+  direction: ltr;
+}
+
+.afex-sale-catalog {
+  grid-column: 2;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  direction: rtl;
+}
+
+.afex-sale-tools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.afex-sale-title { margin: 0; flex: 0 0 auto; font-size: 24px; font-weight: 700; }
+.afex-sale-search { max-width: 320px; margin-inline-start: auto; }
+.afex-sale-search input {
+  height: 48px;
+  border-radius: 12px;
+  border-color: var(--afex-pos-border);
+  background: var(--afex-pos-panel);
+  box-shadow: none;
+}
+
+.afex-sale-categories {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  direction: rtl;
+  scrollbar-width: none;
+}
+.afex-sale-categories::-webkit-scrollbar { display: none; }
+.afex-sale-categories button {
+  min-height: 44px;
+  border: 1px solid var(--afex-pos-border);
+  background: var(--afex-pos-card);
+  color: var(--afex-pos-text-secondary);
+  box-shadow: none;
+}
+.afex-sale-categories button[aria-pressed='true'] {
+  border-color: var(--afex-pos-cyan);
+  background: var(--afex-pos-card);
+  color: var(--afex-pos-cyan);
+  box-shadow: none;
+}
+
+.afex-sale-catalog-panel {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.afex-sale-product-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 170px;
+  align-content: start;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: 2px;
+}
+
+.afex-sale-product-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  height: 170px;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid var(--afex-pos-border);
+  border-radius: 16px;
+  background: var(--afex-pos-card);
+  padding: 12px;
+  color: var(--afex-pos-text);
+  text-align: start;
+  box-shadow: none;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+.afex-sale-product-card:hover { border-color: var(--afex-pos-cyan); background: var(--afex-pos-hover); }
+.afex-sale-product-card:active { transform: scale(0.985); }
+.afex-sale-product-card:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+.afex-sale-product-card:disabled { cursor: not-allowed; opacity: 0.52; }
+.afex-sale-product-card.is-selected { border-width: 2px; border-color: var(--afex-pos-emerald); }
+
+.afex-sale-product-media {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 76px;
+  flex: 0 0 76px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 10px;
+  background: var(--afex-pos-panel);
+}
+.afex-sale-product-copy { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; }
+
+.afex-sale-cart {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--afex-pos-border);
+  border-radius: 16px;
+  background: var(--afex-pos-panel);
+  padding: 14px;
+  box-shadow: none;
+  direction: rtl;
+}
+.afex-sale-cart > div { border-color: var(--afex-pos-border); background: var(--afex-pos-raised); box-shadow: none; }
+.afex-sale-cart > div:nth-child(3) { min-height: 0; flex: 1 1 auto; }
+.afex-sale-cart > div:nth-child(3) > div:last-child { min-height: 0; overflow-y: auto; }
+.afex-sale-cart button:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+
+.afex-sale-mobile-summary { display: none; }
+
+@media (min-width: 1200px) {
+  .afex-sale-product-grid--mobile { display: none; }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .afex-sale-layout { grid-template-columns: 300px minmax(0, 1fr); gap: 16px; padding: 16px; }
+  .afex-sale-product-grid { grid-template-columns: repeat(2, minmax(0, 280px)); }
+  .afex-sale-product-grid--mobile { display: none; }
+  .afex-sale-product-grid--desktop { display: grid; }
+  .afex-sale-search { max-width: 270px; }
+}
+
+@media (max-width: 767px) {
+  .afex-sale-workspace { overflow: visible; }
+  .afex-sale-layout {
+    display: block;
+    height: 100%;
+    padding: 14px 16px 86px;
+    overflow: hidden;
+  }
+  .afex-sale-catalog { height: 100%; gap: 12px; }
+  .afex-sale-tools { display: block; }
+  .afex-sale-title,
+  .afex-sale-tools > a,
+  .afex-sale-tools > button,
+  .afex-sale-tools > div:first-child { display: none !important; }
+  .afex-sale-search { display: block !important; max-width: none; margin: 0; }
+  .afex-sale-search input { height: 44px; }
+  .afex-sale-catalog-panel { overflow: hidden; }
+  .afex-sale-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 148px; gap: 10px; }
+  .afex-sale-product-grid--desktop { display: none; }
+  .afex-sale-product-grid--mobile { display: grid; }
+  .afex-sale-product-card { height: 148px; gap: 5px; border-radius: 14px; padding: 10px; }
+  .afex-sale-product-media { width: 100%; height: 64px; flex-basis: 64px; }
+  .afex-sale-product-copy > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 20px; }
+  .afex-sale-product-copy > span:nth-child(2),
+  .afex-sale-product-copy > span:nth-child(3) { display: none; }
+  .afex-sale-product-copy > span:last-child { margin-top: auto; padding-top: 0; }
+  .afex-sale-product-copy > span:last-child > span:last-child { min-height: 20px; padding: 0; background: transparent; color: var(--afex-pos-emerald); box-shadow: none; font-size: 0; }
+  .afex-sale-product-copy > span:last-child > span:last-child::after { content: '✓'; font-size: 12px; }
+  .afex-sale-product-copy > span:last-child > span:first-child { font-size: 12px; }
+  .afex-sale-cart {
+    position: fixed;
+    inset: 68px 0 90px;
+    z-index: 80;
+    display: none;
+    width: 100%;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+    padding: 14px 14px max(14px, var(--afex-safe-bottom));
+  }
+  .afex-sale-cart.is-open { display: flex; }
+  .afex-sale-mobile-summary {
+    position: absolute;
+    inset: auto 0 90px;
+    z-index: 35;
+    display: flex;
+    height: 72px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-top: 1px solid var(--afex-pos-border);
+    background: var(--afex-pos-panel);
+    padding: 10px 16px;
+    direction: rtl;
+  }
+  .afex-sale-mobile-summary div { display: grid; text-align: start; }
+  .afex-sale-mobile-summary span { color: var(--afex-pos-text-secondary); font-size: 11px; }
+  .afex-sale-mobile-summary strong { color: var(--afex-pos-text); font-size: 18px; }
+  .afex-sale-mobile-summary button { min-width: 190px; min-height: 48px; border: 0; border-radius: 12px; background: var(--afex-pos-emerald); color: var(--afex-pos-base); font: inherit; font-size: 14px; font-weight: 700; }
+  .afex-sale-mobile-summary button:disabled { opacity: 0.5; }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

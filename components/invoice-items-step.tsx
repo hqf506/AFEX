@@ -1175,7 +1175,7 @@ export function InvoiceItemsStep({
     ]
 
     return (
-      <div className="pos-mobile-motion fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
+      <div className="pos-mobile-motion afex-sale-workspace">
         <style jsx global>{`
           @keyframes pos-mobile-screen-enter {
             from { opacity: 0; transform: translateY(8px); }
@@ -1209,9 +1209,8 @@ export function InvoiceItemsStep({
             }
           }
         `}</style>
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_34%),radial-gradient(circle_at_78%_84%,rgba(14,165,233,0.12),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_48%,#020817_100%)]" />
-        <div className="pos-mobile-screen-enter relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:p-4 xl:gap-4">
-          <main className="flex min-w-0 flex-1 flex-col gap-2.5 overflow-hidden [direction:rtl]">
+        <div className="pos-mobile-screen-enter afex-sale-layout">
+          <main className="afex-sale-catalog">
             {(hasInvalidBranchContext || hasAmbiguousAdminBranchContext || stockErrorMessage) ? (
               <div className="grid gap-2">
                 {hasInvalidBranchContext ? (
@@ -1232,7 +1231,7 @@ export function InvoiceItemsStep({
               </div>
             ) : null}
 
-            <section className="grid shrink-0 grid-cols-[minmax(0,1fr)_54px] gap-2 sm:flex sm:flex-row sm:items-center sm:gap-3">
+            <section className="afex-sale-tools">
               <div className="col-span-2 flex min-h-[44px] items-center justify-between gap-2 sm:hidden">
                 <a
                   href={customerStepHref}
@@ -1243,21 +1242,12 @@ export function InvoiceItemsStep({
                 <h1 className="min-w-0 flex-1 truncate text-center text-lg font-black text-white">
                   اختيار العناصر
                 </h1>
-                <button
-                  type="button"
-                  onClick={() => setShowItemsModal(true)}
-                  aria-expanded={showItemsModal}
-                  aria-controls="pos-cart-panel"
-                  className="flex min-h-[44px] items-center justify-center gap-2 rounded-[18px] border border-cyan-300/18 bg-cyan-400/10 px-3 text-xs font-black text-cyan-100"
-                >
-                  السلة
-                  <span className="rounded-full bg-cyan-300 px-2 py-0.5 text-[#02101c]">
-                    {invoiceItemCount}
-                  </span>
-                </button>
+                <span className="h-11 w-11" aria-hidden="true" />
               </div>
 
-              <div className="relative min-w-0 flex-1">
+              <h1 className="afex-sale-title">الخدمات والمنتجات</h1>
+
+              <div className="afex-sale-search relative min-w-0 flex-1">
                 {search ? (
                   <button
                     type="button"
@@ -1308,7 +1298,7 @@ export function InvoiceItemsStep({
               </button>
             </section>
 
-            <section aria-label="تصنيفات العناصر" className="flex w-full min-w-0 shrink-0 snap-x snap-mandatory items-center gap-2 overflow-x-auto pb-1 [direction:rtl] [scrollbar-width:none] [-ms-overflow-style:none] sm:snap-proximity sm:gap-1.5 [&::-webkit-scrollbar]:hidden">
+            <section aria-label="تصنيفات العناصر" className="afex-sale-categories">
               {squarePosCategoryLabels.map((filter) => {
                 const active = activeFilter === filter
 
@@ -1345,7 +1335,7 @@ export function InvoiceItemsStep({
               </div>
             ) : null}
 
-            <section className="min-h-0 flex-1 overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#020817]/58 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_22px_58px_rgba(2,8,23,0.32)] backdrop-blur-2xl sm:rounded-[28px]">
+            <section className="afex-sale-catalog-panel">
               {hasAmbiguousAdminBranchContext ? (
                 <div className="flex h-full items-center justify-center rounded-[28px] border border-amber-400/20 bg-amber-950/20 px-6 text-center text-sm font-bold text-amber-100">
                   اختر فرعًا محددًا أولًا حتى يتم تحميل كتالوج الفرع الصحيح للفاتورة.
@@ -1404,7 +1394,7 @@ export function InvoiceItemsStep({
               ) : (
                 <div className="flex h-full min-h-0 flex-col gap-3">
                   {isMobileViewport ? (
-                  <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto overscroll-contain pe-1">
+                  <div className="afex-sale-product-grid afex-sale-product-grid--mobile">
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
@@ -1429,7 +1419,7 @@ export function InvoiceItemsStep({
                               ? `${product.name} غير متوفر في المخزون`
                               : `إضافة ${product.name} إلى السلة`
                           }
-                          className={`group flex min-h-[132px] w-full min-w-0 items-stretch gap-3 rounded-[22px] border bg-[#061426]/78 p-3 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.985] touch-manipulation ${
+                          className={`group afex-sale-product-card ${productCartQuantity > 0 ? 'is-selected' : ''} ${
                             productOutOfStock
                               ? 'cursor-not-allowed border-slate-700/60 opacity-55'
                               : 'border-cyan-300/12'
@@ -1439,7 +1429,7 @@ export function InvoiceItemsStep({
                               : ''
                           }`}
                         >
-                          <span className="relative h-[106px] w-[96px] shrink-0 overflow-hidden rounded-[18px] border border-cyan-300/10 bg-[#020817]/72">
+                          <span className="afex-sale-product-media">
                             <PosCatalogItemImage
                               key={product.image_url || product.id}
                               imageUrl={product.image_url}
@@ -1457,7 +1447,7 @@ export function InvoiceItemsStep({
                             ) : null}
                           </span>
 
-                          <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="afex-sale-product-copy">
                             <span className="break-words text-[15px] font-black leading-6 text-white">
                               {product.name}
                             </span>
@@ -1509,7 +1499,7 @@ export function InvoiceItemsStep({
                     })}
                   </div>
                   ) : (
-                  <div className="grid min-h-0 flex-1 auto-rows-[232px] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pe-1 lg:grid-cols-4">
+                  <div className="afex-sale-product-grid afex-sale-product-grid--desktop">
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
@@ -1529,7 +1519,7 @@ export function InvoiceItemsStep({
                           type="button"
                           onClick={() => addItemWithFeedback(product)}
                           disabled={productOutOfStock}
-                          className={`group flex h-[216px] min-w-0 flex-col rounded-[22px] border border-cyan-300/12 bg-[#061426]/72 p-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition hover:border-cyan-300/28 hover:bg-[#08203a]/74 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.985] touch-manipulation sm:h-[220px] sm:rounded-[24px] ${
+                          className={`group afex-sale-product-card ${productCartQuantity > 0 ? 'is-selected' : ''} ${
                             productOutOfStock ? 'cursor-not-allowed opacity-55' : ''
                           } ${
                             pressedItemId === normalizedCatalogItemId
@@ -1632,7 +1622,7 @@ export function InvoiceItemsStep({
             />
           ) : null}
 
-          <aside id="pos-cart-panel" className={`${showItemsModal ? 'pos-mobile-sheet-enter fixed inset-0 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-y-auto overscroll-contain rounded-none border border-cyan-300/10 bg-[#020817]/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:flex md:h-full md:w-[280px] md:overflow-hidden md:rounded-[28px] md:bg-[#020817]/72 md:p-3 lg:w-[320px]`}>
+          <aside id="pos-cart-panel" className={`afex-sale-cart ${showItemsModal ? 'is-open pos-mobile-sheet-enter' : ''}`}>
             <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1791,6 +1781,22 @@ export function InvoiceItemsStep({
               </button>
             </div>
           </aside>
+
+          <div className="afex-sale-mobile-summary" aria-label="ملخص السلة">
+            <div>
+              <span>الإجمالي</span>
+              <strong>{formatCurrency(checkout.finalTotal)}</strong>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowItemsModal(true)}
+              aria-expanded={showItemsModal}
+              aria-controls="pos-cart-panel"
+              disabled={invoiceItems.length === 0}
+            >
+              عرض السلة • {invoiceItemCount}
+            </button>
+          </div>
         </div>
 
         {showCancelModal ? (

@@ -132,14 +132,15 @@ assert.ok(
   activePosItemsLayout.includes('aria-label="تصنيفات العناصر"') &&
     activePosItemsLayout.includes('aria-pressed={active}') &&
     activePosItemsLayout.includes('aria-controls="pos-cart-panel"') &&
-    activePosItemsLayout.includes('grid-cols-2') &&
+    activePosItemsLayout.includes('afex-sale-product-grid--mobile') &&
+    activePosItemsLayout.includes('afex-sale-product-grid--desktop') &&
     !activePosItemsLayout.includes('window.innerWidth'),
   'POS product browsing must remain single-tree, touch-first, and CSS responsive'
 )
 assert.ok(
-  activePosItemsLayout.includes("'pos-mobile-sheet-enter fixed inset-0 z-50 flex'") &&
-    activePosItemsLayout.includes('overflow-y-auto overscroll-contain rounded-none') &&
-    activePosItemsLayout.includes('md:overflow-hidden md:rounded-[28px]') &&
+  activePosItemsLayout.includes("'is-open pos-mobile-sheet-enter'") &&
+    activePosItemsLayout.includes('afex-sale-cart') &&
+    activePosItemsLayout.includes('afex-sale-mobile-summary') &&
     activePosItemsLayout.includes('md:flex-1') &&
     activePosItemsLayout.includes('md:overflow-y-auto') &&
     (activePosItemsLayout.match(/className="flex h-11 w-11/g) || []).length >= 3,
