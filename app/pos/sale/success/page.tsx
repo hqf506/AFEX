@@ -20,6 +20,7 @@ import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
+import { normalizeWhatsAppDestination } from '@/lib/whatsapp/messages'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -459,8 +460,11 @@ export default function PosSaleSuccessPage() {
     if (!whatsappEnabled) return
     if (!snapshot?.customerPhone) return
 
-    const phone = snapshot.customerPhone.replace(/[^\d]/g, '')
-    if (!phone) return
+    const destination = normalizeWhatsAppDestination(snapshot.customerPhone)
+    if (!destination) {
+      setActionMessage('SKIPPED_INVALID_PHONE')
+      return
+    }
 
     const message = [
       'تم إنشاء فاتورتك بنجاح من AFEX POS',
@@ -472,6 +476,8 @@ export default function PosSaleSuccessPage() {
     setWhatsappOpening(true)
     setActionMessage('')
     try {
+      const phone = destination.replace(/^\+/, '')
+      setActionMessage('HANDOFF_OPENED')
       window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
     } catch {
       setActionMessage(POS_UX_MESSAGES.whatsappFailure)
@@ -499,6 +505,8 @@ export default function PosSaleSuccessPage() {
     if (!snapshot || successFeedbackPlayedRef.current) {
       return
     }
+
+    performance.mark('afex-checkout-success-mounted')
 
     successFeedbackPlayedRef.current = true
     triggerSuccessHaptic()

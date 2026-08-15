@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   calculateInvoiceSubtotal,
   parseCashReceivedAmount,
@@ -17,10 +17,12 @@ import {
   type InvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
+import { savePosOfflineInvoiceDraft } from '@/lib/pos-offline-draft'
 import {
-  createPosClientIdempotencyKey,
-  savePosOfflineInvoiceDraft,
-} from '@/lib/pos-offline-draft'
+  acquirePosCheckoutIdentity,
+  clearPosCheckoutIdentity,
+  markPosCheckoutIdentitySucceeded,
+} from '@/lib/pos-checkout-identity'
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
@@ -78,7 +80,6 @@ export function useInvoiceCheckout({
   const [offlineDraftMessage, setOfflineDraftMessage] = useState('')
   const [lastInvoiceNumber, setLastInvoiceNumber] = useState('')
   const [lastOrderNumber, setLastOrderNumber] = useState('')
-  const clientIdempotencyKeyRef = useRef('')
 
   const subtotal = useMemo(() => {
     return calculateInvoiceSubtotal(invoiceItems)
@@ -210,15 +211,7 @@ export function useInvoiceCheckout({
     setNote('')
     setPaymentMethodState('mada')
     setCashReceivedInput('')
-    clientIdempotencyKeyRef.current = ''
-  }
-
-  const getOrCreateClientIdempotencyKey = () => {
-    if (!clientIdempotencyKeyRef.current) {
-      clientIdempotencyKeyRef.current = createPosClientIdempotencyKey()
-    }
-
-    return clientIdempotencyKeyRef.current
+    clearPosCheckoutIdentity()
   }
 
   const createInvoice = async () => {
@@ -281,8 +274,34 @@ export function useInvoiceCheckout({
       return
     }
 
-    const clientIdempotencyKey = getOrCreateClientIdempotencyKey()
     const activePosEmployee = readActivePosEmployee()
+    let clientIdempotencyKey: string
+
+    try {
+      clientIdempotencyKey = (
+        await acquirePosCheckoutIdentity({
+          version: 1,
+          customerId,
+          branchId,
+          paymentMethod: safePaymentMethod,
+          cashReceived: numericCashReceived,
+          remainingFromCustomer,
+          cashChange,
+          discountAmount,
+          taxAmount,
+          note,
+          items: validItems.map((item) => ({
+            itemId: item.item_id,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+          })),
+        })
+      ).requestId
+    } catch {
+      setLoading(false)
+      setErrorMessage(POS_UX_MESSAGES.uncertainSubmission)
+      return
+    }
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       try {
@@ -319,6 +338,7 @@ export function useInvoiceCheckout({
     }
 
     try {
+      performance.mark('afex-checkout-request-dispatch')
       const createOrderResponse = await fetch('/api/orders', {
       method: 'POST',
       headers: {
@@ -341,6 +361,7 @@ export function useInvoiceCheckout({
         items: validItems,
       }),
     })
+      performance.mark('afex-checkout-response-received')
 
       const createOrderResult = (await createOrderResponse
       .json()
@@ -370,6 +391,8 @@ export function useInvoiceCheckout({
       }
 
     const result = createOrderResult.data
+    markPosCheckoutIdentitySucceeded(clientIdempotencyKey)
+    performance.mark('afex-checkout-terminal-success')
 
     setLastInvoiceNumber(result?.invoice_number || '')
     setLastOrderNumber(result?.order_number || '')

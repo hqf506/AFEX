@@ -10,6 +10,7 @@ import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
 import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
 import {
   clearActivePosEmployee,
+  endPosActorSessionAndRequireReauthentication,
   markPosLoggedOut,
 } from '@/lib/pos-employee-session'
 
@@ -17,7 +18,7 @@ export default function PosSettingsPage() {
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const hasActiveSale = Boolean(
       localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY) ||
         localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
@@ -31,7 +32,7 @@ export default function PosSettingsPage() {
     try {
       setLoggingOut(true)
       clearAllInvoiceCatalogCache()
-      clearActivePosEmployee()
+      await endPosActorSessionAndRequireReauthentication()
       sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
       markPosLoggedOut()
       router.push('/pos/login')

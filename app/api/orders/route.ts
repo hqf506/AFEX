@@ -775,7 +775,20 @@ async function handleCreateOrderPost(
       body.clientIdempotencyKey
     )
     const coreV2Enabled = coreV2OrderExecutionEnabled()
-    const createdByEmployeeId = normalizeUuidString(body.employee_id)
+    const suppliedEmployeeId = normalizeUuidString(body.employee_id)
+    const effectivePosEmployeeId = auth.context.posEmployee?.id || null
+    if (
+      effectivePosEmployeeId &&
+      suppliedEmployeeId &&
+      suppliedEmployeeId !== effectivePosEmployeeId
+    ) {
+      return jsonWithAuthCookies(
+        auth.response,
+        { success: false, message: 'POS actor mismatch.' },
+        403
+      )
+    }
+    const createdByEmployeeId = effectivePosEmployeeId || suppliedEmployeeId
     const branchId = normalizeUuidString(body.branch_id)
     const customerId = normalizeUuidString(body.customerId)
 

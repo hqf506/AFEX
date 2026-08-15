@@ -1,3 +1,5 @@
+import { normalizeSaudiCustomerPhone } from '@/lib/customers'
+
 type ReadyOrderStatusMessageInput = {
   customerName: string
   orderNumber: string
@@ -14,8 +16,12 @@ type DeliveredOrderStatusMessageInput = {
 }
 
 export function isSendableWhatsAppPhone(phone: string) {
-  const digitsOnly = phone.replace(/\D/g, '')
-  return digitsOnly.length >= 10
+  return normalizeSaudiCustomerPhone(phone) !== null
+}
+
+export function normalizeWhatsAppDestination(phone: string | null) {
+  const normalized = normalizeSaudiCustomerPhone(phone)
+  return normalized ? `+${normalized}` : null
 }
 
 export function buildReadyOrderStatusWhatsAppMessage(

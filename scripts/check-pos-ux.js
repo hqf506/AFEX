@@ -258,12 +258,20 @@ new Function(
   'INVOICE_CUSTOMER_STORAGE_KEY',
   'INVOICE_SALE_ITEMS_STORAGE_KEY',
   'INVOICE_SUCCESS_STORAGE_KEY',
+  'clearCompletedInvoiceDraftState',
+  'clearPosCheckoutIdentity',
   clearSaleStateBody
 )(
   { localStorage: successLocalStorage, sessionStorage: successSessionStorage },
   'invoice_customer',
   'invoice_sale_items',
-  'invoice_success'
+  'invoice_success',
+  () => {
+    successLocalStorage.removeItem('invoice_customer')
+    successLocalStorage.removeItem('invoice_sale_items')
+    successSessionStorage.removeItem('invoice_success')
+  },
+  () => undefined
 )
 assert.equal(successLocalStorage.getItem('invoice_customer'), null)
 assert.equal(successLocalStorage.getItem('invoice_sale_items'), null)
@@ -271,7 +279,7 @@ assert.equal(successSessionStorage.getItem('invoice_success'), null)
 assert.equal(successLocalStorage.getItem('unrelated'), 'keep')
 assert.equal(successSessionStorage.getItem('pos_employee_session'), 'keep')
 
-const successCleanupIndex = checkoutStep.indexOf('clearCompletedInvoiceSaleState()')
+const successCleanupIndex = checkoutStep.indexOf('clearCompletedInvoiceDraftState()')
 const successSnapshotIndex = checkoutStep.indexOf(
   'sessionStorage.setItem(',
   successCleanupIndex

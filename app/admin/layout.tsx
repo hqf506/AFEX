@@ -1,8 +1,15 @@
 import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { AdminShellLayout } from '@/components/admin-shell-layout'
 import { isFullAdmin, LIMITED_ADMIN_ROLES } from '@/lib/permissions'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireVerifiedAuthContext } from '@/lib/verified-auth-context'
+import {
+  isPosActorRestrictionRequired,
+  POS_ACTOR_COOKIE,
+  resolvePosActorSession,
+} from '@/lib/pos-actor-session-server'
 
 function canEnterAdminShell(role: string) {
   return (
@@ -35,12 +42,24 @@ function AdminAccessDenied() {
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
+  const verifiedAuth = await requireVerifiedAuthContext(supabase)
+  if (!verifiedAuth) {
     redirect('/')
+  }
+  const user = verifiedAuth.user
+  const posToken = (await cookies()).get(POS_ACTOR_COOKIE)?.value
+  const effectivePosActor = posToken
+    ? await resolvePosActorSession(posToken, verifiedAuth)
+    : null
+  const missingCookieRestriction = !posToken
+    ? await isPosActorRestrictionRequired(verifiedAuth)
+    : false
+
+  // A POS actor is always the effective authority while its cookie is present.
+  // Invalid/revoked cookies also fail closed rather than restoring Owner access.
+  if (missingCookieRestriction ||
+      (posToken && (!effectivePosActor || !canEnterAdminShell(effectivePosActor.role)))) {
+    return <AdminAccessDenied />
   }
 
   const [{ data: profile }, { data: provider }] = await Promise.all([

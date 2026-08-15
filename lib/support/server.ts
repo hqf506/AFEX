@@ -1,58 +1,45 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { resolveAuthScopeType } from '@/lib/auth-profile'
 export { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES, SUPPORT_STATUSES } from '@/lib/support/contracts'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type { ServerTiming } from '@/lib/performance/server-timing'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAuthorizationContext } from '@/lib/authorization-context'
 
 export async function requireSupportAuth(
   request: NextRequest,
   timing?: ServerTiming
 ) {
-  void request
-  const response = NextResponse.next()
-  const supabase = await createSupabaseServerClient()
-  const { data: { user }, error: userError } = await (timing
-    ? timing.measure('auth', () => supabase.auth.getUser())
-    : supabase.auth.getUser())
-  if (userError || !user) {
+  const authorization = await (timing
+    ? timing.measure('auth', () => requireAuthorizationContext(request))
+    : requireAuthorizationContext(request))
+  if (!authorization.ok) return authorization
+
+  const { response, supabase, context } = authorization
+  const { user, profile } = context
+  if (context.posEmployee && !context.can('support:access')) {
     return {
       ok: false as const,
-      response: NextResponse.json({ error: 'غير مصرح' }, { status: 401 }),
+      response: NextResponse.json({ error: 'POS actor is not authorized for support access' }, { status: 403 }),
     }
   }
-  const [providerResult, profileResult] = await Promise.all([
-    timing
-      ? timing.measure('platform_admin', () =>
-          supabaseAdmin
-            .from('platform_admins')
-            .select('role')
-            .eq('user_id', user.id)
-            .eq('is_active', true)
-            .maybeSingle()
-        )
-      : supabaseAdmin
+
+  const providerResult = await (timing
+    ? timing.measure('platform_admin', () =>
+        supabaseAdmin
           .from('platform_admins')
           .select('role')
           .eq('user_id', user.id)
           .eq('is_active', true)
-          .maybeSingle(),
-    timing
-      ? timing.measure('profile', () =>
-          supabase
-            .from('profiles')
-            .select('id, role, is_active, username, full_name, branch_id, tenant_id')
-            .eq('id', user.id)
-            .maybeSingle()
-        )
-      : supabase
-          .from('profiles')
-          .select('id, role, is_active, username, full_name, branch_id, tenant_id')
-          .eq('id', user.id)
-          .maybeSingle(),
-  ])
-  if (providerResult.data) {
+          .maybeSingle()
+      )
+    : supabaseAdmin
+        .from('platform_admins')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle())
+
+  if (!context.posEmployee && providerResult.data) {
     return {
       ok: true as const,
       response,
@@ -72,22 +59,12 @@ export async function requireSupportAuth(
       providerRole: providerResult.data.role,
     }
   }
-  const { data: profile, error: profileError } = profileResult
-  if (profileError || !profile || !profile.is_active) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ error: 'غير مصرح' }, { status: 401 }),
-    }
-  }
   return {
     ok: true as const,
     response,
     supabase,
     user,
-    profile: {
-      ...profile,
-      scope_type: resolveAuthScopeType(profile.role),
-    },
+    profile,
     isProvider: false,
     providerRole: null,
   }

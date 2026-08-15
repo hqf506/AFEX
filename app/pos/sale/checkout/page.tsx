@@ -31,7 +31,7 @@ import {
   INVOICE_SUCCESS_STORAGE_KEY,
   serializeInvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
-import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
+import { clearCompletedInvoiceDraftState } from '@/lib/invoices/sale-reset'
 import {
   getPaymentMethodLabel,
   normalizeUiPaymentMethod,
@@ -354,13 +354,13 @@ export default function PosSaleCheckoutPage() {
         paymentMethod: checkout.paymentMethod,
       }
 
-      clearCompletedInvoiceSaleState()
-      checkout.clearCheckout()
+      clearCompletedInvoiceDraftState()
       setInvoiceItems([])
       sessionStorage.setItem(
         INVOICE_SUCCESS_STORAGE_KEY,
         serializeInvoiceSuccessSnapshot(nextSnapshot)
       )
+      performance.mark('afex-checkout-navigation-start')
       router.push('/pos/sale/success')
     },
   })

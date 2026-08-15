@@ -9,6 +9,7 @@ import {
   type AuthorizationContext,
   type AuthorizationProfile,
 } from '@/lib/authorization-context'
+import { isFullAdmin } from '@/lib/permissions'
 
 export type ApiAuthProfile = AuthorizationProfile
 
@@ -39,6 +40,20 @@ export async function requireApiAuth(
 
   if (!result.ok) {
     return result
+  }
+
+  if (
+    request.nextUrl.pathname.startsWith('/api/admin/') &&
+    result.context.posEmployee &&
+    !isFullAdmin(result.context.role)
+  ) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Effective POS actor is not authorized for this Admin API.' },
+        { status: 403 }
+      ),
+    }
   }
 
   return {

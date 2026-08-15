@@ -20,7 +20,7 @@ const notificationReadRoute = read('app/api/provider/support/notifications/read/
 const fail = (message) => { throw new Error(message) }
 
 if (!helper.includes("DEVELOPER_ROLES = ['provider_owner']")) fail('Developer access must remain provider_owner-only.')
-for (const token of ["auth.getUser()", ".from('platform_admins')", ".eq('user_id', user.id)", ".eq('is_active', true)"]) if (!helper.includes(token)) fail(`Missing developer authorization guard: ${token}`)
+for (const token of ['requireVerifiedAuthContext', 'isPosActorRestrictionRequired', 'resolvePosActorSession', ".from('platform_admins')", ".eq('user_id', user.id)", ".eq('is_active', true)"]) if (!helper.includes(token)) fail(`Missing developer authorization guard: ${token}`)
 if (!layout.includes('requireDeveloperAccess()') || !access.includes('requireDeveloperAccess()')) fail('Developer pages and access API must share server authorization.')
 if (!landing.includes("fetch('/api/developer/access'")) fail('Landing entry must use verified access.')
 if (!tools.includes('noopener noreferrer') || /service.role|access.token|password=/i.test(tools)) fail('Developer tools link is not safely externalized.')

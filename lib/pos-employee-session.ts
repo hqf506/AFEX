@@ -1,4 +1,5 @@
 import type { AppRole } from '@/lib/app-roles'
+import { supabase } from '@/lib/supabase/client'
 
 export const POS_EMPLOYEE_SESSION_KEY = 'leather_fix_pos_employee'
 const POS_LOGGED_OUT_SESSION_KEY = 'leather_fix_pos_logged_out'
@@ -94,4 +95,14 @@ export function hasPosLoggedOut() {
   }
 
   return window.sessionStorage.getItem(POS_LOGGED_OUT_SESSION_KEY) === '1'
+}
+
+export async function endPosActorSessionAndRequireReauthentication() {
+  await fetch('/api/pos/end-actor-session', {
+    method: 'POST',
+    credentials: 'include',
+  }).catch(() => undefined)
+  clearActivePosEmployee()
+  markPosLoggedOut()
+  await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
 }

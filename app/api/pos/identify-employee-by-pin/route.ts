@@ -1,14 +1,21 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAuth, withAuthCookies } from '@/lib/api-auth'
 import { jsonResponse } from '@/lib/api/responses'
+import { createSupportReference } from '@/lib/api/safe-error'
 import type { AppRole } from '@/lib/app-roles'
 import { isFullAdmin } from '@/lib/permissions'
-import { redactSensitive, safeErrorDetails } from '@/lib/security/redaction'
+import { redactSensitive } from '@/lib/security/redaction'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import {
   disabledFeatureResponse,
   POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
+import {
+  POS_ACTOR_COOKIE,
+  issuePosActorSession,
+  posActorCookieOptions,
+} from '@/lib/pos-actor-session-server'
+import { isPosActorSessionIssueError } from '@/lib/pos-actor-session-issue'
 
 type IdentifyEmployeeByPinBody = {
   pin?: string
@@ -29,6 +36,18 @@ const PIN_RATE_LIMIT_MESSAGE =
   'تم إيقاف المحاولات مؤقتًا بسبب تكرار الرمز الخاطئ. حاول مرة أخرى بعد قليل.'
 const PIN_INTERNAL_ERROR_MESSAGE =
   'تعذر التحقق من رمز الموظف حاليًا. حاول مرة أخرى، وإذا استمرت المشكلة تواصل مع المسؤول.'
+
+type PinPublicErrorCode =
+  | 'POS_AUTH_REQUIRED'
+  | 'POS_CONTEXT_MISSING'
+  | 'POS_FEATURE_DISABLED'
+  | 'PIN_FORMAT_INVALID'
+  | 'PIN_RATE_LIMITED'
+  | 'PIN_VERIFICATION_FAILED'
+  | 'PIN_DUPLICATE'
+  | 'PIN_INVALID'
+  | 'POS_ACTOR_SESSION_ISSUE_FAILED'
+  | 'PIN_INTERNAL_ERROR'
 
 type PosEmployeeRpcRow = {
   id?: string | null
@@ -144,11 +163,49 @@ function clearPinRateLimit(key: string) {
   pinRateLimitStore.delete(key)
 }
 
+function pinFailureResponse({
+  authResponse,
+  errorCode,
+  message,
+  status,
+  reference = createSupportReference(),
+}: {
+  authResponse: NextResponse
+  errorCode: PinPublicErrorCode
+  message: string
+  status: number
+  reference?: string
+}) {
+  return withAuthCookies(
+    authResponse,
+    NextResponse.json(
+      { error: message, errorCode, reference },
+      { status }
+    )
+  )
+}
+
+function safeRequestCorrelation(request: NextRequest) {
+  return {
+    requestId: request.headers.get('x-vercel-id'),
+    deploymentId: process.env.VERCEL_DEPLOYMENT_ID || null,
+    commitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+  }
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(request, ['admin', 'employee', 'cashier'])
+  let actorSessionIssueReference: string | null = null
 
   if (!auth.ok) {
-    return withFixedPinDelay(auth.response)
+    return withFixedPinDelay(
+      pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'POS_AUTH_REQUIRED',
+        message: 'انتهت جلسة الدخول. سجّل الدخول مرة أخرى.',
+        status: auth.response.status,
+      })
+    )
   }
 
   try {
@@ -166,10 +223,12 @@ export async function POST(request: NextRequest) {
     if (!tenantId) {
       console.warn('[POS PIN] Missing tenant context.')
 
-      const response = jsonResponse(
-        { error: MISSING_POS_CONTEXT_MESSAGE },
-        400
-      )
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'POS_CONTEXT_MISSING',
+        message: MISSING_POS_CONTEXT_MESSAGE,
+        status: 400,
+      })
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
@@ -181,16 +240,25 @@ export async function POST(request: NextRequest) {
     )
 
     if (featureDisabledResponse) {
-      return withFixedPinDelay(featureDisabledResponse)
+      return withFixedPinDelay(
+        pinFailureResponse({
+          authResponse: auth.response,
+          errorCode: 'POS_FEATURE_DISABLED',
+          message: POS_FEATURE_DISABLED_MESSAGE,
+          status: featureDisabledResponse.status,
+        })
+      )
     }
 
     let branchId: string | null = null
 
     if (!authIsFullAdmin && !profileBranchId) {
-      const response = jsonResponse(
-        { error: MISSING_POS_CONTEXT_MESSAGE },
-        400
-      )
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'POS_CONTEXT_MISSING',
+        message: MISSING_POS_CONTEXT_MESSAGE,
+        status: 400,
+      })
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
@@ -201,10 +269,12 @@ export async function POST(request: NextRequest) {
       )
 
       if (!branchBelongsToTenant) {
-        const response = jsonResponse(
-          { error: MISSING_POS_CONTEXT_MESSAGE },
-          400
-        )
+        const response = pinFailureResponse({
+          authResponse: auth.response,
+          errorCode: 'POS_CONTEXT_MISSING',
+          message: MISSING_POS_CONTEXT_MESSAGE,
+          status: 400,
+        })
         return withFixedPinDelay(withAuthCookies(auth.response, response))
       }
 
@@ -214,10 +284,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!/^[0-9]{4}$/.test(pin)) {
-      const response = jsonResponse(
-        { error: 'يجب أن يتكون الرمز من أربعة أرقام.' },
-        422
-      )
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'PIN_FORMAT_INVALID',
+        message: 'يجب أن يتكون الرمز من أربعة أرقام.',
+        status: 422,
+      })
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
@@ -228,10 +300,12 @@ export async function POST(request: NextRequest) {
     )
 
     if (!checkPinRateLimit(rateLimitKey)) {
-      const response = jsonResponse(
-        { error: PIN_RATE_LIMIT_MESSAGE },
-        429
-      )
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'PIN_RATE_LIMITED',
+        message: PIN_RATE_LIMIT_MESSAGE,
+        status: 429,
+      })
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
@@ -281,21 +355,22 @@ export async function POST(request: NextRequest) {
         })
       )
 
-      const response = jsonResponse(
-        {
-          error: PIN_INTERNAL_ERROR_MESSAGE,
-          ...safeErrorDetails(error, PIN_INTERNAL_ERROR_MESSAGE),
-        },
-        500
-      )
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'PIN_VERIFICATION_FAILED',
+        message: PIN_INTERNAL_ERROR_MESSAGE,
+        status: 500,
+      })
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
     if (rpcRowCount > 1) {
-      const response = jsonResponse(
-        { error: DUPLICATE_PIN_MESSAGE },
-        409
-      )
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'PIN_DUPLICATE',
+        message: DUPLICATE_PIN_MESSAGE,
+        status: 409,
+      })
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
@@ -303,32 +378,86 @@ export async function POST(request: NextRequest) {
     const employee = sanitizeEmployee(row as PosEmployeeRpcRow | null)
 
     if (!employee) {
-      const response = jsonResponse(
-        { error: PIN_BRANCH_MISMATCH_MESSAGE },
-        422
-      )
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'PIN_INVALID',
+        message: PIN_BRANCH_MISMATCH_MESSAGE,
+        status: 422,
+      })
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
     clearPinRateLimit(rateLimitKey)
 
+    const effectiveBranchId = employee.branch_id || branchId
+    if (!effectiveBranchId) {
+      const missingBranchResponse = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'POS_CONTEXT_MISSING',
+        message: MISSING_POS_CONTEXT_MESSAGE,
+        status: 400,
+      })
+      return withFixedPinDelay(withAuthCookies(auth.response, missingBranchResponse))
+    }
+
+    actorSessionIssueReference = createSupportReference()
+    const actorSession = await issuePosActorSession({
+      verifiedAuth: auth.context.verifiedAuth,
+      rawPin: pin,
+      requestedBranchId: effectiveBranchId,
+    })
+    console.info('[POS actor session]', {
+      reference: actorSessionIssueReference,
+      phase: 'actor_session_issue',
+      classification: 'ACTOR_SESSION_ISSUED',
+      httpStatus: 200,
+      rowCountClassification: 'ONE',
+    })
+
     const response = jsonResponse({
       success: true,
       employee: {
         ...employee,
-        branch_id: employee.branch_id || branchId,
+        branch_id: effectiveBranchId,
       },
     })
+    response.cookies.set(
+      POS_ACTOR_COOKIE,
+      actorSession.token,
+      posActorCookieOptions()
+    )
 
     return withFixedPinDelay(withAuthCookies(auth.response, response))
   } catch (error) {
-    const response = jsonResponse(
-      {
-        error: PIN_INTERNAL_ERROR_MESSAGE,
-        ...safeErrorDetails(error, PIN_INTERNAL_ERROR_MESSAGE),
-      },
-      500
-    )
+    if (isPosActorSessionIssueError(error)) {
+      const reference = actorSessionIssueReference || createSupportReference()
+      console.error('[POS actor session issuance failure]', {
+        reference,
+        phase: 'POS_ACTOR_SESSION_ISSUE',
+        classification: error.assessment.classification,
+        upstreamCodeCategory: error.assessment.codeCategory,
+        httpCategory: error.assessment.httpStatus
+          ? `HTTP_${Math.floor(error.assessment.httpStatus / 100)}XX`
+          : 'HTTP_UNKNOWN',
+        rowCountClassification: error.assessment.rowCountClassification,
+        ...safeRequestCorrelation(request),
+      })
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'POS_ACTOR_SESSION_ISSUE_FAILED',
+        message: PIN_INTERNAL_ERROR_MESSAGE,
+        status: 500,
+        reference,
+      })
+      return withFixedPinDelay(withAuthCookies(auth.response, response))
+    }
+
+    const response = pinFailureResponse({
+      authResponse: auth.response,
+      errorCode: 'PIN_INTERNAL_ERROR',
+      message: PIN_INTERNAL_ERROR_MESSAGE,
+      status: 500,
+    })
 
     return withFixedPinDelay(withAuthCookies(auth.response, response))
   }
