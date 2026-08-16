@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ReceiptView } from '@/components/receipt-view'
 import { useSystemSettings } from '@/hooks/use-system-settings'
-import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import {
   renderThermalInvoiceHtml,
   renderThermalShopCopyHtml,
@@ -14,13 +13,13 @@ import {
   parseStoredInvoiceSuccessSnapshot,
   type InvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
-import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 import { normalizeWhatsAppDestination } from '@/lib/whatsapp/messages'
+import { PosInvoiceSuccessWorkspace } from '@/components/pos-invoice-success-workspace'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -176,51 +175,6 @@ type ServerThermalReceiptSettings = {
   mapLink?: string | null
 }
 
-function SuccessCheckIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-12 w-12"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="m8.5 12 2.2 2.2 4.8-4.8" />
-    </svg>
-  )
-}
-
-function PrintIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path d="M7 9V4h10v5M7 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M7 14h10v6H7z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function WhatsAppIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path d="M20 11.6a8 8 0 0 1-11.8 7L4 20l1.4-4A8 8 0 1 1 20 11.6Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9 8.5c.4 2.8 2.2 4.6 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function ReceiptLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex min-w-0 items-start justify-between gap-3">
-      <span className="shrink-0 text-slate-500">{label}</span>
-      <span className="min-w-0 break-words text-left font-black text-slate-100 [overflow-wrap:anywhere]">{value}</span>
-    </div>
-  )
-}
-
 function extractHtmlTagContent(html: string, tagName: string) {
   const match = html.match(
     new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)</${tagName}>`, 'i')
@@ -283,7 +237,6 @@ function buildCombinedThermalPrintHtml(
 
 export default function PosSaleSuccessPage() {
   const router = useRouter()
-  const isMobileViewport = useMobileViewport()
   const successFeedbackPlayedRef = useRef(false)
   const runningInCapacitor = useMemo(() => isCapacitorWebView(), [])
   const [snapshot] = useState<InvoiceSuccessSnapshot | null>(() => {
@@ -567,6 +520,42 @@ export default function PosSaleSuccessPage() {
     )
   }
 
+  return (
+    <div className="pos-success-page">
+      <style jsx global>{`
+        body:has(.pos-success-page) .app-shell .page-wrap main.text-right { margin-top: 0 !important; }
+        body:has(.pos-success-page) .app-shell .page-wrap main > .space-y-5,
+        body:has(.pos-success-page) .app-shell .page-wrap main > .md\\:space-y-6 { margin-top: 0 !important; }
+        .receipt-print-root { max-width: min(100%, 100mm) !important; width: min(100%, 100mm) !important; }
+        @media print {
+          body { background: #fff !important; }
+          .receipt-print-hide { display: none !important; }
+          body * { visibility: hidden; }
+          .receipt-print-root, .receipt-print-root * { visibility: visible; }
+          .receipt-print-root { position: absolute; top: 24px; left: 50%; width: min(100%, 100mm) !important; transform: translateX(-50%); margin: 0 auto; box-shadow: none !important; border: 0 !important; }
+        }
+      `}</style>
+      <div className="receipt-print-root pointer-events-none fixed left-[-9999px] top-0"><ReceiptView snapshot={snapshot} /></div>
+      <PosInvoiceSuccessWorkspace
+        snapshot={snapshot}
+        issuedAtLabel={issuedAtLabel}
+        printing={printing}
+        printingEnabled={printingEnabled && !runningInCapacitor}
+        whatsappOpening={whatsappOpening}
+        whatsappEnabled={whatsappEnabled}
+        actionMessage={actionMessage}
+        redirectCountdown={redirectCountdown}
+        onPrint={handlePagePrint}
+        onWhatsApp={handleWhatsApp}
+        onNewSale={handleNewSale}
+        onBackToPos={() => router.push('/pos')}
+      />
+    </div>
+  )
+
+  /* Legacy Phase 1 success surface retained below as an isolated fallback reference.
+  if (!snapshot) return null
+  // eslint-disable-next-line no-unreachable
   return (
     <div className="pos-success-page">
       <style jsx global>{`
@@ -911,4 +900,5 @@ export default function PosSaleSuccessPage() {
       </div>
     </div>
   )
+  */
 }
