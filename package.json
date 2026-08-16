@@ -20,6 +20,7 @@
     "check:pos-ux": "node scripts/check-pos-ux.js",
     "check:pos-phase6b": "node --experimental-strip-types --test runtime-integration/AFEX-POS-PHASE6B.test.mjs",
     "check:pos-phase6c": "node --experimental-strip-types --test runtime-integration/AFEX-POS-PHASE6C.test.mjs",
+    "check:pos-phase6c-r1": "node --experimental-strip-types --test runtime-integration/AFEX-POS-PHASE6C-R1.test.mjs",
     "check:invoice-ux": "node scripts/check-invoice-communication-ux.js",
     "check:admin-ux": "node scripts/check-admin-ux.js",
     "check:responsive-ux": "node scripts/check-responsive-ux.js",

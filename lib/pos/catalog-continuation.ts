@@ -41,3 +41,15 @@ export function isCurrentCatalogGeneration(
 ) {
   return responseGeneration === activeGeneration
 }
+
+export function canAutofillCatalog(options: {
+  clientHeight: number
+  scrollHeight: number
+  iteration: number
+  maximumIterations?: number
+}) {
+  return (
+    options.iteration < (options.maximumIterations ?? 6) &&
+    isCatalogScrollContainerUnderfilled(options)
+  )
+}

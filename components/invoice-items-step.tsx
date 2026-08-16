@@ -70,6 +70,7 @@ import {
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 import {
+  canAutofillCatalog,
   isCatalogScrollContainerUnderfilled,
   isCurrentCatalogGeneration,
   mergeUniqueCatalogItems,
@@ -474,8 +475,10 @@ export function InvoiceItemsStep({
   )
   const catalogAdvancePendingRef = useRef(false)
   const catalogGenerationRef = useRef(0)
+  const catalogAutofillIterationsRef = useRef(0)
   const catalogScrollRootRef = useRef<HTMLDivElement | null>(null)
   const catalogSentinelRef = useRef<HTMLSpanElement | null>(null)
+  const catalogLayoutFrameRef = useRef(0)
   const deferredSearch = useDeferredValue(search)
   const rememberCatalogProducts = useCallback(
     (products: PosInvoiceCatalogProduct[]) => {
@@ -598,6 +601,7 @@ export function InvoiceItemsStep({
   useEffect(() => {
     if (variant !== 'pos') return
     catalogGenerationRef.current += 1
+    catalogAutofillIterationsRef.current = 0
     catalogRequestsRef.current.clear()
     catalogAdvancePendingRef.current = false
     const resetScroll = window.requestAnimationFrame(() => {
@@ -875,17 +879,32 @@ export function InvoiceItemsStep({
 
   useEffect(() => {
     if (variant !== 'pos' || catalogError || catalogLoading || catalogRefreshing || !hasMoreCatalogProducts) return
-    const frame = window.requestAnimationFrame(() => {
-      const root = catalogScrollRootRef.current
-      if (root && isCatalogScrollContainerUnderfilled(root)) loadNextCatalogPage()
+    const firstFrame = window.requestAnimationFrame(() => {
+      const secondFrame = window.requestAnimationFrame(() => {
+        const root = catalogScrollRootRef.current
+        if (
+          root &&
+          canAutofillCatalog({
+            clientHeight: root.clientHeight,
+            scrollHeight: root.scrollHeight,
+            iteration: catalogAutofillIterationsRef.current,
+          })
+        ) {
+          catalogAutofillIterationsRef.current += 1
+          loadNextCatalogPage()
+        }
+      })
+      catalogLayoutFrameRef.current = secondFrame
     })
-    return () => window.cancelAnimationFrame(frame)
+    catalogLayoutFrameRef.current = firstFrame
+    return () => window.cancelAnimationFrame(catalogLayoutFrameRef.current)
   }, [catalogError, catalogLoading, catalogProducts.length, catalogRefreshing, hasMoreCatalogProducts, loadNextCatalogPage, variant])
 
   useEffect(() => {
     const root = catalogScrollRootRef.current
     const sentinel = catalogSentinelRef.current
     if (variant !== 'pos' || !root || !sentinel || catalogError || !hasMoreCatalogProducts || typeof IntersectionObserver === 'undefined') return
+    if (isCatalogScrollContainerUnderfilled(root)) return
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) loadNextCatalogPage()
     }, { root, rootMargin: '0px 0px 240px 0px', threshold: 0 })
@@ -1503,7 +1522,7 @@ export function InvoiceItemsStep({
                     ref={catalogScrollRootRef}
                     onScroll={handleCatalogScroll}
                   >
-                    {paginatedProducts.map((product) => {
+                    {paginatedProducts.map((product, productIndex) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
                       const inventoryState = getInventoryTrackingState(product)
@@ -1537,6 +1556,7 @@ export function InvoiceItemsStep({
                               : ''
                           }`}
                         >
+                          {productIndex === paginatedProducts.length - 1 ? <span ref={catalogSentinelRef} className="afex-catalog-sentinel" aria-hidden="true" /> : null}
                           <span className="afex-sale-product-media">
                             <PosCatalogItemImage
                               key={product.image_url || product.id}
@@ -1605,7 +1625,6 @@ export function InvoiceItemsStep({
                         </button>
                       )
                     })}
-                    <span ref={catalogSentinelRef} className="afex-catalog-sentinel" aria-hidden="true" />
                   </div>
                   ) : (
                   <div
@@ -1613,7 +1632,7 @@ export function InvoiceItemsStep({
                     ref={catalogScrollRootRef}
                     onScroll={handleCatalogScroll}
                   >
-                    {paginatedProducts.map((product) => {
+                    {paginatedProducts.map((product, productIndex) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
                       const inventoryState = getInventoryTrackingState(product)
@@ -1644,6 +1663,7 @@ export function InvoiceItemsStep({
                               : ''
                           }`}
                         >
+                          {productIndex === paginatedProducts.length - 1 ? <span ref={catalogSentinelRef} className="afex-catalog-sentinel" aria-hidden="true" /> : null}
                           <div className="relative h-[96px] shrink-0 overflow-hidden rounded-[18px] border border-cyan-300/10 bg-[#020817]/72 sm:h-[104px] sm:rounded-[20px]">
                             <PosCatalogItemImage
                               key={product.image_url || product.id}
@@ -1689,7 +1709,6 @@ export function InvoiceItemsStep({
                         </button>
                       )
                     })}
-                    <span ref={catalogSentinelRef} className="afex-catalog-sentinel" aria-hidden="true" />
                   </div>
                   )}
 
