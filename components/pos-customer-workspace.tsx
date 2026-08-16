@@ -34,6 +34,7 @@ type Props = {
   onRemoveCustomer: () => void
   onAddCustomer: () => void
   onLoadMore: () => void
+  onRetry: () => void
   onContinue: () => void
 }
 
@@ -57,6 +58,7 @@ export function PosCustomerWorkspace({
   onRemoveCustomer,
   onAddCustomer,
   onLoadMore,
+  onRetry,
   onContinue,
 }: Props) {
   const selected = selectedCustomerId
@@ -137,7 +139,7 @@ export function PosCustomerWorkspace({
 
           <div className="afex-customer-results" aria-live="polite" aria-busy={loading}>
             {loading ? Array.from({ length: 3 }, (_, index) => <div className="afex-customer-skeleton" key={index} />) : null}
-            {!loading && error ? <div className="afex-customer-state is-error"><strong>تعذر تحميل العملاء</strong><p>{error}</p></div> : null}
+            {!loading && error ? <div className="afex-customer-state is-error"><strong>تعذر تحميل العملاء</strong><p>{error}</p><button type="button" onClick={onRetry}>إعادة المحاولة</button></div> : null}
             {!loading && !error && customers.length === 0 ? (
               <div className="afex-customer-state"><strong>{searchActive ? 'لا توجد نتائج مطابقة' : 'لا يوجد عملاء حديثون'}</strong><p>يمكنك تعديل البحث أو إنشاء عميل جديد بأمان.</p><button type="button" onClick={onAddCustomer}>إضافة عميل جديد</button></div>
             ) : null}

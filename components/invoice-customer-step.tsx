@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { PosStepIndicator } from '@/components/pos-step-indicator'
 import { useMobileViewport } from '@/hooks/use-mobile-viewport'
-import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   isClientResourceFresh,
   loadClientResource,
@@ -144,6 +144,8 @@ export function InvoiceCustomerStep({
   const [recentCustomers, setRecentCustomers] = useState<ExistingCustomer[]>([])
   const [recentCustomersLoading, setRecentCustomersLoading] = useState(false)
   const [recentCustomersError, setRecentCustomersError] = useState('')
+  const [customerSearchRetryGeneration, setCustomerSearchRetryGeneration] = useState(0)
+  const [recentCustomersRetryGeneration, setRecentCustomersRetryGeneration] = useState(0)
   const [customerListLimit, setCustomerListLimit] = useState(6)
   const [addCustomerOpen, setAddCustomerOpen] = useState(false)
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
@@ -294,6 +296,7 @@ export function InvoiceCustomerStep({
           {
             ttlMs: CUSTOMER_SEARCH_CACHE_TTL_MS,
             logLabel: 'fetch customers',
+            force: customerSearchRetryGeneration > 0,
           }
         )
 
@@ -304,7 +307,7 @@ export function InvoiceCustomerStep({
         setCustomerMatches(nextMatches)
         setCustomerSearchError('')
         setCustomerSearchLoading(false)
-      } catch (error) {
+      } catch {
         if (controller.signal.aborted || customerSearchRequestIdRef.current !== requestId) {
           return
         }
@@ -312,9 +315,7 @@ export function InvoiceCustomerStep({
         setCustomerMatches(
           peekClientResource<ExistingCustomer[]>(customerSearch.cacheKey) || []
         )
-        setCustomerSearchError(
-          getClientCaughtErrorMessage(error, 'فشل البحث عن العملاء')
-        )
+        setCustomerSearchError('تعذر البحث عن العملاء حاليًا. حاول مرة أخرى.')
         setCustomerSearchLoading(false)
       } finally {
         if (process.env.NODE_ENV === 'development') {
@@ -338,6 +339,7 @@ export function InvoiceCustomerStep({
     customerSearch.active,
     customerSearch.cacheKey,
     customerSearch.query,
+    customerSearchRetryGeneration,
     customerSearchBranchId,
     tenantId,
     variant,
@@ -389,6 +391,7 @@ export function InvoiceCustomerStep({
       {
         ttlMs: RECENT_CUSTOMERS_CACHE_TTL_MS,
         logLabel: 'fetch recent customers',
+        force: recentCustomersRetryGeneration > 0,
       }
     )
       .then((customers) => {
@@ -399,16 +402,14 @@ export function InvoiceCustomerStep({
           setRecentCustomersLoading(false)
         }
       })
-      .catch((error) => {
+      .catch(() => {
         window.clearTimeout(loadingTimeoutId)
         if (controller.signal.aborted) {
           return
         }
 
         setRecentCustomers([])
-        setRecentCustomersError(
-          getClientCaughtErrorMessage(error, 'فشل تحميل العملاء')
-        )
+        setRecentCustomersError('تعذر تحميل العملاء حاليًا. حاول مرة أخرى.')
         setRecentCustomersLoading(false)
       })
 
@@ -416,7 +417,7 @@ export function InvoiceCustomerStep({
       controller.abort()
       window.clearTimeout(loadingTimeoutId)
     }
-  }, [allowed, customerSearchBranchId, variant])
+  }, [allowed, customerSearchBranchId, recentCustomersRetryGeneration, variant])
 
   useEffect(() => {
     if (!allowed || variant !== 'pos') {
@@ -507,6 +508,15 @@ export function InvoiceCustomerStep({
     setSelectedCustomerId(null)
     setCustomerMatches([])
     setCustomerSearchError('')
+  }
+
+  const handleCustomerRetry = () => {
+    if (customerSearch.active) {
+      setCustomerSearchRetryGeneration((generation) => generation + 1)
+      return
+    }
+
+    setRecentCustomersRetryGeneration((generation) => generation + 1)
   }
 
   const selectExistingCustomer = (customer: ExistingCustomer) => {
@@ -630,6 +640,7 @@ export function InvoiceCustomerStep({
           onRemoveCustomer={handleReset}
           onAddCustomer={openAddCustomerModal}
           onLoadMore={() => setCustomerListLimit((currentLimit) => currentLimit + 6)}
+          onRetry={handleCustomerRetry}
           onContinue={handleNext}
         />
         {addCustomerOpen ? (

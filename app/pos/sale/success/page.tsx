@@ -14,7 +14,7 @@ import {
   type InvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
 import { formatCurrency } from '@/lib/orders/format'
-import { clearCompletedInvoiceSaleState } from '@/lib/invoices/sale-reset'
+import { beginNewInvoiceSaleCycle } from '@/lib/invoices/sale-reset'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
@@ -414,8 +414,8 @@ export default function PosSaleSuccessPage() {
   }
 
   const handleNewSale = () => {
-    clearCompletedInvoiceSaleState()
-    window.location.replace('/pos/sale/customer')
+    beginNewInvoiceSaleCycle()
+    router.replace('/pos/sale/customer')
   }
 
   const handleWhatsApp = () => {
