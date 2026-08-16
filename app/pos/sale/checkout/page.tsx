@@ -43,6 +43,7 @@ import {
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
+import { PosCheckoutWorkspace } from '@/components/pos-checkout-workspace'
 
 type ThermalReceiptSettings = {
   showQRCode: boolean
@@ -622,6 +623,40 @@ export default function PosSaleCheckoutPage() {
           </div>
         </div>
       </div>
+    )
+  }
+
+  if (!missingCheckoutData) {
+    return (
+      <PosCheckoutWorkspace
+        customerName={customerName}
+        customerPhone={customerPhone}
+        customerId={customerId}
+        items={invoiceItems}
+        subtotal={checkout.subtotal}
+        taxAmount={checkout.taxAmount}
+        discountAmount={checkout.discountAmount}
+        finalTotal={checkout.finalTotal}
+        paymentMethod={checkout.paymentMethod}
+        cashReceived={checkout.cashReceived}
+        cashChange={checkout.cashChange}
+        remainingFromCustomer={checkout.remainingFromCustomer}
+        note={checkout.note}
+        discounts={availableDiscounts}
+        selectedDiscount={checkout.selectedDiscount}
+        loadingDiscounts={loadingDiscounts}
+        loading={checkout.loading}
+        canSubmit={canSubmitInvoice}
+        errorMessage={checkout.errorMessage}
+        offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'أنت غير متصل؛ سيتم حفظ الفاتورة كمسودة فقط.' : '')}
+        cashWarning={cashWarningMessage}
+        onBack={() => router.push('/pos/sale/items')}
+        onPaymentChange={(method) => handleSelectPayment({ id: method, label: getPaymentMethodLabel(method) })}
+        onCashReceivedChange={checkout.setCashReceived}
+        onDiscountChange={checkout.setSelectedDiscount}
+        onNoteChange={checkout.setNote}
+        onSubmit={handleCreateInvoice}
+      />
     )
   }
 
