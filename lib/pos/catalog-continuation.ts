@@ -27,3 +27,17 @@ export function shouldContinueCatalogLoading(options: {
   const threshold = options.threshold ?? 240
   return options.scrollTop + options.clientHeight >= options.scrollHeight - threshold
 }
+
+export function isCatalogScrollContainerUnderfilled(options: {
+  clientHeight: number
+  scrollHeight: number
+}) {
+  return options.clientHeight > 0 && options.scrollHeight <= options.clientHeight + 1
+}
+
+export function isCurrentCatalogGeneration(
+  responseGeneration: number,
+  activeGeneration: number
+) {
+  return responseGeneration === activeGeneration
+}

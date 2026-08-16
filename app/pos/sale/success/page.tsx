@@ -20,6 +20,7 @@ import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 import { normalizeWhatsAppDestination } from '@/lib/whatsapp/messages'
 import { PosInvoiceSuccessWorkspace } from '@/components/pos-invoice-success-workspace'
+import { loadOfficialInvoicePdf } from '@/lib/invoices/official-pdf-client'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
 const SUCCESS_SOUND_ENABLED = true
@@ -386,20 +387,29 @@ export default function PosSaleSuccessPage() {
     snapshot,
   ])
 
-  const handlePagePrint = () => {
+  const handlePagePrint = async () => {
     if (runningInCapacitor) return
     if (!printingEnabled) return
     if (printing) return
 
     setPrinting(true)
     setActionMessage('')
+    const pdfWindow = window.open('', '_blank')
     try {
-      window.print()
-      setActionMessage(INVOICE_UX_MESSAGES.printDialogOpened)
+      const pdf = await loadOfficialInvoicePdf(snapshot!)
+      const pdfUrl = URL.createObjectURL(pdf)
+      if (pdfWindow) {
+        pdfWindow.location.replace(pdfUrl)
+      } else {
+        window.location.assign(pdfUrl)
+      }
+      window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000)
+      setActionMessage('تم فتح الفاتورة PDF الرسمية للطباعة')
     } catch {
+      pdfWindow?.close()
       setActionMessage(INVOICE_UX_MESSAGES.printFailureAfterSavedOrder)
     } finally {
-      window.setTimeout(() => setPrinting(false), 1000)
+      setPrinting(false)
     }
   }
 
@@ -546,6 +556,7 @@ export default function PosSaleSuccessPage() {
         actionMessage={actionMessage}
         redirectCountdown={redirectCountdown}
         onPrint={handlePagePrint}
+        onThermalPrint={() => void runThermalPrint()}
         onWhatsApp={handleWhatsApp}
         onNewSale={handleNewSale}
         onBackToPos={() => router.push('/pos')}

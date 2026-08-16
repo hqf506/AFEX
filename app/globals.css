@@ -492,7 +492,6 @@ body {
 }
 
 .afex-pos-app-shell {
-  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 276px;
   width: 100%;
@@ -851,17 +850,19 @@ body {
 }
 
 .afex-sale-product-grid {
+  position: relative;
   display: grid;
   min-height: 0;
   flex: 1 1 auto;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: 170px;
+  grid-auto-rows: minmax(1px, auto);
   align-content: start;
   gap: 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-inline-end: 2px;
 }
+.afex-catalog-sentinel { grid-column: 1 / -1; display: block; height: 1px; pointer-events: none; }
 
 .afex-sale-product-card {
   position: relative;
@@ -951,7 +952,7 @@ body {
   .afex-sale-search { display: block !important; max-width: none; margin: 0; }
   .afex-sale-search input { height: 44px; }
   .afex-sale-catalog-panel { overflow: hidden; }
-  .afex-sale-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 148px; gap: 10px; }
+  .afex-sale-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(1px, auto); gap: 10px; }
   .afex-sale-product-grid--desktop { display: none; }
   .afex-sale-product-grid--mobile { display: grid; }
   .afex-sale-product-card { height: 148px; gap: 5px; border-radius: 14px; padding: 10px; }

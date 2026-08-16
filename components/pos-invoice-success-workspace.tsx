@@ -15,6 +15,7 @@ type Props = {
   actionMessage: string
   redirectCountdown: number
   onPrint: () => void
+  onThermalPrint: () => void
   onWhatsApp: () => void
   onNewSale: () => void
   onBackToPos: () => void
@@ -81,7 +82,8 @@ export function PosInvoiceSuccessWorkspace(props: Props) {
           <h3>الخطوة التالية</h3>
           <div className="afex-success-action-grid">
             <button type="button" className="is-whatsapp" disabled={!snapshot.customerPhone || !props.whatsappEnabled || props.whatsappOpening} onClick={props.onWhatsApp}><span>و</span><div><strong>إرسال عبر WhatsApp</strong><small>{whatsappStatus(props)}</small></div></button>
-            <button type="button" disabled={!props.printingEnabled || props.printing} onClick={props.onPrint}><span>ط</span><div><strong>{props.printing ? 'جارٍ التجهيز…' : 'طباعة الإيصال'}</strong><small>{props.printingEnabled ? 'نسخة حرارية / حوار الطباعة' : 'الطابعة غير متاحة'}</small></div></button>
+            <button type="button" disabled={!props.printingEnabled || props.printing} onClick={props.onPrint}><span>PDF</span><div><strong>{props.printing ? 'جارٍ تجهيز PDF…' : 'طباعة الفاتورة PDF'}</strong><small>{props.printingEnabled ? 'النسخة الرقمية الرسمية المحفوظة' : 'ملف الفاتورة غير متاح'}</small></div></button>
+            <button type="button" disabled={!props.printingEnabled || props.printing} onClick={props.onThermalPrint}><span>ط</span><div><strong>طباعة الإيصال الحراري</strong><small>{props.printingEnabled ? 'نسخة الطابعة الحرارية' : 'الطابعة غير متاحة'}</small></div></button>
             <button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((current) => !current)}><span>←</span><div><strong>{detailsOpen ? 'إخفاء التفاصيل' : 'عرض الفاتورة'}</strong><small>تفاصيل الفاتورة المحفوظة</small></div></button>
           </div>
 

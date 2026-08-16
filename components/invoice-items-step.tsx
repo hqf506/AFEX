@@ -70,6 +70,8 @@ import {
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 import {
+  isCatalogScrollContainerUnderfilled,
+  isCurrentCatalogGeneration,
   mergeUniqueCatalogItems,
   shouldContinueCatalogLoading,
 } from '@/lib/pos/catalog-continuation'
@@ -471,6 +473,9 @@ export function InvoiceItemsStep({
     new Map<string, ReturnType<typeof loadBranchInvoiceCatalogPage>>()
   )
   const catalogAdvancePendingRef = useRef(false)
+  const catalogGenerationRef = useRef(0)
+  const catalogScrollRootRef = useRef<HTMLDivElement | null>(null)
+  const catalogSentinelRef = useRef<HTMLSpanElement | null>(null)
   const deferredSearch = useDeferredValue(search)
   const rememberCatalogProducts = useCallback(
     (products: PosInvoiceCatalogProduct[]) => {
@@ -592,13 +597,14 @@ export function InvoiceItemsStep({
 
   useEffect(() => {
     if (variant !== 'pos') return
+    catalogGenerationRef.current += 1
+    catalogRequestsRef.current.clear()
+    catalogAdvancePendingRef.current = false
     const resetScroll = window.requestAnimationFrame(() => {
       setCurrentCatalogPage(1)
       setCatalogProducts([])
       setCatalogProductById({})
-      document.querySelectorAll<HTMLElement>('.afex-sale-product-grid').forEach((grid) => {
-        grid.scrollTop = 0
-      })
+      if (catalogScrollRootRef.current) catalogScrollRootRef.current.scrollTop = 0
     })
     return () => window.cancelAnimationFrame(resetScroll)
   }, [activeFilter, deferredSearch, invoiceBranchId, variant])
@@ -612,8 +618,10 @@ export function InvoiceItemsStep({
 
     let cancelled = false
 
+    const requestGeneration = catalogGenerationRef.current
     const loadCatalog = async () => {
       const requestKey = [
+        requestGeneration,
         invoiceBranchId,
         currentCatalogPage,
         deferredSearch.trim(),
@@ -633,7 +641,7 @@ export function InvoiceItemsStep({
           setCatalogRefreshing(true)
         }
 
-        if (!cancelled) {
+        if (!cancelled && isCurrentCatalogGeneration(requestGeneration, catalogGenerationRef.current)) {
           setCatalogLoading(cachedProducts.length === 0)
           setCatalogError(false)
         }
@@ -651,7 +659,7 @@ export function InvoiceItemsStep({
         }
         const nextCatalogPage = await catalogRequest
 
-        if (!cancelled) {
+        if (!cancelled && isCurrentCatalogGeneration(requestGeneration, catalogGenerationRef.current)) {
           setCatalogProducts((currentProducts) =>
             variant === 'pos' && currentCatalogPage > 1
               ? mergeUniqueCatalogItems(
@@ -677,12 +685,12 @@ export function InvoiceItemsStep({
           setCatalogRefreshing(false)
         }
       } catch (error) {
-        if (!cancelled && isProtectedResourceAuthError(error)) {
+        if (!cancelled && isCurrentCatalogGeneration(requestGeneration, catalogGenerationRef.current) && isProtectedResourceAuthError(error)) {
           handlePosProtectedResourceUnauthorized()
           return
         }
 
-        if (!cancelled) {
+        if (!cancelled && isCurrentCatalogGeneration(requestGeneration, catalogGenerationRef.current)) {
           setCatalogError(true)
           if (currentCatalogPage === 1) {
             setCatalogProducts([])
@@ -850,11 +858,12 @@ export function InvoiceItemsStep({
       catalogAdvancePendingRef.current ||
       catalogLoading ||
       catalogRefreshing ||
-      !hasMoreCatalogProducts
+      !hasMoreCatalogProducts ||
+      catalogError
     ) return
     catalogAdvancePendingRef.current = true
     setCurrentCatalogPage((current) => Math.min(totalCatalogPages, current + 1))
-  }, [catalogLoading, catalogRefreshing, hasMoreCatalogProducts, totalCatalogPages])
+  }, [catalogError, catalogLoading, catalogRefreshing, hasMoreCatalogProducts, totalCatalogPages])
   const handleCatalogScroll = useCallback(
     (event: UIEvent<HTMLDivElement>) => {
       if (shouldContinueCatalogLoading(event.currentTarget)) {
@@ -863,6 +872,26 @@ export function InvoiceItemsStep({
     },
     [loadNextCatalogPage]
   )
+
+  useEffect(() => {
+    if (variant !== 'pos' || catalogError || catalogLoading || catalogRefreshing || !hasMoreCatalogProducts) return
+    const frame = window.requestAnimationFrame(() => {
+      const root = catalogScrollRootRef.current
+      if (root && isCatalogScrollContainerUnderfilled(root)) loadNextCatalogPage()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [catalogError, catalogLoading, catalogProducts.length, catalogRefreshing, hasMoreCatalogProducts, loadNextCatalogPage, variant])
+
+  useEffect(() => {
+    const root = catalogScrollRootRef.current
+    const sentinel = catalogSentinelRef.current
+    if (variant !== 'pos' || !root || !sentinel || catalogError || !hasMoreCatalogProducts || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadNextCatalogPage()
+    }, { root, rootMargin: '0px 0px 240px 0px', threshold: 0 })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [catalogError, catalogProducts.length, hasMoreCatalogProducts, loadNextCatalogPage, variant])
 
   const canRenderCatalogImmediately = visibleCatalogProducts.length > 0
 
@@ -1471,6 +1500,7 @@ export function InvoiceItemsStep({
                   {isMobileViewport ? (
                   <div
                     className="afex-sale-product-grid afex-sale-product-grid--mobile"
+                    ref={catalogScrollRootRef}
                     onScroll={handleCatalogScroll}
                   >
                     {paginatedProducts.map((product) => {
@@ -1575,10 +1605,12 @@ export function InvoiceItemsStep({
                         </button>
                       )
                     })}
+                    <span ref={catalogSentinelRef} className="afex-catalog-sentinel" aria-hidden="true" />
                   </div>
                   ) : (
                   <div
                     className="afex-sale-product-grid afex-sale-product-grid--desktop"
+                    ref={catalogScrollRootRef}
                     onScroll={handleCatalogScroll}
                   >
                     {paginatedProducts.map((product) => {
@@ -1657,6 +1689,7 @@ export function InvoiceItemsStep({
                         </button>
                       )
                     })}
+                    <span ref={catalogSentinelRef} className="afex-catalog-sentinel" aria-hidden="true" />
                   </div>
                   )}
 
