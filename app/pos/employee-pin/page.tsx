@@ -402,7 +402,7 @@ export default function PosEmployeePinPage() {
   return (
     <main
       dir="rtl"
-      className="relative flex h-[100svh] w-full items-center justify-center overflow-hidden bg-[#020817] text-white xl:h-full"
+      className="pos-entry-pin relative flex h-[100svh] w-full items-center justify-center overflow-hidden bg-[#071521] text-white xl:h-full"
     >
       <style jsx global>{`
         @keyframes pos-pin-shake {

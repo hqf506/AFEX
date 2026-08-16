@@ -9,6 +9,8 @@ const messages = read('lib/pos-ux-messages.ts')
 const checkout = read('hooks/use-invoice-checkout.ts')
 const drafts = read('app/pos/offline-drafts/page.tsx')
 const pin = read('app/pos/employee-pin/page.tsx')
+const login = read('app/pos/login/page.tsx')
+const globalStyles = read('app/globals.css')
 const paymentMethods = read('lib/invoices/payment-method.ts')
 const tabletFrame = read('components/pos-tablet-frame.tsx')
 const posHome = read('app/pos/page.tsx')
@@ -44,6 +46,25 @@ assert.ok(
   !tabletFrame.includes('pos-tablet-frame-mobile') &&
     !tabletFrame.includes('pos-tablet-frame-desktop'),
   'Separate mobile and desktop POS wrapper copies must not return'
+)
+assert.ok(
+  login.includes('pos-entry-login') &&
+    login.includes('autoComplete="username"') &&
+    login.includes('autoComplete="current-password"') &&
+    globalStyles.includes('.pos-entry-login form button[type=\'submit\']'),
+  'Organization login must preserve password-manager semantics and the flat AFEX entry surface'
+)
+assert.ok(
+  pin.includes('pos-entry-pin') &&
+    pin.includes('Array.from({ length: PIN_LENGTH }') &&
+    pin.includes("const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']") &&
+    globalStyles.includes('.pos-entry-pin button'),
+  'Employee PIN must preserve four closed indicators, the complete keypad and responsive touch targets'
+)
+assert.ok(
+  posHome.includes('مرحباً بك، {employeeDisplayName}') &&
+    globalStyles.includes('.pos-home-legacy-root > section'),
+  'POS Home must use the effective employee identity inside the flat AFEX surface'
 )
 assert.ok(
   posHome.includes('flex-col items-stretch justify-between') &&

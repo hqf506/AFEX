@@ -95,7 +95,7 @@ function HeadsetIcon({ className = 'h-5 w-5' }: { className?: string }) {
 
 function PosHardwareIllustration() {
   return (
-    <div className="relative mx-auto mt-4 h-[170px] w-full max-w-[560px] md:mt-5 xl:h-[220px]">
+    <div className="pos-login-hardware relative mx-auto mt-4 h-[170px] w-full max-w-[560px] md:mt-5 xl:h-[220px]">
       <div className="absolute inset-x-10 bottom-10 h-20 rounded-[50%] border border-cyan-300/50 shadow-[0_0_45px_rgba(34,211,238,0.35)]" />
       <div className="absolute left-[8%] bottom-8 h-24 w-28 rounded-[22px] border border-cyan-200/20 bg-slate-950/80 shadow-[0_18px_55px_rgba(0,0,0,0.5)]">
         <div className="mx-auto mt-4 h-8 w-16 rounded-md bg-slate-800" />
@@ -254,7 +254,7 @@ export default function PosLoginPage() {
 
   if (isMobileViewport) {
     return (
-      <main dir="rtl" className="relative h-[100svh] overflow-y-auto bg-[#020817] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-white">
+      <main dir="rtl" className="pos-entry-login relative h-[100svh] overflow-y-auto bg-[#071521] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-white">
         <style jsx global>{`
           .pos-login-input:-webkit-autofill,
           .pos-login-input:-webkit-autofill:hover,
@@ -378,7 +378,7 @@ export default function PosLoginPage() {
   return (
     <main
       dir="rtl"
-      className="relative flex h-[100svh] w-full items-center justify-center overflow-hidden bg-black text-white xl:h-full"
+      className="pos-entry-login relative flex h-[100svh] w-full items-center justify-center overflow-hidden bg-[#071521] text-white xl:h-full"
     >
       <style jsx global>{`
         .pos-login-input:-webkit-autofill,

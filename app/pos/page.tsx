@@ -1294,7 +1294,7 @@ export default function PosPage() {
                 {branchName}
               </p>
               <h1 className="mt-2 text-2xl font-black leading-tight text-white sm:mt-3 sm:text-3xl xl:text-[42px]">
-                مرحباً بك، فيصل
+                مرحباً بك، {employeeDisplayName}
               </h1>
               <p className="mt-2 text-base font-bold text-slate-300 xl:text-lg">
                 جاهز لبدء البيع

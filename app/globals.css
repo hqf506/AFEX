@@ -217,6 +217,118 @@ body {
 
 /* ================== AFEX POS responsive shell ================== */
 
+/* Phase 6A-R1 entry and home surfaces. These overrides deliberately retire the
+   previous glow-heavy visual layer while leaving the existing interaction and
+   authority components intact. */
+.pos-entry-login,
+.pos-entry-pin,
+.pos-home-legacy-root {
+  background: var(--afex-pos-base) !important;
+  color: var(--afex-pos-text);
+}
+
+.pos-entry-login *,
+.pos-entry-pin *,
+.pos-home-legacy-root * {
+  text-shadow: none !important;
+}
+
+.pos-entry-login [class*='shadow-['],
+.pos-entry-pin [class*='shadow-['],
+.pos-home-legacy-root [class*='shadow-['] {
+  box-shadow: none !important;
+}
+
+.pos-entry-login [class*='bg-[radial-gradient'],
+.pos-entry-login [class*='bg-[linear-gradient'],
+.pos-entry-pin [class*='bg-[radial-gradient'],
+.pos-entry-pin [class*='bg-[linear-gradient'],
+.pos-home-legacy-root [class*='bg-[radial-gradient'],
+.pos-home-legacy-root [class*='bg-[linear-gradient'] {
+  background-image: none !important;
+}
+
+.pos-entry-login section,
+.pos-entry-pin section {
+  border-color: var(--afex-pos-border) !important;
+}
+
+.pos-entry-login form button[type='submit'] {
+  min-height: 56px;
+  border: 0;
+  background: var(--afex-pos-emerald) !important;
+  color: var(--afex-pos-base) !important;
+  box-shadow: none !important;
+}
+
+.pos-entry-login input,
+.pos-entry-pin button {
+  font-family: inherit;
+}
+
+.pos-entry-login input:focus-visible,
+.pos-entry-login button:focus-visible,
+.pos-entry-login a:focus-visible,
+.pos-entry-pin button:focus-visible,
+.pos-home-legacy-root button:focus-visible,
+.pos-home-legacy-root a:focus-visible {
+  outline: 2px solid var(--afex-pos-cyan);
+  outline-offset: 2px;
+}
+
+.pos-entry-login .pos-login-hardware {
+  display: none;
+}
+
+.pos-entry-login input {
+  min-height: 48px;
+}
+
+.pos-entry-pin button {
+  min-width: 44px;
+  min-height: 56px;
+}
+
+.pos-home-legacy-root > section {
+  background: var(--afex-pos-base) !important;
+}
+
+.pos-home-legacy-root main,
+.pos-home-legacy-root article,
+.pos-home-legacy-root section[class*='rounded'] {
+  backdrop-filter: none !important;
+}
+
+@media (min-width: 1024px) {
+  .pos-entry-login > div:last-child,
+  .pos-entry-pin .pos-pin-frame {
+    border: 1px solid var(--afex-pos-border) !important;
+    border-radius: 24px !important;
+    background: var(--afex-pos-raised) !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .pos-entry-login {
+    padding-inline: 16px !important;
+  }
+
+  .pos-entry-login section[class*='rounded'],
+  .pos-entry-pin section[class*='rounded'] {
+    border-radius: 20px !important;
+  }
+
+  .pos-entry-pin button {
+    min-height: 60px;
+  }
+
+  .pos-home-legacy-root {
+    min-height: 100%;
+  }
+}
+
 .afex-pos-app-shell {
   position: relative;
   display: grid;
