@@ -1370,9 +1370,14 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 .afex-sale-cart [aria-label^='زيادة']:hover { background: var(--afex-pos-emerald) !important; }
 .afex-sale-cart [aria-label^='زيادة']:disabled,
 .afex-sale-cart [aria-label^='تقليل']:disabled { background: var(--afex-pos-hover) !important; color: var(--afex-pos-text-secondary) !important; }
-.afex-sale-complete-button { background: var(--afex-pos-emerald-strong); color: #fffaf0; box-shadow: none; }
-.afex-sale-complete-button:hover:not(:disabled) { background: var(--afex-pos-emerald); }
-.afex-sale-complete-button:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+.afex-sale-complete-button { min-height: 56px; box-shadow: none; }
+.afex-sale-complete-button:not(:disabled) { background: #8a6537 !important; color: #fff !important; opacity: 1 !important; }
+.afex-sale-complete-button:not(:disabled) :where(span, svg, path) { color: #fff !important; opacity: 1 !important; }
+.afex-sale-complete-button:hover:not(:disabled) { background: #79572f !important; }
+.afex-sale-complete-button:focus-visible:not(:disabled) { outline: 2px solid #fff; outline-offset: 3px; box-shadow: var(--afex-pos-focus); }
+.afex-sale-complete-button:active:not(:disabled) { background: #684a28 !important; transform: scale(.985); }
+.afex-sale-complete-button:disabled { cursor: not-allowed; background: var(--afex-pos-hover) !important; color: var(--afex-pos-text-secondary) !important; opacity: .62; box-shadow: none; }
+.afex-sale-complete-button:disabled :where(span, svg, path) { color: var(--afex-pos-text-secondary) !important; opacity: 1; }
 .afex-catalog-continuation { display: flex; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; border-top: 1px solid var(--afex-pos-border); color: var(--afex-pos-text-secondary); font-size: .75rem; font-weight: 800; }
 .afex-catalog-continuation button { min-height: 40px; border: 0; background: transparent; padding: 6px 16px; color: var(--afex-pos-cyan); font: inherit; cursor: pointer; }
 .afex-catalog-continuation button:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
