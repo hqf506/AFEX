@@ -684,13 +684,14 @@ body {
   .afex-pos-drawer { position: absolute; inset-block: 0; right: 0; width: min(360px, 92vw); height: 100%; padding: 24px 18px 16px; overflow-y: auto; border-radius: 20px 0 0 20px; box-shadow: var(--afex-pos-shadow-panel); }
 }
 
-.afex-pos-sale-header { grid-column: 1 / -1; min-height: 64px; align-items: center; grid-template-columns: 44px max-content minmax(0, 1fr) max-content; gap: 10px; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); overflow: visible; border-bottom: 1px solid var(--afex-pos-border); background: var(--afex-pos-raised); direction: rtl; }
+.afex-pos-sale-header { position: relative; z-index: 60; grid-column: 1 / -1; min-height: 64px; align-items: center; grid-template-columns: 44px max-content minmax(0, 1fr) max-content; gap: 10px; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); overflow: visible; border-bottom: 1px solid var(--afex-pos-border); background: var(--afex-pos-raised); direction: rtl; isolation: isolate; }
 .afex-pos-app-shell.is-sale-route { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); padding-top: 0; }
 .afex-pos-app-shell.is-sale-route .afex-pos-sale-header { display: grid; }
 .afex-pos-app-shell.is-sale-route .afex-pos-shell-content { grid-column: 1; grid-row: 2; }
 .afex-pos-sale-header > a { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid var(--afex-pos-border); border-radius: 12px; color: var(--afex-pos-text); font-size: 28px; text-decoration: none; }
-.afex-pos-sale-home { display: inline-flex; min-width: 44px; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; padding-inline: 10px; border: 1px solid var(--afex-pos-emerald); border-radius: 12px; background: color-mix(in srgb, var(--afex-pos-emerald) 12%, var(--afex-pos-card)); color: var(--afex-pos-text); font: inherit; font-size: 12px; font-weight: 800; white-space: nowrap; cursor: pointer; }
+.afex-pos-sale-home { display: inline-flex; min-width: 44px; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; padding-inline: 10px; border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 72%, white); border-radius: 12px; background: var(--afex-pos-emerald-strong); color: #fff; font: inherit; font-size: 12px; font-weight: 800; white-space: nowrap; opacity: 1; cursor: pointer; }
 .afex-pos-sale-home svg { width: 19px; height: 19px; flex: 0 0 auto; }
+.afex-pos-sale-home:hover { background: color-mix(in srgb, var(--afex-pos-emerald-strong) 86%, white); }
 .afex-pos-sale-home:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
 .afex-pos-sale-home:active { transform: scale(.98); }
 .afex-pos-sale-header > strong { overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
@@ -724,9 +725,12 @@ body {
 
 @media (max-width: 390px) {
   .afex-pos-sale-header { gap: 7px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+  .afex-pos-sale-header > strong { font-size: 13px; }
+}
+
+@media (max-width: 339px) {
   .afex-pos-sale-home { width: 44px; padding-inline: 0; }
   .afex-pos-sale-home span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .afex-pos-sale-header > strong { font-size: 13px; }
 }
 
 /* POS sale workspace — Figma 40:3 / 40:4 / 40:5 */

@@ -116,7 +116,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
     <div className={`afex-pos-app-shell ${isPosHome ? 'is-pos-home' : 'is-pos-subroute'} ${isSaleRoute ? 'is-sale-route' : ''}`} dir="rtl">
       {isSaleRoute ? <header className="afex-pos-sale-header">
         <Link href={saleHeader.back} aria-label={`الرجوع من ${saleHeader.title}`}>‹</Link>
-        <button type="button" className="afex-pos-sale-home" aria-label="العودة إلى نقطة البيع" onClick={returnToPosHome}><Icon name="sale" /><span>نقطة البيع</span></button>
+        <button type="button" className="afex-pos-sale-home" data-testid="pos-sale-home" aria-label="العودة إلى نقطة البيع" onClick={returnToPosHome}><Icon name="sale" /><span>نقطة البيع</span></button>
         <strong>{saleHeader.title}</strong>
         <PosThemeToggle />
       </header> : <header className="afex-pos-responsive-header">
