@@ -67,6 +67,25 @@ assert.ok(
   'POS Home must use the effective employee identity inside the flat AFEX surface'
 )
 assert.ok(
+  posHome.includes('function PosOperationalHome') &&
+    posHome.includes('بدء عملية بيع') &&
+    posHome.includes('عرض جميع الطلبات') &&
+    posHome.includes('orders={recentOrders}') &&
+    globalStyles.includes('.pos-operational-canvas') &&
+    globalStyles.includes('.pos-orders-list-head') &&
+    globalStyles.includes('@media (max-width: 767px)'),
+  'POS Home must expose the compact operational dashboard and responsive order list'
+)
+assert.equal(
+  (posHome.match(/fetch\(`\/api\/orders\?/g) || []).length,
+  1,
+  'POS Home redesign must retain exactly one recent-orders request owner'
+)
+assert.ok(
+  !posHome.toLowerCase().includes('leather fix'),
+  'POS Home must not contain legacy Leather Fix branding'
+)
+assert.ok(
   posHome.includes('flex-col items-stretch justify-between') &&
     posHome.includes('min-h-[44px] min-w-[44px]') &&
     posHome.includes('className="min-h-[44px] rounded-2xl'),

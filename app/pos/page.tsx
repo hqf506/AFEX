@@ -357,6 +357,167 @@ function formatOrderTime(createdAt: string) {
   return formatted === '—' ? '--:--' : formatted
 }
 
+type PosOperationalHomeProps = {
+  employeeName: string
+  organizationName: string
+  branchName: string
+  dayName: string
+  dateLabel: string
+  timeLabel: string
+  orders: OrderRecord[]
+  ordersLoading: boolean
+  ordersError: string
+  updatingOrderId: string | null
+  offlineDrafts: PosOfflineDraftSyncState
+  customerSuccess: string
+  customerModal: ReactNode
+  onStartSale: () => void
+  onAddCustomer: () => void
+  onQuickCustomer: () => void
+  onScanProduct: () => void
+  onAdvanceOrder: (order: OrderRecord) => void
+}
+
+function PosOperationalHome({
+  employeeName,
+  organizationName,
+  branchName,
+  dayName,
+  dateLabel,
+  timeLabel,
+  orders,
+  ordersLoading,
+  ordersError,
+  updatingOrderId,
+  offlineDrafts,
+  customerSuccess,
+  customerModal,
+  onStartSale,
+  onAddCustomer,
+  onQuickCustomer,
+  onScanProduct,
+  onAdvanceOrder,
+}: PosOperationalHomeProps) {
+  const statusSummary = [
+    { status: 'in_progress' as const, count: orders.filter((order) => order.status === 'in_progress').length },
+    { status: 'ready' as const, count: orders.filter((order) => order.status === 'ready').length },
+    { status: 'closed' as const, count: orders.filter((order) => order.status === 'closed').length },
+  ]
+
+  return (
+    <main className="pos-operational-home" dir="rtl">
+      <div className="pos-operational-canvas">
+        <header className="pos-operational-header">
+          <div className="pos-operational-heading">
+            <p>{organizationName}</p>
+            <h1>مرحباً، {employeeName}</h1>
+            <span>{branchName}</span>
+          </div>
+          <div className="pos-operational-clock" aria-label={`${dayName} ${dateLabel} ${timeLabel}`}>
+            <strong>{timeLabel}</strong>
+            <span>{dayName} · {dateLabel}</span>
+          </div>
+        </header>
+
+        <section className="pos-primary-sale" aria-labelledby="pos-primary-sale-title">
+          <div className="pos-primary-sale-copy">
+            <span className="pos-primary-sale-icon"><PosIcon name="shoppingCart" /></span>
+            <div>
+              <h2 id="pos-primary-sale-title">بدء عملية بيع</h2>
+              <p>اختر العميل ثم أضف الخدمات أو المنتجات وأكمل الدفع.</p>
+            </div>
+          </div>
+          <button type="button" onClick={onStartSale}>
+            <PosIcon name="shoppingCart" />
+            بدء بيع جديد
+          </button>
+        </section>
+
+        <section className="pos-operational-actions" aria-label="إجراءات سريعة">
+          <button type="button" onClick={onAddCustomer}>
+            <span><PosIcon name="user" /></span>
+            <b>إضافة عميل</b>
+            <small>تسجيل عميل جديد</small>
+          </button>
+          <button type="button" onClick={onQuickCustomer}>
+            <span><PosIcon name="zap" /></span>
+            <b>عميل سريع</b>
+            <small>الانتقال مباشرة لاختيار العميل</small>
+          </button>
+          <button type="button" onClick={onScanProduct}>
+            <span><PosIcon name="package" /></span>
+            <b>مسح منتج</b>
+            <small>فتح كتالوج المنتجات والخدمات</small>
+          </button>
+        </section>
+
+        {customerSuccess ? <p className="pos-operational-success" role="status">{customerSuccess}</p> : null}
+
+        <section className="pos-operational-summary" aria-label="ملخص حالات الطلبات">
+          {statusSummary.map(({ status, count }) => (
+            <div key={status}>
+              <span className={POS_ORDER_STATUS_UI[status].dotClassName} />
+              <b>{count}</b>
+              <small>{POS_ORDER_STATUS_UI[status].label}</small>
+            </div>
+          ))}
+          {offlineDrafts.draftsCount > 0 || offlineDrafts.isSyncing ? (
+            <Link href="/pos/offline-drafts" className="pos-operational-drafts">
+              <PosIcon name="clipboard" />
+              {offlineDrafts.isSyncing ? 'مزامنة المسودات' : `${offlineDrafts.draftsCount} مسودات معلقة`}
+            </Link>
+          ) : null}
+        </section>
+
+        <section className="pos-recent-orders" aria-labelledby="pos-recent-orders-title">
+          <header>
+            <div>
+              <h2 id="pos-recent-orders-title">آخر الطلبات</h2>
+              <p>ملخص تشغيلي لآخر ست عمليات</p>
+            </div>
+            <Link href="/pos/order-status">عرض جميع الطلبات</Link>
+          </header>
+
+          {ordersError ? <p className="pos-orders-message is-error" role="alert">تعذر تحميل الطلبات حاليًا. حاول مرة أخرى.</p> : null}
+          {!ordersError && ordersLoading ? <p className="pos-orders-message">جارٍ تحميل آخر الطلبات...</p> : null}
+          {!ordersError && !ordersLoading && orders.length === 0 ? <p className="pos-orders-message">لا توجد طلبات حديثة. ابدأ أول عملية بيع.</p> : null}
+
+          {!ordersError && !ordersLoading && orders.length > 0 ? (
+            <div className="pos-orders-list" role="list">
+              <div className="pos-orders-list-head" aria-hidden="true">
+                <span>رقم الطلب</span><span>التاريخ والوقت</span><span>الحالة</span><span>الإجمالي</span><span>الإجراء</span>
+              </div>
+              {orders.map((order) => {
+                const status = resolvePosKanbanStatus(order.status)
+                const statusUi = status ? POS_ORDER_STATUS_UI[status] : null
+                const nextStatus = getNextPosOrderStatus(order.status)
+                const updating = updatingOrderId === order.id
+
+                return (
+                  <article key={order.id} className="pos-order-row" role="listitem">
+                    <div className="pos-order-number"><small>رقم الطلب</small><strong>{order.order_number}</strong></div>
+                    <div className="pos-order-date"><small>التاريخ والوقت</small><span>{formatPosGregorianDate(order.created_at)} · {formatOrderTime(order.created_at)}</span></div>
+                    <div className="pos-order-status"><small>الحالة</small><span><i className={statusUi?.dotClassName || 'bg-slate-400'} />{statusUi?.label || order.status}</span></div>
+                    <div className="pos-order-total"><small>الإجمالي</small><strong>{formatCurrency(order.total)}</strong></div>
+                    <div className="pos-order-action">
+                      {nextStatus ? (
+                        <button type="button" onClick={() => onAdvanceOrder(order)} disabled={updating}>
+                          {updating ? 'جارٍ...' : order.status === 'in_progress' ? 'نقل إلى جاهز' : 'تم التسليم'}
+                        </button>
+                      ) : <span>مكتمل</span>}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          ) : null}
+        </section>
+      </div>
+      {customerModal}
+    </main>
+  )
+}
+
 export default function PosPage() {
   const router = useRouter()
   const pathname = usePathname()
@@ -389,8 +550,8 @@ export default function PosPage() {
 
   const storeName = settings?.store_name?.trim() || 'AFEX POS'
   const branchName = settings?.branch_name?.trim() || storeName
-  const mobileStoreName = /^leather\s*fix$/i.test(storeName) ? 'AFEX' : storeName
-  const mobileBranchName = /^leather\s*fix$/i.test(branchName) ? 'AFEX' : branchName
+  const mobileStoreName = storeName
+  const mobileBranchName = branchName
   const employeeDisplayName = getPosEmployeeDisplayName(activePosEmployee)
   const resolvedPosBranchId =
     activePosEmployee?.branch_id ||
@@ -794,6 +955,37 @@ export default function PosPage() {
           جارٍ تحميل نقطة البيع...
         </div>
       </div>
+    )
+  }
+
+  if (Boolean(activePosEmployee)) {
+    return (
+      <PosOperationalHome
+        employeeName={employeeDisplayName}
+        organizationName={mobileStoreName}
+        branchName={mobileBranchName}
+        dayName={dayName}
+        dateLabel={dateLabel}
+        timeLabel={timeLabel}
+        orders={recentOrders}
+        ordersLoading={ordersLoading}
+        ordersError={ordersError}
+        updatingOrderId={updatingOrderId}
+        offlineDrafts={offlineDraftSyncState}
+        customerSuccess={mobileCustomerSuccess}
+        customerModal={showMobileAddCustomer ? (
+          <PosAddCustomerModal
+            branchId={resolvedPosBranchId}
+            onClose={() => setShowMobileAddCustomer(false)}
+            onCreated={handleMobileCustomerCreated}
+          />
+        ) : null}
+        onStartSale={handleStartSale}
+        onAddCustomer={handleOpenAddCustomer}
+        onQuickCustomer={handleQuickCustomer}
+        onScanProduct={handleScanProduct}
+        onAdvanceOrder={handleAdvanceOrderStatus}
+      />
     )
   }
 

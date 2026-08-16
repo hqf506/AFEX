@@ -217,6 +217,150 @@ body {
 
 /* ================== AFEX POS responsive shell ================== */
 
+.pos-operational-home {
+  height: 100%;
+  min-height: 100%;
+  background: var(--afex-pos-base);
+  color: var(--afex-pos-text);
+  overflow: auto;
+}
+
+.afex-pos-route-content:has(.pos-operational-home) { height: 100%; }
+
+.pos-operational-canvas {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 1320px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 24px 28px 32px;
+}
+
+.pos-operational-header {
+  display: flex;
+  min-height: 88px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--afex-pos-border);
+}
+
+.pos-operational-heading { min-width: 0; }
+.pos-operational-heading > p { margin: 0; color: var(--afex-pos-emerald); font-size: 12px; font-weight: 800; }
+.pos-operational-heading h1 { margin: 4px 0 2px; overflow: hidden; color: var(--afex-pos-text); font-size: clamp(22px, 2.3vw, 30px); font-weight: 900; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.pos-operational-heading > span { display: block; overflow: hidden; color: var(--afex-pos-text-secondary); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+
+.pos-operational-clock { display: grid; min-width: 150px; gap: 2px; text-align: left; }
+.pos-operational-clock strong { color: var(--afex-pos-cyan); font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pos-operational-clock span { color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 600; }
+
+.pos-primary-sale {
+  display: flex;
+  min-height: 132px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 26px;
+  border: 1px solid var(--afex-pos-emerald);
+  border-radius: 18px;
+  background: var(--afex-pos-panel);
+}
+.pos-primary-sale-copy { display: flex; min-width: 0; align-items: center; gap: 16px; }
+.pos-primary-sale-icon { display: grid; width: 56px; height: 56px; flex: 0 0 56px; place-items: center; border-radius: 14px; background: color-mix(in srgb, var(--afex-pos-emerald) 14%, var(--afex-pos-card)); color: var(--afex-pos-emerald); }
+.pos-primary-sale-icon svg { width: 28px; height: 28px; }
+.pos-primary-sale h2 { margin: 0; font-size: 23px; font-weight: 900; }
+.pos-primary-sale p { margin: 5px 0 0; color: var(--afex-pos-text-secondary); font-size: 13px; line-height: 1.7; }
+.pos-primary-sale > button { display: inline-flex; min-width: 190px; min-height: 54px; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 12px; background: var(--afex-pos-emerald); color: var(--afex-pos-base); font: inherit; font-size: 15px; font-weight: 900; cursor: pointer; }
+.pos-primary-sale > button svg { width: 21px; height: 21px; }
+.pos-primary-sale > button:hover { background: var(--afex-pos-emerald-strong); }
+.pos-primary-sale > button:active { transform: scale(.985); }
+
+.pos-operational-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.pos-operational-actions button { display: grid; grid-template-columns: 44px minmax(0, 1fr); grid-template-rows: auto auto; min-height: 78px; align-items: center; gap: 2px 12px; padding: 12px 14px; border: 1px solid var(--afex-pos-border); border-radius: 14px; background: var(--afex-pos-card); color: var(--afex-pos-text); font: inherit; text-align: start; cursor: pointer; }
+.pos-operational-actions button:hover { border-color: var(--afex-pos-emerald); background: var(--afex-pos-hover); }
+.pos-operational-actions button:active { transform: scale(.985); }
+.pos-operational-actions button > span { grid-row: 1 / 3; display: grid; width: 44px; height: 44px; place-items: center; border-radius: 12px; background: var(--afex-pos-raised); color: var(--afex-pos-cyan); }
+.pos-operational-actions svg { width: 21px; height: 21px; }
+.pos-operational-actions b { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.pos-operational-actions small { overflow: hidden; color: var(--afex-pos-text-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+
+.pos-operational-success { margin: -4px 0; padding: 10px 14px; border: 1px solid var(--afex-pos-emerald); border-radius: 12px; background: color-mix(in srgb, var(--afex-pos-emerald) 9%, transparent); color: var(--afex-pos-emerald); font-size: 12px; font-weight: 700; }
+.pos-operational-summary { display: flex; flex-wrap: wrap; gap: 10px; }
+.pos-operational-summary > div { display: grid; grid-template-columns: 8px auto auto; min-height: 38px; align-items: center; gap: 8px; padding: 7px 11px; border: 1px solid var(--afex-pos-border); border-radius: 10px; background: var(--afex-pos-raised); }
+.pos-operational-summary > div > span { width: 8px; height: 8px; border-radius: 50%; }
+.pos-operational-summary b { font-size: 15px; }
+.pos-operational-summary small { color: var(--afex-pos-text-secondary); font-size: 10px; font-weight: 700; }
+.pos-operational-drafts { display: inline-flex; min-height: 38px; align-items: center; gap: 8px; padding: 7px 11px; border: 1px solid var(--afex-pos-border); border-radius: 10px; color: var(--afex-pos-cyan); font-size: 11px; font-weight: 700; text-decoration: none; }
+.pos-operational-drafts svg { width: 16px; height: 16px; }
+
+.pos-recent-orders { min-height: 270px; overflow: hidden; border: 1px solid var(--afex-pos-border); border-radius: 16px; background: var(--afex-pos-panel); }
+.pos-recent-orders > header { display: flex; min-height: 66px; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-bottom: 1px solid var(--afex-pos-border); }
+.pos-recent-orders h2 { margin: 0; font-size: 18px; font-weight: 900; }
+.pos-recent-orders header p { margin: 2px 0 0; color: var(--afex-pos-text-secondary); font-size: 10px; }
+.pos-recent-orders header a { display: inline-flex; min-height: 44px; align-items: center; color: var(--afex-pos-emerald); font-size: 12px; font-weight: 800; text-decoration: none; }
+.pos-orders-message { margin: 18px; padding: 22px; border: 1px dashed var(--afex-pos-border); border-radius: 12px; color: var(--afex-pos-text-secondary); text-align: center; }
+.pos-orders-message.is-error { border-style: solid; border-color: var(--afex-pos-danger); color: var(--afex-pos-danger); }
+.pos-orders-list-head,
+.pos-order-row { display: grid; grid-template-columns: 1.1fr 1.5fr 1fr 1fr 1fr; align-items: center; gap: 12px; }
+.pos-orders-list-head { min-height: 34px; padding: 0 16px; background: var(--afex-pos-raised); color: var(--afex-pos-text-secondary); font-size: 10px; font-weight: 700; }
+.pos-order-row { min-height: 58px; padding: 8px 16px; border-top: 1px solid var(--afex-pos-border); }
+.pos-order-row:hover { background: var(--afex-pos-hover); }
+.pos-order-row small { display: none; }
+.pos-order-number strong { font-size: 13px; }
+.pos-order-date span { color: var(--afex-pos-text-secondary); font-size: 11px; }
+.pos-order-status > span { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; }
+.pos-order-status i { width: 7px; height: 7px; border-radius: 50%; }
+.pos-order-total strong { color: var(--afex-pos-cyan); font-size: 13px; }
+.pos-order-action button { min-height: 44px; padding: 0 12px; border: 1px solid var(--afex-pos-border); border-radius: 10px; background: var(--afex-pos-card); color: var(--afex-pos-text); font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.pos-order-action button:hover { border-color: var(--afex-pos-emerald); }
+.pos-order-action button:disabled { cursor: wait; opacity: .55; }
+.pos-order-action > span { color: var(--afex-pos-text-secondary); font-size: 10px; }
+
+.pos-operational-home button:focus-visible,
+.pos-operational-home a:focus-visible { outline: 2px solid var(--afex-pos-cyan); outline-offset: 2px; }
+
+@media (max-width: 1199px) {
+  .pos-operational-canvas { width: 100%; padding: 20px 22px 28px; }
+  .pos-operational-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pos-operational-actions button:last-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 767px) {
+  .pos-operational-canvas { gap: 14px; padding: 14px 14px max(22px, env(safe-area-inset-bottom)); }
+  .pos-operational-header { min-height: 74px; gap: 12px; }
+  .pos-operational-heading h1 { max-width: 210px; font-size: 20px; }
+  .pos-operational-heading > p { max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pos-operational-clock { min-width: 94px; }
+  .pos-operational-clock strong { font-size: 18px; }
+  .pos-operational-clock span { font-size: 9px; }
+  .pos-primary-sale { display: grid; min-height: 0; gap: 16px; padding: 18px; }
+  .pos-primary-sale h2 { font-size: 19px; }
+  .pos-primary-sale p { font-size: 11px; }
+  .pos-primary-sale > button { width: 100%; min-width: 0; }
+  .pos-operational-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .pos-operational-actions button { grid-template-columns: 38px minmax(0, 1fr); min-height: 72px; padding: 10px; }
+  .pos-operational-actions button > span { width: 38px; height: 38px; }
+  .pos-operational-actions button:last-child { grid-column: 1 / -1; }
+  .pos-operational-actions small { display: none; }
+  .pos-operational-summary { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .pos-operational-summary > div { grid-template-columns: 8px 1fr; gap: 5px; }
+  .pos-operational-summary small { grid-column: 1 / -1; }
+  .pos-operational-drafts { grid-column: 1 / -1; }
+  .pos-recent-orders { overflow: visible; border: 0; background: transparent; }
+  .pos-recent-orders > header { min-height: 58px; padding: 8px 2px; }
+  .pos-recent-orders header p { display: none; }
+  .pos-orders-list-head { display: none; }
+  .pos-orders-list { display: grid; gap: 10px; }
+  .pos-order-row { grid-template-columns: 1fr auto; grid-template-areas: 'number status' 'date total' 'action action'; gap: 8px 12px; min-height: 120px; padding: 14px; border: 1px solid var(--afex-pos-border); border-radius: 14px; background: var(--afex-pos-card); }
+  .pos-order-row small { display: block; margin-bottom: 2px; color: var(--afex-pos-text-secondary); font-size: 9px; }
+  .pos-order-number { grid-area: number; }
+  .pos-order-date { grid-area: date; }
+  .pos-order-status { grid-area: status; text-align: left; }
+  .pos-order-total { grid-area: total; text-align: left; }
+  .pos-order-action { grid-area: action; border-top: 1px solid var(--afex-pos-border); padding-top: 8px; }
+  .pos-order-action button { width: 100%; }
+}
+
 /* Phase 6A-R1 entry and home surfaces. These overrides deliberately retire the
    previous glow-heavy visual layer while leaving the existing interaction and
    authority components intact. */
