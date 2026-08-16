@@ -18,6 +18,7 @@ const itemsStep = read('components/invoice-items-step.tsx')
 const checkoutStep = read('app/pos/sale/checkout/page.tsx')
 const saleReset = read('lib/invoices/sale-reset.ts')
 const successStep = read('app/pos/sale/success/page.tsx')
+const successWorkspace = read('components/pos-invoice-success-workspace.tsx')
 const activePosItemsLayout = itemsStep.slice(
   itemsStep.indexOf("if (variant === 'pos')"),
   itemsStep.indexOf('const renderLegacyPosItemsLayout')
@@ -181,26 +182,25 @@ assert.ok(
   'POS checkout responsive presentation must remain CSS-only'
 )
 assert.equal(
-  (successStep.match(/snapshot\.invoiceItems\.map\(/g) || []).length,
-  2,
-  'POS success receipt must keep one mobile and one desktop item list'
+  (successWorkspace.match(/snapshot\.invoiceItems\.map\(/g) || []).length,
+  1,
+  'POS success receipt must render one responsive order-item list'
 )
 assert.ok(
-  successStep.includes('{isMobileViewport ? (') && successStep.includes(') : ('),
-  'POS success receipt variants must be mutually exclusive at runtime'
+  successWorkspace.includes('afex-success-mobile-card') &&
+    successWorkspace.includes('afex-success-receipt'),
+  'POS success workspace must expose responsive summary and receipt surfaces'
 )
 assert.equal(
-  (successStep.match(/onClick=\{handleNewSale\}/g) || []).length,
-  2,
-  'POS success page must keep one mobile and one desktop New Sale action'
+  (successWorkspace.match(/onClick=\{props\.onNewSale\}/g) || []).length,
+  1,
+  'POS success page must keep one responsive New Sale action'
 )
 assert.ok(
-  successStep.includes("router.push('/admin/orders')") &&
-    successStep.includes('overflow-x-hidden overflow-y-auto overscroll-y-contain') &&
-    successStep.includes('env(safe-area-inset-bottom)') &&
-    successStep.includes('min-[390px]:grid-cols-2') &&
-    successStep.includes('focus-visible:ring-2'),
-  'POS success page must preserve safe mobile scrolling, actions, focus, and the Orders shortcut'
+  !successWorkspace.includes('/admin') &&
+    successWorkspace.includes('aria-expanded={detailsOpen}') &&
+    successWorkspace.includes('disabled={!snapshot.customerPhone'),
+  'POS success page must preserve contained actions, disclosure semantics, and WhatsApp gating'
 )
 assert.ok(
   !successStep.includes('window.innerWidth'),
