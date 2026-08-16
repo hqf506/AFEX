@@ -1137,6 +1137,7 @@ export function InvoiceItemsStep({
     hasAmbiguousAdminBranchContext,
     branchId: invoiceBranchId,
     vatSetting,
+    persistSaleDraft: variant === 'pos',
   })
 
   const addItem = (

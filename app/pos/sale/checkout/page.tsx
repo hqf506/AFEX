@@ -349,6 +349,7 @@ export default function PosSaleCheckoutPage() {
     hasAmbiguousAdminBranchContext,
     branchId: checkoutBranchId,
     vatSetting: availableVatSetting,
+    persistSaleDraft: true,
     onInvoiceCreated: (_, successSnapshot) => {
       const nextSnapshot = {
         ...successSnapshot,

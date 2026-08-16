@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   calculateInvoiceSubtotal,
   parseCashReceivedAmount,
@@ -25,6 +25,7 @@ import {
 } from '@/lib/pos-checkout-identity'
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
+import { INVOICE_SALE_CHECKOUT_STORAGE_KEY, parseStoredInvoiceSaleCheckoutDraft, serializeInvoiceSaleCheckoutDraft } from '@/lib/invoices/sale-navigation'
 
 export type CheckoutDiscountOption = {
   id: string
@@ -55,6 +56,7 @@ type UseInvoiceCheckoutOptions = {
     result: CreatedInvoiceRecord,
     successSnapshot: InvoiceSuccessSnapshot
   ) => void
+  persistSaleDraft?: boolean
 }
 
 export function useInvoiceCheckout({
@@ -67,6 +69,7 @@ export function useInvoiceCheckout({
   branchId,
   vatSetting = null,
   onInvoiceCreated,
+  persistSaleDraft = false,
 }: UseInvoiceCheckoutOptions) {
   const [paymentMethod, setPaymentMethodState] =
     useState<PosPaymentMethod>('mada')
@@ -80,6 +83,29 @@ export function useInvoiceCheckout({
   const [offlineDraftMessage, setOfflineDraftMessage] = useState('')
   const [lastInvoiceNumber, setLastInvoiceNumber] = useState('')
   const [lastOrderNumber, setLastOrderNumber] = useState('')
+  const saleDraftHydratedRef = useRef(!persistSaleDraft)
+
+  useEffect(() => {
+    if (!persistSaleDraft) return
+    const stored = parseStoredInvoiceSaleCheckoutDraft(window.localStorage.getItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY))
+    if (!stored) {
+      saleDraftHydratedRef.current = true
+      return
+    }
+    const timer = window.setTimeout(() => {
+      saleDraftHydratedRef.current = true
+      setPaymentMethodState(stored.paymentMethod)
+      setSelectedDiscountState(stored.selectedDiscount)
+      setNote(stored.note)
+      setCashReceivedInput(stored.cashReceivedInput)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [persistSaleDraft])
+
+  useEffect(() => {
+    if (!persistSaleDraft || !saleDraftHydratedRef.current) return
+    window.localStorage.setItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY, serializeInvoiceSaleCheckoutDraft({ paymentMethod, selectedDiscount, note, cashReceivedInput }))
+  }, [cashReceivedInput, note, paymentMethod, persistSaleDraft, selectedDiscount])
 
   const subtotal = useMemo(() => {
     return calculateInvoiceSubtotal(invoiceItems)
@@ -212,6 +238,7 @@ export function useInvoiceCheckout({
     setPaymentMethodState('mada')
     setCashReceivedInput('')
     clearPosCheckoutIdentity()
+    if (persistSaleDraft && typeof window !== 'undefined') window.localStorage.removeItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY)
   }
 
   const createInvoice = async () => {

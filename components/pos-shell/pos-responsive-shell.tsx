@@ -13,6 +13,8 @@ import { PosConfirmationDialog } from './pos-confirmation-dialog'
 import { PosNavigationItem } from './pos-shell-primitives'
 import { PosSessionIdentityCard } from './pos-session-identity-card'
 import { PosThemeToggle } from '@/components/pos-theme-toggle'
+import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
+import { PosSaleHomeConfirmationDialog } from './pos-sale-home-confirmation-dialog'
 
 type IconName = 'sale' | 'orders' | 'invoice' | 'more' | 'switch' | 'exit'
 
@@ -41,6 +43,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [ending, setEnding] = useState(false)
+  const [saleHomeConfirmOpen, setSaleHomeConfirmOpen] = useState(false)
   const { settings } = useSystemSettings(true)
 
   useEffect(() => {
@@ -70,6 +73,14 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
       setEnding(false)
       setConfirmOpen(false)
     }
+  }, [router])
+
+  const returnToPosHome = useCallback(() => {
+    if (hasPersistedInvoiceSaleDraft(window.localStorage)) {
+      setSaleHomeConfirmOpen(true)
+      return
+    }
+    router.replace('/pos')
   }, [router])
 
   if (!employee) return <>{children}</>
@@ -105,6 +116,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
     <div className={`afex-pos-app-shell ${isPosHome ? 'is-pos-home' : 'is-pos-subroute'} ${isSaleRoute ? 'is-sale-route' : ''}`} dir="rtl">
       {isSaleRoute ? <header className="afex-pos-sale-header">
         <Link href={saleHeader.back} aria-label={`الرجوع من ${saleHeader.title}`}>‹</Link>
+        <button type="button" className="afex-pos-sale-home" aria-label="العودة إلى نقطة البيع" onClick={returnToPosHome}><Icon name="sale" /><span>نقطة البيع</span></button>
         <strong>{saleHeader.title}</strong>
         <PosThemeToggle />
       </header> : <header className="afex-pos-responsive-header">
@@ -122,6 +134,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
         <Link href="/pos/settings" aria-current={isMore ? 'page' : undefined}><Icon name="more" /><b>المزيد</b></Link>
       </nav> : null}
       <PosConfirmationDialog open={confirmOpen} loading={ending} onCancel={() => setConfirmOpen(false)} onConfirm={endSession} />
+      <PosSaleHomeConfirmationDialog open={saleHomeConfirmOpen} onCancel={() => setSaleHomeConfirmOpen(false)} onConfirm={() => router.replace('/pos')} />
     </div>
   )
 }

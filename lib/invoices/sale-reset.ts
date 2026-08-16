@@ -1,6 +1,7 @@
 import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
 import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
 import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
+import { INVOICE_SALE_CHECKOUT_STORAGE_KEY } from '@/lib/invoices/sale-navigation'
 import { clearPosCheckoutIdentity } from '@/lib/pos-checkout-identity'
 import { clearClientResourcesByPrefix } from '@/lib/client-resource-cache'
 
@@ -26,6 +27,7 @@ export function clearCompletedInvoiceDraftState() {
 
   window.localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
   window.localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+  window.localStorage.removeItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY)
   window.sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
 }
 

@@ -508,6 +508,7 @@ export function InvoiceCustomerStep({
     setSelectedCustomerId(null)
     setCustomerMatches([])
     setCustomerSearchError('')
+    if (variant === 'pos') localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
   }
 
   const handleCustomerRetry = () => {
@@ -524,6 +525,7 @@ export function InvoiceCustomerStep({
     setCustomerPhone(customer.phone)
     setSelectedCustomerId(customer.id)
     setCustomerSearchError('')
+    if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: customer.id, name: customer.name, phone: customer.phone }))
   }
 
   const openAddCustomerModal = () => {
@@ -558,6 +560,7 @@ export function InvoiceCustomerStep({
       ...currentCustomers.filter((customer) => customer.id !== createdCustomer.id),
     ])
     setAddCustomerOpen(false)
+    if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: createdCustomer.id, name: createdCustomer.name, phone: createdCustomer.phone }))
   }
 
   const handlePosLogout = () => {
