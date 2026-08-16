@@ -6,6 +6,7 @@ import { useAuthState } from '@/components/auth-state-provider'
 import { FeatureDisabledState } from '@/components/feature-disabled-state'
 import { PosTabletFrame } from '@/components/pos-tablet-frame'
 import { PosResponsiveShell } from '@/components/pos-shell/pos-responsive-shell'
+import { PosThemeToggle } from '@/components/pos-theme-toggle'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { canAccessPos } from '@/lib/permissions'
 import {
@@ -65,7 +66,8 @@ function PosShellViewport({
   }, [])
 
   return (
-    <div className="pos-shell-viewport h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-slate-900 xl:bg-black">
+    <div className="pos-shell-viewport h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden">
+      <PosThemeToggle />
       <div className="pos-shell-inner h-full min-h-0 w-full overflow-hidden px-0 py-0">
         {isLoginPage ? <PosTabletFrame isLoginPage>{children}</PosTabletFrame> : children}
       </div>

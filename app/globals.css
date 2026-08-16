@@ -22,18 +22,18 @@
   --afex-safe-right: env(safe-area-inset-right, 0px);
   --afex-safe-bottom: env(safe-area-inset-bottom, 0px);
   --afex-safe-left: env(safe-area-inset-left, 0px);
-  --afex-pos-base: #071521;
-  --afex-pos-raised: #0b1d2a;
-  --afex-pos-panel: #0e2433;
-  --afex-pos-card: #122b3b;
-  --afex-pos-hover: #17384a;
-  --afex-pos-border: #214457;
-  --afex-pos-text: #f4f8fa;
-  --afex-pos-text-secondary: #91a8b5;
-  --afex-pos-emerald: #28d7a1;
-  --afex-pos-emerald-strong: #17b984;
-  --afex-pos-cyan: #39d9f2;
-  --afex-pos-warning: #f5b84b;
+  --afex-pos-base: #0d0e10;
+  --afex-pos-raised: #15171a;
+  --afex-pos-panel: #15171a;
+  --afex-pos-card: #1b1d20;
+  --afex-pos-hover: #24262a;
+  --afex-pos-border: #393a3d;
+  --afex-pos-text: #f4f1ea;
+  --afex-pos-text-secondary: #a9a49b;
+  --afex-pos-emerald: #b89a64;
+  --afex-pos-emerald-strong: #9a7540;
+  --afex-pos-cyan: #c7aa72;
+  --afex-pos-warning: #c7aa72;
   --afex-pos-danger: #f06473;
   --afex-pos-space-1: 0.25rem;
   --afex-pos-space-2: 0.5rem;
@@ -44,8 +44,26 @@
   --afex-pos-radius-sm: 0.75rem;
   --afex-pos-radius-md: 0.875rem;
   --afex-pos-radius-lg: 1.25rem;
-  --afex-pos-shadow-panel: 0 24px 70px rgb(0 0 0 / 0.28);
-  --afex-pos-focus: 0 0 0 3px rgb(57 217 242 / 0.45);
+  --afex-pos-shadow-panel: 0 18px 46px rgb(0 0 0 / 0.22);
+  --afex-pos-focus: 0 0 0 3px rgb(184 154 100 / 0.42);
+}
+
+html[data-pos-theme='light'] {
+  --afex-pos-base: #f4f1ea;
+  --afex-pos-raised: #fbf8f2;
+  --afex-pos-panel: #fbf8f2;
+  --afex-pos-card: #eee9e0;
+  --afex-pos-hover: #e5ded2;
+  --afex-pos-border: #d3c8b7;
+  --afex-pos-text: #25221e;
+  --afex-pos-text-secondary: #756f65;
+  --afex-pos-emerald: #a6844f;
+  --afex-pos-emerald-strong: #8a6537;
+  --afex-pos-cyan: #9b7440;
+  --afex-pos-warning: #9b7440;
+  --afex-pos-danger: #a74444;
+  --afex-pos-shadow-panel: 0 14px 36px rgb(68 54 33 / 0.12);
+  --afex-pos-focus: 0 0 0 3px rgb(166 132 79 / 0.32);
 }
 
 @media (min-width: 640px) {
@@ -1237,6 +1255,114 @@ body:has([data-mobile-blocking-overlay]) {
 body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-mobile-blocking-overlay]) [data-mobile-bottom-nav] {
   visibility: hidden;
   pointer-events: none;
+}
+
+/* AFEX POS premium approved visual system */
+.pos-shell-viewport {
+  position: relative;
+  background: var(--afex-pos-base);
+  color: var(--afex-pos-text);
+}
+
+.afex-pos-theme-toggle {
+  position: fixed;
+  inset-block-start: max(12px, env(safe-area-inset-top));
+  inset-inline-start: max(12px, env(safe-area-inset-left));
+  z-index: 1200;
+  display: inline-flex;
+  min-width: 76px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--afex-pos-border);
+  border-radius: 12px;
+  background: var(--afex-pos-card);
+  color: var(--afex-pos-text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.afex-pos-theme-toggle span { color: var(--afex-pos-cyan); font-size: 17px; }
+.afex-pos-theme-toggle:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+.afex-pos-theme-toggle:active { transform: scale(.98); }
+
+/* Retire the former neon/glass presentation without duplicating page trees. */
+.pos-shell-viewport :where([class*='bg-[radial-gradient'], [class*='bg-[linear-gradient'], [class*='bg-gradient']) {
+  background-image: none !important;
+}
+.pos-shell-viewport :where([class*='backdrop-blur']) { backdrop-filter: none !important; }
+.pos-shell-viewport :where([class*='text-cyan'], [class*='text-emerald'], [class*='text-blue']) { color: var(--afex-pos-cyan) !important; }
+.pos-shell-viewport :where([class*='bg-cyan'], [class*='bg-emerald'], [class*='bg-blue']) { background-color: var(--afex-pos-card) !important; }
+.pos-shell-viewport :where([class*='bg-[#'], [class*='bg-[rgba']) { background-color: var(--afex-pos-card) !important; }
+.pos-shell-viewport :where([class*='border-cyan'], [class*='border-emerald'], [class*='border-blue']) { border-color: var(--afex-pos-border) !important; }
+.pos-shell-viewport :where([class*='text-slate-9'], [class*='text-white']) { color: var(--afex-pos-text) !important; }
+.pos-shell-viewport :where([class*='text-slate-1'], [class*='text-slate-2'], [class*='text-slate-3'], [class*='text-slate-4'], [class*='text-slate-5'], [class*='text-slate-6'], [class*='text-slate-7']) { color: var(--afex-pos-text-secondary) !important; }
+.pos-shell-viewport :where(input, textarea, select) { color-scheme: inherit; }
+.pos-shell-viewport .pos-login-input:-webkit-autofill,
+.pos-shell-viewport .pos-login-input:-webkit-autofill:hover,
+.pos-shell-viewport .pos-login-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--afex-pos-text) !important;
+  caret-color: var(--afex-pos-text) !important;
+  box-shadow: 0 0 0 1000px var(--afex-pos-card) inset !important;
+}
+.pos-shell-viewport :where(button, a) { min-height: 44px; }
+
+.afex-pos-app-shell { grid-template-columns: minmax(0, 72fr) minmax(248px, 28fr); }
+.afex-pos-brand { color: var(--afex-pos-cyan); letter-spacing: .08em; }
+.afex-pos-avatar { background: var(--afex-pos-cyan); color: var(--afex-pos-base); }
+.afex-pos-session-status { color: var(--afex-pos-cyan); }
+.afex-pos-nav-item.is-active { border-color: var(--afex-pos-cyan); background: var(--afex-pos-hover); }
+.afex-pos-nav-item.is-active::before { background: var(--afex-pos-cyan); }
+.afex-pos-nav-item.is-active .afex-pos-nav-icon { color: var(--afex-pos-cyan); }
+.afex-pos-button--primary,
+.afex-customer-ticket-footer button,
+.afex-customer-mobile-action button,
+.afex-customer-search-heading button,
+.afex-customer-state button,
+.afex-checkout-submit,
+.afex-sale-mobile-summary button { background: var(--afex-pos-emerald-strong); color: #fffaf0; }
+
+.afex-sale-layout { grid-template-columns: minmax(260px, 28fr) minmax(0, 72fr); }
+.afex-sale-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.afex-sale-product-card.is-selected,
+.afex-customer-result.is-selected,
+.afex-selected-customer,
+.afex-payment-methods button.is-selected { border-color: var(--afex-pos-cyan); }
+.afex-sale-product-card:hover { border-color: var(--afex-pos-cyan); }
+.afex-sale-categories button[aria-pressed='true'],
+.afex-customer-eyebrow,
+.afex-selected-check,
+.afex-customer-result-action,
+.afex-customer-load-more,
+.afex-checkout-due strong,
+.afex-checkout-totals .is-total b { color: var(--afex-pos-cyan) !important; }
+.afex-customer-operator > span,
+.afex-customer-avatar { background: color-mix(in srgb, var(--afex-pos-cyan) 14%, var(--afex-pos-card)); color: var(--afex-pos-cyan); }
+.afex-customer-skeleton { background: var(--afex-pos-hover); animation: none; }
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .afex-sale-layout { grid-template-columns: minmax(280px, 32fr) minmax(0, 68fr); }
+  .afex-sale-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767px) {
+  .afex-pos-theme-toggle { min-width: 44px; width: 44px; padding: 0; }
+  .afex-pos-theme-toggle b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .afex-sale-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .afex-sale-cart { border-radius: 22px 22px 0 0; box-shadow: 0 -16px 42px rgb(0 0 0 / .28); }
+  .afex-pos-bottom-nav { border-top: 1px solid var(--afex-pos-border); }
+  .afex-pos-bottom-nav a[aria-current='page'] { color: var(--afex-pos-cyan); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pos-shell-viewport *, .pos-shell-viewport *::before, .pos-shell-viewport *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }
 
 @media (max-width: 1279px) {

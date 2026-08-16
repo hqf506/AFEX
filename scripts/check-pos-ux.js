@@ -21,6 +21,8 @@ const checkoutStep = read('app/pos/sale/checkout/page.tsx')
 const saleReset = read('lib/invoices/sale-reset.ts')
 const successStep = read('app/pos/sale/success/page.tsx')
 const successWorkspace = read('components/pos-invoice-success-workspace.tsx')
+const posLayout = read('app/pos/layout.tsx')
+const posThemeToggle = read('components/pos-theme-toggle.tsx')
 const activePosItemsLayout = itemsStep.slice(
   itemsStep.indexOf("if (variant === 'pos')"),
   itemsStep.indexOf('const renderLegacyPosItemsLayout')
@@ -351,5 +353,31 @@ for (const label of ['نقدي', 'مدى', 'فيزا', 'الدفع عند الا
 for (const file of [messages, checkout, drafts, pin, paymentMethods]) {
   assert.ok(!/\b(?:Loading|Submitting|Try again|Something went wrong)\b/.test(file), 'English POS fallback remains')
 }
+
+for (const color of [
+  '#0d0e10', '#15171a', '#1b1d20', '#24262a', '#393a3d', '#f4f1ea',
+  '#a9a49b', '#b89a64', '#9a7540', '#c7aa72', '#fbf8f2', '#eee9e0',
+  '#e5ded2', '#d3c8b7', '#25221e', '#756f65', '#a6844f', '#8a6537', '#9b7440',
+]) {
+  assert.ok(globalStyles.toLowerCase().includes(color), `approved POS token is missing: ${color}`)
+}
+assert.ok(
+  posLayout.includes("matchMedia('(prefers-color-scheme: light)')") &&
+    posLayout.includes("localStorage.getItem(k)") &&
+    posLayout.includes('dataset.posTheme'),
+  'POS theme must initialize before hydration from persistence or system preference'
+)
+assert.ok(
+  posThemeToggle.includes("window.localStorage.setItem(STORAGE_KEY, nextTheme)") &&
+    posThemeToggle.includes('aria-label="التبديل بين الوضع الفاتح والداكن"'),
+  'POS theme toggle must be persistent and keyboard accessible'
+)
+assert.ok(
+  globalStyles.includes('grid-template-columns: minmax(0, 72fr) minmax(248px, 28fr)') &&
+    globalStyles.includes('grid-template-columns: minmax(280px, 32fr) minmax(0, 68fr)') &&
+    globalStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr))') &&
+    globalStyles.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'),
+  'POS catalog must preserve the approved desktop, tablet and mobile geometry'
+)
 
 console.log('POS UX recovery contract checks passed.')
