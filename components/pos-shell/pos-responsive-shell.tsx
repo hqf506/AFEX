@@ -12,6 +12,7 @@ import {
 import { PosConfirmationDialog } from './pos-confirmation-dialog'
 import { PosNavigationItem } from './pos-shell-primitives'
 import { PosSessionIdentityCard } from './pos-session-identity-card'
+import { PosThemeToggle } from '@/components/pos-theme-toggle'
 
 type IconName = 'sale' | 'orders' | 'invoice' | 'more' | 'switch' | 'exit'
 
@@ -49,6 +50,15 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
 
   const branchName = settings?.branch_name?.trim() || 'الفرع الرئيسي'
   const isMore = pathname.startsWith('/pos/settings')
+  const isPosHome = pathname === '/pos'
+  const isSaleRoute = pathname.startsWith('/pos/sale/')
+  const saleHeader = pathname === '/pos/sale/customer'
+    ? { title: 'اختيار العميل', back: '/pos/sale/items' }
+    : pathname === '/pos/sale/checkout'
+      ? { title: 'الدفع وإتمام الطلب', back: '/pos/sale/customer' }
+      : pathname === '/pos/sale/success'
+        ? { title: 'تم إنشاء الفاتورة', back: '/pos' }
+        : { title: 'اختيار المنتجات', back: '/pos' }
 
   const endSession = useCallback(async () => {
     try {
@@ -66,7 +76,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
 
   const menu = (
     <>
-      <div className="afex-pos-brand">AFEX</div>
+      <div className="afex-pos-brand-row"><div className="afex-pos-brand">AFEX</div><PosThemeToggle /></div>
       <PosSessionIdentityCard employee={employee} branchName={branchName} />
       <p className="afex-pos-nav-label">نقطة البيع</p>
       <nav aria-label="تنقل نقطة البيع" className="afex-pos-navigation">
@@ -92,21 +102,25 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   )
 
   return (
-    <div className="afex-pos-app-shell" dir="rtl">
-      <header className="afex-pos-responsive-header">
+    <div className={`afex-pos-app-shell ${isPosHome ? 'is-pos-home' : 'is-pos-subroute'} ${isSaleRoute ? 'is-sale-route' : ''}`} dir="rtl">
+      {isSaleRoute ? <header className="afex-pos-sale-header">
+        <Link href={saleHeader.back} aria-label={`الرجوع من ${saleHeader.title}`}>‹</Link>
+        <strong>{saleHeader.title}</strong>
+        <PosThemeToggle />
+      </header> : <header className="afex-pos-responsive-header">
         <strong>{isMore ? 'المزيد' : 'نقطة البيع'}</strong>
-        <button type="button" aria-label="فتح التنقل" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>☰</button>
-      </header>
-      <aside className="afex-pos-sidebar">{menu}</aside>
-      {drawerOpen ? <div className="afex-pos-drawer-backdrop" onMouseDown={() => setDrawerOpen(false)}><aside className="afex-pos-drawer" onMouseDown={(event) => event.stopPropagation()}>{menu}</aside></div> : null}
+        <div className="afex-pos-responsive-actions"><PosThemeToggle /><button type="button" aria-label="فتح التنقل" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>☰</button></div>
+      </header>}
+      {isPosHome ? <aside className="afex-pos-sidebar">{menu}</aside> : null}
+      {isPosHome && drawerOpen ? <div className="afex-pos-drawer-backdrop" onMouseDown={() => setDrawerOpen(false)}><aside className="afex-pos-drawer" onMouseDown={(event) => event.stopPropagation()}>{menu}</aside></div> : null}
       <div className={`afex-pos-shell-content ${isMore ? 'is-more-route' : ''}`}>
         {isMore ? <section className="afex-pos-mobile-more">{menu}</section> : null}
         <div className="afex-pos-route-content">{children}</div>
       </div>
-      <nav className="afex-pos-bottom-nav" aria-label="تنقل نقطة البيع للهاتف">
+      {isPosHome ? <nav className="afex-pos-bottom-nav" aria-label="تنقل نقطة البيع للهاتف">
         {navigation.map((item) => item.disabled ? <span key={item.label} aria-disabled="true"><Icon name={item.icon} /><b>{item.label}</b></span> : <Link key={item.label} href={item.href!} aria-current={pathname === item.href ? 'page' : undefined}><Icon name={item.icon} /><b>{item.label}</b></Link>)}
         <Link href="/pos/settings" aria-current={isMore ? 'page' : undefined}><Icon name="more" /><b>المزيد</b></Link>
-      </nav>
+      </nav> : null}
       <PosConfirmationDialog open={confirmOpen} loading={ending} onCancel={() => setConfirmOpen(false)} onConfirm={endSession} />
     </div>
   )
