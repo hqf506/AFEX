@@ -37,12 +37,6 @@ type Props = {
   onContinue: () => void
 }
 
-function maskPhone(phone: string) {
-  const digits = phone.replace(/\D/g, '')
-  if (digits.length < 4) return '••••'
-  return `••• ••• ${digits.slice(-4)}`
-}
-
 export function PosCustomerWorkspace({
   customers,
   loading,
@@ -98,7 +92,7 @@ export function PosCustomerWorkspace({
               <div className="afex-customer-avatar" aria-hidden="true">{selected.name.slice(0, 1)}</div>
               <div className="afex-selected-customer-copy">
                 <strong>{selected.name}</strong>
-                <span dir="ltr">{maskPhone(selected.phone)}</span>
+                <span dir="ltr">{selected.phone}</span>
                 <small>سيُربط الطلب بمعرّف العميل المحدد</small>
               </div>
               <span className="afex-selected-check" aria-label="تم الاختيار">✓</span>
@@ -152,7 +146,7 @@ export function PosCustomerWorkspace({
               return (
                 <button key={customer.id} type="button" className={`afex-customer-result ${isSelected ? 'is-selected' : ''}`} onClick={() => onSelect(customer)} aria-pressed={isSelected}>
                   <span className="afex-customer-avatar" aria-hidden="true">{customer.name.slice(0, 1)}</span>
-                  <span className="afex-customer-result-copy"><strong>{customer.name}</strong><span dir="ltr">{maskPhone(customer.phone)}</span><small>{customer.visitsCount ?? 0} زيارات</small></span>
+                  <span className="afex-customer-result-copy"><strong>{customer.name}</strong><span dir="ltr">{customer.phone}</span><small>{customer.visitsCount ?? 0} زيارات</small></span>
                   <span className="afex-customer-result-action">{isSelected ? '✓ تم الاختيار' : 'اختيار'}</span>
                 </button>
               )

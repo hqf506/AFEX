@@ -1,0 +1,29 @@
+export function mergeUniqueCatalogItems<T>(
+  currentItems: T[],
+  incomingItems: T[],
+  getIdentity: (item: T) => string
+) {
+  const merged = [...currentItems]
+  const knownIdentities = new Set(
+    currentItems.map(getIdentity).filter((identity) => identity.length > 0)
+  )
+
+  for (const item of incomingItems) {
+    const identity = getIdentity(item)
+    if (!identity || knownIdentities.has(identity)) continue
+    knownIdentities.add(identity)
+    merged.push(item)
+  }
+
+  return merged
+}
+
+export function shouldContinueCatalogLoading(options: {
+  scrollTop: number
+  clientHeight: number
+  scrollHeight: number
+  threshold?: number
+}) {
+  const threshold = options.threshold ?? 240
+  return options.scrollTop + options.clientHeight >= options.scrollHeight - threshold
+}

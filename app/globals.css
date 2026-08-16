@@ -1300,6 +1300,14 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 .pos-shell-viewport :where([class*='text-slate-9'], [class*='text-white']) { color: var(--afex-pos-text) !important; }
 .pos-shell-viewport :where([class*='text-slate-1'], [class*='text-slate-2'], [class*='text-slate-3'], [class*='text-slate-4'], [class*='text-slate-5'], [class*='text-slate-6'], [class*='text-slate-7']) { color: var(--afex-pos-text-secondary) !important; }
 .pos-shell-viewport :where(input, textarea, select) { color-scheme: inherit; }
+.pos-shell-viewport :where(input, textarea)::selection {
+  background: var(--afex-pos-cyan);
+  color: var(--afex-pos-base);
+}
+.pos-shell-viewport :where(input, textarea) {
+  caret-color: var(--afex-pos-cyan);
+  outline: 0 !important;
+}
 .pos-shell-viewport .pos-login-input:-webkit-autofill,
 .pos-shell-viewport .pos-login-input:-webkit-autofill:hover,
 .pos-shell-viewport .pos-login-input:-webkit-autofill:focus {
@@ -1308,6 +1316,51 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
   box-shadow: 0 0 0 1000px var(--afex-pos-card) inset !important;
 }
 .pos-shell-viewport :where(button, a) { min-height: 44px; }
+
+.pos-entry-login :where(.group:focus-within) {
+  border-color: var(--afex-pos-cyan) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--afex-pos-cyan) 24%, transparent) !important;
+}
+.pos-entry-login :where(input:focus, input:focus-visible) { outline: 0 !important; box-shadow: none !important; }
+.pos-entry-login section { grid-template-columns: minmax(0, 1fr) !important; }
+.pos-entry-login section > div[dir='rtl']:last-of-type { display: none !important; }
+.pos-entry-login section > div[dir='rtl']:not(:last-of-type) { width: 100%; max-width: 560px; margin: auto; }
+.pos-entry-login section > .pointer-events-none { display: none !important; }
+.pos-entry-login .pos-login-hardware { display: none !important; }
+
+.pos-pin-indicator { border-color: var(--afex-pos-cyan) !important; background: transparent !important; box-shadow: none !important; }
+.pos-pin-indicator[class*='bg-cyan'] { background: var(--afex-pos-cyan) !important; }
+.pos-pin-indicators.is-complete .pos-pin-indicator { transform: scale(1.12); }
+
+.afex-checkout-summary-note { margin: 12px 0; padding: 12px; border: 1px solid var(--afex-pos-border); border-radius: 12px; background: var(--afex-pos-card); }
+.afex-checkout-summary-note strong { display: block; margin-bottom: 5px; color: var(--afex-pos-cyan); font-size: .78rem; }
+.afex-checkout-summary-note p { margin: 0; color: var(--afex-pos-text); font-size: .8rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.afex-payment-methods button > span svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.afex-checkout-submit { display: flex; min-height: 64px; align-items: center; justify-content: center; gap: 10px; background: var(--afex-pos-emerald-strong); color: #fffaf0; transition: background .15s ease, transform .15s ease; }
+.afex-checkout-submit svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.afex-checkout-submit:hover:not(:disabled) { background: var(--afex-pos-emerald); }
+.afex-checkout-submit:active:not(:disabled) { transform: scale(.99); }
+.afex-checkout-submit:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+.afex-checkout-submit:disabled { background: var(--afex-pos-hover); color: var(--afex-pos-text-secondary); opacity: .62; }
+
+.afex-success-new-sale { display: flex; min-height: 64px; align-items: center; justify-content: center; gap: 10px; background: var(--afex-pos-emerald-strong); color: #fffaf0; font-size: 1rem; transition: background .15s ease, transform .15s ease; animation: afex-new-sale-attention .65s ease-out 2; }
+.afex-success-new-sale > span { font-size: 1.45rem; line-height: 1; }
+.afex-success-new-sale:hover { background: var(--afex-pos-emerald); }
+.afex-success-new-sale:active { transform: scale(.99); }
+.afex-success-new-sale:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+@keyframes afex-new-sale-attention { 50% { transform: scale(1.012); } }
+
+.afex-sale-cart [aria-label^='زيادة'] { background: var(--afex-pos-emerald-strong) !important; color: #fffaf0 !important; }
+.afex-sale-cart [aria-label^='تقليل'] { color: #fffaf0 !important; }
+.afex-sale-cart [aria-label^='زيادة']:hover { background: var(--afex-pos-emerald) !important; }
+.afex-sale-cart [aria-label^='زيادة']:disabled,
+.afex-sale-cart [aria-label^='تقليل']:disabled { background: var(--afex-pos-hover) !important; color: var(--afex-pos-text-secondary) !important; }
+.afex-sale-complete-button { background: var(--afex-pos-emerald-strong); color: #fffaf0; box-shadow: none; }
+.afex-sale-complete-button:hover:not(:disabled) { background: var(--afex-pos-emerald); }
+.afex-sale-complete-button:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
+.afex-catalog-continuation { display: flex; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; border-top: 1px solid var(--afex-pos-border); color: var(--afex-pos-text-secondary); font-size: .75rem; font-weight: 800; }
+.afex-catalog-continuation button { min-height: 40px; border: 0; background: transparent; padding: 6px 16px; color: var(--afex-pos-cyan); font: inherit; cursor: pointer; }
+.afex-catalog-continuation button:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
 
 .afex-pos-app-shell { grid-template-columns: minmax(0, 72fr) minmax(248px, 28fr); }
 .afex-pos-brand { color: var(--afex-pos-cyan); letter-spacing: .08em; }

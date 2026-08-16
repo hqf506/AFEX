@@ -86,7 +86,7 @@ export function PosInvoiceSuccessWorkspace(props: Props) {
           </div>
 
           {props.actionMessage ? <p className="afex-success-action-message" role="status">{whatsappStatus(props)}</p> : null}
-          <button type="button" className="afex-success-new-sale" onClick={props.onNewSale}>بدء عملية بيع جديدة</button>
+          <button type="button" className="afex-success-new-sale" onClick={props.onNewSale}><span aria-hidden="true">＋</span>بدء عملية بيع جديدة</button>
           <p className="afex-success-new-sale-note">يمسح مسودة البيع المكتملة فقط، ولا يعيد الطلب السابق.</p>
           <div className="afex-success-footer-status"><span>عودة تلقائية إلى POS خلال <b dir="ltr">00:{String(props.redirectCountdown).padStart(2, '0')}</b></span><button type="button" onClick={props.onBackToPos}>العودة الآن</button></div>
         </section>

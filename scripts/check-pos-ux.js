@@ -58,7 +58,7 @@ assert.ok(
 )
 assert.ok(
   pin.includes('pos-entry-pin') &&
-    pin.includes('Array.from({ length: PIN_LENGTH }') &&
+    pin.includes('getPinIndicatorState(pin.length, PIN_LENGTH)') &&
     pin.includes("const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']") &&
     globalStyles.includes('.pos-entry-pin button'),
   'Employee PIN must preserve four closed indicators, the complete keypad and responsive touch targets'

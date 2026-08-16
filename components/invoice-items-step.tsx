@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type UIEvent,
 } from 'react'
 import { useRouter } from 'next/navigation'
 import { getClientErrorMessage } from '@/lib/api/client-error'
@@ -68,6 +69,10 @@ import {
 } from '@/lib/invoices/sale-draft'
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
+import {
+  mergeUniqueCatalogItems,
+  shouldContinueCatalogLoading,
+} from '@/lib/pos/catalog-continuation'
 
 const POS_HIDDEN_CATEGORY_FILTERS = new Set(['دون فئة'])
 const ADMIN_SYSTEM_SETTINGS_CACHE_KEY = 'admin-system-settings'
@@ -462,6 +467,10 @@ export function InvoiceItemsStep({
   const [catalogRefreshing, setCatalogRefreshing] = useState(false)
   const [catalogError, setCatalogError] = useState(false)
   const [currentCatalogPage, setCurrentCatalogPage] = useState(1)
+  const catalogRequestsRef = useRef(
+    new Map<string, ReturnType<typeof loadBranchInvoiceCatalogPage>>()
+  )
+  const catalogAdvancePendingRef = useRef(false)
   const deferredSearch = useDeferredValue(search)
   const rememberCatalogProducts = useCallback(
     (products: PosInvoiceCatalogProduct[]) => {
@@ -502,7 +511,15 @@ export function InvoiceItemsStep({
           tenantId,
         })
 
-        setCatalogProducts(nextCatalogPage.products)
+        setCatalogProducts((currentProducts) =>
+          variant === 'pos' && currentCatalogPage > 1
+            ? mergeUniqueCatalogItems(
+                currentProducts,
+                nextCatalogPage.products,
+                getNormalizedCatalogItemId
+              )
+            : nextCatalogPage.products
+        )
         rememberCatalogProducts(nextCatalogPage.products)
         setCatalogTotal(nextCatalogPage.total)
 
@@ -536,6 +553,7 @@ export function InvoiceItemsStep({
       invoiceBranchId,
       rememberCatalogProducts,
       tenantId,
+      variant,
     ]
   )
   const [showItemsModal, setShowItemsModal] = useState(false)
@@ -573,6 +591,19 @@ export function InvoiceItemsStep({
   }, [allowed, customerStepHref, router])
 
   useEffect(() => {
+    if (variant !== 'pos') return
+    const resetScroll = window.requestAnimationFrame(() => {
+      setCurrentCatalogPage(1)
+      setCatalogProducts([])
+      setCatalogProductById({})
+      document.querySelectorAll<HTMLElement>('.afex-sale-product-grid').forEach((grid) => {
+        grid.scrollTop = 0
+      })
+    })
+    return () => window.cancelAnimationFrame(resetScroll)
+  }, [activeFilter, deferredSearch, invoiceBranchId, variant])
+
+  useEffect(() => {
     if (!allowed || !ready) return
 
     if (hasUnavailablePosBranchContext) {
@@ -582,6 +613,12 @@ export function InvoiceItemsStep({
     let cancelled = false
 
     const loadCatalog = async () => {
+      const requestKey = [
+        invoiceBranchId,
+        currentCatalogPage,
+        deferredSearch.trim(),
+        activeFilter,
+      ].join(':')
       try {
         const cachedProducts =
           variant === 'pos' || activeFilter !== INVOICE_ALL_FILTER || deferredSearch.trim()
@@ -601,16 +638,29 @@ export function InvoiceItemsStep({
           setCatalogError(false)
         }
 
-        const nextCatalogPage = await loadBranchInvoiceCatalogPage(invoiceBranchId, {
-          page: currentCatalogPage,
-          pageSize: CATALOG_ITEMS_PER_PAGE,
-          search: deferredSearch,
-          category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
-          tenantId,
-        })
+        let catalogRequest = catalogRequestsRef.current.get(requestKey)
+        if (!catalogRequest) {
+          catalogRequest = loadBranchInvoiceCatalogPage(invoiceBranchId, {
+            page: currentCatalogPage,
+            pageSize: CATALOG_ITEMS_PER_PAGE,
+            search: deferredSearch,
+            category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
+            tenantId,
+          })
+          catalogRequestsRef.current.set(requestKey, catalogRequest)
+        }
+        const nextCatalogPage = await catalogRequest
 
         if (!cancelled) {
-          setCatalogProducts(nextCatalogPage.products)
+          setCatalogProducts((currentProducts) =>
+            variant === 'pos' && currentCatalogPage > 1
+              ? mergeUniqueCatalogItems(
+                  currentProducts,
+                  nextCatalogPage.products,
+                  getNormalizedCatalogItemId
+                )
+              : nextCatalogPage.products
+          )
           rememberCatalogProducts(nextCatalogPage.products)
           setCatalogTotal(nextCatalogPage.total)
 
@@ -634,12 +684,17 @@ export function InvoiceItemsStep({
 
         if (!cancelled) {
           setCatalogError(true)
-          setCatalogProducts([])
-          setCatalogTotal(0)
+          if (currentCatalogPage === 1) {
+            setCatalogProducts([])
+            setCatalogTotal(0)
+          }
           setCatalogLoading(false)
           setCatalogRefreshing(false)
           triggerPosFeedback('error')
         }
+      } finally {
+        catalogRequestsRef.current.delete(requestKey)
+        catalogAdvancePendingRef.current = false
       }
     }
 
@@ -788,6 +843,26 @@ export function InvoiceItemsStep({
       .filter((page) => page >= 1 && page <= totalCatalogPages)
       .sort((left, right) => left - right)
   }, [effectiveCatalogPage, totalCatalogPages])
+  const hasMoreCatalogProducts =
+    currentCatalogPage < totalCatalogPages && catalogProducts.length < catalogTotal
+  const loadNextCatalogPage = useCallback(() => {
+    if (
+      catalogAdvancePendingRef.current ||
+      catalogLoading ||
+      catalogRefreshing ||
+      !hasMoreCatalogProducts
+    ) return
+    catalogAdvancePendingRef.current = true
+    setCurrentCatalogPage((current) => Math.min(totalCatalogPages, current + 1))
+  }, [catalogLoading, catalogRefreshing, hasMoreCatalogProducts, totalCatalogPages])
+  const handleCatalogScroll = useCallback(
+    (event: UIEvent<HTMLDivElement>) => {
+      if (shouldContinueCatalogLoading(event.currentTarget)) {
+        loadNextCatalogPage()
+      }
+    },
+    [loadNextCatalogPage]
+  )
 
   const canRenderCatalogImmediately = visibleCatalogProducts.length > 0
 
@@ -1394,7 +1469,10 @@ export function InvoiceItemsStep({
               ) : (
                 <div className="flex h-full min-h-0 flex-col gap-3">
                   {isMobileViewport ? (
-                  <div className="afex-sale-product-grid afex-sale-product-grid--mobile">
+                  <div
+                    className="afex-sale-product-grid afex-sale-product-grid--mobile"
+                    onScroll={handleCatalogScroll}
+                  >
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
@@ -1499,7 +1577,10 @@ export function InvoiceItemsStep({
                     })}
                   </div>
                   ) : (
-                  <div className="afex-sale-product-grid afex-sale-product-grid--desktop">
+                  <div
+                    className="afex-sale-product-grid afex-sale-product-grid--desktop"
+                    onScroll={handleCatalogScroll}
+                  >
                     {paginatedProducts.map((product) => {
                       const normalizedCatalogItemId =
                         getNormalizedCatalogItemId(product)
@@ -1579,35 +1660,28 @@ export function InvoiceItemsStep({
                   </div>
                   )}
 
-                  {totalCatalogPages > 1 ? (
-                    <div className="flex shrink-0 items-center justify-center gap-2 border-t border-cyan-300/10 pt-3">
+                  <div
+                    className="afex-catalog-continuation"
+                    aria-live="polite"
+                    aria-busy={catalogLoading || catalogRefreshing}
+                  >
+                    {catalogLoading && currentCatalogPage > 1 ? (
+                      <span>جارٍ تحميل المزيد...</span>
+                    ) : catalogError && catalogProducts.length > 0 ? (
                       <button
                         type="button"
-                        onClick={() =>
-                          setCurrentCatalogPage((current) => Math.max(1, current - 1))
-                        }
-                        disabled={effectiveCatalogPage === 1}
-                        className="min-h-[44px] rounded-2xl border border-cyan-300/12 bg-[#020817]/70 px-4 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 touch-manipulation"
+                        onClick={() => void forceReloadCatalog({ showRefreshing: true })}
                       >
-                        السابق
+                        تعذر تحميل المزيد — إعادة المحاولة
                       </button>
-                      <span className="rounded-full bg-cyan-300/10 px-4 py-2 text-xs font-black text-cyan-100">
-                        {effectiveCatalogPage} / {totalCatalogPages}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCurrentCatalogPage((current) =>
-                            Math.min(totalCatalogPages, current + 1)
-                          )
-                        }
-                        disabled={effectiveCatalogPage === totalCatalogPages}
-                        className="min-h-[44px] rounded-2xl border border-cyan-300/12 bg-[#020817]/70 px-4 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 touch-manipulation"
-                      >
-                        التالي
+                    ) : hasMoreCatalogProducts ? (
+                      <button type="button" onClick={loadNextCatalogPage}>
+                        تحميل المزيد
                       </button>
-                    </div>
-                  ) : null}
+                    ) : catalogProducts.length > 0 ? (
+                      <span>تم عرض جميع العناصر</span>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </section>
@@ -1768,9 +1842,14 @@ export function InvoiceItemsStep({
                 type="button"
                 onClick={() => router.push(checkoutHref)}
                 disabled={invoiceItems.length === 0}
-                className="h-14 w-full rounded-[22px] bg-emerald-400 text-base font-black text-[#02130c] shadow-[0_0_30px_rgba(52,211,153,0.28)] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none touch-manipulation"
+                className="afex-sale-complete-button h-14 w-full rounded-[22px] text-base font-black transition disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none touch-manipulation"
               >
-                إتمام البيع
+                <span className="inline-flex items-center justify-center gap-2">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.9]">
+                    <path d="M5 6h2l1.4 8.2h8.7l1.7-5.7H8.1M10 19h.01M17 19h.01" />
+                  </svg>
+                  إتمام البيع
+                </span>
               </button>
               <button
                 type="button"

@@ -35,11 +35,6 @@ type Props = {
   onSubmit: () => void
 }
 
-function maskPhone(phone: string) {
-  const digits = phone.replace(/\D/g, '')
-  return digits.length >= 4 ? `••• ••• ${digits.slice(-4)}` : 'غير متوفر'
-}
-
 function paymentHint(method: PosPaymentMethod) {
   if (method === 'mada') return 'شبكة الدفع المحلية'
   if (method === 'cash') return 'أدخل المبلغ المستلم'
@@ -47,11 +42,10 @@ function paymentHint(method: PosPaymentMethod) {
   return 'تحصيل عند الاستلام'
 }
 
-function paymentMark(method: PosPaymentMethod) {
-  if (method === 'mada') return 'M'
-  if (method === 'cash') return 'ر.س'
-  if (method === 'visa') return 'V'
-  return '↗'
+function PaymentIcon({ method }: { method: PosPaymentMethod }) {
+  if (method === 'cash') return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M17 14h.01M12 9v6"/></svg>
+  if (method === 'cod') return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h10V6H4zM14 10h3l3 3v5h-6zM7 18a2 2 0 1 0 0 .01M17 18a2 2 0 1 0 0 .01"/></svg>
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M7 15h4"/></svg>
 }
 
 export function PosCheckoutWorkspace(props: Props) {
@@ -73,10 +67,11 @@ export function PosCheckoutWorkspace(props: Props) {
       <div className="afex-checkout-layout">
         <aside className="afex-checkout-summary">
           <div className="afex-checkout-section-heading"><h2>ملخص الطلب</h2><span>{props.items.length} عناصر</span></div>
-          <div className="afex-checkout-customer"><span>{props.customerName.slice(0, 1) || 'ع'}</span><div><strong>{props.customerName || 'لم يُحدد عميل'}</strong><small dir="ltr">{maskPhone(props.customerPhone)}</small><em>{props.customerId ? 'معرّف العميل مرتبط' : 'العميل غير مكتمل'}</em></div></div>
+          <div className="afex-checkout-customer"><span>{props.customerName.slice(0, 1) || 'ع'}</span><div><strong>{props.customerName || 'لم يُحدد عميل'}</strong><small dir="ltr">{props.customerPhone || 'غير متوفر'}</small><em>{props.customerId ? 'معرّف العميل مرتبط' : 'العميل غير مكتمل'}</em></div></div>
           <div className="afex-checkout-items">
             {props.items.map((item, index) => <div key={item.item_id ?? `${item.item_name}-${index}`}><span><strong>{item.item_name}</strong><small>{item.quantity} × {formatCurrency(item.unit_price)}</small></span><b>{formatCurrency(item.quantity * item.unit_price)}</b></div>)}
           </div>
+          {props.note.trim() ? <div className="afex-checkout-summary-note"><strong>ملاحظة</strong><p>{props.note}</p></div> : null}
           <div className="afex-checkout-totals">
             <div><span>المجموع الفرعي</span><b>{formatCurrency(props.subtotal)}</b></div>
             <div><span>الضريبة</span><b>{formatCurrency(props.taxAmount)}</b></div>
@@ -93,7 +88,7 @@ export function PosCheckoutWorkspace(props: Props) {
           <div className="afex-payment-methods">
             {PAYMENT_METHODS.map((method) => {
               const selected = props.paymentMethod === method.id
-              return <button key={method.id} type="button" aria-pressed={selected} className={selected ? 'is-selected' : ''} disabled={props.loading} onClick={() => props.onPaymentChange(method.id)}><span>{paymentMark(method.id)}</span><div><strong>{method.label}</strong><small>{selected ? 'محدد • ' : ''}{paymentHint(method.id)}</small></div><i aria-hidden="true" /></button>
+              return <button key={method.id} type="button" aria-pressed={selected} className={selected ? 'is-selected' : ''} disabled={props.loading} onClick={() => props.onPaymentChange(method.id)}><span><PaymentIcon method={method.id} /></span><div><strong>{method.label}</strong><small>{selected ? 'محدد • ' : ''}{paymentHint(method.id)}</small></div><i aria-hidden="true" /></button>
             })}
           </div>
 
@@ -111,7 +106,7 @@ export function PosCheckoutWorkspace(props: Props) {
           {props.errorMessage ? <div className="afex-checkout-message is-error" role="alert">{props.errorMessage}</div> : null}
           {props.offlineMessage ? <div className="afex-checkout-message">{props.offlineMessage}</div> : null}
           <div className="afex-checkout-once">يُنشأ الطلب مرة واحدة فقط — لا تغلق الشاشة أثناء المعالجة</div>
-          <button type="button" className="afex-checkout-submit" disabled={!props.canSubmit || props.loading} onClick={props.onSubmit}>{props.loading ? 'جارٍ إنشاء الفاتورة…' : `إنشاء الفاتورة — ${formatCurrency(props.finalTotal)}`}</button>
+          <button type="button" className="afex-checkout-submit" disabled={!props.canSubmit || props.loading} onClick={props.onSubmit}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM15 3v4h4M9 12h6M9 16h6"/></svg><span>{props.loading ? 'جارٍ إنشاء الفاتورة…' : `إنشاء الفاتورة — ${formatCurrency(props.finalTotal)}`}</span></button>
           <p className="afex-checkout-submit-note">لن يُعتبر الطلب ناجحًا قبل استجابة الخادم.</p>
         </section>
       </div>

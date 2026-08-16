@@ -345,7 +345,7 @@ assert(
 )
 assert(
   itemsStep.includes('let cancelled = false') &&
-    /if \(!cancelled\) \{\s+setCatalogProducts\(nextCatalogPage\.products\)/.test(itemsStep) &&
+    /if \(!cancelled\) \{\s+setCatalogProducts\(/.test(itemsStep) &&
     itemsStep.includes('cancelled = true'),
   'Stale Catalog responses must not overwrite a newer Items selection.'
 )

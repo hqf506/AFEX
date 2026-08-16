@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useAuthState } from '@/components/auth-state-provider'
@@ -15,10 +15,11 @@ import {
   endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   writeActivePosEmployee,
-  markPosLoggedOut,
   clearPosLoggedOut,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
+import { getCurrentPosDeviceLabel } from '@/lib/pos/device-label'
+import { getPinIndicatorState } from '@/lib/pos/pin-indicators'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 
@@ -138,10 +139,13 @@ export default function PosEmployeePinPage() {
   const formattedTime = formatPosTime(now)
   const formattedDate = formatPosGregorianDate(now)
 
-  const dots = useMemo(
-    () => Array.from({ length: PIN_LENGTH }, (_, index) => index < pin.length),
-    [pin.length]
-  )
+  const dots = getPinIndicatorState(pin.length, PIN_LENGTH)
+  const [deviceLabel, setDeviceLabel] = useState('جهاز غير معروف')
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDeviceLabel(getCurrentPosDeviceLabel()), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
   const inputDisabled = loading || locked
 
   useEffect(() => {
@@ -491,7 +495,7 @@ export default function PosEmployeePinPage() {
                   <SessionInfoRow icon="branch" label="المنشأة" value={organizationLabel} />
                   <SessionInfoRow icon="date" label="التاريخ" value={formattedDate} />
                   <SessionInfoRow icon="time" label="الوقت" value={formattedTime} />
-                  <SessionInfoRow icon="device" label="الجهاز" value="AFEX Tablet POS" />
+                  <SessionInfoRow icon="device" label="الجهاز" value={deviceLabel} />
                 </div>
               </div>
 
@@ -526,11 +530,11 @@ export default function PosEmployeePinPage() {
                 أدخل رمز الموظف لفتح جلسة نقطة البيع.
               </p>
 
-              <div className="mt-6 flex justify-center gap-7" dir="ltr">
+              <div className={`pos-pin-indicators mt-6 flex justify-center gap-7 ${pin.length === PIN_LENGTH ? 'is-complete' : ''}`} dir="ltr" aria-label={`${pin.length} من ${PIN_LENGTH} أرقام مدخلة`}>
                 {dots.map((filled, index) => (
                   <span
                     key={`pin-dot-${index}`}
-                    className={`h-4 w-4 rounded-full border transition ${
+                    className={`pos-pin-indicator h-4 w-4 rounded-full border transition ${
                       filled
                         ? 'border-cyan-300 bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.65)]'
                         : 'border-cyan-300/70 bg-transparent shadow-[0_0_10px_rgba(34,211,238,0.10)] sm:border-cyan-200/25 sm:bg-[rgba(2,8,23,0.72)]'
