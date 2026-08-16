@@ -646,14 +646,14 @@ body {
   .afex-pos-app-shell.is-pos-home .afex-pos-responsive-header { display: none; }
   .afex-pos-shell-content { height: 100%; }
   .afex-pos-sidebar { display: none; }
-  .afex-pos-responsive-header { position: absolute; inset: 0 0 auto; z-index: 20; display: flex; height: 68px; align-items: center; justify-content: space-between; padding: 0 34px; border-inline-end: 5px solid var(--afex-pos-emerald); background: var(--afex-pos-raised); }
+  .afex-pos-responsive-header { position: absolute; inset: 0 0 auto; z-index: 20; display: flex; height: 68px; align-items: center; justify-content: space-between; padding-block: 0; padding-left: max(24px, env(safe-area-inset-left)); padding-right: max(24px, env(safe-area-inset-right)); border-inline-end: 5px solid var(--afex-pos-emerald); background: var(--afex-pos-raised); }
   .afex-pos-responsive-header strong { font-size: 21px; }
   .afex-pos-responsive-header button { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--afex-pos-text-secondary); font-size: 22px; cursor: pointer; }
   .afex-pos-drawer-backdrop { position: fixed; inset: 0; z-index: 900; display: block; background: rgb(2 7 11 / 0.58); }
   .afex-pos-drawer { position: absolute; inset-block: 0; right: 0; width: min(360px, 92vw); height: 100%; padding: 24px 18px 16px; overflow-y: auto; border-radius: 20px 0 0 20px; box-shadow: var(--afex-pos-shadow-panel); }
 }
 
-.afex-pos-sale-header { grid-column: 1 / -1; min-height: 64px; align-items: center; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 12px; padding: 10px 24px; border-bottom: 1px solid var(--afex-pos-border); background: var(--afex-pos-raised); direction: rtl; }
+.afex-pos-sale-header { grid-column: 1 / -1; min-height: 64px; align-items: center; grid-template-columns: 44px minmax(0, 1fr) max-content; gap: 12px; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); overflow: visible; border-bottom: 1px solid var(--afex-pos-border); background: var(--afex-pos-raised); direction: rtl; }
 .afex-pos-app-shell.is-sale-route { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); padding-top: 0; }
 .afex-pos-app-shell.is-sale-route .afex-pos-sale-header { display: grid; }
 .afex-pos-app-shell.is-sale-route .afex-pos-shell-content { grid-column: 1; grid-row: 2; }
@@ -1284,21 +1284,29 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 .afex-pos-theme-toggle {
   position: static;
   display: inline-flex;
-  min-width: 76px;
+  width: max-content;
+  min-width: 84px;
+  max-width: calc(100vw - max(16px, env(safe-area-inset-left)) - max(16px, env(safe-area-inset-right)));
   min-height: 44px;
+  flex: 0 0 auto;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   gap: 7px;
+  margin: 0;
+  padding-inline: 12px;
+  overflow: visible;
   border: 1px solid var(--afex-pos-border);
   border-radius: 12px;
   background: var(--afex-pos-card);
   color: var(--afex-pos-text);
-  box-shadow: none;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.14);
   font: inherit;
   font-size: 12px;
+  white-space: nowrap;
   cursor: pointer;
 }
-.afex-pos-responsive-actions { display: flex; align-items: center; gap: 8px; }
+.afex-pos-responsive-actions { display: flex; min-width: max-content; flex: 0 0 auto; align-items: center; gap: 8px; overflow: visible; }
 .afex-pos-theme-toggle span { color: var(--afex-pos-cyan); font-size: 17px; }
 .afex-pos-theme-toggle:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
 .afex-pos-theme-toggle:active { transform: scale(.98); }
@@ -1378,6 +1386,11 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 .afex-sale-complete-button:active:not(:disabled) { background: #684a28 !important; transform: scale(.985); }
 .afex-sale-complete-button:disabled { cursor: not-allowed; background: var(--afex-pos-hover) !important; color: var(--afex-pos-text-secondary) !important; opacity: .62; box-shadow: none; }
 .afex-sale-complete-button:disabled :where(span, svg, path) { color: var(--afex-pos-text-secondary) !important; opacity: 1; }
+.afex-sale-cancel-button { min-height: 44px; border-color: color-mix(in srgb, var(--afex-pos-danger) 52%, transparent) !important; background: color-mix(in srgb, var(--afex-pos-danger) 12%, transparent) !important; color: var(--afex-pos-danger) !important; opacity: 1 !important; }
+.afex-sale-cancel-button :where(span, svg, path) { color: var(--afex-pos-danger) !important; opacity: 1 !important; }
+.afex-sale-cancel-button:hover { border-color: var(--afex-pos-danger) !important; background: color-mix(in srgb, var(--afex-pos-danger) 20%, transparent) !important; }
+.afex-sale-cancel-button:focus-visible { outline: 2px solid var(--afex-pos-danger); outline-offset: 3px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--afex-pos-danger) 24%, transparent); }
+.afex-sale-cancel-button:active { background: color-mix(in srgb, var(--afex-pos-danger) 30%, transparent) !important; transform: scale(.985); }
 .afex-catalog-continuation { display: flex; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; border-top: 1px solid var(--afex-pos-border); color: var(--afex-pos-text-secondary); font-size: .75rem; font-weight: 800; }
 .afex-catalog-continuation button { min-height: 40px; border: 0; background: transparent; padding: 6px 16px; color: var(--afex-pos-cyan); font: inherit; cursor: pointer; }
 .afex-catalog-continuation button:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
@@ -1421,8 +1434,7 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 }
 
 @media (max-width: 767px) {
-  .afex-pos-theme-toggle { min-width: 44px; width: 44px; padding: 0; }
-  .afex-pos-theme-toggle b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .afex-pos-theme-toggle { width: max-content; min-width: 84px; padding-inline: 10px; }
   .afex-sale-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .afex-sale-cart { border-radius: 22px 22px 0 0; box-shadow: 0 -16px 42px rgb(0 0 0 / .28); }
   .afex-pos-bottom-nav { border-top: 1px solid var(--afex-pos-border); }

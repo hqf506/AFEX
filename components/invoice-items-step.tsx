@@ -1906,9 +1906,14 @@ export function InvoiceItemsStep({
               <button
                 type="button"
                 onClick={() => setShowCancelModal(true)}
-                className="h-11 w-full rounded-[18px] border border-red-400/16 bg-red-500/8 text-sm font-black text-red-200 transition hover:bg-red-500/14 touch-manipulation"
+                className="afex-sale-cancel-button h-11 w-full rounded-[18px] border text-sm font-black transition touch-manipulation"
               >
-                إلغاء الفاتورة
+                <span className="inline-flex items-center justify-center gap-2">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2]">
+                    <path d="M7 7l10 10M17 7L7 17" />
+                  </svg>
+                  إلغاء الفاتورة
+                </span>
               </button>
             </div>
           </aside>
