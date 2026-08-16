@@ -34,6 +34,7 @@ import {
 import { getRoleLabel } from '@/lib/app-roles'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
 import { formatPosGregorianDate } from '@/lib/pos/date-format'
+import { PosCustomerWorkspace } from '@/components/pos-customer-workspace'
 import { normalizeSaudiCustomerPhone } from '@/lib/customers'
 import { supabase } from '@/lib/supabase/client'
 
@@ -607,6 +608,38 @@ export function InvoiceCustomerStep({
   }
 
   if (variant === 'pos') {
+    return (
+      <>
+        <PosCustomerWorkspace
+          customers={visibleCustomerCards.slice(0, customerListLimit)}
+          loading={customerCardsLoading}
+          error={customerCardsError}
+          searchActive={customerSearch.active}
+          selectedCustomerId={selectedCustomerId}
+          customerName={customerName}
+          customerPhone={customerPhone}
+          canLoadMore={canLoadMoreCustomers}
+          employeeName={employeeDisplayName}
+          backHref={backHref}
+          phoneInputRef={customerPhoneInputRef}
+          addButtonRef={addCustomerButtonRef}
+          onNameChange={(value) => { setCustomerName(value); setSelectedCustomerId(null) }}
+          onPhoneChange={(value) => { setCustomerPhone(value); setSelectedCustomerId(null) }}
+          onSelect={selectExistingCustomer}
+          onChangeCustomer={changeSelectedCustomer}
+          onRemoveCustomer={handleReset}
+          onAddCustomer={openAddCustomerModal}
+          onLoadMore={() => setCustomerListLimit((currentLimit) => currentLimit + 6)}
+          onContinue={handleNext}
+        />
+        {addCustomerOpen ? (
+          <PosAddCustomerModal branchId={customerSearchBranchId} initialName={customerName} initialPhone={customerPhone} onClose={closeAddCustomerModal} onCreated={handleCustomerCreated} />
+        ) : null}
+      </>
+    )
+  }
+
+  if (false) {
     return (
       <div className="pos-customer-motion fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-white [direction:ltr] sm:p-5 xl:p-7">
         <style jsx global>{`

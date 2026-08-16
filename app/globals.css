@@ -411,6 +411,48 @@ body {
   color: var(--afex-pos-text);
 }
 
+.afex-customer-workspace { min-height: 100svh; background: var(--afex-pos-base); color: var(--afex-pos-text); padding: 24px; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.afex-customer-header { max-width: 1360px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.afex-customer-header h1 { margin: 4px 0; font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 900; }
+.afex-customer-header p { color: var(--afex-pos-text-secondary); }
+.afex-customer-eyebrow { color: var(--afex-pos-emerald) !important; font-size: .78rem; font-weight: 900; }
+.afex-customer-operator { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--afex-pos-border); border-radius: 16px; background: var(--afex-pos-raised); }
+.afex-customer-operator > span, .afex-customer-avatar { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 14px; background: color-mix(in srgb, var(--afex-pos-emerald) 14%, transparent); color: var(--afex-pos-emerald); font-weight: 900; }
+.afex-customer-operator div { display: grid; gap: 2px; }.afex-customer-operator small { color: var(--afex-pos-text-secondary); }
+.afex-customer-layout { max-width: 1360px; margin: auto; display: grid; grid-template-columns: minmax(290px, 360px) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+.afex-customer-ticket, .afex-customer-panel { border: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); border-radius: 24px; box-shadow: 0 18px 44px rgb(0 0 0 / .18); }
+.afex-customer-ticket { min-height: 600px; padding: 20px; display: flex; flex-direction: column; }
+.afex-customer-ticket-heading, .afex-customer-search-heading, .afex-customer-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.afex-customer-ticket-heading div { display: grid; gap: 4px; }.afex-customer-ticket-heading span { color: var(--afex-pos-text-secondary); font-size: .78rem; }.afex-customer-ticket-heading strong { font-size: 1.2rem; }
+.afex-customer-ticket-heading > span { border-radius: 999px; border: 1px solid var(--afex-pos-border); padding: 6px 10px; }.afex-customer-ticket-heading > span.is-ready { color: var(--afex-pos-emerald); border-color: color-mix(in srgb, var(--afex-pos-emerald) 38%, transparent); }
+.afex-selected-customer { margin-top: 28px; display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 18px; border: 1px solid var(--afex-pos-emerald); background: color-mix(in srgb, var(--afex-pos-emerald) 7%, var(--afex-pos-card)); }
+.afex-selected-customer-copy, .afex-customer-result-copy { min-width: 0; display: grid; gap: 5px; flex: 1; }.afex-selected-customer-copy span, .afex-customer-result-copy span { text-align: right; color: var(--afex-pos-text-secondary); }.afex-selected-customer-copy small, .afex-customer-result-copy small { color: var(--afex-pos-text-secondary); }
+.afex-selected-check { color: var(--afex-pos-emerald); font-weight: 900; }
+.afex-customer-ticket-empty { margin: auto 0; min-height: 220px; display: grid; place-items: center; align-content: center; gap: 10px; text-align: center; color: var(--afex-pos-text-secondary); }.afex-customer-ticket-empty > span { font-size: 2.4rem; color: var(--afex-pos-emerald); }.afex-customer-ticket-empty strong { color: var(--afex-pos-text); }.afex-customer-ticket-empty p { max-width: 240px; }
+.afex-customer-ticket-actions { display: flex; gap: 10px; margin-top: 16px; }.afex-customer-ticket-actions button { min-height: 44px; flex: 1; border-radius: 14px; border: 1px solid var(--afex-pos-border); }.afex-customer-ticket-actions .is-danger { color: var(--afex-pos-danger); }
+.afex-customer-ticket-footer { margin-top: auto; display: grid; gap: 10px; }.afex-customer-ticket-footer a, .afex-customer-ticket-footer button, .afex-customer-mobile-action button { min-height: 52px; display: grid; place-items: center; border-radius: 15px; font-weight: 900; }.afex-customer-ticket-footer a { border: 1px solid var(--afex-pos-border); }.afex-customer-ticket-footer button, .afex-customer-mobile-action button { background: var(--afex-pos-emerald); color: #03110d; }.afex-customer-ticket-footer button:disabled, .afex-customer-mobile-action button:disabled { opacity: .35; cursor: not-allowed; }
+.afex-customer-panel { min-width: 0; padding: 24px; overflow: hidden; }.afex-customer-search-heading h2 { font-size: 1.5rem; font-weight: 900; }.afex-customer-search-heading p { margin-top: 5px; color: var(--afex-pos-text-secondary); }.afex-customer-search-heading button, .afex-customer-state button { min-height: 44px; padding: 0 16px; border-radius: 14px; background: var(--afex-pos-emerald); color: #03110d; font-weight: 900; white-space: nowrap; }
+.afex-customer-search-grid { margin: 22px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }.afex-customer-search-grid label { display: grid; gap: 8px; color: var(--afex-pos-text-secondary); font-size: .82rem; font-weight: 800; }.afex-customer-search-grid input { width: 100%; height: 56px; border: 1px solid var(--afex-pos-border); border-radius: 15px; background: var(--afex-pos-raised); color: var(--afex-pos-text); padding: 0 16px; outline: none; }.afex-customer-search-grid input:focus { border-color: var(--afex-pos-emerald); box-shadow: 0 0 0 3px color-mix(in srgb, var(--afex-pos-emerald) 18%, transparent); }
+.afex-customer-results-heading { padding-bottom: 12px; border-bottom: 1px solid var(--afex-pos-border); }.afex-customer-results-heading span { color: var(--afex-pos-text-secondary); font-size: .8rem; }
+.afex-customer-results { display: grid; gap: 10px; padding-top: 12px; max-height: 465px; overflow-y: auto; overscroll-behavior: contain; }
+.afex-customer-result { width: 100%; min-height: 82px; display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--afex-pos-border); border-radius: 17px; background: var(--afex-pos-card); text-align: right; transition: border-color .15s, background .15s; }.afex-customer-result:hover { background: var(--afex-pos-hover); }.afex-customer-result.is-selected { border-color: var(--afex-pos-emerald); background: color-mix(in srgb, var(--afex-pos-emerald) 7%, var(--afex-pos-card)); }.afex-customer-result-action { min-width: 84px; color: var(--afex-pos-emerald); font-size: .78rem; font-weight: 900; text-align: left; }
+.afex-customer-state { min-height: 240px; display: grid; place-items: center; align-content: center; gap: 8px; border: 1px dashed var(--afex-pos-border); border-radius: 18px; text-align: center; color: var(--afex-pos-text-secondary); }.afex-customer-state strong { color: var(--afex-pos-text); }.afex-customer-state.is-error { border-color: color-mix(in srgb, var(--afex-pos-danger) 45%, transparent); }.afex-customer-state.is-error strong { color: var(--afex-pos-danger); }
+.afex-customer-skeleton { height: 82px; border-radius: 17px; background: linear-gradient(90deg, var(--afex-pos-card), var(--afex-pos-hover), var(--afex-pos-card)); background-size: 200% 100%; animation: afex-customer-pulse 1.3s infinite; }@keyframes afex-customer-pulse { to { background-position: -200% 0; } }
+.afex-customer-load-more { width: 100%; min-height: 44px; margin-top: 12px; border: 1px solid var(--afex-pos-border); border-radius: 14px; color: var(--afex-pos-emerald); font-weight: 800; }
+.afex-customer-mobile-action { display: none; }
+
+@media (max-width: 1100px) { .afex-customer-layout { grid-template-columns: 307px minmax(0, 1fr); }.afex-customer-workspace { padding: 18px; }.afex-customer-panel { padding: 18px; } }
+@media (max-width: 700px) {
+  .afex-customer-workspace { padding: 16px 16px calc(88px + env(safe-area-inset-bottom)); }
+  .afex-customer-header { align-items: flex-start; }.afex-customer-header > div > p:last-child, .afex-customer-operator div { display: none; }.afex-customer-operator { padding: 6px; }
+  .afex-customer-layout { display: block; }.afex-customer-ticket { min-height: 0; padding: 14px; margin-bottom: 12px; }.afex-customer-ticket-empty, .afex-customer-ticket-footer { display: none; }.afex-selected-customer { margin-top: 12px; }.afex-customer-ticket-actions { margin-top: 10px; }
+  .afex-customer-panel { padding: 16px; border-radius: 20px; }.afex-customer-search-heading { align-items: flex-start; }.afex-customer-search-heading p { display: none; }.afex-customer-search-heading button { padding: 0 12px; }
+  .afex-customer-search-grid { grid-template-columns: 1fr; margin: 16px 0; }.afex-customer-results { max-height: none; overflow: visible; }.afex-customer-result { min-height: 88px; }.afex-customer-result-action { min-width: 70px; }
+  .afex-customer-mobile-action { position: fixed; z-index: 70; inset-inline: 0; bottom: 0; display: block; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--afex-pos-base) 94%, transparent); border-top: 1px solid var(--afex-pos-border); backdrop-filter: blur(16px); }.afex-customer-mobile-action button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) { .afex-customer-skeleton { animation: none; } }
+
 .afex-sale-layout {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
