@@ -783,10 +783,26 @@ body {
 .afex-success-mobile-card { display: none; }
 
 @media (max-width: 1100px) { .afex-success-layout { grid-template-columns: 420px minmax(0, 458px); gap: 62px; padding: 24px 32px; }.afex-success-receipt { min-height: 610px; }.afex-success-title > span { width: 66px; height: 66px; font-size: 1.6rem; }.afex-success-title h2 { font-size: 1.5rem; }.afex-success-actions > h3 { margin-top: 32px; } }
-@media (max-width: 900px) {
-  .afex-success-workspace { padding-bottom: calc(210px + env(safe-area-inset-bottom)); }.afex-success-header { min-height: 64px; padding: 10px 20px; }.afex-success-header h1 { font-size: 1.25rem; }.afex-success-header span { display: none; }
-  .afex-success-layout { display: block; padding: 20px 16px; }.afex-success-title > span { width: 68px; height: 68px; margin-bottom: 12px; }.afex-success-title h2 { font-size: 1.5rem; }.afex-success-title p { display: none; }.afex-success-mobile-card { margin-top: 20px; padding: 16px; display: grid; gap: 12px; border: 1px solid var(--afex-pos-border); border-radius: 14px; background: var(--afex-pos-panel); }.afex-success-mobile-card > div { display: flex; justify-content: space-between; gap: 16px; }.afex-success-mobile-card > div + div { padding-top: 12px; border-top: 1px solid var(--afex-pos-border); }.afex-success-mobile-card span, .afex-success-mobile-card p { color: var(--afex-pos-text-secondary); font-size: .75rem; }.afex-success-mobile-card b { text-align: left; overflow-wrap: anywhere; }.afex-success-mobile-card p { margin-top: 4px; }
-  .afex-success-actions > h3 { display: none; }.afex-success-action-grid { margin-top: 24px; }.afex-success-action-grid button { padding: 12px; }.afex-success-receipt { display: none; min-height: 0; margin-top: 16px; padding: 16px; }.afex-success-receipt.is-open { display: flex; }.afex-success-action-message { margin-bottom: 8px; }.afex-success-new-sale { position: fixed; z-index: 70; inset-inline: 16px; bottom: max(92px, env(safe-area-inset-bottom)); width: calc(100% - 32px); margin: 0; }.afex-success-new-sale-note { position: fixed; z-index: 69; inset-inline: 16px; bottom: max(66px, env(safe-area-inset-bottom)); }.afex-success-footer-status { position: fixed; z-index: 68; inset-inline: 0; bottom: 0; min-height: 56px; margin: 0; padding: 6px 16px max(6px, env(safe-area-inset-bottom)); align-items: center; background: var(--afex-pos-raised); border-top: 1px solid var(--afex-pos-border); }.afex-success-footer-status button { min-height: 44px; }
+@media (max-width: 932px) {
+  .afex-success-workspace { min-height: 100dvh; padding-bottom: calc(5rem + env(safe-area-inset-bottom)); overflow-x: clip; }.afex-success-header { min-height: 64px; padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left)); }.afex-success-header h1 { font-size: 1.25rem; }.afex-success-header span { display: none; }
+  .afex-success-layout { display: flex; min-width: 0; flex-direction: column; gap: 18px; padding: 20px 16px 0; }.afex-success-actions { display: flex; min-width: 0; flex-direction: column; gap: 14px; }.afex-success-title > span { width: 68px; height: 68px; margin-bottom: 12px; }.afex-success-title h2 { font-size: 1.5rem; }.afex-success-title p { display: none; }.afex-success-mobile-card { margin-top: 0; padding: 16px; display: grid; gap: 12px; border: 1px solid var(--afex-pos-border); border-radius: 14px; background: var(--afex-pos-panel); }.afex-success-mobile-card > div { min-width: 0; display: flex; justify-content: space-between; gap: 16px; }.afex-success-mobile-card > div + div { padding-top: 12px; border-top: 1px solid var(--afex-pos-border); }.afex-success-mobile-card span, .afex-success-mobile-card p { color: var(--afex-pos-text-secondary); font-size: .75rem; }.afex-success-mobile-card b { min-width: 0; text-align: left; overflow-wrap: anywhere; }.afex-success-mobile-card p { margin-top: 4px; overflow-wrap: anywhere; }
+  .afex-success-actions > h3 { display: none; }.afex-success-action-grid { margin-top: 0; gap: 12px; }.afex-success-action-grid button { min-width: 0; min-height: 68px; padding: 12px; }.afex-success-receipt { order: 2; display: none; min-height: 0; margin-top: 0; padding: 16px; }.afex-success-receipt.is-open { display: flex; }.afex-success-receipt.is-open .afex-success-items { max-height: none; overflow: visible; }.afex-success-action-message { margin: 0; }.afex-success-new-sale { position: static; z-index: auto; inset: auto; width: 100%; margin: 2px 0 0; flex: 0 0 auto; }.afex-success-new-sale-note { position: static; z-index: auto; inset: auto; margin: 0; padding-inline: 8px; line-height: 1.65; }.afex-success-footer-status { position: static; z-index: auto; inset: auto; min-width: 0; min-height: 56px; margin: 0; padding: 10px 0 0; align-items: center; border-top: 1px solid var(--afex-pos-border); background: transparent; }.afex-success-footer-status span { min-width: 0; line-height: 1.6; }.afex-success-footer-status button { min-height: 44px; flex: 0 0 auto; }
+}
+
+@media (max-width: 359px) {
+  .afex-success-action-grid { grid-template-columns: 1fr; }
+  .afex-success-action-grid button.is-whatsapp { grid-column: auto; }
+}
+
+@media (max-width: 932px) {
+  .pos-order-status-header { width: 100%; min-width: 0; padding-inline: max(0px, env(safe-area-inset-left)) max(0px, env(safe-area-inset-right)); }
+  .pos-order-status-header > div { min-width: 0; }
+  .pos-order-status-header h1 { font-size: clamp(1.35rem, 7vw, 1.625rem); }
+  .pos-order-back-button { min-width: 48px; max-width: 48px; margin: 0; }
+  .pos-order-status-card { width: 100%; min-height: 150px; max-width: 100%; }
+  .pos-order-card-head > * { min-width: 0; }
+  .pos-order-status-badge { max-width: none; overflow: visible; text-overflow: clip; }
+  .pos-order-card-actions button { min-width: 0; width: 100%; white-space: normal; line-height: 1.25; }
 }
 
 @media (prefers-reduced-motion: reduce) { .afex-customer-skeleton { animation: none; } }

@@ -273,7 +273,7 @@ export default function PosOrderStatusPage() {
   const hasBranchContext = Boolean(access.tenantId && access.branchId)
 
   return (
-    <div className="fixed inset-0 h-[100svh] overflow-hidden bg-[#020817] text-white [direction:rtl]">
+    <div className="min-h-[100dvh] w-full overflow-x-clip bg-[#020817] text-white [direction:rtl]">
       <style jsx global>{`
         @keyframes pos-order-status-exit {
           to { opacity: 0; transform: translateY(-8px); }
@@ -288,9 +288,9 @@ export default function PosOrderStatusPage() {
         }
       `}</style>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,#020817_0%,#041224_56%,#020817_100%)]" />
-      <main className="pos-order-status-page relative h-full overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-8">
+      <main className="pos-order-status-page relative min-h-[100dvh] w-full min-w-0 overflow-x-clip px-4 pb-[max(5rem,calc(1.25rem+env(safe-area-inset-bottom)))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-5xl">
-          <header className="flex items-start justify-between gap-4">
+          <header className="pos-order-status-header flex min-w-0 items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-cyan-300/10 text-cyan-300 shadow-[0_0_22px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.24)]"><ClipboardStatusIcon /></span>
               <div>
@@ -298,7 +298,7 @@ export default function PosOrderStatusPage() {
                 <p className="mt-1 text-sm font-bold text-slate-400">طلبات فرعك الحالي</p>
               </div>
             </div>
-            <button type="button" onClick={() => router.push('/pos')} className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-white/[0.035] text-xl text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 active:scale-95" aria-label="العودة إلى نقطة البيع">←</button>
+            <button type="button" onClick={() => router.push('/pos')} className="pos-order-back-button grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-white/[0.035] text-xl text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 active:scale-95" aria-label="العودة إلى نقطة البيع">←</button>
           </header>
 
           <div className="mt-6 flex gap-3">
@@ -330,15 +330,15 @@ export default function PosOrderStatusPage() {
                 const preparing = order.status === 'in_progress'
 
                 return (
-                  <article key={order.id} className={`rounded-[22px] bg-white/[0.035] p-4 shadow-[0_16px_42px_rgba(0,0,0,0.16),inset_0_0_0_1px_rgba(34,211,238,0.12)] ${exitingOrderIds[order.id] ? 'animate-[pos-order-status-exit_180ms_ease-in_forwards]' : ''}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0"><p className="break-words text-lg font-black text-white [overflow-wrap:anywhere]">{order.order_number}</p><p className="mt-1 truncate text-sm font-bold text-slate-300">{order.customer_name || 'بدون اسم'}</p><p className="mt-1 text-xs font-bold text-slate-500">{formatRelativeOrderTime(order.created_at, now)}</p></div>
-                      <span className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${statusUi.badgeClassName}`}><span className={`h-1.5 w-1.5 rounded-full ${statusUi.dotClassName}`} />{statusUi.label}</span>
+                  <article key={order.id} className={`pos-order-status-card min-w-0 overflow-hidden rounded-[20px] bg-white/[0.035] p-4 shadow-[0_12px_30px_rgba(0,0,0,0.13),inset_0_0_0_1px_rgba(34,211,238,0.12)] ${exitingOrderIds[order.id] ? 'animate-[pos-order-status-exit_180ms_ease-in_forwards]' : ''}`}>
+                    <div className="pos-order-card-head grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                      <div className="min-w-0"><p dir="ltr" className="break-words text-right text-base font-black text-white [overflow-wrap:anywhere]">{order.order_number}</p><p className="mt-1 truncate text-sm font-bold text-slate-300">{order.customer_name || 'بدون اسم'}</p><p className="mt-1 text-xs font-bold text-slate-500">{formatRelativeOrderTime(order.created_at, now)}</p></div>
+                      <span className={`pos-order-status-badge inline-flex min-w-0 max-w-full shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-black ${statusUi.badgeClassName}`}><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusUi.dotClassName}`} />{statusUi.label}</span>
                     </div>
 
-                    <div className="mt-5 grid grid-cols-2 gap-2.5">
-                      <button type="button" onClick={() => void updateOrderStatus(order, 'ready')} disabled={!preparing || updating} className={`min-h-[50px] rounded-[17px] px-2 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:cursor-not-allowed ${preparing && !updating ? 'bg-cyan-300/15 text-cyan-50 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.45)] active:scale-[0.98]' : 'bg-white/[0.025] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.10)]'}`}>{!preparing ? '✓ تم التجهيز' : updating ? 'جارٍ التحديث...' : 'تم التجهيز'}</button>
-                      <button type="button" onClick={() => void updateOrderStatus(order, 'closed')} disabled={preparing || updating} className={`min-h-[50px] rounded-[17px] px-2 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200/70 disabled:cursor-not-allowed ${!preparing && !updating ? 'bg-emerald-400/15 text-emerald-50 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.42)] active:scale-[0.98]' : 'bg-white/[0.025] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.10)]'}`}>{updating ? 'جارٍ التحديث...' : 'تم التسليم'}</button>
+                    <div className="pos-order-card-actions mt-4 grid grid-cols-2 gap-2.5">
+                      <button type="button" onClick={() => void updateOrderStatus(order, 'ready')} disabled={!preparing || updating} className={`min-h-[48px] min-w-0 rounded-[15px] px-2 text-[13px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:cursor-not-allowed ${preparing && !updating ? 'bg-cyan-300/15 text-cyan-50 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.45)] active:scale-[0.98]' : 'bg-white/[0.025] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.10)]'}`}>{!preparing ? '✓ تم التجهيز' : updating ? 'جارٍ التحديث...' : 'تم التجهيز'}</button>
+                      <button type="button" onClick={() => void updateOrderStatus(order, 'closed')} disabled={preparing || updating} className={`min-h-[48px] min-w-0 rounded-[15px] px-2 text-[13px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200/70 disabled:cursor-not-allowed ${!preparing && !updating ? 'bg-emerald-400/15 text-emerald-50 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.42)] active:scale-[0.98]' : 'bg-white/[0.025] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.10)]'}`}>{updating ? 'جارٍ التحديث...' : 'تم التسليم'}</button>
                     </div>
                     {orderErrors[order.id] ? <p role="alert" className="mt-3 text-xs font-bold leading-5 text-red-200">{orderErrors[order.id]}</p> : null}
                   </article>
