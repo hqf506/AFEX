@@ -134,7 +134,8 @@ function PosHardwareIllustration() {
 export default function PosLoginPage() {
   const router = useRouter()
   const authState = useAuthState()
-  const isMobileViewport = useMobileViewport()
+  const isMobileViewport = useMobileViewport(true)
+  const pinNavigationStartedRef = useRef(false)
   const usernameInputRef = useRef<HTMLInputElement | null>(null)
   const passwordInputRef = useRef<HTMLInputElement | null>(null)
   const [username, setUsername] = useState('')
@@ -162,7 +163,10 @@ export default function PosLoginPage() {
         return
       }
 
-      router.replace('/pos/employee-pin')
+      if (!pinNavigationStartedRef.current) {
+        pinNavigationStartedRef.current = true
+        router.replace('/pos/employee-pin')
+      }
       return
     }
 
@@ -238,7 +242,10 @@ export default function PosLoginPage() {
       await new Promise((resolve) => window.setTimeout(resolve, 50))
       clearActivePosEmployee()
       clearPosLoggedOut()
-      window.location.href = '/pos/employee-pin'
+      if (!pinNavigationStartedRef.current) {
+        pinNavigationStartedRef.current = true
+        router.replace('/pos/employee-pin')
+      }
     } catch (loginError) {
       setError(
         loginError instanceof TypeError
@@ -306,7 +313,7 @@ export default function PosLoginPage() {
             <form onSubmit={handleLogin} className="space-y-5">
               <label className="block" htmlFor="pos-mobile-login-username">
                 <span className="mb-2 block text-sm font-black text-slate-200">اسم المستخدم</span>
-                <span className="group flex min-h-[58px] items-center gap-3 rounded-[20px] bg-[#020817]/75 px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] transition focus-within:shadow-[0_0_20px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.38)]">
+                <span className="pos-login-field group flex min-h-[58px] w-full min-w-0 items-center gap-3 overflow-hidden rounded-[20px] bg-[#020817]/75 px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] transition focus-within:shadow-[0_0_20px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.38)]">
                   <UserIcon className="h-5 w-5 shrink-0 text-slate-400 group-focus-within:text-cyan-300" />
                   <input
                     id="pos-mobile-login-username"
@@ -326,7 +333,7 @@ export default function PosLoginPage() {
 
               <label className="block" htmlFor="pos-mobile-login-password">
                 <span className="mb-2 block text-sm font-black text-slate-200">كلمة المرور</span>
-                <span className="group flex min-h-[58px] items-center gap-3 rounded-[20px] bg-[#020817]/75 px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] transition focus-within:shadow-[0_0_20px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.38)]">
+                <span className="pos-login-field group flex min-h-[58px] w-full min-w-0 items-center gap-3 overflow-hidden rounded-[20px] bg-[#020817]/75 px-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] transition focus-within:shadow-[0_0_20px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.38)]">
                   <LockIcon className="h-5 w-5 shrink-0 text-slate-400 group-focus-within:text-cyan-300" />
                   <input
                     id="pos-mobile-login-password"

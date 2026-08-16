@@ -443,7 +443,25 @@ body {
 }
 
 .pos-entry-login input {
-  min-height: 48px;
+  min-height: 52px;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: max(16px, 1rem);
+}
+
+.pos-entry-login .pos-login-field {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--afex-pos-border);
+  background: var(--afex-pos-card) !important;
+}
+
+.pos-entry-login .pos-login-field:focus-within {
+  border-color: var(--afex-pos-cyan) !important;
 }
 
 .pos-entry-pin button {
@@ -475,6 +493,19 @@ body {
 @media (max-width: 767px) {
   .pos-entry-login {
     padding-inline: 16px !important;
+    min-width: 0;
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pos-entry-login > div:last-child,
+  .pos-entry-login section,
+  .pos-entry-login form,
+  .pos-entry-login label {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
   }
 
   .pos-entry-login section[class*='rounded'],

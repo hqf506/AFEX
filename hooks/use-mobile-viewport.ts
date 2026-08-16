@@ -15,14 +15,18 @@ function getMobileViewportSnapshot() {
   return window.matchMedia(MOBILE_VIEWPORT_QUERY).matches
 }
 
-function getServerMobileViewportSnapshot() {
+function getDesktopServerSnapshot() {
   return false
 }
 
-export function useMobileViewport() {
+function getMobileServerSnapshot() {
+  return true
+}
+
+export function useMobileViewport(serverMobileFirst = false) {
   return useSyncExternalStore(
     subscribeToMobileViewport,
     getMobileViewportSnapshot,
-    getServerMobileViewportSnapshot
+    serverMobileFirst ? getMobileServerSnapshot : getDesktopServerSnapshot
   )
 }

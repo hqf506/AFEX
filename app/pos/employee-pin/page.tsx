@@ -104,6 +104,7 @@ function SessionInfoRow({
 
 export default function PosEmployeePinPage() {
   const router = useRouter()
+  const redirectTargetRef = useRef<'/pos/login' | '/pos' | null>(null)
   const authState = useAuthState()
   const verifyingPinRef = useRef('')
   const clearPinTimeoutRef = useRef<number | null>(null)
@@ -178,12 +179,16 @@ export default function PosEmployeePinPage() {
     }
 
     if (hasPosLoggedOut()) {
-      router.replace('/pos/login')
+      if (!redirectTargetRef.current) {
+        redirectTargetRef.current = '/pos/login'
+        router.replace('/pos/login')
+      }
       return
     }
 
     if (!authState.profile) {
-      router.replace('/pos/login')
+      // The protected shell owns unauthenticated-route navigation. Keeping one
+      // redirect authority prevents duplicate replaces during auth hydration.
       return
     }
 
@@ -198,7 +203,10 @@ export default function PosEmployeePinPage() {
 
     if (activeEmployee) {
       if (activeEmployee.branch_id === currentBranchId) {
-        router.replace('/pos')
+        if (!redirectTargetRef.current) {
+          redirectTargetRef.current = '/pos'
+          router.replace('/pos')
+        }
         return
       }
 
