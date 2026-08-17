@@ -445,6 +445,15 @@ body {
 .pos-history-gate { display: grid; place-items: center; font-weight: 900; }
 .pos-invoice-history { width: 100%; overflow-x: clip; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
 .pos-invoice-history > main { width: min(100%, 1120px); margin-inline: auto; }
+.afex-pos-shell-content:has(.pos-order-history-page) { overflow: hidden; }
+.afex-pos-shell-content:has(.pos-order-history-page) > .afex-pos-route-content { height: 100%; min-height: 0; overflow: hidden; }
+.pos-order-history-page { height: 100%; min-height: 0; overflow: hidden; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.pos-order-history-page > main { display: grid; height: 100%; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+.pos-order-history-controls { position: relative; z-index: 2; min-width: 0; border-bottom: 1px solid var(--afex-pos-border); background: var(--afex-pos-base); padding-bottom: 12px; }
+.pos-order-history-scroll { min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-bottom: 0; }
+.pos-order-history-scroll > .pos-history-grid { margin-block: 12px 0; }
+.pos-order-history-scroll > .pos-history-empty,
+.pos-order-history-scroll > .pos-history-error { margin-top: 12px; }
 .pos-history-header, .pos-history-tools, .pos-history-card-top, .pos-invoice-sheet header, .pos-invoice-customer, .pos-invoice-totals > div, .pos-invoice-payment > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pos-history-heading { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .pos-history-heading > span { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border: 1px solid var(--afex-pos-border); border-radius: 16px; background: var(--afex-pos-raised); color: var(--afex-pos-bronze); }
@@ -487,6 +496,10 @@ body {
 
 @media (max-width: 820px) { .pos-history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 540px) { .pos-invoice-history { padding-inline: max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-left)); }.pos-history-grid { grid-template-columns: 1fr; }.pos-history-tools { align-items: stretch; }.pos-history-tools > button { padding-inline: 12px; }.pos-history-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
+  .afex-pos-app-shell:has(.pos-order-history-page) { padding-bottom: 0; }
+}
 
 .pos-drafts-page { display: flex; min-height: 100dvh; min-width: 0; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
 .pos-drafts-panel { display: flex; width: min(100%, 1040px); min-height: 0; margin-inline: auto; flex: 1 1 auto; flex-direction: column; border: 1px solid var(--afex-pos-border); border-radius: 24px; background: var(--afex-pos-panel); padding: 14px; box-shadow: var(--afex-pos-shadow-panel); }
