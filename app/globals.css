@@ -236,20 +236,19 @@ body {
 /* ================== AFEX POS responsive shell ================== */
 
 .pos-operational-home {
-  height: 100%;
-  min-height: 100%;
+  min-height: 0;
   background: var(--afex-pos-base);
   color: var(--afex-pos-text);
-  overflow: auto;
+  overflow: visible;
 }
 
-.afex-pos-route-content:has(.pos-operational-home) { height: 100%; }
+.afex-pos-route-content:has(.pos-operational-home) { height: auto; min-height: 0; }
 
 .pos-operational-canvas {
   display: grid;
   gap: 18px;
   width: min(100%, 1320px);
-  min-height: 100%;
+  min-height: 0;
   margin: 0 auto;
   padding: 24px 28px 32px;
 }
@@ -344,7 +343,7 @@ body {
 }
 
 @media (max-width: 767px) {
-  .pos-operational-canvas { gap: 14px; padding: 14px 14px max(22px, env(safe-area-inset-bottom)); }
+  .pos-operational-canvas { gap: 14px; padding: 14px; }
   .pos-operational-header { min-height: 74px; gap: 12px; }
   .pos-operational-heading h1 { max-width: 210px; font-size: 20px; }
   .pos-operational-heading > p { max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -823,7 +822,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) { .afex-customer-skeleton { animation: none; } }
 
-.afex-checkout-workspace { min-height: 100svh; background: var(--afex-pos-base); color: var(--afex-pos-text); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.afex-checkout-workspace { min-height: 100%; background: var(--afex-pos-base); color: var(--afex-pos-text); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
 .afex-checkout-header { min-height: 72px; padding: 12px 32px; border-inline-start: 5px solid var(--afex-pos-emerald); background: var(--afex-pos-raised); display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .afex-checkout-header p { color: var(--afex-pos-text-secondary); font-size: .78rem; }.afex-checkout-header h1 { font-size: 1.45rem; font-weight: 900; }.afex-checkout-header button { min-height: 44px; color: var(--afex-pos-cyan); font-weight: 800; }
 .afex-checkout-layout { max-width: 1380px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 48px; }
@@ -838,15 +837,17 @@ body {
 .afex-cash-fields { margin-top: 20px; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }.afex-cash-fields label, .afex-cash-fields > div { min-height: 82px; padding: 12px; border: 1px solid var(--afex-pos-border); border-radius: 13px; display: grid; gap: 6px; }.afex-cash-fields span { color: var(--afex-pos-text-secondary); font-size: .78rem; }.afex-cash-fields input { min-width: 0; min-height: 44px; background: transparent; color: var(--afex-pos-text); font-size: 1.2rem; font-weight: 900; outline: none; }.afex-cash-fields .is-warning { border-color: color-mix(in srgb, var(--afex-pos-warning) 55%, transparent); }.afex-cash-fields .is-warning b, .afex-checkout-warning { color: var(--afex-pos-warning); }.afex-checkout-warning { margin-top: 10px; font-size: .8rem; font-weight: 800; }
 .afex-checkout-options { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }.afex-checkout-options label, .afex-discount-options { display: grid; gap: 7px; color: var(--afex-pos-text-secondary); font-size: .8rem; font-weight: 800; }.afex-checkout-options textarea { width: 100%; min-height: 70px; border: 1px solid var(--afex-pos-border); border-radius: 12px; background: var(--afex-pos-card); color: var(--afex-pos-text); padding: 10px 12px; resize: vertical; max-height: 100px; }.afex-checkout-options small { min-height: 16px; }.afex-discount-options > div { display: flex; gap: 6px; overflow-x: auto; }.afex-discount-options button { min-height: 44px; padding: 0 12px; border: 1px solid var(--afex-pos-border); border-radius: 11px; white-space: nowrap; }.afex-discount-options button.is-selected { border-color: var(--afex-pos-emerald); color: var(--afex-pos-emerald); }
 .afex-checkout-message, .afex-checkout-once { margin-top: 12px; padding: 10px 14px; border: 1px solid var(--afex-pos-border); border-radius: 10px; color: var(--afex-pos-text-secondary); font-size: .78rem; }.afex-checkout-message.is-error { color: var(--afex-pos-danger); border-color: color-mix(in srgb, var(--afex-pos-danger) 45%, transparent); }.afex-checkout-once::before { content: ''; display: inline-block; width: 10px; height: 14px; margin-inline-end: 9px; border-radius: 3px; background: var(--afex-pos-emerald); vertical-align: middle; }
-.afex-checkout-submit { width: 100%; min-height: 56px; margin-top: 14px; border-radius: 12px; background: var(--afex-pos-emerald); color: var(--afex-pos-base); font-weight: 900; }.afex-checkout-submit:disabled { opacity: .38; cursor: not-allowed; }.afex-checkout-submit-note { margin-top: 7px; color: var(--afex-pos-text-secondary); text-align: center; font-size: .72rem; }.afex-checkout-mobile-summary { display: none; }
+.afex-checkout-action-dock { margin-top: 14px; background: var(--afex-pos-panel); }
+.afex-checkout-submit { width: 100%; min-height: 56px; border-radius: 12px; background: var(--afex-pos-emerald); color: var(--afex-pos-base); font-weight: 900; }.afex-checkout-submit:disabled { opacity: .38; cursor: not-allowed; }.afex-checkout-submit-note { margin-top: 7px; color: var(--afex-pos-text-secondary); text-align: center; font-size: .72rem; }.afex-checkout-mobile-summary { display: none; }
 
 @media (max-width: 1199px) { .afex-checkout-layout { grid-template-columns: minmax(286px, 338px) minmax(0, 1fr); gap: 24px; padding: 20px 24px; }.afex-payment-methods { grid-template-columns: repeat(2, minmax(0, 1fr)); }.afex-payment-methods button { min-height: 104px; padding: 14px; gap: 10px; }.afex-payment-methods button small { display: block; white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }.afex-checkout-summary { min-height: 604px; } }
 @media (pointer: coarse) and (max-width: 1366px) { .afex-payment-methods { grid-template-columns: repeat(2, minmax(0, 1fr)); }.afex-payment-methods button { min-height: 104px; }.afex-payment-methods button small { white-space: normal; overflow: visible; text-overflow: clip; } }
 @media (max-width: 700px) {
-  .afex-checkout-workspace { padding-bottom: calc(140px + env(safe-area-inset-bottom)); }.afex-checkout-header { padding: 10px 16px; }.afex-checkout-header p { display: none; }.afex-checkout-header h1 { font-size: 1.35rem; }.afex-checkout-header button { min-width: 44px; font-size: 0; }.afex-checkout-header button::after { content: '‹'; font-size: 2rem; color: var(--afex-pos-text-secondary); }
-  .afex-checkout-layout { display: block; padding: 18px 16px; }.afex-checkout-summary { display: none; }.afex-checkout-due { text-align: center; }.afex-checkout-due strong { font-size: 2.25rem; }.afex-checkout-mobile-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; margin-bottom: 20px; color: var(--afex-pos-text-secondary); font-size: .78rem; }.afex-checkout-mobile-summary b { text-align: left; }.afex-checkout-mobile-summary button { grid-column: 1/-1; min-height: 44px; border-top: 1px solid var(--afex-pos-border); color: var(--afex-pos-cyan); font-weight: 800; }
+  .afex-checkout-workspace { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }.afex-checkout-header { padding: 10px 16px; }.afex-checkout-header p { display: none; }.afex-checkout-header h1 { font-size: 1.35rem; }.afex-checkout-header button { min-width: 44px; font-size: .75rem; }
+  .afex-checkout-layout { display: block; padding: 18px 16px 0; }.afex-checkout-summary { display: none; }.afex-checkout-due { text-align: center; }.afex-checkout-due strong { font-size: 2.25rem; }.afex-checkout-mobile-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; margin-bottom: 20px; color: var(--afex-pos-text-secondary); font-size: .78rem; }.afex-checkout-mobile-summary b { text-align: left; }.afex-checkout-mobile-summary button { grid-column: 1/-1; min-height: 44px; border-top: 1px solid var(--afex-pos-border); color: var(--afex-pos-cyan); font-weight: 800; }
   .afex-payment-methods { grid-template-columns: 1fr 1fr; }.afex-payment-methods button { min-height: 104px; }.afex-payment-methods button:first-child { grid-column: auto; }.afex-payment-detail { padding: 16px; }.afex-payment-detail-heading > strong { font-size: 1.4rem; }.afex-payment-detail-heading p { font-size: .78rem; }.afex-cash-fields { grid-template-columns: 1fr; }.afex-checkout-options { grid-template-columns: 1fr; }
-  .afex-checkout-submit { position: fixed; z-index: 70; inset-inline: 16px; bottom: max(56px, env(safe-area-inset-bottom)); width: calc(100% - 32px); }.afex-checkout-submit-note { position: fixed; z-index: 69; inset-inline: 16px; bottom: max(26px, env(safe-area-inset-bottom)); }
+  .afex-checkout-action-dock { position: fixed; z-index: 70; inset-inline: 0; bottom: 0; margin: 0; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); }
+  .afex-checkout-submit { position: static; width: 100%; min-height: 56px; }
 }
 
 .afex-sale-layout {
@@ -1017,7 +1018,7 @@ body {
   .afex-sale-layout {
     display: block;
     height: 100%;
-    padding: 14px 16px calc(144px + env(safe-area-inset-bottom));
+    padding: 14px 16px calc(72px + env(safe-area-inset-bottom));
     overflow: hidden;
   }
   .afex-sale-catalog { height: 100%; gap: 12px; }
@@ -1056,28 +1057,31 @@ body {
   }
   .afex-sale-cart.is-open { display: grid; }
   .afex-sale-cart > div { border: 0; border-radius: 0; background: transparent; }
-  [data-mobile-cart-header] { display: flex; min-height: 72px; max-height: 84px; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--afex-pos-border) !important; }
+  [data-mobile-cart-header] { display: flex; min-height: 64px; max-height: 72px; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--afex-pos-border) !important; }
   [data-mobile-cart-header] > div { width: 100%; align-items: center; }
   [data-mobile-cart-header] > div > div > p:first-child { display: none; }
-  [data-mobile-cart-scroll-body] { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scroll-padding-block: 12px; padding: 8px 12px 12px; }
-  [data-mobile-cart-customer] { min-height: 68px; max-height: 76px; padding: 8px 4px 10px; border-bottom: 1px solid var(--afex-pos-border); }
-  [data-mobile-cart-customer] p { margin-top: 2px; }
+  [data-mobile-cart-scroll-body] { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scroll-padding-block: 12px; padding: 8px 12px 16px; }
+  [data-mobile-cart-customer] { display: grid; min-height: 54px; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 6px 4px 8px; border-bottom: 1px solid var(--afex-pos-border); }
+  [data-mobile-cart-customer] p { margin: 0; }
   [data-mobile-cart-items] { min-height: 0; padding-top: 4px; }
   [data-mobile-cart-items-heading] { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; }
   [data-mobile-cart-item-list] { display: grid; gap: 8px; }
   .afex-mobile-cart-empty { display: grid; min-height: 96px; place-items: center; padding: 12px; border: 1px dashed var(--afex-pos-border); border-radius: 14px; color: var(--afex-pos-text-secondary); text-align: center; }
-  .afex-mobile-cart-item { display: grid; min-height: 82px; max-height: 96px; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 5px 8px; overflow: hidden; }
+  .afex-mobile-cart-item { display: grid; min-height: 104px; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 7px; padding: 8px 10px; overflow: visible; }
   .afex-mobile-cart-item-main, .afex-mobile-cart-item-controls { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
   .afex-mobile-cart-item-main > div { min-width: 0; }
   .afex-mobile-cart-item-main p { min-width: 0; }
   .afex-mobile-cart-item-controls { margin-top: 0; }
-  .afex-mobile-cart-item-controls > div { min-width: 148px; flex: 0 0 148px; }
+  .afex-mobile-cart-item-controls > div { min-width: 152px; flex: 0 0 152px; }
+  .afex-mobile-quantity-stepper { display: grid !important; width: 152px; min-width: 152px; grid-template-columns: 46px 36px 46px; align-items: center; gap: 12px !important; padding: 0 !important; border: 0 !important; background: transparent !important; }
+  .afex-mobile-quantity-stepper > button { width: 46px; min-width: 46px; height: 46px; min-height: 46px; flex-shrink: 0; }
   .afex-mobile-cart-item-controls > p { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  [data-mobile-cart-footer] { padding: 7px 12px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); }
-  [data-mobile-cart-totals] { padding: 0 2px 6px; }
-  [data-mobile-cart-totals] > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 14px; }
-  [data-mobile-cart-totals] > div > div { margin: 0; padding: 0; border: 0; font-size: 12px; }
-  [data-mobile-cart-totals] > div > div:last-child { grid-column: 1/-1; margin-top: 3px; padding-top: 5px; border-top: 1px solid var(--afex-pos-border); }
+  [data-mobile-cart-footer] { padding: 8px 12px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); }
+  [data-mobile-cart-totals] { padding: 0 2px 7px; }
+  .afex-mobile-cart-total-lines { display: grid; gap: 3px; }
+  .afex-mobile-cart-total-lines > div { display: flex; min-width: 0; align-items: baseline; justify-content: flex-start; gap: 6px; margin: 0; padding: 0; border: 0; font-size: 12px; }
+  .afex-mobile-cart-total-lines > div > span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .afex-mobile-cart-grand-total { margin-top: 5px !important; padding-top: 6px !important; border-top: 1px solid var(--afex-pos-border) !important; }
   [data-mobile-cart-actions] { display: grid; gap: 6px; }
   [data-mobile-cart-actions] > div { padding: 0 2px 2px; }
   [data-mobile-cart-actions] > div > div p:nth-child(2) { display: none; }
@@ -1120,7 +1124,7 @@ body {
   .afex-pos-app-shell > .afex-pos-shell-content { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   .afex-pos-app-shell.is-sale-route > .afex-pos-shell-content { padding-bottom: 0; }
   .afex-pos-app-shell:not(.is-pos-home) > .afex-pos-bottom-navigation { display: none; }
-  .afex-mobile-checkout-content { padding-bottom: calc(9.25rem + env(safe-area-inset-bottom)) !important; }
+  .afex-mobile-checkout-content { padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important; }
   .afex-mobile-checkout-submit { background: var(--afex-pos-emerald-strong); color: #fff; box-shadow: 0 10px 28px color-mix(in srgb, var(--afex-pos-emerald-strong) 28%, transparent); }
   .afex-mobile-checkout-submit:hover:not(:disabled) { background: var(--afex-pos-emerald); }
   .afex-mobile-checkout-submit:focus-visible { outline: 2px solid #fff; outline-offset: 2px; box-shadow: var(--afex-pos-focus); }
@@ -1488,15 +1492,18 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 .afex-checkout-summary-note strong { display: block; margin-bottom: 5px; color: var(--afex-pos-cyan); font-size: .78rem; }
 .afex-checkout-summary-note p { margin: 0; color: var(--afex-pos-text); font-size: .8rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .afex-payment-methods button > span svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.afex-checkout-submit { display: flex; min-height: 64px; align-items: center; justify-content: center; gap: 10px; background: var(--afex-pos-emerald-strong); color: #fffaf0; transition: background .15s ease, transform .15s ease; }
+.afex-checkout-submit { display: flex; min-height: 56px; align-items: center; justify-content: center; gap: 10px; background: var(--afex-pos-emerald-strong); color: #fffaf0; transition: background .15s ease, transform .15s ease; }
 .afex-checkout-submit svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .afex-checkout-submit:hover:not(:disabled) { background: var(--afex-pos-emerald); }
 .afex-checkout-submit:active:not(:disabled) { transform: scale(.99); }
 .afex-checkout-submit:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
 .afex-checkout-submit:disabled { background: var(--afex-pos-hover); color: var(--afex-pos-text-secondary); opacity: .62; }
-.afex-thermal-curtain { position: fixed; z-index: 100; inset: 0; display: grid; place-items: start center; overflow-y: auto; padding: max(64px, env(safe-area-inset-top)) 16px 24px; background: rgb(0 0 0 / .72); animation: afex-curtain-in .2s ease-out; }
-.afex-thermal-curtain > div { width: min(100%, 320px); background: #fff; }
-.afex-thermal-curtain-close { position: fixed; inset-block-start: max(10px, env(safe-area-inset-top)); inset-inline-end: 16px; width: 44px; height: 44px; border-radius: 12px; background: var(--afex-pos-panel); color: var(--afex-pos-text); font-size: 24px; }
+.afex-thermal-curtain { position: fixed; z-index: 100; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: center; overflow-y: auto; overscroll-behavior: contain; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: rgb(0 0 0 / .78); animation: afex-curtain-in .2s ease-out; }
+.afex-thermal-curtain-header { position: sticky; inset-block-start: 0; z-index: 2; display: flex; width: min(100%, 420px); min-height: 56px; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 0 10px; color: #fff; }
+.afex-thermal-curtain-header p { color: #cbd5e1; font-size: 11px; font-weight: 800; }.afex-thermal-curtain-header h2 { font-size: 17px; font-weight: 900; }
+.afex-thermal-curtain-sheet { align-self: start; max-width: 100%; overflow: hidden; background: #fff; box-shadow: 0 24px 80px rgb(0 0 0 / .45); }
+.afex-thermal-curtain-sheet iframe { display: block; width: 100%; min-height: 420px; border: 0; background: #fff; }
+.afex-thermal-curtain-close { position: static; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; background: var(--afex-pos-panel); color: var(--afex-pos-text); font-size: 24px; }
 @keyframes afex-curtain-in { from { transform: translateY(-18px); opacity: 0; } }
 
 .afex-success-new-sale { display: flex; min-height: 64px; align-items: center; justify-content: center; gap: 10px; background: var(--afex-pos-emerald-strong); color: #fffaf0; font-size: 1rem; transition: background .15s ease, transform .15s ease; animation: afex-new-sale-attention .65s ease-out 2; }

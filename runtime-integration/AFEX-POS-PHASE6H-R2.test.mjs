@@ -22,13 +22,13 @@ test('cart is compact and header has left close without branch copy', () => {
   const sheet = items.slice(items.indexOf('<aside id="pos-cart-panel"'), items.indexOf('</aside>', items.indexOf('<aside id="pos-cart-panel"')))
   assert.doesNotMatch(sheet, /الفرع: \{invoiceBranchName\}/)
   assert.match(sheet, /ملخص الفاتورة[\s\S]*\{invoiceItemCount\}[\s\S]*aria-label="إغلاق ملخص الفاتورة"/)
-  assert.match(css, /min-height: 82px; max-height: 96px/)
+  assert.match(css, /min-height: 104px/)
   assert.match(css, /\[data-mobile-cart-footer\][^{]*\{[^}]*background: var\(--afex-pos-panel\)/)
 })
 
 test('thermal curtain uses the authoritative print renderer without routing', () => {
-  assert.match(checkout, /onBack=\{\(\) => setShowThermalPreview\(true\)\}/)
-  assert.match(checkout, /id="print-area"[\s\S]*afex-thermal-curtain/)
+  assert.match(checkout, /onPreview=\{\(\) => setShowThermalPreview\(true\)\}/)
+  assert.match(checkout, /<PosThermalDraftPreview/)
   assert.doesNotMatch(checkout, /onBack=\{\(\) => router\.push\('\/pos\/sale\/items'\)\}/)
 })
 

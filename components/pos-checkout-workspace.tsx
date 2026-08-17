@@ -27,7 +27,7 @@ type Props = {
   errorMessage: string
   offlineMessage: string
   cashWarning: string
-  onBack: () => void
+  onPreview: () => void
   onPaymentChange: (method: PosPaymentMethod) => void
   onCashReceivedChange: (value: string) => void
   onDiscountChange: (discount: CheckoutDiscountOption | null) => void
@@ -61,7 +61,7 @@ export function PosCheckoutWorkspace(props: Props) {
     <main className="afex-checkout-workspace" dir="rtl">
       <header className="afex-checkout-header">
         <div><p>فاتورة جديدة</p><h1>الدفع وإنهاء الفاتورة</h1></div>
-        <button type="button" onClick={props.onBack}>العودة إلى السلة</button>
+        <button type="button" data-thermal-preview-trigger onClick={props.onPreview}>عرض تفاصيل الطلب</button>
       </header>
 
       <div className="afex-checkout-layout">
@@ -82,7 +82,7 @@ export function PosCheckoutWorkspace(props: Props) {
 
         <section className="afex-checkout-payment">
           <div className="afex-checkout-due"><span>الإجمالي المستحق</span><strong>{formatCurrency(props.finalTotal)}</strong></div>
-          <div className="afex-checkout-mobile-summary"><span>{props.items.length} عناصر</span><b>شامل ضريبة {formatCurrency(props.taxAmount)}</b><button type="button" onClick={props.onBack}>عرض تفاصيل الطلب</button></div>
+          <div className="afex-checkout-mobile-summary"><span>{props.items.length} عناصر</span><b>شامل ضريبة {formatCurrency(props.taxAmount)}</b><button type="button" data-thermal-preview-trigger onClick={props.onPreview}>عرض تفاصيل الطلب</button></div>
 
           <h2>طريقة الدفع</h2>
           <div className="afex-payment-methods">
@@ -105,8 +105,9 @@ export function PosCheckoutWorkspace(props: Props) {
 
           {props.errorMessage ? <div className="afex-checkout-message is-error" role="alert">{props.errorMessage}</div> : null}
           {props.offlineMessage ? <div className="afex-checkout-message">{props.offlineMessage}</div> : null}
-          <div className="afex-checkout-once">يُنشأ الطلب مرة واحدة فقط — لا تغلق الشاشة أثناء المعالجة</div>
-          <button type="button" className="afex-checkout-submit" disabled={!props.canSubmit || props.loading} onClick={props.onSubmit}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM15 3v4h4M9 12h6M9 16h6"/></svg><span>{props.loading ? 'جارٍ إنشاء الفاتورة…' : `إنشاء الفاتورة — ${formatCurrency(props.finalTotal)}`}</span></button>
+          <div className="afex-checkout-action-dock" data-checkout-action-dock>
+            <button type="button" className="afex-checkout-submit" disabled={!props.canSubmit || props.loading} onClick={props.onSubmit}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM15 3v4h4M9 12h6M9 16h6"/></svg><span>{props.loading ? 'جارٍ إنشاء الفاتورة…' : `إنشاء الفاتورة — ${formatCurrency(props.finalTotal)}`}</span></button>
+          </div>
         </section>
       </div>
     </main>

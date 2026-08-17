@@ -1741,7 +1741,7 @@ export function InvoiceItemsStep({
           <aside id="pos-cart-panel" data-mobile-cart-sheet className={`afex-sale-cart ${showItemsModal ? 'is-open pos-mobile-sheet-enter' : ''}`}>
             <div data-mobile-cart-header className="shrink-0 rounded-[18px] border border-cyan-300/10 bg-[#061426]/68 p-3">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
                     AFEX POS
                   </p>
@@ -1761,12 +1761,10 @@ export function InvoiceItemsStep({
             <div data-mobile-cart-scroll-body>
             <div data-mobile-cart-customer>
               <p className="text-xs font-black text-slate-400">العميل</p>
-              <p className="mt-1 truncate text-base font-black text-white">
-                {customerName || 'عميل غير محدد'}
-              </p>
-              <p className="mt-1 truncate text-sm font-bold text-slate-400">
-                {customerPhone || 'بدون رقم جوال'}
-              </p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-white">{customerName || 'عميل غير محدد'}</p>
+                <p dir="ltr" className="truncate text-right text-xs font-bold text-slate-400">{customerPhone || 'بدون رقم جوال'}</p>
+              </div>
             </div>
 
             <section data-mobile-cart-items>
@@ -1786,7 +1784,7 @@ export function InvoiceItemsStep({
                   {invoiceItems.map((item) => (
                     <div
                       key={item.item_name}
-                      className="afex-mobile-cart-item rounded-[16px] border border-cyan-300/10 bg-[#020817]/58 p-2 transition-all duration-200"
+                      className="afex-mobile-cart-item rounded-[16px] border border-cyan-300/10 bg-[#020817]/58 transition-all duration-200"
                     >
                       <div className="afex-mobile-cart-item-main">
                         <div className="min-w-0">
@@ -1809,7 +1807,7 @@ export function InvoiceItemsStep({
                       </div>
 
                       <div className="afex-mobile-cart-item-controls">
-                        <div className="flex items-center gap-1 rounded-2xl border border-cyan-300/10 bg-[#061426]/70 p-1">
+                        <div className="afex-mobile-quantity-stepper">
                           <button
                             type="button"
                             onClick={() => decreaseOrRemoveItem(item.item_name, item.quantity)}
@@ -1818,7 +1816,7 @@ export function InvoiceItemsStep({
                           >
                             -
                           </button>
-                          <span className="w-8 text-center text-sm font-black text-cyan-100">
+                          <span className="w-8 text-center text-sm font-black tabular-nums text-cyan-100">
                             {item.quantity}
                           </span>
                           <button
@@ -1846,24 +1844,24 @@ export function InvoiceItemsStep({
 
             <footer data-mobile-cart-footer>
             <div data-mobile-cart-totals>
-              <div className="space-y-2 text-sm font-bold">
-                <div className="flex items-center justify-between text-slate-300">
-                  <span>المجموع الفرعي</span>
+              <div className="afex-mobile-cart-total-lines text-sm font-bold">
+                <div className="text-slate-300">
+                  <span>المجموع من غير الضريبة:</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
                 {checkout.discountAmount > 0 ? (
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span>الخصم</span>
+                  <div className="text-slate-300">
+                    <span>الخصم:</span>
                     <span>{formatCurrency(checkout.discountAmount)}</span>
                   </div>
                 ) : null}
-                <div className="flex items-center justify-between text-slate-300">
-                  <span>الضريبة</span>
+                <div className="text-slate-300">
+                  <span>الضريبة:</span>
                   <span>{formatCurrency(checkout.taxAmount)}</span>
                 </div>
-                <div className="mt-3 flex items-end justify-between border-t border-cyan-300/10 pt-3">
-                  <span className="text-sm font-black text-cyan-100">الإجمالي</span>
-                  <span className="text-2xl font-black text-white">
+                <div className="afex-mobile-cart-grand-total">
+                  <span className="text-sm font-black text-cyan-100">الإجمالي:</span>
+                  <span className="text-xl font-black tabular-nums text-white">
                     {formatCurrency(checkout.finalTotal)}
                   </span>
                 </div>

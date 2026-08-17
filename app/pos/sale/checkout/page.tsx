@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
@@ -44,6 +44,7 @@ import {
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
 import { PosCheckoutWorkspace } from '@/components/pos-checkout-workspace'
+import { PosThermalDraftPreview } from '@/components/pos-thermal-draft-preview'
 
 type ThermalReceiptSettings = {
   showQRCode: boolean
@@ -206,6 +207,7 @@ export default function PosSaleCheckoutPage() {
   const [showInvoiceConfirmation, setShowInvoiceConfirmation] = useState(false)
   const [showCashAmountDialog, setShowCashAmountDialog] = useState(false)
   const [showThermalPreview, setShowThermalPreview] = useState(false)
+  const closeThermalPreview = useCallback(() => setShowThermalPreview(false), [])
   const [isOffline, setIsOffline] = useState(false)
   const cashReceivedInputRef = useRef<HTMLInputElement | null>(null)
   const submitLockedRef = useRef(false)
@@ -641,35 +643,53 @@ export default function PosSaleCheckoutPage() {
 
   if (!missingCheckoutData) {
     return (
-      <PosCheckoutWorkspace
-        customerName={customerName}
-        customerPhone={customerPhone}
-        customerId={customerId}
-        items={invoiceItems}
-        subtotal={checkout.subtotal}
-        taxAmount={checkout.taxAmount}
-        discountAmount={checkout.discountAmount}
-        finalTotal={checkout.finalTotal}
-        paymentMethod={checkout.paymentMethod}
-        cashReceived={checkout.cashReceived}
-        cashChange={checkout.cashChange}
-        remainingFromCustomer={checkout.remainingFromCustomer}
-        note={checkout.note}
-        discounts={availableDiscounts}
-        selectedDiscount={checkout.selectedDiscount}
-        loadingDiscounts={loadingDiscounts}
-        loading={checkout.loading}
-        canSubmit={canSubmitInvoice}
-        errorMessage={checkout.errorMessage}
-        offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'أنت غير متصل؛ سيتم حفظ الفاتورة كمسودة فقط.' : '')}
-        cashWarning={cashWarningMessage}
-        onBack={() => setShowThermalPreview(true)}
-        onPaymentChange={(method) => handleSelectPayment({ id: method, label: getPaymentMethodLabel(method) })}
-        onCashReceivedChange={checkout.setCashReceived}
-        onDiscountChange={checkout.setSelectedDiscount}
-        onNoteChange={checkout.setNote}
-        onSubmit={handleCreateInvoice}
-      />
+      <>
+        <PosCheckoutWorkspace
+          customerName={customerName}
+          customerPhone={customerPhone}
+          customerId={customerId}
+          items={invoiceItems}
+          subtotal={checkout.subtotal}
+          taxAmount={checkout.taxAmount}
+          discountAmount={checkout.discountAmount}
+          finalTotal={checkout.finalTotal}
+          paymentMethod={checkout.paymentMethod}
+          cashReceived={checkout.cashReceived}
+          cashChange={checkout.cashChange}
+          remainingFromCustomer={checkout.remainingFromCustomer}
+          note={checkout.note}
+          discounts={availableDiscounts}
+          selectedDiscount={checkout.selectedDiscount}
+          loadingDiscounts={loadingDiscounts}
+          loading={checkout.loading}
+          canSubmit={canSubmitInvoice}
+          errorMessage={checkout.errorMessage}
+          offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'أنت غير متصل؛ سيتم حفظ الفاتورة كمسودة فقط.' : '')}
+          cashWarning={cashWarningMessage}
+          onPreview={() => setShowThermalPreview(true)}
+          onPaymentChange={(method) => handleSelectPayment({ id: method, label: getPaymentMethodLabel(method) })}
+          onCashReceivedChange={checkout.setCashReceived}
+          onDiscountChange={checkout.setSelectedDiscount}
+          onNoteChange={checkout.setNote}
+          onSubmit={handleCreateInvoice}
+        />
+        <PosThermalDraftPreview
+          open={showThermalPreview}
+          onClose={closeThermalPreview}
+          customerName={customerName}
+          customerPhone={customerPhone}
+          items={invoiceItems}
+          subtotal={checkout.subtotal}
+          taxAmount={checkout.taxAmount}
+          discountAmount={checkout.discountAmount}
+          finalTotal={checkout.finalTotal}
+          paymentMethod={checkout.paymentMethod}
+          cashReceived={checkout.cashReceived}
+          cashChange={checkout.cashChange}
+          remainingFromCustomer={checkout.remainingFromCustomer}
+          note={checkout.note}
+        />
+      </>
     )
   }
 

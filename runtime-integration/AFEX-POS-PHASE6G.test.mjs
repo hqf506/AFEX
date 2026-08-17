@@ -20,7 +20,7 @@ test('catalog checkmark is cart-state scoped without geometry drift', () => {
 test('cart summary uses the safe bottom edge after navigation is scoped to POS home', () => {
   assert.match(css, /\.afex-sale-mobile-summary \{[\s\S]*?inset: auto 0 0/)
   assert.match(css, /\.afex-pos-bottom-navigation \{[\s\S]*?bottom: 0;[\s\S]*?env\(safe-area-inset-bottom\)/)
-  assert.match(css, /padding: 14px 16px calc\(144px \+ env\(safe-area-inset-bottom\)\)/)
+  assert.match(css, /padding: 14px 16px calc\(72px \+ env\(safe-area-inset-bottom\)\)/)
 })
 
 test('bottom navigation exposes the closed four-destination contract', () => {
