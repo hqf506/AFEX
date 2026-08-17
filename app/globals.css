@@ -961,7 +961,7 @@ body {
 .afex-sale-product-card:active { transform: scale(0.985); }
 .afex-sale-product-card:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
 .afex-sale-product-card:disabled { cursor: not-allowed; opacity: 0.52; }
-.afex-sale-product-card.is-selected { border-width: 2px; border-color: var(--afex-pos-emerald); }
+.afex-sale-product-card.is-selected { border-color: var(--afex-pos-emerald); box-shadow: inset 0 0 0 1px var(--afex-pos-emerald); }
 
 .afex-sale-product-media {
   position: relative;
@@ -1011,12 +1011,12 @@ body {
   .afex-sale-search { max-width: 270px; }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   .afex-sale-workspace { overflow: visible; }
   .afex-sale-layout {
     display: block;
     height: 100%;
-    padding: 14px 16px 86px;
+    padding: 14px 16px calc(144px + env(safe-area-inset-bottom));
     overflow: hidden;
   }
   .afex-sale-catalog { height: 100%; gap: 12px; }
@@ -1038,7 +1038,7 @@ body {
   .afex-sale-product-copy > span:nth-child(3) { display: none; }
   .afex-sale-product-copy > span:last-child { margin-top: auto; padding-top: 0; }
   .afex-sale-product-copy > span:last-child > span:last-child { min-height: 20px; padding: 0; background: transparent; color: var(--afex-pos-emerald); box-shadow: none; font-size: 0; }
-  .afex-sale-product-copy > span:last-child > span:last-child::after { content: '✓'; font-size: 12px; }
+  .afex-sale-product-card.is-selected .afex-sale-product-copy > span:last-child > span:last-child::after { content: '✓'; font-size: 12px; }
   .afex-sale-product-copy > span:last-child > span:first-child { font-size: 12px; }
   .afex-sale-cart {
     position: fixed;
@@ -1053,7 +1053,7 @@ body {
   .afex-sale-cart.is-open { display: flex; }
   .afex-sale-mobile-summary {
     position: absolute;
-    inset: auto 0 90px;
+    inset: auto 0 calc(64px + env(safe-area-inset-bottom));
     z-index: 35;
     display: flex;
     height: 72px;
@@ -1070,6 +1070,35 @@ body {
   .afex-sale-mobile-summary strong { color: var(--afex-pos-text); font-size: 18px; }
   .afex-sale-mobile-summary button { min-width: 190px; min-height: 48px; border: 0; border-radius: 12px; background: var(--afex-pos-emerald); color: var(--afex-pos-base); font: inherit; font-size: 14px; font-weight: 700; }
   .afex-sale-mobile-summary button:disabled { opacity: 0.5; }
+}
+
+.afex-pos-bottom-navigation { display: none; }
+
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
+  .afex-pos-bottom-navigation {
+    position: absolute;
+    z-index: 45;
+    inset-inline: 0;
+    bottom: 0;
+    min-height: calc(64px + env(safe-area-inset-bottom));
+    border-radius: 0;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    display: grid;
+  }
+  .afex-pos-app-shell > .afex-pos-shell-content { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .afex-pos-app-shell.is-sale-route > .afex-pos-shell-content { padding-bottom: 0; }
+  .afex-mobile-checkout-heading h1 { font-size: 1.35rem !important; }
+  .afex-mobile-checkout-heading p:last-child { margin-top: .25rem !important; font-size: .75rem !important; line-height: 1.25rem !important; }
+  .afex-mobile-order-details summary { list-style: none; }
+  .afex-mobile-order-details summary::-webkit-details-marker { display: none; }
+  .afex-mobile-order-details summary::after { content: '⌄'; color: var(--afex-pos-cyan); }
+  .afex-mobile-order-details[open] summary::after { content: '⌃'; }
+  .afex-mobile-payment-grid > button { min-height: 52px; }
+  .afex-mobile-checkout textarea { min-height: 72px; }
+}
+
+@media (max-width: 339px) {
+  .afex-mobile-payment-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 767px) { .afex-pos-app-shell.is-sale-route { padding-block: 0; } }

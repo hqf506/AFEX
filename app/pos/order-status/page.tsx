@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
@@ -346,9 +345,6 @@ export default function PosOrderStatusPage() {
               })}
             </section>
           )}
-        </div>
-        <div className="mx-auto mt-4 w-full max-w-md sm:hidden">
-          <PosMobileBottomNavigation />
         </div>
       </main>
     </div>

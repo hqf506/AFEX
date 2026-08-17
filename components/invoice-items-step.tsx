@@ -1547,6 +1547,8 @@ export function InvoiceItemsStep({
                               ? `${product.name} غير متوفر في المخزون`
                               : `إضافة ${product.name} إلى السلة`
                           }
+                          aria-pressed={productCartQuantity > 0}
+                          data-cart-quantity={productCartQuantity}
                           className={`group afex-sale-product-card ${productCartQuantity > 0 ? 'is-selected' : ''} ${
                             productOutOfStock
                               ? 'cursor-not-allowed border-slate-700/60 opacity-55'
@@ -1652,6 +1654,8 @@ export function InvoiceItemsStep({
                           type="button"
                           onClick={() => addItemWithFeedback(product)}
                           disabled={productOutOfStock}
+                          aria-pressed={productCartQuantity > 0}
+                          data-cart-quantity={productCartQuantity}
                           className={`group afex-sale-product-card ${productCartQuantity > 0 ? 'is-selected' : ''} ${
                             productOutOfStock ? 'cursor-not-allowed opacity-55' : ''
                           } ${

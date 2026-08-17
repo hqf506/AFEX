@@ -28,6 +28,7 @@
     "check:pos-phase6f": "node --test runtime-integration/AFEX-POS-PHASE6F.test.mjs && playwright test runtime-integration/AFEX-POS-PHASE6F.mobile.spec.ts --browser=chromium && playwright test runtime-integration/AFEX-POS-PHASE6F.mobile.spec.ts --browser=webkit",
     "check:pos-phase6f-r1": "node --test runtime-integration/AFEX-POS-PHASE6F-R1.test.mjs && playwright test runtime-integration/AFEX-POS-PHASE6F-R1.mobile.spec.ts --browser=chromium && playwright test runtime-integration/AFEX-POS-PHASE6F-R1.mobile.spec.ts --browser=webkit",
     "check:pos-phase6f-r2": "node --experimental-strip-types --test runtime-integration/AFEX-POS-PHASE6F-R2.test.mjs && playwright test runtime-integration/AFEX-POS-PHASE6F-R2.mobile.spec.ts --browser=chromium && playwright test runtime-integration/AFEX-POS-PHASE6F-R2.mobile.spec.ts --browser=webkit",
+    "check:pos-phase6g": "node --test runtime-integration/AFEX-POS-PHASE6G.test.mjs",
     "check:invoice-ux": "node scripts/check-invoice-communication-ux.js",
     "check:admin-ux": "node scripts/check-admin-ux.js",
     "check:responsive-ux": "node scripts/check-responsive-ux.js",

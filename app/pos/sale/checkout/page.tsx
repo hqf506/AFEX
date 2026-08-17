@@ -725,10 +725,10 @@ export default function PosSaleCheckoutPage() {
       ) : null}
 
       {isMobileViewport ? (
-        <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white [direction:rtl]">
+        <div className="afex-mobile-checkout relative h-full min-h-0 w-full overflow-hidden bg-[#020817] text-white [direction:rtl]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(34,211,238,0.11),transparent_30%),linear-gradient(180deg,#020817_0%,#041224_54%,#020817_100%)]" />
-          <div className="pos-checkout-enter relative h-full overflow-y-auto overscroll-contain px-4 pb-48 pt-[max(1rem,env(safe-area-inset-top))]">
-            <header className="mb-6 flex items-start justify-between gap-4">
+          <div className="afex-mobile-checkout-content pos-checkout-enter relative h-full overflow-y-auto overscroll-contain px-4 pb-[calc(11rem+env(safe-area-inset-bottom))] pt-3">
+            <header className="afex-mobile-checkout-heading mb-3 flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-black tracking-[0.24em] text-cyan-300">CHECKOUT</p>
                 <h1 className="mt-1 text-[28px] font-black leading-tight text-white">ملخص الفاتورة</h1>
@@ -757,7 +757,7 @@ export default function PosSaleCheckoutPage() {
               <div className="mb-3 rounded-[18px] bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.18)]">أنت غير متصل، سيتم حفظ الفاتورة كمسودة فقط</div>
             ) : null}
 
-            <section className="flex items-center gap-3 rounded-[22px] bg-white/[0.035] p-3.5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+            <section data-checkout-section="customer" className="flex items-center gap-3 rounded-[18px] bg-white/[0.035] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-base font-black text-cyan-100">
                 {(customerName.trim().charAt(0) || 'ع').toUpperCase()}
               </span>
@@ -768,7 +768,9 @@ export default function PosSaleCheckoutPage() {
               </div>
             </section>
 
-            <section className="mt-6">
+            <details data-checkout-section="items" className="afex-mobile-order-details mt-3 rounded-[18px] bg-white/[0.025] p-3" open>
+              <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-sm font-black text-white"><span>تفاصيل الطلب</span><span className="text-xs text-cyan-100">{invoiceItems.length} عنصر</span></summary>
+              <section className="mt-2">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-base font-black text-white">العناصر</h2>
                 <span className="text-xs font-black text-cyan-100">{invoiceItems.length} عنصر</span>
@@ -792,11 +794,12 @@ export default function PosSaleCheckoutPage() {
                   </div>
                 ))}
               </div>
-            </section>
+              </section>
+            </details>
 
-            <section className="mt-6">
+            <section data-checkout-section="payment" className="mt-3">
               <h2 className="mb-3 text-base font-black text-white">طريقة الدفع</h2>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="afex-mobile-payment-grid grid grid-cols-2 gap-2.5">
                 {PAYMENT_METHODS.map((option) => {
                   const selected = checkout.paymentMethod === option.id
                   return (
@@ -868,7 +871,7 @@ export default function PosSaleCheckoutPage() {
               </section>
             ) : null}
 
-            <section className="mt-4 rounded-[22px] bg-white/[0.035] p-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+            <section data-checkout-section="totals" className="mt-3 rounded-[18px] bg-white/[0.035] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
               <div className="space-y-2.5">
                 <SummaryMetric label="المجموع الفرعي" value={formatCurrency(checkout.subtotal)} />
                 <SummaryMetric label="الخصم" value={formatCurrency(checkout.discountAmount)} />
@@ -880,7 +883,7 @@ export default function PosSaleCheckoutPage() {
               </div>
             </section>
 
-            <section className="mt-4">
+            <section data-checkout-section="note" className="mt-3">
               <label className="mb-2 block text-xs font-black text-slate-400">ملاحظة</label>
               <textarea value={checkout.note} onChange={(event) => checkout.setNote(event.target.value)} placeholder="اكتب ملاحظة..." className="min-h-[86px] w-full resize-none rounded-[20px] border-0 bg-white/[0.035] px-4 py-3 text-right text-sm font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] outline-none placeholder:text-slate-600 focus:shadow-[0_0_18px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.36)]" />
             </section>
@@ -890,7 +893,7 @@ export default function PosSaleCheckoutPage() {
             </button>
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-20 border-t border-cyan-300/10 bg-[#020817]/94 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-2xl">
+          <div data-checkout-submit-bar className="absolute inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 border-t border-cyan-300/10 bg-[#020817]/94 px-4 py-3 backdrop-blur-2xl">
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <span className="text-xs font-black text-slate-400">المبلغ المطلوب</span>
               <span className="text-lg font-black text-white">{formatCurrency(checkout.finalTotal)}</span>

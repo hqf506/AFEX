@@ -15,6 +15,7 @@ import { PosSessionIdentityCard } from './pos-session-identity-card'
 import { PosThemeToggle } from '@/components/pos-theme-toggle'
 import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
 import { PosSaleHomeConfirmationDialog } from './pos-sale-home-confirmation-dialog'
+import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
 
 type IconName = 'sale' | 'orders' | 'invoice' | 'more' | 'switch' | 'exit'
 
@@ -129,10 +130,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
         {isMore ? <section className="afex-pos-mobile-more">{menu}</section> : null}
         <div className="afex-pos-route-content">{children}</div>
       </div>
-      {isPosHome ? <nav className="afex-pos-bottom-nav" aria-label="تنقل نقطة البيع للهاتف">
-        {navigation.map((item) => item.disabled ? <span key={item.label} aria-disabled="true"><Icon name={item.icon} /><b>{item.label}</b></span> : <Link key={item.label} href={item.href!} aria-current={pathname === item.href ? 'page' : undefined}><Icon name={item.icon} /><b>{item.label}</b></Link>)}
-        <Link href="/pos/settings" aria-current={isMore ? 'page' : undefined}><Icon name="more" /><b>المزيد</b></Link>
-      </nav> : null}
+      <PosMobileBottomNavigation />
       <PosConfirmationDialog open={confirmOpen} loading={ending} onCancel={() => setConfirmOpen(false)} onConfirm={endSession} />
       <PosSaleHomeConfirmationDialog open={saleHomeConfirmOpen} onCancel={() => setSaleHomeConfirmOpen(false)} onConfirm={() => router.replace('/pos')} />
     </div>
