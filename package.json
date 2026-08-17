@@ -31,6 +31,7 @@
     "check:pos-phase6g": "node --test runtime-integration/AFEX-POS-PHASE6G.test.mjs",
     "check:pos-phase6h": "node --test runtime-integration/AFEX-POS-PHASE6H.test.mjs",
     "check:pos-phase6h-r1": "node --test runtime-integration/AFEX-POS-PHASE6H-R1.test.mjs",
+    "check:pos-phase6h-r2": "node --test runtime-integration/AFEX-POS-PHASE6H-R2.test.mjs",
     "check:invoice-ux": "node scripts/check-invoice-communication-ux.js",
     "check:admin-ux": "node scripts/check-admin-ux.js",
     "check:responsive-ux": "node scripts/check-responsive-ux.js",

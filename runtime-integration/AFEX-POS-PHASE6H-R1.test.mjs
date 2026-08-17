@@ -21,7 +21,7 @@ test('cart is a strict header, scroll body and footer grid', () => {
 
 test('compact customer, item and footer geometry is closed', () => {
   assert.match(css, /\[data-mobile-cart-customer\] \{ min-height: 68px; max-height: 76px/)
-  assert.match(css, /\.afex-mobile-cart-item \{[^}]*min-height: 92px; max-height: 108px/)
+  assert.match(css, /\.afex-mobile-cart-item \{[^}]*min-height: 82px; max-height: 96px/)
   assert.match(css, /\[data-mobile-cart-actions\] button \{[^}]*min-height: 52px; max-height: 56px/)
   assert.match(css, /\.afex-mobile-cart-item-controls > div \{ min-width: 148px; flex: 0 0 148px/)
   assert.match(css, /text-overflow: ellipsis/)
@@ -30,7 +30,10 @@ test('compact customer, item and footer geometry is closed', () => {
 test('checkout has no post-submit copy or operational element below create invoice', () => {
   assert.doesNotMatch(workspace, /لن يُعتبر الطلب ناجحًا قبل استجابة الخادم/)
   assert.doesNotMatch(checkout, /لن يُعتبر الطلب ناجحًا قبل استجابة الخادم/)
-  assert.match(checkout, /<div data-checkout-submit-bar[\s\S]*الرجوع إلى العناصر[\s\S]*afex-mobile-checkout-submit[\s\S]*إنشاء الفاتورة\s*<\/button>\s*<\/div>\s*<\/div>\s*\) : \(/)
+  assert.match(checkout, /<div data-checkout-submit-bar[\s\S]*afex-mobile-checkout-submit[\s\S]*إنشاء الفاتورة — \{formatCurrency\(checkout\.finalTotal\)\}[\s\S]*<\/button>\s*<\/div>\s*<\/div>\s*\) : \(/)
+  assert.doesNotMatch(checkout, /data-checkout-submit-bar[\s\S]{0,1000}الرجوع إلى العناصر/)
+  assert.match(checkout, /data-checkout-submit-bar[\s\S]{0,300}bg-\[#020817\]/)
+  assert.doesNotMatch(checkout, /data-checkout-submit-bar[\s\S]{0,300}backdrop-blur/)
   assert.match(css, /\.afex-mobile-checkout-content \{ padding-bottom: calc\(9\.25rem \+ env\(safe-area-inset-bottom\)\)/)
 })
 

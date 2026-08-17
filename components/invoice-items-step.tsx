@@ -868,6 +868,12 @@ export function InvoiceItemsStep({
     catalogAdvancePendingRef.current = true
     setCurrentCatalogPage((current) => Math.min(totalCatalogPages, current + 1))
   }, [catalogError, catalogLoading, catalogRefreshing, hasMoreCatalogProducts, totalCatalogPages])
+
+  useEffect(() => {
+    if (variant !== 'pos' || catalogError || catalogLoading || catalogRefreshing || !hasMoreCatalogProducts) return
+    const timer = window.setTimeout(loadNextCatalogPage, 80)
+    return () => window.clearTimeout(timer)
+  }, [catalogError, catalogLoading, catalogProducts.length, catalogRefreshing, hasMoreCatalogProducts, loadNextCatalogPage, variant])
   const handleCatalogScroll = useCallback(
     (event: UIEvent<HTMLDivElement>) => {
       if (shouldContinueCatalogLoading(event.currentTarget)) {
@@ -1717,28 +1723,7 @@ export function InvoiceItemsStep({
                   </div>
                   )}
 
-                  <div
-                    className="afex-catalog-continuation"
-                    aria-live="polite"
-                    aria-busy={catalogLoading || catalogRefreshing}
-                  >
-                    {catalogLoading && currentCatalogPage > 1 ? (
-                      <span>جارٍ تحميل المزيد...</span>
-                    ) : catalogError && catalogProducts.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => void forceReloadCatalog({ showRefreshing: true })}
-                      >
-                        تعذر تحميل المزيد — إعادة المحاولة
-                      </button>
-                    ) : hasMoreCatalogProducts ? (
-                      <button type="button" onClick={loadNextCatalogPage}>
-                        تحميل المزيد
-                      </button>
-                    ) : catalogProducts.length > 0 ? (
-                      <span>تم عرض جميع العناصر</span>
-                    ) : null}
-                  </div>
+                  <span className="afex-catalog-background-status" aria-live="polite" aria-busy={catalogLoading || catalogRefreshing}>{catalogLoading && currentCatalogPage > 1 ? 'جارٍ تحديث الكتالوج…' : catalogError && catalogProducts.length > 0 ? 'تعذر إكمال التحديث' : ''}</span>
                 </div>
               )}
             </section>
@@ -1760,7 +1745,7 @@ export function InvoiceItemsStep({
                   <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
                     AFEX POS
                   </p>
-                  <h2 className="mt-0.5 text-lg font-black text-white">ملخص الفاتورة</h2>
+                  <div className="flex items-center gap-2"><h2 className="mt-0.5 text-lg font-black text-white">ملخص الفاتورة</h2><span className="rounded-full bg-cyan-300/12 px-2 py-0.5 text-xs font-black text-cyan-100">{invoiceItemCount}</span></div>
                 </div>
                 <button
                   type="button"
@@ -1771,9 +1756,6 @@ export function InvoiceItemsStep({
                   ×
                 </button>
               </div>
-              <p className="mt-1 text-xs font-bold text-slate-400">
-                الفرع: {invoiceBranchName}
-              </p>
             </div>
 
             <div data-mobile-cart-scroll-body>

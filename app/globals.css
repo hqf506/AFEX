@@ -1066,14 +1066,14 @@ body {
   [data-mobile-cart-items-heading] { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; }
   [data-mobile-cart-item-list] { display: grid; gap: 8px; }
   .afex-mobile-cart-empty { display: grid; min-height: 96px; place-items: center; padding: 12px; border: 1px dashed var(--afex-pos-border); border-radius: 14px; color: var(--afex-pos-text-secondary); text-align: center; }
-  .afex-mobile-cart-item { display: grid; min-height: 92px; max-height: 108px; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 7px 8px; overflow: hidden; }
+  .afex-mobile-cart-item { display: grid; min-height: 82px; max-height: 96px; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 5px 8px; overflow: hidden; }
   .afex-mobile-cart-item-main, .afex-mobile-cart-item-controls { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
   .afex-mobile-cart-item-main > div { min-width: 0; }
   .afex-mobile-cart-item-main p { min-width: 0; }
   .afex-mobile-cart-item-controls { margin-top: 0; }
   .afex-mobile-cart-item-controls > div { min-width: 148px; flex: 0 0 148px; }
   .afex-mobile-cart-item-controls > p { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  [data-mobile-cart-footer] { padding: 8px 12px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--afex-pos-border); background: color-mix(in srgb, var(--afex-pos-panel) 96%, transparent); }
+  [data-mobile-cart-footer] { padding: 7px 12px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); }
   [data-mobile-cart-totals] { padding: 0 2px 6px; }
   [data-mobile-cart-totals] > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 14px; }
   [data-mobile-cart-totals] > div > div { margin: 0; padding: 0; border: 0; font-size: 12px; }
@@ -1082,6 +1082,7 @@ body {
   [data-mobile-cart-actions] > div { padding: 0 2px 2px; }
   [data-mobile-cart-actions] > div > div p:nth-child(2) { display: none; }
   [data-mobile-cart-actions] button { width: 100%; min-height: 52px; max-height: 56px; }
+  .afex-catalog-background-status { display: block; min-height: 0; height: 0; overflow: visible; color: var(--afex-pos-text-secondary); font-size: 10px; text-align: center; }
   .afex-sale-mobile-summary {
     position: absolute;
     inset: auto 0 0;
@@ -1493,6 +1494,10 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 .afex-checkout-submit:active:not(:disabled) { transform: scale(.99); }
 .afex-checkout-submit:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
 .afex-checkout-submit:disabled { background: var(--afex-pos-hover); color: var(--afex-pos-text-secondary); opacity: .62; }
+.afex-thermal-curtain { position: fixed; z-index: 100; inset: 0; display: grid; place-items: start center; overflow-y: auto; padding: max(64px, env(safe-area-inset-top)) 16px 24px; background: rgb(0 0 0 / .72); animation: afex-curtain-in .2s ease-out; }
+.afex-thermal-curtain > div { width: min(100%, 320px); background: #fff; }
+.afex-thermal-curtain-close { position: fixed; inset-block-start: max(10px, env(safe-area-inset-top)); inset-inline-end: 16px; width: 44px; height: 44px; border-radius: 12px; background: var(--afex-pos-panel); color: var(--afex-pos-text); font-size: 24px; }
+@keyframes afex-curtain-in { from { transform: translateY(-18px); opacity: 0; } }
 
 .afex-success-new-sale { display: flex; min-height: 64px; align-items: center; justify-content: center; gap: 10px; background: var(--afex-pos-emerald-strong); color: #fffaf0; font-size: 1rem; transition: background .15s ease, transform .15s ease; animation: afex-new-sale-attention .65s ease-out 2; }
 .afex-success-new-sale > span { font-size: 1.45rem; line-height: 1; }

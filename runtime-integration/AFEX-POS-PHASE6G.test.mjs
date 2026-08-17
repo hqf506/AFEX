@@ -25,7 +25,7 @@ test('cart summary uses the safe bottom edge after navigation is scoped to POS h
 
 test('bottom navigation exposes the closed four-destination contract', () => {
   const labels = [...navigation.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
-  assert.deepEqual(labels, ['الرئيسية', 'حالة الطلبات', 'الفواتير', 'الإعدادات'])
+  assert.deepEqual(labels, ['الإعدادات', 'حالة الطلبات', 'الفواتير', 'الرئيسية'])
   assert.doesNotMatch(navigation, /المزيد/)
   assert.doesNotMatch(navigation, /\/admin/)
   assert.match(navigation, /label: 'الفواتير', href: null/)

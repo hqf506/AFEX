@@ -31,10 +31,10 @@ function BottomNavigationIcon({ name }: { name: 'home' | 'clipboard' | 'invoice'
 }
 
 const items = [
-  { label: 'الرئيسية', href: '/pos', icon: 'home' as const },
+  { label: 'الإعدادات', href: '/pos/settings', icon: 'settings' as const },
   { label: 'حالة الطلبات', href: '/pos/order-status', icon: 'clipboard' as const },
   { label: 'الفواتير', href: null, icon: 'invoice' as const },
-  { label: 'الإعدادات', href: '/pos/settings', icon: 'settings' as const },
+  { label: 'الرئيسية', href: '/pos', icon: 'home' as const },
 ]
 
 export function PosMobileBottomNavigation() {

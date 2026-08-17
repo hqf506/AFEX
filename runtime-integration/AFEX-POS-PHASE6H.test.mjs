@@ -19,7 +19,7 @@ test('mobile cart owns the viewport and scrolls only its body', () => {
     assert.ok(items.includes(marker), `missing ${marker}`)
   }
   assert.match(css, /\[data-mobile-cart-scroll-body\] \{[^}]*overflow-y: auto/)
-  assert.match(css, /\.afex-mobile-cart-item \{[^}]*min-height: 92px; max-height: 108px/)
+  assert.match(css, /\.afex-mobile-cart-item \{[^}]*min-height: 82px; max-height: 96px/)
   assert.match(css, /\.afex-sale-cart \{[\s\S]*?inset: 68px 0 0;/)
 })
 

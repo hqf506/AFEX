@@ -207,7 +207,7 @@ export function useInvoiceCheckout({
     const safePaymentMethod = normalizeUiPaymentMethod(value)
 
     setPaymentMethodState(safePaymentMethod)
-    setCashReceivedInput((currentValue) => {
+    setCashReceivedInput(() => {
       if (safePaymentMethod === 'mada' || safePaymentMethod === 'visa') {
         return finalTotal.toFixed(2)
       }
@@ -216,9 +216,7 @@ export function useInvoiceCheckout({
         return '0'
       }
 
-      return parseCashReceivedAmount(currentValue) > 0
-        ? currentValue
-        : finalTotal.toFixed(2)
+      return ''
     })
   }
 

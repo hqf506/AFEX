@@ -204,6 +204,8 @@ export default function PosSaleCheckoutPage() {
   const [loadingVat, setLoadingVat] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showInvoiceConfirmation, setShowInvoiceConfirmation] = useState(false)
+  const [showCashAmountDialog, setShowCashAmountDialog] = useState(false)
+  const [showThermalPreview, setShowThermalPreview] = useState(false)
   const [isOffline, setIsOffline] = useState(false)
   const cashReceivedInputRef = useRef<HTMLInputElement | null>(null)
   const submitLockedRef = useRef(false)
@@ -414,13 +416,14 @@ export default function PosSaleCheckoutPage() {
       return false
     }
 
-    if (normalizedPaymentMethod === 'cash' && checkout.numericCashReceived <= 0) {
+    if (normalizedPaymentMethod === 'cash' && checkout.numericCashReceived < checkout.finalTotal) {
       return false
     }
 
     return true
   }, [
     checkout.loading,
+    checkout.finalTotal,
     checkout.numericCashReceived,
     customerName,
     customerPhone,
@@ -627,6 +630,15 @@ export default function PosSaleCheckoutPage() {
     )
   }
 
+  const handleInvoiceAction = () => {
+    if (normalizedPaymentMethod === 'cash' && checkout.numericCashReceived < checkout.finalTotal) {
+      setShowCashAmountDialog(true)
+      window.setTimeout(() => cashReceivedInputRef.current?.focus(), 0)
+      return
+    }
+    setShowInvoiceConfirmation(true)
+  }
+
   if (!missingCheckoutData) {
     return (
       <PosCheckoutWorkspace
@@ -651,7 +663,7 @@ export default function PosSaleCheckoutPage() {
         errorMessage={checkout.errorMessage}
         offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'أنت غير متصل؛ سيتم حفظ الفاتورة كمسودة فقط.' : '')}
         cashWarning={cashWarningMessage}
-        onBack={() => router.push('/pos/sale/items')}
+        onBack={() => setShowThermalPreview(true)}
         onPaymentChange={(method) => handleSelectPayment({ id: method, label: getPaymentMethodLabel(method) })}
         onCashReceivedChange={checkout.setCashReceived}
         onDiscountChange={checkout.setSelectedDiscount}
@@ -893,16 +905,13 @@ export default function PosSaleCheckoutPage() {
             </button>
           </div>
 
-          <div data-checkout-submit-bar className="absolute inset-x-0 bottom-0 z-20 border-t border-cyan-300/10 bg-[#020817]/94 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-2xl">
-            <button type="button" onClick={() => router.push('/pos/sale/items')} className="mb-1 flex min-h-11 w-full items-center justify-center text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70">
-              الرجوع إلى العناصر
-            </button>
+          <div data-checkout-submit-bar className="absolute inset-x-0 bottom-0 z-20 border-t border-cyan-300/20 bg-[#020817] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <span className="text-xs font-black text-slate-400">المبلغ المطلوب</span>
               <span className="text-lg font-black text-white">{formatCurrency(checkout.finalTotal)}</span>
             </div>
-            <button type="button" onClick={() => setShowInvoiceConfirmation(true)} disabled={!canSubmitInvoice} className="afex-mobile-checkout-submit flex min-h-[56px] w-full items-center justify-center rounded-[18px] px-5 text-base font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:shadow-none">
-              إنشاء الفاتورة
+            <button type="button" onClick={handleInvoiceAction} disabled={checkout.loading || invoiceItems.length === 0 || (!customerName.trim() && !customerPhone.trim())} className="afex-mobile-checkout-submit flex min-h-[56px] w-full items-center justify-center rounded-[18px] px-5 text-base font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:shadow-none">
+              إنشاء الفاتورة — {formatCurrency(checkout.finalTotal)}
             </button>
           </div>
         </div>
@@ -1239,6 +1248,21 @@ export default function PosSaleCheckoutPage() {
       </div>
       )}
 
+      {isMobileViewport && showCashAmountDialog ? (
+        <div className="fixed inset-0 z-[95] grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="cash-amount-title">
+          <section className="w-full max-w-sm rounded-[22px] bg-[#061426] p-4 text-right text-white shadow-2xl">
+            <h2 id="cash-amount-title" className="text-lg font-black">أدخل المبلغ المستلم من العميل</h2>
+            <p className="mt-2 text-sm text-slate-300">الإجمالي المستحق: {formatCurrency(checkout.finalTotal)}</p>
+            <input ref={cashReceivedInputRef} type="number" inputMode="decimal" value={checkout.cashReceived} onChange={(event) => checkout.setCashReceived(event.target.value)} className="mt-4 h-14 w-full rounded-[16px] bg-[#020817] px-4 text-right text-base font-black" />
+            <p className="mt-2 text-sm text-slate-300">{checkout.numericCashReceived >= checkout.finalTotal ? `الباقي: ${formatCurrency(checkout.cashChange)}` : `المتبقي: ${formatCurrency(checkout.remainingFromCustomer)}`}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" className="min-h-11 rounded-[14px] bg-slate-700 font-black" onClick={() => setShowCashAmountDialog(false)}>إلغاء</button>
+              <button type="button" className="min-h-11 rounded-[14px] bg-[#8a6537] font-black text-white disabled:opacity-50" disabled={checkout.numericCashReceived < checkout.finalTotal} onClick={() => { setShowCashAmountDialog(false); setShowInvoiceConfirmation(true) }}>تأكيد المبلغ</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {isMobileViewport && showInvoiceConfirmation ? (
         <div className="fixed inset-0 z-[90] h-[100svh] overflow-hidden bg-[#020817] [direction:rtl]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.13),transparent_30%),linear-gradient(180deg,#020817_0%,#041224_56%,#020817_100%)]" />
@@ -1321,7 +1345,8 @@ export default function PosSaleCheckoutPage() {
         </div>
       ) : null}
 
-      <div id="print-area" dir="rtl" className="hidden print:block">
+      <div id="print-area" dir="rtl" role={showThermalPreview ? 'dialog' : undefined} aria-modal={showThermalPreview ? true : undefined} aria-label={showThermalPreview ? 'معاينة قبل الإنشاء' : undefined} className={showThermalPreview ? 'afex-thermal-curtain' : 'hidden print:block'}>
+        {showThermalPreview ? <button type="button" className="afex-thermal-curtain-close" aria-label="إغلاق معاينة الإيصال" onClick={() => setShowThermalPreview(false)}>×</button> : null}
         <div
           className="mx-auto w-full max-w-[280px] p-3 text-[13px] leading-6 text-black"
           style={{ fontFamily: 'monospace' }}
