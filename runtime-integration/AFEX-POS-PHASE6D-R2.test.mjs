@@ -38,14 +38,14 @@ test('complete-sale bronze identity remains separate', () => {
 
 test('theme control remains structurally in its approved shell locations', () => {
   assert.match(shell, /afex-pos-brand-row[\s\S]{0,120}<PosThemeToggle \/>/)
-  assert.match(shell, /afex-pos-sale-header[\s\S]{0,220}<PosThemeToggle \/>/)
+  assert.match(shell, /afex-pos-sale-header[\s\S]{0,500}<PosThemeToggle \/>/)
   assert.match(shell, /afex-pos-responsive-actions[\s\S]{0,80}<PosThemeToggle \/>/)
 })
 
 test('theme control cannot shrink, wrap, or clip at supported widths', () => {
   assert.match(css, /\.afex-pos-theme-toggle \{[^}]*width: max-content;[^}]*min-width: 84px;[^}]*flex: 0 0 auto;[^}]*flex-shrink: 0;[^}]*overflow: visible;[^}]*white-space: nowrap;/)
   assert.doesNotMatch(css, /\.afex-pos-theme-toggle b \{[^}]*clip:/)
-  assert.match(css, /\.afex-pos-sale-header \{[^}]*grid-template-columns: 44px minmax\(0, 1fr\) max-content;[^}]*overflow: visible;/)
+  assert.match(css, /\.afex-pos-sale-header \{[^}]*grid-template-columns: 44px max-content minmax\(0, 1fr\) max-content;[^}]*overflow: visible;/)
   for (const width of [1366, 1180, 1024, 834, 768, 430, 390, 360]) {
     const reserved = 44 + 84 + 24 + 32
     assert.ok(width - reserved > 0, `${width}px retains a non-overlapping title column`)

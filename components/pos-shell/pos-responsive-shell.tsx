@@ -56,12 +56,12 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   const isPosHome = pathname === '/pos'
   const isSaleRoute = pathname.startsWith('/pos/sale/')
   const saleHeader = pathname === '/pos/sale/customer'
-    ? { title: 'اختيار العميل', back: '/pos/sale/items' }
+    ? { title: 'اختيار العميل', back: '/pos' }
     : pathname === '/pos/sale/checkout'
-      ? { title: 'الدفع وإتمام الطلب', back: '/pos/sale/customer' }
+      ? { title: 'الدفع وإتمام الطلب', back: '/pos/sale/items' }
       : pathname === '/pos/sale/success'
         ? { title: 'تم إنشاء الفاتورة', back: '/pos' }
-        : { title: 'اختيار المنتجات', back: '/pos' }
+        : { title: 'اختيار المنتجات', back: '/pos/sale/customer' }
 
   const endSession = useCallback(async () => {
     try {
@@ -114,8 +114,8 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
 
   return (
     <div className={`afex-pos-app-shell ${isPosHome ? 'is-pos-home' : 'is-pos-subroute'} ${isSaleRoute ? 'is-sale-route' : ''}`} dir="rtl">
-      {isSaleRoute ? <header className="afex-pos-sale-header">
-        <Link href={saleHeader.back} aria-label={`الرجوع من ${saleHeader.title}`}>‹</Link>
+      {isSaleRoute ? <header className="afex-pos-sale-header" data-testid="pos-sale-operational-header">
+        <Link href={saleHeader.back} data-testid="pos-sale-step-back" aria-label={`الرجوع من ${saleHeader.title}`}>‹</Link>
         <button type="button" className="afex-pos-sale-home" data-testid="pos-sale-home" aria-label="العودة إلى نقطة البيع" onClick={returnToPosHome}><Icon name="sale" /><span>نقطة البيع</span></button>
         <strong>{saleHeader.title}</strong>
         <PosThemeToggle />

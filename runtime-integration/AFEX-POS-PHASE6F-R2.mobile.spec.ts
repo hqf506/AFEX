@@ -5,7 +5,7 @@ import path from 'node:path'
 const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3100'
 const evidenceRoot = path.join(process.env.USERPROFILE || '.', 'Downloads', 'AFEX-POS-PHASE6F-R2A-EVIDENCE')
 const routes = ['/pos/sale/customer', '/pos/sale/items', '/pos/sale/checkout']
-const viewports = [{ width: 430, height: 932 }, { width: 393, height: 852 }, { width: 390, height: 844 }, { width: 375, height: 812 }, { width: 360, height: 800 }, { width: 320, height: 568 }]
+const viewports = [{ width: 430, height: 932 }, { width: 393, height: 852 }, { width: 390, height: 844 }, { width: 375, height: 812 }, { width: 360, height: 800 }, { width: 320, height: 568 }, { width: 932, height: 430 }, { width: 852, height: 393 }, { width: 844, height: 390 }, { width: 812, height: 375 }, { width: 800, height: 360 }, { width: 568, height: 320 }]
 const profile = { id: '10000000-0000-4000-8000-000000000001', email: 'r2a@example.invalid', role: 'employee', full_name: 'R2A Fixture', is_active: true, tenant_id: '20000000-0000-4000-8000-000000000001', tenant_name: 'AFEX Fixture', branch_id: '30000000-0000-4000-8000-000000000001', scope_type: 'branch' }
 const employee = { id: profile.id, username: 'r2a-fixture', full_name: profile.full_name, role: profile.role, branch_id: profile.branch_id }
 
@@ -17,7 +17,7 @@ function fixtureSession() {
   return { access_token: accessToken, refresh_token: 'fixture', expires_at: expiresAt, expires_in: 3600, token_type: 'bearer', user }
 }
 
-async function installSafeFixture(context: BrowserContext, page: Page) {
+async function installSafeFixture(context: BrowserContext) {
   const session = fixtureSession()
   const cookieValue = `base64-${Buffer.from(JSON.stringify(session)).toString('base64url')}`
   await context.addCookies([
@@ -27,10 +27,10 @@ async function installSafeFixture(context: BrowserContext, page: Page) {
   await context.addInitScript(({ fixtureProfile, fixtureEmployee }) => {
     sessionStorage.setItem('lf_shared_auth_profile_v2', JSON.stringify({ profile: fixtureProfile, userId: fixtureProfile.id }))
     sessionStorage.setItem('leather_fix_pos_employee', JSON.stringify(fixtureEmployee))
-    localStorage.setItem('invoice_customer', JSON.stringify({ customerId: 'fixture-customer', name: 'مسودة آمنة', phone: '' }))
+    localStorage.setItem('invoice_customer', JSON.stringify({ customerId: 'fixture-customer', name: 'مسودة آمنة', phone: '0500000000' }))
     localStorage.setItem('invoice_sale_items', JSON.stringify({ items: [{ item_id: 'fixture-item', item_name: 'خدمة اختبار', item_type: 'service', quantity: 1, unit_price: 1, vat_rate: 0 }] }))
   }, { fixtureProfile: profile, fixtureEmployee: employee })
-  await page.route(/\/auth\/v1\/|\/rest\/v1\//, async (route) => {
+  await context.route(/\/auth\/v1\/|\/rest\/v1\//, async (route) => {
     const url = route.request().url()
     if (url.includes('/auth/v1/user')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session.user) })
     if (url.includes('/auth/v1/token')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session) })
@@ -40,7 +40,7 @@ async function installSafeFixture(context: BrowserContext, page: Page) {
     }
     return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
   })
-  await page.route(`${baseURL}/api/**`, async (route) => {
+  await context.route(`${baseURL}/api/**`, async (route) => {
     const url = route.request().url()
     if (url.includes('/api/customers')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, customers: [] }) })
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, settings: {}, products: [], discounts: [] }) })
@@ -82,7 +82,7 @@ test.describe('Phase 6F-R2A real route composition', () => {
       await mkdir(evidenceRoot, { recursive: true })
       for (const route of routes) {
         const routePage = await context.newPage()
-        await installSafeFixture(context, routePage)
+        await installSafeFixture(context)
         await routePage.emulateMedia({ colorScheme: mode })
         await routePage.setViewportSize(viewport)
         await routePage.goto(route)
@@ -95,7 +95,7 @@ test.describe('Phase 6F-R2A real route composition', () => {
   }
 
   test('click navigation is explicit and draft-safe', async ({ context, page }) => {
-    await installSafeFixture(context, page)
+    await installSafeFixture(context)
     const businessRequests: string[] = []
     page.on('request', (request) => { if (request.method() !== 'GET' && request.url().includes('/api/')) businessRequests.push(`${request.method()} ${new URL(request.url()).pathname}`) })
     await page.goto('/pos/sale/customer')
@@ -114,5 +114,29 @@ test.describe('Phase 6F-R2A real route composition', () => {
     await expect(page).toHaveURL(/\/pos$/)
     expect(await page.evaluate(() => Boolean(localStorage.getItem('invoice_customer')))).toBe(true)
     expect(businessRequests).toEqual([])
+  })
+
+  test('sale controls survive portrait-landscape-portrait without reload or requests', async ({ context, page }) => {
+    await installSafeFixture(context)
+    const writes: string[] = []
+    let navigations = 0
+    page.on('request', (request) => {
+      if (request.isNavigationRequest()) navigations += 1
+      if (request.method() !== 'GET' && request.url().includes('/api/')) writes.push(`${request.method()} ${new URL(request.url()).pathname}`)
+    })
+    for (const route of routes) {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.goto(route)
+      const baselineNavigations = navigations
+      await visibleControlEvidence(page, { width: 390, height: 844 })
+      await page.locator('.afex-pos-shell-content').evaluate((element) => { element.scrollTop = Math.min(240, element.scrollHeight) })
+      await visibleControlEvidence(page, { width: 390, height: 844 })
+      await page.setViewportSize({ width: 844, height: 390 })
+      await visibleControlEvidence(page, { width: 844, height: 390 })
+      await page.setViewportSize({ width: 390, height: 844 })
+      await visibleControlEvidence(page, { width: 390, height: 844 })
+      expect(navigations).toBe(baselineNavigations)
+    }
+    expect(writes).toEqual([])
   })
 })

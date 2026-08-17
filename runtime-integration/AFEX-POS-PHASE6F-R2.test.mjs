@@ -58,9 +58,9 @@ test('header control is structural, safe-area aware and at least 44px', () => {
   assert.ok(textHideRule > css.indexOf('@media (max-width: 339px)'))
 })
 
-test('the production header establishes a normal-flow stacking layer above route content', () => {
+test('the production header establishes a normal-flow sticky stacking layer above route content', () => {
   assert.match(shellLayout, /<PosResponsiveShell>\{children\}<\/PosResponsiveShell>/)
-  assert.match(css, /\.afex-pos-sale-header \{[^}]*position: relative;[^}]*z-index: 60;[^}]*isolation: isolate;/s)
+  assert.match(css, /\.afex-pos-sale-header \{[^}]*position: sticky;[^}]*z-index: 60;[^}]*isolation: isolate;/s)
   assert.doesNotMatch(css, /\.afex-pos-sale-header \{[^}]*(?:position: fixed|position: absolute)/s)
 })
 
