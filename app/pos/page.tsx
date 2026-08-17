@@ -373,8 +373,6 @@ type PosOperationalHomeProps = {
   customerModal: ReactNode
   onStartSale: () => void
   onAddCustomer: () => void
-  onQuickCustomer: () => void
-  onScanProduct: () => void
   onAdvanceOrder: (order: OrderRecord) => void
 }
 
@@ -394,8 +392,6 @@ function PosOperationalHome({
   customerModal,
   onStartSale,
   onAddCustomer,
-  onQuickCustomer,
-  onScanProduct,
   onAdvanceOrder,
 }: PosOperationalHomeProps) {
   const statusSummary = [
@@ -419,36 +415,28 @@ function PosOperationalHome({
           </div>
         </header>
 
-        <section className="pos-primary-sale" aria-labelledby="pos-primary-sale-title">
-          <div className="pos-primary-sale-copy">
-            <span className="pos-primary-sale-icon"><PosIcon name="shoppingCart" /></span>
+        <section className="pos-home-actions" aria-label="إجراءات نقطة البيع الرئيسية">
+          <button type="button" className="pos-home-action is-primary" onClick={onStartSale}>
+            <span className="pos-home-action-icon"><PosIcon name="shoppingCart" /></span>
             <div>
-              <h2 id="pos-primary-sale-title">بدء عملية بيع</h2>
-              <p>اختر العميل ثم أضف الخدمات أو المنتجات وأكمل الدفع.</p>
+              <b>بيع جديد</b>
+              <small>ابدأ عملية بيع جديدة</small>
             </div>
+          </button>
+          <div className="pos-home-action-pair">
+            <button type="button" className="pos-home-action" onClick={onAddCustomer}>
+              <span className="pos-home-action-icon"><PosIcon name="user" /></span>
+              <div><b>إضافة عميل</b><small>تسجيل عميل جديد</small></div>
+            </button>
+            <Link className="pos-home-action" href="/pos/order-status">
+              <span className="pos-home-action-icon"><PosIcon name="clipboard" /></span>
+              <div><b>آخر الطلبات</b><small>{ordersLoading || ordersError ? 'عرض الطلبات الأخيرة' : `${orders.length} من آخر الطلبات`}</small></div>
+            </Link>
           </div>
-          <button type="button" onClick={onStartSale}>
-            <PosIcon name="shoppingCart" />
-            بدء بيع جديد
-          </button>
-        </section>
-
-        <section className="pos-operational-actions" aria-label="إجراءات سريعة">
-          <button type="button" onClick={onAddCustomer}>
-            <span><PosIcon name="user" /></span>
-            <b>إضافة عميل</b>
-            <small>تسجيل عميل جديد</small>
-          </button>
-          <button type="button" onClick={onQuickCustomer}>
-            <span><PosIcon name="zap" /></span>
-            <b>عميل سريع</b>
-            <small>الانتقال مباشرة لاختيار العميل</small>
-          </button>
-          <button type="button" onClick={onScanProduct}>
-            <span><PosIcon name="package" /></span>
-            <b>مسح منتج</b>
-            <small>فتح كتالوج المنتجات والخدمات</small>
-          </button>
+          <Link className="pos-home-action is-drafts" href="/pos/offline-drafts">
+            <span className="pos-home-action-icon"><PosIcon name="clipboard" /></span>
+            <div><b>مسودات الفواتير</b><small>{offlineDrafts.draftsCount > 0 ? `${offlineDrafts.draftsCount} مسودات محفوظة` : 'عرض المسودات غير المتصلة'}</small></div>
+          </Link>
         </section>
 
         {customerSuccess ? <p className="pos-operational-success" role="status">{customerSuccess}</p> : null}
@@ -982,8 +970,6 @@ export default function PosPage() {
         ) : null}
         onStartSale={handleStartSale}
         onAddCustomer={handleOpenAddCustomer}
-        onQuickCustomer={handleQuickCustomer}
-        onScanProduct={handleScanProduct}
         onAdvanceOrder={handleAdvanceOrderStatus}
       />
     )

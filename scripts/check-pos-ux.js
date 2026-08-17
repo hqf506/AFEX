@@ -139,7 +139,8 @@ assert.ok(
     customerStep.includes('contents sm:order-2 sm:flex') &&
     addCustomerModal.includes('role="dialog"') &&
     addCustomerModal.includes('aria-modal="true"') &&
-    addCustomerModal.includes('items-center justify-center overflow-y-auto'),
+    addCustomerModal.includes('className="pos-add-customer-backdrop"') &&
+    addCustomerModal.includes('className="pos-add-customer-body"'),
   'Customer step must preserve one responsive tree and a keyboard-safe dialog'
 )
 assert.ok(
