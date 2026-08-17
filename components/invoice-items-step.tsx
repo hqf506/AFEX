@@ -1753,14 +1753,14 @@ export function InvoiceItemsStep({
             />
           ) : null}
 
-          <aside id="pos-cart-panel" className={`afex-sale-cart ${showItemsModal ? 'is-open pos-mobile-sheet-enter' : ''}`}>
-            <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
+          <aside id="pos-cart-panel" data-mobile-cart-sheet className={`afex-sale-cart ${showItemsModal ? 'is-open pos-mobile-sheet-enter' : ''}`}>
+            <div data-mobile-cart-header className="shrink-0 rounded-[18px] border border-cyan-300/10 bg-[#061426]/68 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
                     AFEX POS
                   </p>
-                  <h2 className="mt-1 text-xl font-black text-white">ملخص الفاتورة</h2>
+                  <h2 className="mt-0.5 text-lg font-black text-white">ملخص الفاتورة</h2>
                 </div>
                 <button
                   type="button"
@@ -1776,9 +1776,9 @@ export function InvoiceItemsStep({
               </p>
             </div>
 
-            <div className="mt-2.5 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3.5">
+            <div data-mobile-cart-customer className="mt-2 shrink-0 rounded-[18px] border border-cyan-300/10 bg-[#061426]/58 p-3">
               <p className="text-xs font-black text-slate-400">العميل</p>
-              <p className="mt-2 truncate text-lg font-black text-white">
+              <p className="mt-1 truncate text-base font-black text-white">
                 {customerName || 'عميل غير محدد'}
               </p>
               <p className="mt-1 truncate text-sm font-bold text-slate-400">
@@ -1786,7 +1786,7 @@ export function InvoiceItemsStep({
               </p>
             </div>
 
-            <div className="mt-2 flex min-h-[160px] shrink-0 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5 md:min-h-0 md:flex-1">
+            <div data-mobile-cart-items className="mt-2 flex min-h-[120px] shrink-0 flex-col rounded-[18px] border border-cyan-300/10 bg-[#061426]/50 p-2 md:min-h-0 md:flex-1">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h3 className="text-base font-black text-white">العناصر المختارة</h3>
                 <span className="rounded-full bg-cyan-300/12 px-3 py-1 text-xs font-black text-cyan-100">
@@ -1803,7 +1803,7 @@ export function InvoiceItemsStep({
                   {invoiceItems.map((item) => (
                     <div
                       key={item.item_name}
-                      className="rounded-[20px] border border-cyan-300/10 bg-[#020817]/58 p-2.5 transition-all duration-200"
+                      className="afex-mobile-cart-item rounded-[16px] border border-cyan-300/10 bg-[#020817]/58 p-2 transition-all duration-200"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -1860,7 +1860,7 @@ export function InvoiceItemsStep({
               )}
             </div>
 
-            <div className="mt-2 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3">
+            <div data-mobile-cart-totals className="mt-2 shrink-0 rounded-[18px] border border-cyan-300/10 bg-[#061426]/58 p-2.5">
               <div className="space-y-2 text-sm font-bold">
                 <div className="flex items-center justify-between text-slate-300">
                   <span>المجموع الفرعي</span>
@@ -1878,14 +1878,14 @@ export function InvoiceItemsStep({
                 </div>
                 <div className="mt-3 flex items-end justify-between border-t border-cyan-300/10 pt-3">
                   <span className="text-sm font-black text-cyan-100">الإجمالي</span>
-                  <span className="text-3xl font-black text-white">
+                  <span className="text-2xl font-black text-white">
                     {formatCurrency(checkout.finalTotal)}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="sticky bottom-0 z-10 -mx-3 mt-2 shrink-0 space-y-1.5 border-t border-cyan-300/10 bg-[#020817]/96 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
+            <div data-mobile-cart-actions className="sticky bottom-0 z-10 -mx-3 mt-2 shrink-0 space-y-1.5 border-t border-cyan-300/10 bg-[#020817]/96 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
               <div className="flex items-end justify-between gap-3 px-1 pb-1 sm:hidden">
                 <div>
                   <p className="text-[11px] font-black text-slate-400">{invoiceItemCount} عنصر في السلة</p>

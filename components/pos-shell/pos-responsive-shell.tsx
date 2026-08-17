@@ -130,7 +130,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
         {isMore ? <section className="afex-pos-mobile-more">{menu}</section> : null}
         <div className="afex-pos-route-content">{children}</div>
       </div>
-      <PosMobileBottomNavigation />
+      {isPosHome ? <PosMobileBottomNavigation /> : null}
       <PosConfirmationDialog open={confirmOpen} loading={ending} onCancel={() => setConfirmOpen(false)} onConfirm={endSession} />
       <PosSaleHomeConfirmationDialog open={saleHomeConfirmOpen} onCancel={() => setSaleHomeConfirmOpen(false)} onConfirm={() => router.replace('/pos')} />
     </div>

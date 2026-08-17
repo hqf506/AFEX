@@ -768,7 +768,7 @@ export default function PosSaleCheckoutPage() {
               </div>
             </section>
 
-            <details data-checkout-section="items" className="afex-mobile-order-details mt-3 rounded-[18px] bg-white/[0.025] p-3" open>
+            <details data-checkout-section="items" className="afex-mobile-order-details mt-3 rounded-[18px] bg-white/[0.025] p-3">
               <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-sm font-black text-white"><span>تفاصيل الطلب</span><span className="text-xs text-cyan-100">{invoiceItems.length} عنصر</span></summary>
               <section className="mt-2">
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -893,12 +893,12 @@ export default function PosSaleCheckoutPage() {
             </button>
           </div>
 
-          <div data-checkout-submit-bar className="absolute inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 border-t border-cyan-300/10 bg-[#020817]/94 px-4 py-3 backdrop-blur-2xl">
+          <div data-checkout-submit-bar className="absolute inset-x-0 bottom-0 z-20 border-t border-cyan-300/10 bg-[#020817]/94 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-2xl">
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <span className="text-xs font-black text-slate-400">المبلغ المطلوب</span>
               <span className="text-lg font-black text-white">{formatCurrency(checkout.finalTotal)}</span>
             </div>
-            <button type="button" onClick={() => setShowInvoiceConfirmation(true)} disabled={!canSubmitInvoice} className="flex min-h-[60px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-base font-black text-[#020817] shadow-[0_0_28px_rgba(34,211,238,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none">
+            <button type="button" onClick={() => setShowInvoiceConfirmation(true)} disabled={!canSubmitInvoice} className="afex-mobile-checkout-submit flex min-h-[56px] w-full items-center justify-center rounded-[18px] px-5 text-base font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:shadow-none">
               إنشاء الفاتورة
             </button>
             <button type="button" onClick={() => router.push('/pos/sale/items')} className="mt-2 flex min-h-11 w-full items-center justify-center text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70">

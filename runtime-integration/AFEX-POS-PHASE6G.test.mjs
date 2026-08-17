@@ -17,8 +17,8 @@ test('catalog checkmark is cart-state scoped without geometry drift', () => {
   assert.doesNotMatch(css, /\.afex-sale-product-card\.is-selected \{[^}]*border-width: 2px/)
 })
 
-test('cart summary is anchored directly above safe bottom navigation', () => {
-  assert.match(css, /\.afex-sale-mobile-summary \{[\s\S]*?inset: auto 0 calc\(64px \+ env\(safe-area-inset-bottom\)\)/)
+test('cart summary uses the safe bottom edge after navigation is scoped to POS home', () => {
+  assert.match(css, /\.afex-sale-mobile-summary \{[\s\S]*?inset: auto 0 0/)
   assert.match(css, /\.afex-pos-bottom-navigation \{[\s\S]*?bottom: 0;[\s\S]*?env\(safe-area-inset-bottom\)/)
   assert.match(css, /padding: 14px 16px calc\(144px \+ env\(safe-area-inset-bottom\)\)/)
 })
@@ -29,16 +29,16 @@ test('bottom navigation exposes the closed four-destination contract', () => {
   assert.doesNotMatch(navigation, /المزيد/)
   assert.doesNotMatch(navigation, /\/admin/)
   assert.match(navigation, /label: 'الفواتير', href: null/)
-  assert.match(shell, /<PosMobileBottomNavigation \/>/)
+  assert.match(shell, /\{isPosHome \? <PosMobileBottomNavigation \/> : null\}/)
   assert.match(mobileViewport, /max-height: 500px[^\n]*pointer: coarse/)
 })
 
-test('mobile checkout uses compact sections and stays above bottom navigation', () => {
+test('mobile checkout uses compact sections and owns its safe bottom action', () => {
   for (const section of ['customer', 'items', 'payment', 'totals', 'note']) {
     assert.match(checkout, new RegExp(`data-checkout-section="${section}"`))
   }
   assert.match(checkout, /<details data-checkout-section="items"/)
   assert.match(checkout, /data-checkout-submit-bar/)
-  assert.match(checkout, /bottom-\[calc\(64px\+env\(safe-area-inset-bottom\)\)\]/)
+  assert.match(checkout, /data-checkout-submit-bar className="absolute inset-x-0 bottom-0/)
   assert.doesNotMatch(checkout, /afex-mobile-checkout fixed inset-0/)
 })
