@@ -517,6 +517,13 @@ body {
 .pos-invoice-cash-details > div { display: grid; min-width: 0; gap: 7px; align-content: space-between; border: 1px solid var(--afex-pos-border); border-radius: 12px; background: var(--afex-pos-panel); padding: 10px; }
 .pos-invoice-cash-details span { min-width: 0; overflow-wrap: break-word; line-height: 1.45; }.pos-invoice-cash-details b { color: var(--afex-pos-text); font-size: 14px; white-space: nowrap; }
 .pos-history-more { display: flex; justify-content: center; padding-block: 12px 2px; }.pos-history-more button { min-height: 44px; border: 1px solid var(--afex-pos-border); border-radius: 13px; background: var(--afex-pos-raised); padding-inline: 18px; color: var(--afex-pos-text); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }.pos-history-more button:disabled { cursor: not-allowed; opacity: .55; }
+.pos-status-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.pos-status-column { min-width: 0; border: 1px solid var(--afex-pos-border); border-radius: 20px; background: var(--afex-pos-panel); padding: 16px; }
+.pos-status-column > header { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.pos-status-column > header > span, .pos-status-column > header > b { display: inline-flex; min-height: 36px; align-items: center; border-radius: 999px; padding-inline: 12px; }
+.pos-status-column > div { display: grid; gap: 12px; }
+.pos-order-status-workflow .pos-history-tools > p { color: var(--afex-pos-muted); font-size: 13px; font-weight: 700; }
+@media (max-width: 767px) { .pos-status-columns { grid-template-columns: 1fr; } }
 
 .pos-settings-page { width: 100%; min-width: 0; overflow-x: clip; background: var(--afex-pos-base); padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); color: var(--afex-pos-text); }
 .pos-settings-panel { display: grid; width: min(100%, 860px); gap: 12px; margin-inline: auto; }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const history = readFileSync('app/pos/order-status/page.tsx', 'utf8')
+const history = readFileSync('app/pos/invoices/page.tsx', 'utf8')
 const home = readFileSync('app/pos/page.tsx', 'utf8')
 const settings = readFileSync('app/pos/settings/page.tsx', 'utf8')
 const shell = readFileSync('components/pos-shell/pos-responsive-shell.tsx', 'utf8')
@@ -15,7 +15,6 @@ test('subroutes own no phantom bottom-navigation reservation', () => {
   assert.match(css, /\.pos-invoice-history \{ min-height: 0;/)
   assert.doesNotMatch(css, /negative-margin|margin-bottom:\s*-/)
 })
-
 test('settings root cause is closed and real settings content remains visible', () => {
   assert.match(css, /\.afex-pos-shell-content\.is-more-route \.afex-pos-route-content \{ display: block; \}/)
   assert.match(shell, /isMore \? 'is-more-route'/)
@@ -32,8 +31,8 @@ test('home and invoice history are separate bounded scopes', () => {
   assert.match(history, /result\.hasMore/)
   assert.match(history, /loadInvoices\(page \+ 1\)/)
   assert.match(history, /params\.set\('search', search\.trim\(\)\)/)
-  assert.match(bottomNav, /label: 'الفواتير', href: '\/pos\/order-status'/)
-  assert.match(bottomNav, /label: 'آخر الطلبات', href: '\/pos#pos-recent-orders-title'/)
+  assert.match(bottomNav, /label: 'الفواتير', href: '\/pos\/invoices'/)
+  assert.match(bottomNav, /label: 'حالة الطلبات', href: '\/pos\/order-status'/)
 })
 
 test('full invoice pagination deduplicates identities', () => {

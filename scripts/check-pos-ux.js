@@ -71,7 +71,8 @@ assert.ok(
 assert.ok(
   posHome.includes('function PosOperationalHome') &&
     posHome.includes('بدء عملية بيع') &&
-    posHome.includes('عرض سجل الفواتير') &&
+    posHome.includes('عرض سجل الطلبات') &&
+    posHome.includes("searchParams.set('recentHours', '48')") &&
     posHome.includes('orders={recentOrders}') &&
     globalStyles.includes('.pos-operational-canvas') &&
     globalStyles.includes('.pos-orders-list-head') &&
@@ -90,7 +91,7 @@ assert.ok(
 assert.ok(
   posHome.includes('flex-col items-stretch justify-between') &&
     posHome.includes('min-h-[44px] min-w-[44px]') &&
-    posHome.includes('className="min-h-[44px] rounded-2xl'),
+    posHome.includes('className="inline-flex min-h-[44px] items-center rounded-2xl'),
   'POS Home phone header and core touch targets must remain responsive'
 )
 assert.ok(

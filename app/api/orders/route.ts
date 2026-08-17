@@ -40,6 +40,7 @@ import {
 } from '@/lib/feature-guards'
 import type { ServerTiming } from '@/lib/performance/server-timing'
 import type { OrderStatus } from '@/lib/orders/normalize'
+import { getPosOrderHistoryCutoffIso } from '@/lib/orders/recent-window'
 import {
   resolveEffectiveOrderStatus,
   type EffectiveOrderStatus,
@@ -62,6 +63,7 @@ type OrdersApiQuery = {
   dateFrom: string | null
   dateTo: string | null
   listFilter: string | null
+  recentHours: 48 | null
 }
 
 type OrdersApiPayload = {
@@ -255,6 +257,7 @@ type InvoicePaymentPersistenceClient = {
 interface OrdersFilterQuery {
   eq(column: string, value: string): this
   gte(column: string, value: string): this
+  gt(column: string, value: string): this
   lte(column: string, value: string): this
   neq(column: string, value: string): this
   in(column: string, values: string[]): this
@@ -2236,6 +2239,7 @@ function parseOrdersQuery(request: NextRequest): OrdersApiQuery {
     dateFrom: normalizeOptionalString(params.get('dateFrom')),
     dateTo: normalizeOptionalString(params.get('dateTo')),
     listFilter: normalizeOptionalString(params.get('listFilter')),
+    recentHours: params.get('recentHours') === '48' ? 48 : null,
   }
 }
 
@@ -2425,6 +2429,10 @@ function applyOrdersFilters<T extends OrdersFilterQuery>(
 
   if (filters.status !== 'all') {
     nextQuery = nextQuery.eq('status', filters.status)
+  }
+
+  if (filters.recentHours === 48) {
+    nextQuery = nextQuery.gt('created_at', getPosOrderHistoryCutoffIso())
   }
 
   const fromIso = toUtcBoundaryIso(filters.dateFrom, 'start')
