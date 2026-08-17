@@ -38,6 +38,7 @@
     "check:pos-phase6h-r6": "node --test runtime-integration/AFEX-POS-PHASE6H-R6.test.mjs && playwright test runtime-integration/AFEX-POS-PHASE6H-R6.responsive.spec.ts --browser=chromium && playwright test runtime-integration/AFEX-POS-PHASE6H-R6.responsive.spec.ts --browser=webkit",
     "check:pos-phase6h-r7": "node --test runtime-integration/AFEX-POS-PHASE6H-R7.test.mjs && playwright test runtime-integration/AFEX-POS-PHASE6H-R6.responsive.spec.ts --browser=chromium && playwright test runtime-integration/AFEX-POS-PHASE6H-R6.responsive.spec.ts --browser=webkit",
     "check:pos-phase6h-r8": "node --experimental-strip-types --test runtime-integration/AFEX-POS-PHASE6H-R8.test.mjs && playwright test runtime-integration/AFEX-POS-PHASE6H-R8.responsive.spec.ts --browser=chromium && playwright test runtime-integration/AFEX-POS-PHASE6H-R8.responsive.spec.ts --browser=webkit",
+    "check:pos-phase6h-r8a": "node --test runtime-integration/AFEX-POS-PHASE6H-R8A.test.mjs",
     "check:invoice-ux": "node scripts/check-invoice-communication-ux.js",
     "check:admin-ux": "node scripts/check-admin-ux.js",
     "check:responsive-ux": "node scripts/check-responsive-ux.js",
