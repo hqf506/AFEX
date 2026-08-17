@@ -1214,6 +1214,19 @@ body {
   .afex-sale-product-grid--mobile { display: none; }
   .afex-sale-product-grid--desktop { display: grid; }
   .afex-sale-search { max-width: 270px; }
+  .afex-pos-app-shell.is-sale-route .afex-pos-shell-content > .afex-pos-route-content,
+  .afex-pos-app-shell.is-sale-route .afex-sale-workspace,
+  .afex-pos-app-shell.is-sale-route .afex-customer-workspace,
+  .afex-pos-app-shell.is-sale-route .afex-checkout-workspace,
+  .afex-pos-app-shell.is-sale-route .afex-success-workspace { height: 100%; min-height: 0; }
+  .afex-customer-workspace { padding-inline: clamp(20px, 3vw, 32px); }
+  .afex-customer-layout { min-height: 0; grid-template-columns: minmax(280px, 34%) minmax(0, 1fr); }
+  .afex-customer-ticket,
+  .afex-customer-panel { min-width: 0; }
+  .afex-success-layout { grid-template-columns: minmax(280px, .9fr) minmax(0, 1.1fr); gap: 24px; padding: 24px; }
+  .afex-success-receipt,
+  .afex-success-actions { min-width: 0; }
+  .afex-checkout-layout { min-width: 0; }
 }
 
 @media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
