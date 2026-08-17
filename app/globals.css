@@ -454,6 +454,15 @@ body {
 .pos-order-history-scroll > .pos-history-grid { margin-block: 12px 0; }
 .pos-order-history-scroll > .pos-history-empty,
 .pos-order-history-scroll > .pos-history-error { margin-top: 12px; }
+.afex-pos-shell-content:has(.pos-invoices-page) { overflow: hidden; }
+.afex-pos-shell-content:has(.pos-invoices-page) > .afex-pos-route-content { height: 100%; min-height: 0; overflow: hidden; }
+.pos-invoices-page { height: 100%; min-height: 0; overflow: hidden; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.pos-invoices-page > main { display: grid; height: 100%; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+.pos-invoices-controls { position: relative; z-index: 2; min-width: 0; border-bottom: 1px solid var(--afex-pos-border); background: var(--afex-pos-base); padding-bottom: 12px; }
+.pos-invoices-scroll { min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-bottom: 0; }
+.pos-invoices-scroll > .pos-history-grid { margin-block: 12px 0; }
+.pos-invoices-scroll > .pos-history-empty,
+.pos-invoices-scroll > .pos-history-error { margin-top: 12px; }
 .pos-history-header, .pos-history-tools, .pos-history-card-top, .pos-invoice-sheet header, .pos-invoice-customer, .pos-invoice-totals > div, .pos-invoice-payment > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pos-history-heading { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .pos-history-heading > span { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border: 1px solid var(--afex-pos-border); border-radius: 16px; background: var(--afex-pos-raised); color: var(--afex-pos-bronze); }
@@ -499,6 +508,7 @@ body {
 
 @media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   .afex-pos-app-shell:has(.pos-order-history-page) { padding-bottom: 0; }
+  .afex-pos-app-shell:has(.pos-invoices-page) { padding-bottom: 0; }
 }
 
 .pos-drafts-page { display: flex; min-height: 100dvh; min-width: 0; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
