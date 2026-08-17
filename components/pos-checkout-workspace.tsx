@@ -107,7 +107,6 @@ export function PosCheckoutWorkspace(props: Props) {
           {props.offlineMessage ? <div className="afex-checkout-message">{props.offlineMessage}</div> : null}
           <div className="afex-checkout-once">يُنشأ الطلب مرة واحدة فقط — لا تغلق الشاشة أثناء المعالجة</div>
           <button type="button" className="afex-checkout-submit" disabled={!props.canSubmit || props.loading} onClick={props.onSubmit}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM15 3v4h4M9 12h6M9 16h6"/></svg><span>{props.loading ? 'جارٍ إنشاء الفاتورة…' : `إنشاء الفاتورة — ${formatCurrency(props.finalTotal)}`}</span></button>
-          <p className="afex-checkout-submit-note">لن يُعتبر الطلب ناجحًا قبل استجابة الخادم.</p>
         </section>
       </div>
     </main>

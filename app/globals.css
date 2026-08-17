@@ -1047,11 +1047,41 @@ body {
     z-index: 80;
     display: none;
     width: 100%;
-    overflow-y: auto;
+    height: calc(100dvh - 68px);
+    max-height: calc(100dvh - 68px);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
     border-radius: 20px 20px 0 0;
-    padding: 14px 14px max(14px, var(--afex-safe-bottom));
+    padding: 0;
   }
-  .afex-sale-cart.is-open { display: flex; }
+  .afex-sale-cart.is-open { display: grid; }
+  .afex-sale-cart > div { border: 0; border-radius: 0; background: transparent; }
+  [data-mobile-cart-header] { display: flex; min-height: 72px; max-height: 84px; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--afex-pos-border) !important; }
+  [data-mobile-cart-header] > div { width: 100%; align-items: center; }
+  [data-mobile-cart-header] > div > div > p:first-child { display: none; }
+  [data-mobile-cart-scroll-body] { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scroll-padding-block: 12px; padding: 8px 12px 12px; }
+  [data-mobile-cart-customer] { min-height: 68px; max-height: 76px; padding: 8px 4px 10px; border-bottom: 1px solid var(--afex-pos-border); }
+  [data-mobile-cart-customer] p { margin-top: 2px; }
+  [data-mobile-cart-items] { min-height: 0; padding-top: 4px; }
+  [data-mobile-cart-items-heading] { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; }
+  [data-mobile-cart-item-list] { display: grid; gap: 8px; }
+  .afex-mobile-cart-empty { display: grid; min-height: 96px; place-items: center; padding: 12px; border: 1px dashed var(--afex-pos-border); border-radius: 14px; color: var(--afex-pos-text-secondary); text-align: center; }
+  .afex-mobile-cart-item { display: grid; min-height: 92px; max-height: 108px; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 7px 8px; overflow: hidden; }
+  .afex-mobile-cart-item-main, .afex-mobile-cart-item-controls { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
+  .afex-mobile-cart-item-main > div { min-width: 0; }
+  .afex-mobile-cart-item-main p { min-width: 0; }
+  .afex-mobile-cart-item-controls { margin-top: 0; }
+  .afex-mobile-cart-item-controls > div { min-width: 148px; flex: 0 0 148px; }
+  .afex-mobile-cart-item-controls > p { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  [data-mobile-cart-footer] { padding: 8px 12px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--afex-pos-border); background: color-mix(in srgb, var(--afex-pos-panel) 96%, transparent); }
+  [data-mobile-cart-totals] { padding: 0 2px 6px; }
+  [data-mobile-cart-totals] > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 14px; }
+  [data-mobile-cart-totals] > div > div { margin: 0; padding: 0; border: 0; font-size: 12px; }
+  [data-mobile-cart-totals] > div > div:last-child { grid-column: 1/-1; margin-top: 3px; padding-top: 5px; border-top: 1px solid var(--afex-pos-border); }
+  [data-mobile-cart-actions] { display: grid; gap: 6px; }
+  [data-mobile-cart-actions] > div { padding: 0 2px 2px; }
+  [data-mobile-cart-actions] > div > div p:nth-child(2) { display: none; }
+  [data-mobile-cart-actions] button { width: 100%; min-height: 52px; max-height: 56px; }
   .afex-sale-mobile-summary {
     position: absolute;
     inset: auto 0 0;
@@ -1094,12 +1124,6 @@ body {
   .afex-mobile-checkout-submit:hover:not(:disabled) { background: var(--afex-pos-emerald); }
   .afex-mobile-checkout-submit:focus-visible { outline: 2px solid #fff; outline-offset: 2px; box-shadow: var(--afex-pos-focus); }
   .afex-mobile-checkout-submit:disabled { background: var(--afex-pos-hover); color: var(--afex-pos-text-secondary); opacity: .62; }
-  [data-mobile-cart-header] { max-height: 88px; }
-  [data-mobile-cart-customer] { max-height: 84px; }
-  [data-mobile-cart-items] { min-height: 0; flex: 1 1 auto; overflow: hidden; }
-  [data-mobile-cart-items] > div:last-child { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-  .afex-mobile-cart-item { min-height: 96px; max-height: 116px; }
-  [data-mobile-cart-actions] button { min-height: 52px; }
   .afex-mobile-checkout-heading h1 { font-size: 1.35rem !important; }
   .afex-mobile-checkout-heading p:last-child { margin-top: .25rem !important; font-size: .75rem !important; line-height: 1.25rem !important; }
   .afex-mobile-order-details summary { list-style: none; }

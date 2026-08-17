@@ -14,12 +14,12 @@ test('bottom navigation is rendered only on exact POS home', () => {
   assert.match(shell, /\{isPosHome \? <PosMobileBottomNavigation \/> : null\}/)
 })
 
-test('mobile cart owns the viewport and scrolls only its item list', () => {
+test('mobile cart owns the viewport and scrolls only its body', () => {
   for (const marker of ['data-mobile-cart-sheet', 'data-mobile-cart-header', 'data-mobile-cart-customer', 'data-mobile-cart-items', 'data-mobile-cart-totals', 'data-mobile-cart-actions']) {
     assert.ok(items.includes(marker), `missing ${marker}`)
   }
-  assert.match(css, /\[data-mobile-cart-items\] > div:last-child \{[^}]*overflow-y: auto/)
-  assert.match(css, /\.afex-mobile-cart-item \{ min-height: 96px; max-height: 116px; \}/)
+  assert.match(css, /\[data-mobile-cart-scroll-body\] \{[^}]*overflow-y: auto/)
+  assert.match(css, /\.afex-mobile-cart-item \{[^}]*min-height: 92px; max-height: 108px/)
   assert.match(css, /\.afex-sale-cart \{[\s\S]*?inset: 68px 0 0;/)
 })
 

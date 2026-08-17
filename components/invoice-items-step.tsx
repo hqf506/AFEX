@@ -1776,7 +1776,8 @@ export function InvoiceItemsStep({
               </p>
             </div>
 
-            <div data-mobile-cart-customer className="mt-2 shrink-0 rounded-[18px] border border-cyan-300/10 bg-[#061426]/58 p-3">
+            <div data-mobile-cart-scroll-body>
+            <div data-mobile-cart-customer>
               <p className="text-xs font-black text-slate-400">العميل</p>
               <p className="mt-1 truncate text-base font-black text-white">
                 {customerName || 'عميل غير محدد'}
@@ -1786,8 +1787,8 @@ export function InvoiceItemsStep({
               </p>
             </div>
 
-            <div data-mobile-cart-items className="mt-2 flex min-h-[120px] shrink-0 flex-col rounded-[18px] border border-cyan-300/10 bg-[#061426]/50 p-2 md:min-h-0 md:flex-1">
-              <div className="mb-3 flex items-center justify-between gap-3">
+            <section data-mobile-cart-items>
+              <div data-mobile-cart-items-heading>
                 <h3 className="text-base font-black text-white">العناصر المختارة</h3>
                 <span className="rounded-full bg-cyan-300/12 px-3 py-1 text-xs font-black text-cyan-100">
                   {invoiceItemCount}
@@ -1795,17 +1796,17 @@ export function InvoiceItemsStep({
               </div>
 
               {invoiceItems.length === 0 ? (
-                <div className="flex min-h-0 flex-1 items-center justify-center rounded-[24px] border border-dashed border-cyan-300/16 bg-[#020817]/44 px-4 text-center text-sm font-bold leading-7 text-slate-400">
+                <div className="afex-mobile-cart-empty">
                   اختر العناصر من الشبكة لإضافتها إلى الفاتورة.
                 </div>
               ) : (
-                <div className="space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto md:pr-1">
+                <div data-mobile-cart-item-list>
                   {invoiceItems.map((item) => (
                     <div
                       key={item.item_name}
                       className="afex-mobile-cart-item rounded-[16px] border border-cyan-300/10 bg-[#020817]/58 p-2 transition-all duration-200"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="afex-mobile-cart-item-main">
                         <div className="min-w-0">
                           <p className="line-clamp-2 break-words text-sm font-black text-white">
                             {item.item_name}
@@ -1825,7 +1826,7 @@ export function InvoiceItemsStep({
                         </button>
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between gap-3">
+                      <div className="afex-mobile-cart-item-controls">
                         <div className="flex items-center gap-1 rounded-2xl border border-cyan-300/10 bg-[#061426]/70 p-1">
                           <button
                             type="button"
@@ -1858,9 +1859,11 @@ export function InvoiceItemsStep({
                   ))}
                 </div>
               )}
+            </section>
             </div>
 
-            <div data-mobile-cart-totals className="mt-2 shrink-0 rounded-[18px] border border-cyan-300/10 bg-[#061426]/58 p-2.5">
+            <footer data-mobile-cart-footer>
+            <div data-mobile-cart-totals>
               <div className="space-y-2 text-sm font-bold">
                 <div className="flex items-center justify-between text-slate-300">
                   <span>المجموع الفرعي</span>
@@ -1885,7 +1888,7 @@ export function InvoiceItemsStep({
               </div>
             </div>
 
-            <div data-mobile-cart-actions className="sticky bottom-0 z-10 -mx-3 mt-2 shrink-0 space-y-1.5 border-t border-cyan-300/10 bg-[#020817]/96 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
+            <div data-mobile-cart-actions>
               <div className="flex items-end justify-between gap-3 px-1 pb-1 sm:hidden">
                 <div>
                   <p className="text-[11px] font-black text-slate-400">{invoiceItemCount} عنصر في السلة</p>
@@ -1921,6 +1924,7 @@ export function InvoiceItemsStep({
                 </span>
               </button>
             </div>
+            </footer>
           </aside>
 
           <div className="afex-sale-mobile-summary" aria-label="ملخص السلة">

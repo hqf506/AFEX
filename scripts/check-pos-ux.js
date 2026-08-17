@@ -184,8 +184,8 @@ assert.ok(
   activePosItemsLayout.includes("'is-open pos-mobile-sheet-enter'") &&
     activePosItemsLayout.includes('afex-sale-cart') &&
     activePosItemsLayout.includes('afex-sale-mobile-summary') &&
-    activePosItemsLayout.includes('md:flex-1') &&
-    activePosItemsLayout.includes('md:overflow-y-auto') &&
+    activePosItemsLayout.includes('data-mobile-cart-scroll-body') &&
+    activePosItemsLayout.includes('data-mobile-cart-footer') &&
     (activePosItemsLayout.match(/className="flex h-11 w-11/g) || []).length >= 3,
   'Phone cart must use one full-width scroll surface with accessible item controls'
 )

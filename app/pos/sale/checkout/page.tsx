@@ -894,15 +894,15 @@ export default function PosSaleCheckoutPage() {
           </div>
 
           <div data-checkout-submit-bar className="absolute inset-x-0 bottom-0 z-20 border-t border-cyan-300/10 bg-[#020817]/94 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-2xl">
+            <button type="button" onClick={() => router.push('/pos/sale/items')} className="mb-1 flex min-h-11 w-full items-center justify-center text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70">
+              الرجوع إلى العناصر
+            </button>
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <span className="text-xs font-black text-slate-400">المبلغ المطلوب</span>
               <span className="text-lg font-black text-white">{formatCurrency(checkout.finalTotal)}</span>
             </div>
             <button type="button" onClick={() => setShowInvoiceConfirmation(true)} disabled={!canSubmitInvoice} className="afex-mobile-checkout-submit flex min-h-[56px] w-full items-center justify-center rounded-[18px] px-5 text-base font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:shadow-none">
               إنشاء الفاتورة
-            </button>
-            <button type="button" onClick={() => router.push('/pos/sale/items')} className="mt-2 flex min-h-11 w-full items-center justify-center text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70">
-              الرجوع إلى العناصر
             </button>
           </div>
         </div>
