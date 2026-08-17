@@ -4,349 +4,115 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
-import {
-  mapOrderSummaryToOrderRecord,
-  type OrderRecord,
-} from '@/lib/orders/orders-page'
-import {
-  normalizeOrderRecord,
-  type OrderSourceRow,
-  type OrderStatus,
-} from '@/lib/orders/normalize'
+import { formatCurrency } from '@/lib/orders/format'
+import { mapOrderSummaryToOrderRecord, type OrderRecord } from '@/lib/orders/orders-page'
+import { normalizeOrderRecord, type OrderSourceRow } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
-import { formatPosGregorianDateTime, formatPosTime } from '@/lib/pos/date-format'
-import { peekClientResource, writeClientResource } from '@/lib/client-resource-cache'
+import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 
-type ActiveOrderStatus = Extract<OrderStatus, 'in_progress' | 'ready'>
+const PAGE_SIZE = 100
 
-const ACTIVE_ORDER_STATUSES = new Set<ActiveOrderStatus>(['in_progress', 'ready'])
-const ORDERS_PAGE_SIZE = 100
-
-const STATUS_UI: Record<
-  ActiveOrderStatus,
-  { label: string; badgeClassName: string; dotClassName: string }
-> = {
-  in_progress: {
-    label: 'قيد التجهيز',
-    badgeClassName: 'bg-cyan-300/10 text-cyan-100',
-    dotClassName: 'bg-cyan-300',
-  },
-  ready: {
-    label: 'جاهز للتسليم',
-    badgeClassName: 'bg-emerald-400/10 text-emerald-100',
-    dotClassName: 'bg-emerald-300',
-  },
+function InvoiceIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-4 2-4-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 }
 
-function isActiveOrderStatus(status: OrderStatus): status is ActiveOrderStatus {
-  return ACTIVE_ORDER_STATUSES.has(status as ActiveOrderStatus)
+function paymentStatusLabel(value: string) {
+  const normalized = value.trim().toLowerCase()
+  if (['paid', 'completed', 'succeeded'].includes(normalized)) return 'مدفوعة'
+  if (['partial', 'partially_paid'].includes(normalized)) return 'مدفوعة جزئيًا'
+  if (['cancelled', 'canceled', 'void'].includes(normalized)) return 'ملغاة'
+  return value && value !== '—' ? value : 'حالة غير محددة'
 }
 
-function formatRelativeOrderTime(value: string, now: number) {
-  const createdAt = new Date(value).getTime()
-  if (!Number.isFinite(createdAt)) return 'وقت غير محدد'
-
-  const elapsedMinutes = Math.max(0, Math.floor((now - createdAt) / 60_000))
-  if (elapsedMinutes < 1) return 'الآن'
-  if (elapsedMinutes < 60) return `منذ ${elapsedMinutes} دقيقة`
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60)
-  if (elapsedHours < 24) return `منذ ${elapsedHours} ساعة`
-
-  return formatPosGregorianDateTime(createdAt)
-}
-
-function ClipboardStatusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7" aria-hidden="true">
-      <path d="M9 5h6M9 3h6v4H9zM7 5H5v16h14V5h-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m8 14 2 2 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={`h-5 w-5 ${spinning ? 'animate-spin' : ''}`} aria-hidden="true">
-      <path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-export default function PosOrderStatusPage() {
+export default function PosInvoiceHistoryPage() {
   const router = useRouter()
-  const access = usePageAccess({
-    allowedRoles: [...POS_ACCESS_ROLES],
-    redirectIfNoUser: '/pos/login',
-    redirectIfForbidden: '/pos',
-  })
+  const access = usePageAccess({ allowedRoles: [...POS_ACCESS_ROLES], redirectIfNoUser: '/pos/login', redirectIfForbidden: '/pos' })
   const [orders, setOrders] = useState<OrderRecord[]>([])
+  const [selected, setSelected] = useState<OrderRecord | null>(null)
   const [loading, setLoading] = useState(false)
-  const [pageError, setPageError] = useState('')
-  const [orderErrors, setOrderErrors] = useState<Record<string, string>>({})
-  const [updatingOrderIds, setUpdatingOrderIds] = useState<Record<string, boolean>>({})
-  const [exitingOrderIds, setExitingOrderIds] = useState<Record<string, boolean>>({})
+  const [detailsLoading, setDetailsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [detailsError, setDetailsError] = useState('')
   const [search, setSearch] = useState('')
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
-  const [now, setNow] = useState(() => Date.now())
-  const updatingOrderIdsRef = useRef(new Set<string>())
+  const sheetRef = useRef<HTMLElement | null>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
 
-  const loadOrders = useCallback(async (showLoader = true) => {
+  const loadInvoices = useCallback(async () => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
-
-    setLoading(showLoader)
-    setPageError('')
-
+    setLoading(true); setError('')
     try {
-      const searchParams = new URLSearchParams({
-        page: '1',
-        pageSize: ORDERS_PAGE_SIZE.toString(),
-        listFilter: 'all',
-      })
-      const response = await fetch(`/api/orders?${searchParams.toString()}`, {
-        method: 'GET',
-        credentials: 'include',
-        cache: 'no-store',
-      })
+      const params = new URLSearchParams({ mode: 'full', page: '1', pageSize: String(PAGE_SIZE), listFilter: 'all' })
+      const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
       const result = await response.json().catch(() => null)
-
-      if (!response.ok || !result?.success) {
-        throw new Error(getClientErrorMessage(result, 'تعذر تحميل الطلبات الحالية.'))
-      }
-
-      const rows = Array.isArray(result.items) ? (result.items as OrderSourceRow[]) : []
-      const homeOrdersCacheKey = ['pos-home-orders', access.tenantId, access.scopeType || 'unknown', access.branchId || 'all', 6].join(':')
-      writeClientResource(homeOrdersCacheKey, { items: rows.slice(0, 6) })
-      const nextOrders = rows
-        .map((row, index) => normalizeOrderRecord(row, index))
-        .map(mapOrderSummaryToOrderRecord)
-        .filter((order) => isActiveOrderStatus(order.status))
-        .sort((first, second) => Date.parse(first.created_at) - Date.parse(second.created_at))
-
-      setOrders(nextOrders)
-      setLastRefreshedAt(new Date())
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : 'تعذر تحميل الطلبات الحالية.')
-    } finally {
-      setLoading(false)
-    }
-  }, [access.allowed, access.branchId, access.scopeType, access.tenantId])
+      if (!response.ok || !result?.success) throw new Error(getClientErrorMessage(result, 'تعذر تحميل سجل الفواتير.'))
+      const rows = Array.isArray(result.items) ? result.items as OrderSourceRow[] : []
+      setOrders(rows.map((row, index) => mapOrderSummaryToOrderRecord(normalizeOrderRecord(row, index))))
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل الفواتير.')
+    } finally { setLoading(false) }
+  }, [access.allowed, access.branchId, access.tenantId])
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      let hasCachedSummary = false
-      if (access.allowed && access.tenantId) {
-        const homeOrdersCacheKey = ['pos-home-orders', access.tenantId, access.scopeType || 'unknown', access.branchId || 'all', 6].join(':')
-        const cached = peekClientResource<{ items?: OrderSourceRow[] }>(homeOrdersCacheKey)
-        if (Array.isArray(cached?.items)) {
-          hasCachedSummary = true
-          setOrders(cached.items.map((row, index) => normalizeOrderRecord(row, index)).map(mapOrderSummaryToOrderRecord).filter((order) => isActiveOrderStatus(order.status)))
-        }
-      }
-      void loadOrders(!hasCachedSummary)
-    }, 0)
-
+    const timeoutId = window.setTimeout(() => void loadInvoices(), 0)
     return () => window.clearTimeout(timeoutId)
-  }, [access.allowed, access.branchId, access.scopeType, access.tenantId, loadOrders])
+  }, [loadInvoices])
 
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setNow(Date.now()), 60_000)
-    return () => window.clearInterval(intervalId)
+  const closeDetails = useCallback(() => {
+    setSelected(null); setDetailsError('')
+    window.setTimeout(() => returnFocusRef.current?.focus({ preventScroll: true }), 0)
   }, [])
 
-  const filteredOrders = useMemo(() => {
+  useEffect(() => {
+    if (!selected) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeDetails()
+      if (event.key !== 'Tab') return
+      const focusable = sheetRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')
+      if (!focusable?.length) return
+      const first = focusable[0]; const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    window.setTimeout(() => sheetRef.current?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true }), 0)
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', onKeyDown) }
+  }, [closeDetails, selected])
+
+  const openDetails = async (order: OrderRecord, trigger: HTMLElement) => {
+    returnFocusRef.current = trigger; setSelected(order); setDetailsLoading(true); setDetailsError('')
+    try {
+      const params = new URLSearchParams({ mode: 'details', id: order.id })
+      const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
+      const result = await response.json().catch(() => null)
+      if (!response.ok || !result?.success || !Array.isArray(result.items) || result.items.length !== 1) throw new Error('تعذر تحميل تفاصيل الفاتورة المحددة.')
+      const detailed = mapOrderSummaryToOrderRecord(normalizeOrderRecord(result.items[0] as OrderSourceRow, 0))
+      if (detailed.id !== order.id) throw new Error('تعذر مطابقة تفاصيل الفاتورة المحددة.')
+      setSelected(detailed)
+    } catch (detailsLoadError) {
+      setDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الفاتورة المحددة.')
+    } finally { setDetailsLoading(false) }
+  }
+
+  const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('ar')
     if (!query) return orders
-
-    return orders.filter((order) => {
-      return (
-        order.order_number.toLocaleLowerCase('ar').includes(query) ||
-        order.customer_name.toLocaleLowerCase('ar').includes(query)
-      )
-    })
+    return orders.filter((order) => [order.invoice_number, order.order_number, order.customer_name].some((value) => value.toLocaleLowerCase('ar').includes(query)))
   }, [orders, search])
 
-  const sendStatusWhatsApp = async (
-    orderId: string,
-    branchId: string,
-    status: 'ready' | 'closed'
-  ) => {
-    const response = await fetch('/api/whatsapp/send', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'text',
-        mode: 'text',
-        branchId,
-        notification: {
-          orderId,
-          status,
-          channel: 'whatsapp',
-        },
-      }),
-    })
-    const result = await response.json().catch(() => null)
+  if (access.loading || !access.allowed) return <div className="pos-history-gate">جارٍ التحقق من الصلاحية...</div>
 
-    if (!response.ok || !result?.success) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('[POS ORDER STATUS] WhatsApp notification failed.', {
-          orderId: `${orderId.slice(0, 4)}...${orderId.slice(-4)}`,
-          status,
-          httpStatus: response.status,
-          code: result?.code || `HTTP_${response.status}`,
-          message: typeof result?.error === 'string' ? result.error : 'WhatsApp notification failed',
-        })
-      }
-      throw new Error('تم تحديث حالة الطلب، لكن تعذر إرسال رسالة الواتساب.')
-    }
-  }
-
-  const updateOrderStatus = async (order: OrderRecord, nextStatus: 'ready' | 'closed') => {
-    if (
-      updatingOrderIdsRef.current.has(order.id) ||
-      !access.tenantId ||
-      !access.branchId ||
-      (order.status === 'in_progress' && nextStatus !== 'ready') ||
-      (order.status === 'ready' && nextStatus !== 'closed') ||
-      !isActiveOrderStatus(order.status)
-    ) {
-      return
-    }
-
-    updatingOrderIdsRef.current.add(order.id)
-    setUpdatingOrderIds((current) => ({ ...current, [order.id]: true }))
-    setOrderErrors((current) => ({ ...current, [order.id]: '' }))
-
-    const currentStatus = order.status
-    const response = await fetch(`/api/admin/orders/${order.id}/status`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: nextStatus }),
-    })
-    const result = await response.json().catch(() => null)
-    const persistedStatus = result?.order?.status
-
-    if (!response.ok || !result?.success || persistedStatus !== nextStatus) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('[POS ORDER STATUS] Update failed.', {
-          transition: `${currentStatus}->${nextStatus}`,
-          orderId: `${order.id.slice(0, 4)}...${order.id.slice(-4)}`,
-          code: result?.code || `HTTP_${response.status}`,
-          message: typeof result?.error === 'string' ? result.error : 'Order status update failed',
-        })
-      }
-      setOrderErrors((current) => ({ ...current, [order.id]: 'تعذر تحديث حالة الطلب. حاول مرة أخرى.' }))
-      updatingOrderIdsRef.current.delete(order.id)
-      setUpdatingOrderIds((current) => ({ ...current, [order.id]: false }))
-      return
-    }
-
-    if (nextStatus === 'closed') {
-      setExitingOrderIds((current) => ({ ...current, [order.id]: true }))
-      window.setTimeout(() => {
-        setOrders((current) => current.filter((item) => item.id !== order.id))
-        setExitingOrderIds((current) => ({ ...current, [order.id]: false }))
-      }, 180)
-    } else {
-      setOrders((current) => current.map((item) => item.id === order.id ? { ...item, status: 'ready' } : item))
-    }
-
-    try {
-      await sendStatusWhatsApp(order.id, order.branch_id, nextStatus)
-    } catch (notificationError) {
-      setPageError(notificationError instanceof Error ? notificationError.message : 'تم تحديث حالة الطلب، لكن تعذر إرسال رسالة الواتساب.')
-    } finally {
-      updatingOrderIdsRef.current.delete(order.id)
-      setUpdatingOrderIds((current) => ({ ...current, [order.id]: false }))
-    }
-  }
-
-  if (access.loading || !access.allowed) {
-    return (
-      <div className="fixed inset-0 grid place-items-center bg-[#020817] text-sm font-black text-cyan-100">جارٍ التحقق من الصلاحية...</div>
-    )
-  }
-
-  const hasBranchContext = Boolean(access.tenantId && access.branchId)
-
-  return (
-    <div className="min-h-[100dvh] w-full overflow-x-clip bg-[#020817] text-white [direction:rtl]">
-      <style jsx global>{`
-        @keyframes pos-order-status-exit {
-          to { opacity: 0; transform: translateY(-8px); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .pos-order-status-page *,
-          .pos-order-status-page *::before,
-          .pos-order-status-page *::after {
-            animation-duration: 0.01ms !important;
-            transition-duration: 0.01ms !important;
-          }
-        }
-      `}</style>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,#020817_0%,#041224_56%,#020817_100%)]" />
-      <main className="pos-order-status-page relative min-h-[100dvh] w-full min-w-0 overflow-x-clip px-4 pb-[max(5rem,calc(1.25rem+env(safe-area-inset-bottom)))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-5xl">
-          <header className="pos-order-status-header flex min-w-0 items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-cyan-300/10 text-cyan-300 shadow-[0_0_22px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.24)]"><ClipboardStatusIcon /></span>
-              <div>
-                <h1 className="text-[26px] font-black leading-tight text-white sm:text-3xl">حالة الطلبات</h1>
-                <p className="mt-1 text-sm font-bold text-slate-400">طلبات فرعك الحالي</p>
-              </div>
-            </div>
-            <button type="button" onClick={() => router.push('/pos')} className="pos-order-back-button grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-white/[0.035] text-xl text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 active:scale-95" aria-label="العودة إلى نقطة البيع">←</button>
-          </header>
-
-          <div className="mt-6 flex gap-3">
-            <label className="relative min-w-0 flex-1">
-              <span className="sr-only">ابحث برقم الطلب أو اسم العميل</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الطلب أو اسم العميل" className="h-14 w-full rounded-[19px] border-0 bg-white/[0.04] px-4 pl-12 text-right text-sm font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)] outline-none placeholder:text-slate-500 focus:shadow-[0_0_18px_rgba(34,211,238,0.08),inset_0_0_0_1px_rgba(34,211,238,0.38)]" />
-            </label>
-            <button type="button" onClick={() => void loadOrders()} disabled={loading || !hasBranchContext} className="grid h-14 w-14 shrink-0 place-items-center rounded-[19px] bg-cyan-300/10 text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:text-slate-600" aria-label="تحديث الطلبات"><RefreshIcon spinning={loading} /></button>
-          </div>
-
-          {!hasBranchContext ? <p className="mt-4 rounded-[18px] bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">لا يمكن عرض الطلبات دون فرع مرتبط بالحساب.</p> : null}
-          {pageError ? <p role="alert" className="mt-4 rounded-[18px] bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.18)]">{pageError}</p> : null}
-
-          {loading && orders.length === 0 ? (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="h-44 animate-pulse rounded-[22px] bg-white/[0.04]" /><div className="h-44 animate-pulse rounded-[22px] bg-white/[0.04]" /></div>
-          ) : filteredOrders.length === 0 ? (
-            <section className="mt-8 flex min-h-64 flex-col items-center justify-center rounded-[24px] bg-white/[0.025] px-5 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)]">
-              <span className="grid h-16 w-16 place-items-center rounded-full bg-cyan-300/[0.06] text-cyan-200"><ClipboardStatusIcon /></span>
-              <h2 className="mt-4 text-xl font-black text-white">لا توجد طلبات حالية</h2>
-              <p className="mt-2 text-sm font-bold text-slate-400">{search.trim() ? 'لا توجد نتائج مطابقة للبحث.' : 'جميع الطلبات تم تسليمها'}</p>
-              {lastRefreshedAt ? <p className="mt-4 text-xs font-bold text-slate-500">آخر تحديث: {formatPosTime(lastRefreshedAt)}</p> : null}
-            </section>
-          ) : (
-            <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredOrders.map((order) => {
-                if (!isActiveOrderStatus(order.status)) return null
-                const statusUi = STATUS_UI[order.status]
-                const updating = Boolean(updatingOrderIds[order.id])
-                const preparing = order.status === 'in_progress'
-
-                return (
-                  <article key={order.id} className={`pos-order-status-card min-w-0 overflow-hidden rounded-[20px] bg-white/[0.035] p-4 shadow-[0_12px_30px_rgba(0,0,0,0.13),inset_0_0_0_1px_rgba(34,211,238,0.12)] ${exitingOrderIds[order.id] ? 'animate-[pos-order-status-exit_180ms_ease-in_forwards]' : ''}`}>
-                    <div className="pos-order-card-head grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                      <div className="min-w-0"><p dir="ltr" className="break-words text-right text-base font-black text-white [overflow-wrap:anywhere]">{order.order_number}</p><p className="mt-1 truncate text-sm font-bold text-slate-300">{order.customer_name || 'بدون اسم'}</p><p className="mt-1 text-xs font-bold text-slate-500">{formatRelativeOrderTime(order.created_at, now)}</p></div>
-                      <span className={`pos-order-status-badge inline-flex min-w-0 max-w-full shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-black ${statusUi.badgeClassName}`}><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusUi.dotClassName}`} />{statusUi.label}</span>
-                    </div>
-
-                    <div className="pos-order-card-actions mt-4 grid grid-cols-2 gap-2.5">
-                      <button type="button" onClick={() => void updateOrderStatus(order, 'ready')} disabled={!preparing || updating} className={`min-h-[48px] min-w-0 rounded-[15px] px-2 text-[13px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 disabled:cursor-not-allowed ${preparing && !updating ? 'bg-cyan-300/15 text-cyan-50 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.45)] active:scale-[0.98]' : 'bg-white/[0.025] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.10)]'}`}>{!preparing ? '✓ تم التجهيز' : updating ? 'جارٍ التحديث...' : 'تم التجهيز'}</button>
-                      <button type="button" onClick={() => void updateOrderStatus(order, 'closed')} disabled={preparing || updating} className={`min-h-[48px] min-w-0 rounded-[15px] px-2 text-[13px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200/70 disabled:cursor-not-allowed ${!preparing && !updating ? 'bg-emerald-400/15 text-emerald-50 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.42)] active:scale-[0.98]' : 'bg-white/[0.025] text-slate-500 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.10)]'}`}>{updating ? 'جارٍ التحديث...' : 'تم التسليم'}</button>
-                    </div>
-                    {orderErrors[order.id] ? <p role="alert" className="mt-3 text-xs font-bold leading-5 text-red-200">{orderErrors[order.id]}</p> : null}
-                  </article>
-                )
-              })}
-            </section>
-          )}
-        </div>
-      </main>
-    </div>
-  )
+  return <div className="pos-invoice-history" dir="rtl"><main>
+    <header className="pos-history-header"><div className="pos-history-heading"><span><InvoiceIcon /></span><div><h1>آخر الفواتير</h1><p>سجل عمليات البيع في فرعك الحالي</p></div></div><button type="button" onClick={() => router.push('/pos')} aria-label="العودة إلى نقطة البيع">←</button></header>
+    <div className="pos-history-tools"><label><span className="sr-only">ابحث برقم الفاتورة أو الطلب أو اسم العميل</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو الطلب أو اسم العميل" /></label><button type="button" onClick={() => void loadInvoices()} disabled={loading}>تحديث</button></div>
+    {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadInvoices()}>إعادة المحاولة</button></div> : null}
+    {loading && orders.length === 0 ? <div className="pos-history-grid" aria-label="جارٍ تحميل الفواتير">{[1,2,3].map((item) => <div className="pos-history-skeleton" key={item} />)}</div> : null}
+    {!loading && !error && filtered.length === 0 ? <section className="pos-history-empty"><InvoiceIcon /><h2>لا توجد فواتير</h2><p>{search ? 'لا توجد نتائج مطابقة للبحث.' : 'ستظهر عمليات البيع المكتملة هنا.'}</p></section> : null}
+    {!error && filtered.length > 0 ? <section className="pos-history-grid" aria-label="سجل الفواتير">{filtered.map((order) => <article className="pos-history-card" key={order.id}><div className="pos-history-card-top"><div><small>الفاتورة</small><strong dir="ltr">{order.invoice_number}</strong></div><span>{paymentStatusLabel(order.payment_status)}</span></div><dl><div><dt>الطلب</dt><dd dir="ltr">{order.order_number}</dd></div><div><dt>العميل</dt><dd>{order.customer_name || 'عميل نقدي'}</dd></div><div><dt>التاريخ</dt><dd>{formatPosGregorianDateTime(order.created_at)}</dd></div><div><dt>الإجمالي</dt><dd>{formatCurrency(order.total)}</dd></div></dl><button type="button" onClick={(event) => void openDetails(order, event.currentTarget)}>عرض التفاصيل</button></article>)}</section> : null}
+  </main>
+  {selected ? <div className="pos-invoice-sheet-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDetails() }}><section ref={sheetRef} className="pos-invoice-sheet" role="dialog" aria-modal="true" aria-labelledby="pos-invoice-sheet-title"><header><div><small>تفاصيل الفاتورة</small><h2 id="pos-invoice-sheet-title" dir="ltr">{selected.invoice_number}</h2></div><button type="button" onClick={closeDetails} aria-label="إغلاق تفاصيل الفاتورة">×</button></header><div className="pos-invoice-sheet-body">
+    {detailsLoading ? <p className="pos-sheet-message">جارٍ تحميل التفاصيل...</p> : null}{detailsError ? <p className="pos-sheet-error" role="alert">{detailsError}</p> : null}
+    {!detailsLoading && !detailsError ? <><section className="pos-invoice-customer"><div><b>{selected.customer_name || 'عميل نقدي'}</b>{selected.customer_phone && selected.customer_phone !== '—' ? <span dir="ltr">{selected.customer_phone}</span> : null}</div><time>{formatPosGregorianDateTime(selected.created_at)}</time></section><section><h3>المنتجات والخدمات</h3><div className="pos-invoice-lines">{selected.items.length ? selected.items.map((item, index) => <div key={`${selected.id}-${index}`}><div><b>{item.item_name || 'عنصر'}</b><span>{item.quantity} × {formatCurrency(item.unit_price)}</span></div><strong>{formatCurrency(item.line_total)}</strong></div>) : <p>لا توجد تفاصيل عناصر متاحة.</p>}</div></section><section className="pos-invoice-totals"><div><span>المجموع قبل الضريبة</span><b>{formatCurrency(selected.subtotal)}</b></div><div><span>الضريبة</span><b>{formatCurrency(selected.tax)}</b></div><div><span>الخصم</span><b>{formatCurrency(selected.discount)}</b></div><div className="is-total"><span>الإجمالي</span><b>{formatCurrency(selected.total)}</b></div></section><section className="pos-invoice-payment"><div><span>طريقة الدفع</span><b>{selected.payment_method}</b></div><div><span>حالة الدفع</span><b>{paymentStatusLabel(selected.payment_status)}</b></div></section></> : null}
+  </div></section></div> : null}</div>
 }

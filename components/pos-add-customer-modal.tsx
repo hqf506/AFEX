@@ -40,16 +40,22 @@ export function PosAddCustomerModal({
   const [error, setError] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const firstNameInputRef = useRef<HTMLInputElement | null>(null)
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
   const phoneValidation = validateSaudiCustomerPhone(phone)
   const displayedPhoneError =
     phoneError || (phoneValidation.valid ? '' : phoneValidation.message)
 
   useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null
     const focusTimeoutId = window.setTimeout(() => {
       firstNameInputRef.current?.focus({ preventScroll: true })
     }, 0)
 
-    return () => window.clearTimeout(focusTimeoutId)
+    return () => {
+      window.clearTimeout(focusTimeoutId)
+      previouslyFocusedRef.current?.focus({ preventScroll: true })
+    }
   }, [])
 
   useEffect(() => {
@@ -57,6 +63,22 @@ export function PosAddCustomerModal({
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !saving) {
         onClose()
+      }
+
+      if (event.key === 'Tab') {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+        )
+        if (!focusable?.length) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
 
@@ -147,6 +169,7 @@ export function PosAddCustomerModal({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-customer-title"
