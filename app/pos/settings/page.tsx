@@ -43,7 +43,7 @@ export default function PosSettingsPage() {
   }
 
   return <div className="pos-settings-page" dir="rtl"><main className="pos-settings-panel">
-    <header className="pos-settings-header"><div><p>AFEX POS</p><h1>الإعدادات</h1><span>إدارة تجربة نقطة البيع والجلسة الحالية.</span></div><Link href="/pos" aria-label="العودة إلى نقطة البيع"><span aria-hidden="true">←</span><b>إغلاق</b></Link></header>
+    <header className="pos-settings-header"><div><p>AFEX POS</p><h1>إعدادات نقطة البيع</h1><span>إدارة تجربة نقطة البيع والجلسة الحالية.</span></div><Link href="/pos" aria-label="العودة إلى نقطة البيع"><span aria-hidden="true">←</span><b>العودة إلى نقطة البيع</b></Link></header>
     <section className="pos-settings-session" aria-labelledby="pos-settings-session-title"><div><p id="pos-settings-session-title">جلسة الموظف</p><strong>{employee?.full_name || 'موظف نقطة البيع'}</strong><span>{employee?.role || 'جلسة POS نشطة'}</span></div><span className="pos-settings-live"><i aria-hidden="true" />نشطة</span></section>
     <section className="pos-settings-section" aria-labelledby="pos-settings-display-title"><div className="pos-settings-section-heading"><div><h2 id="pos-settings-display-title">المظهر</h2><p>بدّل بين الوضع الفاتح والداكن.</p></div><PosThemeToggle /></div></section>
     <section className="pos-settings-section" aria-labelledby="pos-settings-work-title"><div className="pos-settings-section-heading"><div><h2 id="pos-settings-work-title">العمل اليومي</h2><p>انتقل إلى مسارات نقطة البيع المصرّح بها.</p></div></div><nav className="pos-settings-links" aria-label="روابط نقطة البيع">

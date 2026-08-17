@@ -35,6 +35,10 @@ export type OrderRecord = {
   cash_received: number
   remaining_from_customer: number
   cash_change: number
+  cash_received_available?: boolean
+  applied_amount_available?: boolean
+  remaining_from_customer_available?: boolean
+  cash_change_available?: boolean
   items: OrderLineItemRecord[]
 }
 
@@ -104,6 +108,10 @@ export function mapOrderSummaryToOrderRecord(record: OrderSummary): OrderRecord 
     cash_received: record.cashReceived,
     remaining_from_customer: record.remainingFromCustomer,
     cash_change: record.cashChange,
+    cash_received_available: record.cashReceivedAvailable,
+    applied_amount_available: record.appliedAmountAvailable,
+    remaining_from_customer_available: record.remainingFromCustomerAvailable,
+    cash_change_available: record.cashChangeAvailable,
     items: record.items.map((item) => ({
       item_name: item.name,
       item_type: item.type,

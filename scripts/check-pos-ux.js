@@ -71,7 +71,7 @@ assert.ok(
 assert.ok(
   posHome.includes('function PosOperationalHome') &&
     posHome.includes('بدء عملية بيع') &&
-    posHome.includes('عرض جميع الطلبات') &&
+    posHome.includes('عرض سجل الفواتير') &&
     posHome.includes('orders={recentOrders}') &&
     globalStyles.includes('.pos-operational-canvas') &&
     globalStyles.includes('.pos-orders-list-head') &&

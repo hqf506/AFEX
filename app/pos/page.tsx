@@ -428,10 +428,10 @@ function PosOperationalHome({
               <span className="pos-home-action-icon"><PosIcon name="user" /></span>
               <div><b>إضافة عميل</b><small>تسجيل عميل جديد</small></div>
             </button>
-            <Link className="pos-home-action" href="/pos/order-status">
+            <a className="pos-home-action" href="#pos-recent-orders-title">
               <span className="pos-home-action-icon"><PosIcon name="clipboard" /></span>
               <div><b>آخر الطلبات</b><small>{ordersLoading || ordersError ? 'عرض الطلبات الأخيرة' : `${orders.length} من آخر الطلبات`}</small></div>
-            </Link>
+            </a>
           </div>
           <Link className="pos-home-action is-drafts" href="/pos/offline-drafts">
             <span className="pos-home-action-icon"><PosIcon name="clipboard" /></span>
@@ -463,7 +463,7 @@ function PosOperationalHome({
               <h2 id="pos-recent-orders-title">آخر الطلبات</h2>
               <p>ملخص تشغيلي لآخر ست عمليات</p>
             </div>
-            <Link href="/pos/order-status">عرض جميع الطلبات</Link>
+            <Link href="/pos/order-status">عرض سجل الفواتير</Link>
           </header>
 
           {ordersError ? <p className="pos-orders-message is-error" role="alert">تعذر تحميل الطلبات حاليًا. حاول مرة أخرى.</p> : null}

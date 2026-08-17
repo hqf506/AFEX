@@ -33,8 +33,8 @@ function Icon({ name }: { name: IconName }) {
 
 const navigation = [
   { label: 'البيع', href: '/pos', icon: 'sale' as const },
-  { label: 'الطلبات', href: '/pos/order-status', icon: 'orders' as const },
-  { label: 'الفواتير', icon: 'invoice' as const, disabled: true },
+  { label: 'آخر الطلبات', href: '/pos#pos-recent-orders-title', icon: 'orders' as const },
+  { label: 'الفواتير', href: '/pos/order-status', icon: 'invoice' as const },
 ]
 
 export function PosResponsiveShell({ children }: { children: React.ReactNode }) {
@@ -98,7 +98,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
             href={item.href}
             label={item.label}
             icon={<Icon name={item.icon} />}
-            disabled={item.disabled}
+            disabled={false}
             active={item.href ? pathname === item.href : false}
             onClick={() => setDrawerOpen(false)}
           />
@@ -114,7 +114,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   )
 
   return (
-    <div className={`afex-pos-app-shell ${isPosHome ? 'is-pos-home' : 'is-pos-subroute'} ${isSaleRoute ? 'is-sale-route' : ''}`} dir="rtl">
+    <div className={`afex-pos-app-shell ${isPosHome ? 'is-pos-home' : 'is-pos-subroute'} ${isSaleRoute ? 'is-sale-route' : ''} ${isMore ? 'is-more-route' : ''}`} dir="rtl">
       {isSaleRoute ? <header className="afex-pos-sale-header" data-testid="pos-sale-operational-header">
         <Link href={saleHeader.back} data-testid="pos-sale-step-back" aria-label={`الرجوع من ${saleHeader.title}`}>‹</Link>
         <button type="button" className="afex-pos-sale-home" data-testid="pos-sale-home" aria-label="العودة إلى نقطة البيع" onClick={returnToPosHome}><Icon name="sale" /><span>نقطة البيع</span></button>

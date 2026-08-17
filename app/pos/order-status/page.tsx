@@ -10,7 +10,7 @@ import { normalizeOrderRecord, type OrderSourceRow } from '@/lib/orders/normaliz
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 
-const PAGE_SIZE = 100
+const PAGE_SIZE = 24
 
 function InvoiceIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-4 2-4-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
@@ -38,26 +38,39 @@ export default function PosInvoiceHistoryPage() {
   const [error, setError] = useState('')
   const [detailsError, setDetailsError] = useState('')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
   const sheetRef = useRef<HTMLElement | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
 
-  const loadInvoices = useCallback(async () => {
+  const loadInvoices = useCallback(async (requestedPage = 1) => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
     setLoading(true); setError('')
     try {
-      const params = new URLSearchParams({ mode: 'full', page: '1', pageSize: String(PAGE_SIZE), listFilter: 'all' })
+      const params = new URLSearchParams({ mode: 'full', page: String(requestedPage), pageSize: String(PAGE_SIZE), listFilter: 'all' })
+      if (search.trim()) params.set('search', search.trim())
       const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
       const result = await response.json().catch(() => null)
       if (!response.ok || !result?.success) throw new Error(getClientErrorMessage(result, 'تعذر تحميل سجل الفواتير.'))
       const rows = Array.isArray(result.items) ? result.items as OrderSourceRow[] : []
-      setOrders(rows.map((row, index) => mapOrderSummaryToOrderRecord(normalizeOrderRecord(row, index))))
+      const mapped = rows.map((row, index) => mapOrderSummaryToOrderRecord(normalizeOrderRecord(row, index)))
+      setOrders((current) => {
+        if (requestedPage === 1) return mapped
+        const unique = new Map(current.map((order) => [order.id, order]))
+        for (const order of mapped) unique.set(order.id, order)
+        return [...unique.values()]
+      })
+      setPage(requestedPage)
+      setHasMore(Boolean(result.hasMore))
+      setTotalCount(Number(result.totalCount) || mapped.length)
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل الفواتير.')
     } finally { setLoading(false) }
-  }, [access.allowed, access.branchId, access.tenantId])
+  }, [access.allowed, access.branchId, access.tenantId, search])
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => void loadInvoices(), 0)
+    const timeoutId = window.setTimeout(() => void loadInvoices(1), 250)
     return () => window.clearTimeout(timeoutId)
   }, [loadInvoices])
 
@@ -109,14 +122,15 @@ export default function PosInvoiceHistoryPage() {
 
   return <div className="pos-invoice-history" dir="rtl"><main>
     <header className="pos-history-header"><div className="pos-history-heading"><span><InvoiceIcon /></span><div><h1>آخر الفواتير</h1><p>سجل عمليات البيع في فرعك الحالي</p></div></div><button type="button" onClick={() => router.push('/pos')} aria-label="العودة إلى نقطة البيع">←</button></header>
-    <div className="pos-history-tools"><label><span className="sr-only">ابحث برقم الفاتورة أو الطلب أو اسم العميل</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو الطلب أو اسم العميل" /></label><button type="button" onClick={() => void loadInvoices()} disabled={loading}>تحديث</button></div>
-    {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadInvoices()}>إعادة المحاولة</button></div> : null}
+    <div className="pos-history-tools"><label><span className="sr-only">ابحث برقم الفاتورة أو الطلب أو اسم العميل</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو الطلب أو اسم العميل" /></label><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}>تحديث</button></div>
+    {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadInvoices(1)}>إعادة المحاولة</button></div> : null}
     {loading && orders.length === 0 ? <div className="pos-history-grid" aria-label="جارٍ تحميل الفواتير">{[1,2,3].map((item) => <div className="pos-history-skeleton" key={item} />)}</div> : null}
     {!loading && !error && filtered.length === 0 ? <section className="pos-history-empty"><InvoiceIcon /><h2>لا توجد فواتير</h2><p>{search ? 'لا توجد نتائج مطابقة للبحث.' : 'ستظهر عمليات البيع المكتملة هنا.'}</p></section> : null}
     {!error && filtered.length > 0 ? <section className="pos-history-grid" aria-label="سجل الفواتير">{filtered.map((order) => <article className="pos-history-card" key={order.id}><div className="pos-history-card-top"><div><small>رقم الفاتورة</small><strong dir="ltr">{order.invoice_number}</strong></div><span>{paymentStatusLabel(order.payment_status)}</span></div><dl><div className="is-customer"><dt>العميل</dt><dd>{order.customer_name || 'عميل نقدي'}</dd></div><div><dt>التاريخ والوقت</dt><dd>{formatPosGregorianDateTime(order.created_at)}</dd></div><div className="is-total"><dt>الإجمالي</dt><dd>{formatCurrency(order.total)}</dd></div></dl><button type="button" onClick={(event) => void openDetails(order, event.currentTarget)}><DetailsIcon /><span>عرض التفاصيل</span></button></article>)}</section> : null}
+    {!error && hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadInvoices(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : `تحميل المزيد (${orders.length} من ${totalCount})`}</button></div> : null}
   </main>
   {selected ? <div className="pos-invoice-sheet-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDetails() }}><section ref={sheetRef} className="pos-invoice-sheet" role="dialog" aria-modal="true" aria-labelledby="pos-invoice-sheet-title"><header><div><small>تفاصيل الفاتورة</small><h2 id="pos-invoice-sheet-title" dir="ltr">{selected.invoice_number}</h2></div><button type="button" onClick={closeDetails} aria-label="إغلاق تفاصيل الفاتورة">×</button></header><div className="pos-invoice-sheet-body">
     {detailsLoading ? <p className="pos-sheet-message">جارٍ تحميل التفاصيل...</p> : null}{detailsError ? <p className="pos-sheet-error" role="alert">{detailsError}</p> : null}
-    {!detailsLoading && !detailsError ? <><section className="pos-invoice-customer"><div><b>{selected.customer_name || 'عميل نقدي'}</b>{selected.customer_phone && selected.customer_phone !== '—' ? <span dir="ltr">{selected.customer_phone}</span> : null}</div><time>{formatPosGregorianDateTime(selected.created_at)}</time></section><section><h3>المنتجات والخدمات</h3><div className="pos-invoice-lines">{selected.items.length ? selected.items.map((item, index) => <div key={`${selected.id}-${index}`}><div><b>{item.item_name || 'عنصر'}</b><span>{item.quantity} × {formatCurrency(item.unit_price)}</span></div><strong>{formatCurrency(item.line_total)}</strong></div>) : <p>لا توجد تفاصيل عناصر متاحة.</p>}</div></section><section className="pos-invoice-totals"><div><span>المجموع قبل الضريبة</span><b>{formatCurrency(selected.subtotal)}</b></div><div><span>الضريبة</span><b>{formatCurrency(selected.tax)}</b></div><div><span>الخصم</span><b>{formatCurrency(selected.discount)}</b></div><div className="is-total"><span>الإجمالي</span><b>{formatCurrency(selected.total)}</b></div></section><section className="pos-invoice-payment"><div><span>طريقة الدفع</span><b>{selected.payment_method}</b></div><div><span>حالة الدفع</span><b>{paymentStatusLabel(selected.payment_status)}</b></div>{selected.payment_method_key === 'cash' ? <div className="pos-invoice-cash-details"><div><span>المبلغ المستلم من العميل</span><b>{formatCurrency(selected.cash_received)}</b></div><div><span>المبلغ المتبقي</span><b>{formatCurrency(selected.remaining_from_customer)}</b></div><div><span>الباقي للعميل</span><b>{formatCurrency(selected.cash_change)}</b></div></div> : null}</section></> : null}
+    {!detailsLoading && !detailsError ? <><section className="pos-invoice-customer"><div><b>{selected.customer_name || 'عميل نقدي'}</b>{selected.customer_phone && selected.customer_phone !== '—' ? <span dir="ltr">{selected.customer_phone}</span> : null}</div><time>{formatPosGregorianDateTime(selected.created_at)}</time></section><section><h3>المنتجات والخدمات</h3><div className="pos-invoice-lines">{selected.items.length ? selected.items.map((item, index) => <div key={`${selected.id}-${index}`}><div><b>{item.item_name || 'عنصر'}</b><span>{item.quantity} × {formatCurrency(item.unit_price)}</span></div><strong>{formatCurrency(item.line_total)}</strong></div>) : <p>لا توجد تفاصيل عناصر متاحة.</p>}</div></section><section className="pos-invoice-totals"><div><span>المجموع قبل الضريبة</span><b>{formatCurrency(selected.subtotal)}</b></div><div><span>الضريبة</span><b>{formatCurrency(selected.tax)}</b></div><div><span>الخصم</span><b>{formatCurrency(selected.discount)}</b></div><div className="is-total"><span>الإجمالي</span><b>{formatCurrency(selected.total)}</b></div></section><section className="pos-invoice-payment"><div><span>طريقة الدفع</span><b>{selected.payment_method}</b></div><div><span>حالة الدفع</span><b>{paymentStatusLabel(selected.payment_status)}</b></div>{selected.payment_method_key === 'cash' ? <div className="pos-invoice-cash-details"><div><span>المبلغ المستلم من العميل</span><b>{selected.cash_received_available ? formatCurrency(selected.cash_received) : 'غير متاح'}</b></div><div><span>المبلغ المطبق على الطلب</span><b>{selected.applied_amount_available ? formatCurrency(selected.total) : 'غير متاح'}</b></div><div><span>الباقي للعميل</span><b>{selected.cash_change_available ? formatCurrency(selected.cash_change) : 'غير متاح'}</b></div></div> : null}</section></> : null}
   </div></section></div> : null}</div>
 }

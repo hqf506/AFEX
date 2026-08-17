@@ -32,8 +32,8 @@ function BottomNavigationIcon({ name }: { name: 'home' | 'clipboard' | 'invoice'
 
 const items = [
   { label: 'الإعدادات', href: '/pos/settings', icon: 'settings' as const },
-  { label: 'حالة الطلبات', href: '/pos/order-status', icon: 'clipboard' as const },
-  { label: 'الفواتير', href: null, icon: 'invoice' as const },
+  { label: 'آخر الطلبات', href: '/pos#pos-recent-orders-title', icon: 'clipboard' as const },
+  { label: 'الفواتير', href: '/pos/order-status', icon: 'invoice' as const },
   { label: 'الرئيسية', href: '/pos', icon: 'home' as const },
 ]
 

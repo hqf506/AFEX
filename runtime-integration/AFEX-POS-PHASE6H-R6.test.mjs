@@ -11,7 +11,7 @@ const route = readFileSync('app/api/orders/route.ts', 'utf8')
 test('invoice cards expose the required hierarchy and a real details action', () => {
   for (const label of ['رقم الفاتورة', 'العميل', 'التاريخ والوقت', 'الإجمالي', 'عرض التفاصيل']) assert.ok(history.includes(label), label)
   assert.match(history, /<button[^>]*onClick=\{\(event\) => void openDetails[\s\S]*?<DetailsIcon \/>[\s\S]*?عرض التفاصيل/)
-  assert.match(css, /\.pos-history-card > button \{[^}]*min-height: 44px;[^}]*background: var\(--afex-pos-bronze\);[^}]*color: #fff;/)
+  assert.match(css, /\.pos-history-card > button \{[^}]*min-height: 44px;[^}]*color: var\(--afex-pos-text\);[^}]*text-decoration: underline;/)
 })
 
 test('invoice history ends naturally without a viewport-height spacer', () => {
@@ -24,7 +24,7 @@ test('cash payment evidence comes from official selected invoice fields', () => 
   assert.match(route, /remaining_from_customer/)
   assert.match(route, /cash_change/)
   assert.match(history, /payment_method_key === 'cash'/)
-  for (const field of ['selected.cash_received', 'selected.remaining_from_customer', 'selected.cash_change']) assert.ok(history.includes(field), field)
+  for (const field of ['selected.cash_received', 'selected.total', 'selected.cash_change']) assert.ok(history.includes(field), field)
   assert.doesNotMatch(history, /cash_received\s*[-+*/]|cash_change\s*[-+*/]/)
 })
 
