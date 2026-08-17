@@ -501,6 +501,51 @@ body {
 .pos-drafts-back:focus-visible, .pos-draft-actions button:focus-visible { outline: 2px solid var(--afex-pos-bronze); outline-offset: 2px; }
 @media (max-width: 540px) { .pos-drafts-panel { border-radius: 20px; padding: 12px; }.pos-draft-facts { grid-template-columns: 1fr; }.pos-draft-actions button { flex: 1 1 120px; } }
 
+/* POS Phase 6H-R6: dense invoice history, official payment details and settings. */
+.pos-invoice-history { min-height: 0; padding-block: max(12px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom)); }
+.pos-history-grid { align-items: start; gap: 10px; margin-top: 14px; }
+.pos-history-card { border-color: color-mix(in srgb, var(--afex-pos-border) 82%, var(--afex-pos-text-secondary)); border-radius: 17px; padding: 11px; box-shadow: 0 8px 22px rgb(0 0 0 / .08); }
+.pos-history-card dl { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; gap: 7px; margin: 10px 0; }
+.pos-history-card dl > div { display: grid; align-content: center; min-height: 44px; border: 1px solid color-mix(in srgb, var(--afex-pos-border) 72%, transparent); border-radius: 11px; padding: 7px 8px; }
+.pos-history-card dl .is-total { text-align: end; }
+.pos-history-card dl .is-total dd { color: var(--afex-pos-bronze); font-size: 14px; }
+.pos-history-card > button { display: flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border-color: var(--afex-pos-bronze); background: var(--afex-pos-bronze); color: #fff; transition: transform .16s ease, filter .16s ease, box-shadow .16s ease; }
+.pos-history-card > button svg { width: 19px; height: 19px; flex: 0 0 auto; }
+.pos-history-card > button:hover { filter: brightness(1.08); box-shadow: 0 8px 18px color-mix(in srgb, var(--afex-pos-bronze) 25%, transparent); }
+.pos-history-card > button:active { transform: translateY(1px); filter: brightness(.92); }
+.pos-invoice-cash-details { grid-column: 1 / -1; display: grid; gap: 8px; border-top: 1px solid var(--afex-pos-border); padding-top: 10px; }
+.pos-invoice-cash-details > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.pos-settings-page { width: 100%; min-width: 0; overflow-x: clip; background: var(--afex-pos-base); padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); color: var(--afex-pos-text); }
+.pos-settings-panel { display: grid; width: min(100%, 860px); gap: 12px; margin-inline: auto; }
+.pos-settings-header, .pos-settings-session, .pos-settings-section { border: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); box-shadow: var(--afex-pos-shadow-panel); }
+.pos-settings-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-radius: 22px; padding: 16px; }
+.pos-settings-header p { margin: 0; color: var(--afex-pos-bronze); font-size: 10px; font-weight: 900; letter-spacing: .16em; }
+.pos-settings-header h1 { margin: 3px 0 0; font-size: clamp(24px, 4vw, 32px); font-weight: 950; }
+.pos-settings-header div > span { display: block; margin-top: 4px; color: var(--afex-pos-text-secondary); font-size: 12px; font-weight: 700; }
+.pos-settings-header > a { display: flex; min-width: 88px; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--afex-pos-border); border-radius: 13px; background: var(--afex-pos-raised); color: var(--afex-pos-text); font-size: 13px; }
+.pos-settings-session { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 18px; padding: 13px 15px; }
+.pos-settings-session p { margin: 0; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 800; }.pos-settings-session strong { display: block; margin-top: 3px; font-size: 15px; }.pos-settings-session div > span { display: block; margin-top: 3px; color: var(--afex-pos-text-secondary); font-size: 11px; }
+.pos-settings-live { display: flex; align-items: center; gap: 6px; border-radius: 999px; background: color-mix(in srgb, var(--afex-pos-emerald) 12%, var(--afex-pos-raised)); padding: 7px 10px; color: var(--afex-pos-emerald); font-size: 11px; font-weight: 900; }.pos-settings-live i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pos-settings-section { border-radius: 18px; padding: 14px; }
+.pos-settings-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.pos-settings-section-heading h2 { margin: 0; font-size: 15px; font-weight: 900; }.pos-settings-section-heading p { margin: 4px 0 0; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 700; }
+.pos-settings-section .afex-pos-theme-toggle { min-width: 112px; min-height: 44px; flex: 0 0 auto; }
+.pos-settings-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.pos-settings-links > a { display: grid; min-width: 0; min-height: 70px; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid var(--afex-pos-border); border-radius: 14px; background: var(--afex-pos-raised); padding: 10px; color: var(--afex-pos-text); transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.pos-settings-links > a:hover { border-color: var(--afex-pos-bronze); background: var(--afex-pos-hover); }.pos-settings-links > a:active { transform: translateY(1px); }.pos-settings-links svg { width: 24px; height: 24px; color: var(--afex-pos-bronze); }.pos-settings-links span { display: grid; min-width: 0; gap: 3px; }.pos-settings-links b { font-size: 12px; }.pos-settings-links small { overflow: hidden; color: var(--afex-pos-text-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }.pos-settings-links i { color: var(--afex-pos-text-secondary); font-style: normal; }
+.pos-settings-section.is-danger { border-color: color-mix(in srgb, var(--afex-pos-danger) 42%, var(--afex-pos-border)); }.pos-settings-section.is-danger h2 { color: var(--afex-pos-danger); }
+.pos-settings-danger-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }.pos-settings-danger-actions button { display: flex; min-height: 44px; flex: 1 1 180px; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--afex-pos-danger); border-radius: 13px; background: color-mix(in srgb, var(--afex-pos-danger) 10%, var(--afex-pos-panel)); padding-inline: 14px; color: var(--afex-pos-danger); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }.pos-settings-danger-actions svg { width: 20px; height: 20px; }.pos-settings-danger-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.pos-settings-header a:focus-visible, .pos-settings-links a:focus-visible, .pos-settings-danger-actions button:focus-visible { outline: 2px solid var(--afex-pos-bronze); outline-offset: 2px; }
+
+@media (max-width: 700px) {
+  .pos-history-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }.pos-history-card dl .is-customer { grid-column: 1 / -1; }.pos-history-card dl .is-total { text-align: start; }
+  .pos-settings-links { grid-template-columns: 1fr; }.pos-settings-links > a { min-height: 62px; }
+}
+@media (max-width: 390px) {
+  .pos-settings-header { align-items: flex-start; padding: 13px; }.pos-settings-header > a { min-width: 44px; width: 44px; padding: 0; }.pos-settings-header > a b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .pos-settings-section-heading { align-items: flex-start; }.pos-settings-section .afex-pos-theme-toggle { min-width: 104px; }
+}
+
 /* Phase 6A-R1 entry and home surfaces. These overrides deliberately retire the
    previous glow-heavy visual layer while leaving the existing interaction and
    authority components intact. */

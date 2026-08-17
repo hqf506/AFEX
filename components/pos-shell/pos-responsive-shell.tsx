@@ -120,14 +120,13 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
         <button type="button" className="afex-pos-sale-home" data-testid="pos-sale-home" aria-label="العودة إلى نقطة البيع" onClick={returnToPosHome}><Icon name="sale" /><span>نقطة البيع</span></button>
         <strong>{saleHeader.title}</strong>
         <PosThemeToggle />
-      </header> : <header className="afex-pos-responsive-header">
-        <strong>{isMore ? 'المزيد' : 'نقطة البيع'}</strong>
+      </header> : isMore ? null : <header className="afex-pos-responsive-header">
+        <strong>نقطة البيع</strong>
         <div className="afex-pos-responsive-actions"><PosThemeToggle /><button type="button" aria-label="فتح التنقل" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>☰</button></div>
       </header>}
       {isPosHome ? <aside className="afex-pos-sidebar">{menu}</aside> : null}
       {isPosHome && drawerOpen ? <div className="afex-pos-drawer-backdrop" onMouseDown={() => setDrawerOpen(false)}><aside className="afex-pos-drawer" onMouseDown={(event) => event.stopPropagation()}>{menu}</aside></div> : null}
       <div className={`afex-pos-shell-content ${isMore ? 'is-more-route' : ''}`}>
-        {isMore ? <section className="afex-pos-mobile-more">{menu}</section> : null}
         <div className="afex-pos-route-content">{children}</div>
       </div>
       {isPosHome ? <PosMobileBottomNavigation /> : null}
