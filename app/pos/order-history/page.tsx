@@ -42,6 +42,7 @@ export default function PosOrderHistoryPage() {
   const [totalCount, setTotalCount] = useState(0)
   const sheetRef = useRef<HTMLElement | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
+  const detailsRequestRef = useRef(0)
 
   const loadInvoices = useCallback(async (requestedPage = 1) => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
@@ -74,6 +75,7 @@ export default function PosOrderHistoryPage() {
   }, [loadInvoices])
 
   const closeDetails = useCallback(() => {
+    detailsRequestRef.current += 1
     setSelected(null); setDetailsError('')
     window.setTimeout(() => returnFocusRef.current?.focus({ preventScroll: true }), 0)
   }, [])
@@ -97,6 +99,8 @@ export default function PosOrderHistoryPage() {
   }, [closeDetails, selected])
 
   const openDetails = async (order: OrderRecord, trigger: HTMLElement) => {
+    const requestSequence = detailsRequestRef.current + 1
+    detailsRequestRef.current = requestSequence
     returnFocusRef.current = trigger; setSelected(order); setDetailsLoading(true); setDetailsError('')
     try {
       const params = new URLSearchParams({ mode: 'details', id: order.id })
@@ -105,10 +109,12 @@ export default function PosOrderHistoryPage() {
       if (!response.ok || !result?.success || !Array.isArray(result.items) || result.items.length !== 1) throw new Error('تعذر تحميل تفاصيل الطلب المحدد.')
       const detailed = mapOrderSummaryToOrderRecord(normalizeOrderRecord(result.items[0] as OrderSourceRow, 0))
       if (detailed.id !== order.id) throw new Error('تعذر مطابقة تفاصيل الطلب المحدد.')
-      setSelected(detailed)
+      if (detailsRequestRef.current === requestSequence) setSelected(detailed)
     } catch (detailsLoadError) {
-      setDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الطلب المحدد.')
-    } finally { setDetailsLoading(false) }
+      if (detailsRequestRef.current === requestSequence) setDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الطلب المحدد.')
+    } finally {
+      if (detailsRequestRef.current === requestSequence) setDetailsLoading(false)
+    }
   }
 
   const filtered = useMemo(() => {
@@ -137,4 +143,3 @@ export default function PosOrderHistoryPage() {
     {!detailsLoading && !detailsError ? <><section className="pos-invoice-customer"><div><b>{selected.customer_name || 'عميل نقدي'}</b>{selected.customer_phone && selected.customer_phone !== '—' ? <span dir="ltr">{selected.customer_phone}</span> : null}</div><time>{formatPosGregorianDateTime(selected.created_at)}</time></section><section><h3>المنتجات والخدمات</h3><div className="pos-invoice-lines">{selected.items.length ? selected.items.map((item, index) => <div key={`${selected.id}-${index}`}><div><b>{item.item_name || 'عنصر'}</b><span>{item.quantity} × {formatCurrency(item.unit_price)}</span></div><strong>{formatCurrency(item.line_total)}</strong></div>) : <p>لا توجد تفاصيل عناصر متاحة.</p>}</div></section><section className="pos-invoice-totals"><div><span>المجموع قبل الضريبة</span><b>{formatCurrency(selected.subtotal)}</b></div><div><span>الضريبة</span><b>{formatCurrency(selected.tax)}</b></div><div><span>الخصم</span><b>{formatCurrency(selected.discount)}</b></div><div className="is-total"><span>الإجمالي</span><b>{formatCurrency(selected.total)}</b></div></section><section className="pos-invoice-payment"><div><span>طريقة الدفع</span><b>{selected.payment_method}</b></div><div><span>حالة الدفع</span><b>{paymentStatusLabel(selected.payment_status)}</b></div>{selected.payment_method_key === 'cash' ? <div className="pos-invoice-cash-details"><div><span>المبلغ المستلم من العميل</span><b>{selected.cash_received_available ? formatCurrency(selected.cash_received) : 'غير متاح'}</b></div><div><span>المبلغ المطبق على الطلب</span><b>{selected.applied_amount_available ? formatCurrency(selected.total) : 'غير متاح'}</b></div><div><span>الباقي للعميل</span><b>{selected.cash_change_available ? formatCurrency(selected.cash_change) : 'غير متاح'}</b></div></div> : null}</section></> : null}
   </div></section></div> : null}</div>
 }
-

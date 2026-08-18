@@ -22,6 +22,7 @@ for (const theme of ['dark', 'light']) {
       document.head.append(element)
       document.body.style.overflow = 'hidden'
     }, css)
+    await page.locator('.pos-invoice-sheet').evaluate(async (element) => { await Promise.all(element.getAnimations().map((animation) => animation.finished)) })
 
     for (const size of sizes) {
       await page.setViewportSize(size)

@@ -31,7 +31,7 @@ test('history and status consume complete tablet width with an explicit scroll c
   assert.match(tabletCss, /\.afex-pos-app-shell\.is-pos-subroute:not\(\.is-sale-route\)\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
   assert.match(tabletCss, /\.afex-pos-app-shell\.is-pos-subroute:not\(\.is-sale-route\)\s*>\s*\.afex-pos-shell-content\s*\{[^}]*grid-column:\s*1;[^}]*width:\s*100%/s)
   assert.match(tabletCss, /\.pos-order-history-page,\s*\.pos-order-status-workflow,[^}]*width:\s*100%\s*!important;[^}]*max-width:\s*none/s)
-  assert.match(tabletCss, /\.pos-order-history-page \.pos-history-grid\s*\{[^}]*auto-fit[^}]*minmax\(min\(270px, 100%\), 1fr\)/s)
+  assert.match(tabletCss, /\.pos-order-history-page \.pos-history-grid\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/s)
   assert.match(tabletCss, /\.pos-order-status-workflow > main\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\)[^}]*overflow:\s*hidden/s)
   assert.match(tabletCss, /\.pos-order-status-workflow \.pos-status-columns\s*\{[^}]*overflow-y:\s*auto/s)
 })

@@ -23,7 +23,7 @@ test('landscape login and PIN fill the viewport and expose the full keypad', () 
 })
 
 test('landscape history, status, cart, and checkout use available geometry', () => {
-  assert.match(landscape, /\.pos-order-history-page \.pos-history-grid\s*\{[^}]*minmax\(min\(260px, 100%\), 1fr\)/s)
+  assert.match(landscape, /\.pos-order-history-page \.pos-history-grid\s*\{[^}]*repeat\(4, minmax\(0, 1fr\)\)/s)
   assert.match(landscape, /\.pos-order-status-workflow \.pos-status-columns\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/s)
   assert.match(landscape, /\.afex-sale-layout\s*\{[^}]*clamp\(320px, 30dvw, 360px\) minmax\(0, 1fr\)/s)
   assert.match(landscape, /\.afex-checkout-layout\s*\{[^}]*minmax\(270px, 320px\) minmax\(0, 1fr\)/s)
