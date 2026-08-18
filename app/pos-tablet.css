@@ -262,6 +262,7 @@
   .afex-pos-shell-content:has(.pos-order-status-workflow) > .afex-pos-route-content {
     width: 100%;
     max-width: none;
+    height: 100%;
     min-height: 0;
     overflow: hidden;
   }
@@ -288,6 +289,7 @@
 
   .pos-order-status-workflow {
     height: 100%;
+    box-sizing: border-box;
     padding-block: 12px max(12px, env(safe-area-inset-bottom));
     overflow: hidden;
     background: var(--afex-pos-base);
@@ -422,7 +424,11 @@
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scroll-padding-block: 44px max(16px, env(safe-area-inset-bottom));
     scrollbar-gutter: stable;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
     border: 1px solid var(--afex-pos-border);
     border-radius: 16px;
     background: var(--afex-pos-panel);
@@ -629,6 +635,8 @@
   }
 
   .pos-order-status-workflow [data-order-status-action] {
+    position: relative;
+    z-index: 1;
     padding: 10px 12px max(10px, env(safe-area-inset-bottom));
     border-top: 1px solid var(--afex-pos-border);
     background: var(--afex-pos-panel);
@@ -644,6 +652,17 @@
     font-weight: 900;
   }
 
+  .pos-order-status-workflow [data-order-status-action] p {
+    min-height: 44px;
+    margin: 0;
+    display: grid;
+    place-items: center;
+    color: var(--afex-pos-text-secondary);
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+  }
+
   .pos-order-status-workflow .pos-status-loading {
     display: grid;
     min-height: 0;
@@ -655,18 +674,17 @@
   @media (orientation: portrait) {
     .pos-order-status-workflow .pos-status-workspace {
       grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(260px, 1fr) auto;
-      overflow-y: auto;
-      overscroll-behavior: contain;
+      grid-template-rows: minmax(260px, .92fr) minmax(390px, 1.08fr);
+      overflow: hidden;
     }
 
     .pos-order-status-workflow .pos-status-list {
-      max-height: 48dvh;
+      max-height: none;
     }
 
     .pos-order-status-workflow .pos-status-details {
-      min-height: 420px;
-      overflow: visible;
+      min-height: 0;
+      overflow: hidden;
     }
   }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
@@ -38,6 +38,8 @@ export default function PosOrderStatusPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const listRef = useRef<HTMLElement>(null)
+  const selectedRowRef = useRef<HTMLButtonElement>(null)
 
   const loadOrders = useCallback(async (requestedPage = 1) => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
@@ -81,6 +83,21 @@ export default function PosOrderStatusPage() {
     () => orders.find((order) => order.id === selectedId) ?? orders[0] ?? null,
     [orders, selectedId],
   )
+  const selectedNextStatus = selectedOrder ? STATUS_TRANSITIONS[selectedOrder.status] : undefined
+
+  useEffect(() => {
+    const list = listRef.current
+    const row = selectedRowRef.current
+    if (!list || !row) return
+    const frame = window.requestAnimationFrame(() => {
+      const listRect = list.getBoundingClientRect()
+      const rowRect = row.getBoundingClientRect()
+      if (rowRect.top < listRect.top || rowRect.bottom > listRect.bottom) {
+        row.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+      }
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [orders, selectedOrder?.id])
 
   const advance = async (order: OrderRecord) => {
     const nextStatus = STATUS_TRANSITIONS[order.status]
@@ -118,7 +135,7 @@ export default function PosOrderStatusPage() {
     {!loading && !error && orders.length === 0 ? <section className="pos-history-empty"><WorkflowIcon /><h2>لا توجد طلبات تشغيلية حالية</h2><p>ستظهر الطلبات قيد التنفيذ أو الجاهزة هنا.</p></section> : null}
 
     {!error && orders.length > 0 ? <section className="pos-status-workspace">
-      <section className="pos-status-list" data-order-status-list aria-label="الطلبات التشغيلية">
+      <section className="pos-status-list" data-order-status-list aria-label="الطلبات التشغيلية" ref={listRef}>
         <div className="pos-status-list-labels" aria-hidden="true"><span>الطلب والعميل</span><span>التاريخ</span><span>الإجمالي</span><span>الحالة</span></div>
         {orders.map((order) => <button
           type="button"
@@ -126,6 +143,7 @@ export default function PosOrderStatusPage() {
           data-order-status-row
           data-selected={order.id === selectedOrder?.id ? 'true' : 'false'}
           aria-pressed={order.id === selectedOrder?.id}
+          ref={order.id === selectedOrder?.id ? selectedRowRef : undefined}
           key={order.id}
           onClick={() => setSelectedId(order.id)}
         >
@@ -160,7 +178,9 @@ export default function PosOrderStatusPage() {
           </dl>
           <div className="pos-status-history"><span>سجل الحالة</span><strong>غير متاح</strong></div>
         </div>
-        <footer data-order-status-action><button type="button" onClick={() => void advance(selectedOrder)} disabled={updatingId === selectedOrder.id}>{updatingId === selectedOrder.id ? 'جارٍ التحديث...' : selectedOrder.status === 'in_progress' ? 'نقل إلى جاهز' : 'تم التسليم'}</button></footer>
+        <footer data-order-status-action>
+          {selectedNextStatus ? <button type="button" onClick={() => void advance(selectedOrder)} disabled={updatingId !== null} aria-busy={updatingId === selectedOrder.id}>{updatingId === selectedOrder.id ? 'جارٍ التحديث...' : selectedNextStatus === 'ready' ? 'نقل إلى جاهز' : 'تم التسليم'}</button> : <p role="status">لا يوجد انتقال حالة متاح لهذا الطلب.</p>}
+        </footer>
       </aside> : null}
     </section> : null}
   </main></div>
