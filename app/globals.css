@@ -2034,6 +2034,184 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
   }
 }
 
+/* AFEX POS R8E: landscape is a distinct tablet presentation contract. */
+@media (min-width: 768px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) and (orientation: landscape) {
+  .pos-entry-login,
+  .pos-entry-pin {
+    width: 100dvw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left) !important;
+    place-items: center;
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+  }
+  .pos-entry-login > div:last-child,
+  .pos-entry-pin .pos-pin-frame,
+  .pos-entry-login > div:last-child > section,
+  .pos-entry-pin .pos-pin-frame > section {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(8px, 1.8dvh, 18px) max(14px, env(safe-area-inset-right)) clamp(8px, 1.8dvh, 18px) max(14px, env(safe-area-inset-left)) !important;
+  }
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div {
+    width: min(440px, 100%);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px) !important;
+    overflow-y: auto !important;
+    padding: clamp(12px, 2dvh, 20px) !important;
+    overscroll-behavior: contain;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section {
+    display: grid !important;
+    grid-template-columns: minmax(230px, 32%) minmax(0, 1fr) !important;
+    align-items: stretch;
+  }
+  .pos-entry-pin .pos-pin-frame > section > aside {
+    display: flex !important;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(8px, 1.8dvh, 16px) !important;
+  }
+  .pos-entry-pin .pos-pin-frame > section > aside > div {
+    width: 100%;
+    max-width: 320px;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    overflow-y: auto;
+    padding: clamp(10px, 1.8dvh, 18px) !important;
+    overscroll-behavior: contain;
+  }
+  .pos-entry-pin .pos-pin-frame > section > section {
+    min-width: 0;
+    padding: clamp(8px, 1.8dvh, 16px) max(12px, env(safe-area-inset-left)) !important;
+  }
+  .pos-entry-pin .pos-pin-frame > section > section > div { width: min(100%, 400px); max-width: 400px; }
+  .pos-entry-pin .pos-pin-frame > section > section [dir='ltr'] {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(64px, 92px));
+    justify-content: center;
+    gap: 6px !important;
+    margin-top: 8px !important;
+  }
+  .pos-entry-pin .pos-pin-frame > section > section [dir='ltr'] button {
+    width: 100%;
+    min-width: 44px;
+    height: 48px;
+    min-height: 48px;
+  }
+  .pos-entry-pin .pos-pin-indicators { margin-top: 10px !important; }
+
+  .afex-pos-shell-content:has(.pos-order-history-page),
+  .afex-pos-shell-content:has(.pos-order-status-workflow),
+  .afex-pos-shell-content:has(.pos-order-history-page) > .afex-pos-route-content,
+  .afex-pos-shell-content:has(.pos-order-status-workflow) > .afex-pos-route-content,
+  .pos-order-history-page,
+  .pos-order-status-workflow,
+  .pos-order-history-page > main,
+  .pos-order-status-workflow > main {
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+  .pos-order-history-page,
+  .pos-order-status-workflow {
+    padding-inline: max(10px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
+  }
+  .pos-order-history-page .pos-history-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+    gap: 10px;
+  }
+  .pos-order-status-workflow .pos-status-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .pos-order-history-page .pos-history-header > button,
+  .pos-order-history-page .pos-history-tools > button,
+  .pos-order-status-workflow .pos-history-header > button,
+  .pos-order-status-workflow .pos-history-tools > button {
+    width: auto;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .afex-pos-app-shell.is-sale-route {
+    width: 100dvw;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+  .afex-sale-layout {
+    display: grid;
+    grid-template-columns: clamp(320px, 30dvw, 360px) minmax(0, 1fr);
+    gap: clamp(8px, 1.2dvw, 14px);
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+  .afex-sale-cart {
+    position: static;
+    inset: auto;
+    z-index: auto;
+    display: grid;
+    width: auto;
+    height: 100%;
+    max-height: 100%;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 18px;
+    padding: 8px 8px 0;
+  }
+  .afex-sale-cart.is-open { display: grid; }
+  .afex-sale-product-grid--desktop { display: grid; }
+  .afex-sale-product-grid--mobile,
+  .afex-sale-mobile-summary { display: none; }
+  .afex-sale-cart > [data-mobile-cart-header] { min-height: 48px; padding: 5px 7px; }
+  .afex-sale-cart > [data-mobile-cart-scroll-body] {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-block: 4px;
+  }
+  .afex-sale-cart .afex-mobile-cart-item {
+    min-height: 96px;
+    gap: 4px;
+    padding: 6px;
+  }
+  .afex-sale-cart .afex-mobile-cart-item-main > div,
+  .afex-sale-cart .afex-mobile-cart-item-main p { min-width: 0; overflow-wrap: anywhere; }
+  .afex-sale-cart > [data-mobile-cart-footer] {
+    min-height: 0;
+    align-self: end;
+    flex: 0 0 auto;
+    padding: 6px 0 0;
+  }
+  .afex-sale-cart [data-mobile-cart-totals] { padding-bottom: 4px; }
+  .afex-sale-cart [data-mobile-cart-actions] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .afex-sale-cart [data-mobile-cart-actions] button {
+    width: 100%;
+    height: 48px !important;
+    min-height: 48px;
+    max-height: 48px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pos-shell-viewport *, .pos-shell-viewport *::before, .pos-shell-viewport *::after {
     scroll-behavior: auto !important;

@@ -14,7 +14,7 @@ test('R8C correction is isolated to tablet media contracts', () => {
   assert.match(tabletBlock, /max-width:\s*1366px/)
   assert.match(tabletBlock, /hover:\s*none/)
   assert.match(tabletBlock, /pointer:\s*coarse/)
-  assert.doesNotMatch(tabletBlock, /max-width:\s*(?:767|430|390|375|360|320)px/)
+  assert.doesNotMatch(tabletBlock, /@media[^\n]*(?:max-width:\s*(?:767|430|390|375|360|320)px)/)
 })
 
 test('tablet login and PIN use the complete dynamic viewport with one page scroll surface', () => {

@@ -5,12 +5,14 @@ import { join } from 'node:path'
 test.use({ hasTouch: true })
 
 const css = readFileSync('app/globals.css', 'utf8')
-const evidenceDir = process.env.AFEX_R8D_EVIDENCE_DIR || join('test-results', 'r8d')
+const evidenceDir = process.env.AFEX_R8E_EVIDENCE_DIR || process.env.AFEX_R8D_EVIDENCE_DIR || join('test-results', 'r8d')
 const sizes = [
   { width: 768, height: 1024 }, { width: 810, height: 1080 },
   { width: 820, height: 1180 }, { width: 834, height: 1194 },
+  { width: 1366, height: 1024 },
   { width: 1024, height: 768 }, { width: 1080, height: 810 },
   { width: 1180, height: 820 }, { width: 1194, height: 834 },
+  { width: 932, height: 430 }, { width: 844, height: 390 },
 ]
 
 const card = '<article class="pos-history-card"><div class="pos-history-card-top"><div><small>رقم الطلب</small><strong>01-0009</strong></div><span>قيد التنفيذ</span></div><dl><div class="is-customer"><dt>العميل</dt><dd>عميل تجريبي</dd></div><div><dt>التاريخ</dt><dd>18/08/2026</dd></div><div class="is-total"><dt>الإجمالي</dt><dd>276 ر.س</dd></div></dl><button>عرض التفاصيل</button></article>'
@@ -76,6 +78,8 @@ for (const [screen, markup] of Object.entries(screens)) {
           const history = document.querySelector<HTMLElement>('.pos-invoice-history')
           const cart = document.querySelector<HTMLElement>('.afex-sale-cart')
           const cartFooter = document.querySelector<HTMLElement>('[data-mobile-cart-footer]')
+          const loginForm = document.querySelector<HTMLElement>('.pos-entry-login form')
+          const loginRect = loginForm?.getBoundingClientRect()
           return {
             horizontalOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
             invalidControls: invalidPrimary.map((el) => {
@@ -90,6 +94,8 @@ for (const [screen, markup] of Object.entries(screens)) {
             cartBottomGap: cart && cartFooter
               ? Math.abs(cart.getBoundingClientRect().bottom - Number.parseFloat(getComputedStyle(cart).borderBottomWidth || '0') - cartFooter.getBoundingClientRect().bottom)
               : 0,
+            loginCenterDelta: loginRect ? Math.abs((loginRect.left + loginRect.width / 2) - innerWidth / 2) : 0,
+            routeWidthRatio: history ? history.getBoundingClientRect().width / innerWidth : 1,
             scrollOwners: scrollOwners.length,
             viewport: { width: innerWidth, height: innerHeight, visualHeight: visualViewport?.height ?? innerHeight },
           }
@@ -99,10 +105,12 @@ for (const [screen, markup] of Object.entries(screens)) {
         expect(metrics.undersizedTargets, JSON.stringify(metrics.undersizedTargets)).toHaveLength(0)
         expect(metrics.sideGap).toBeLessThanOrEqual(18)
         expect(metrics.cartBottomGap).toBeLessThanOrEqual(1)
+        expect(metrics.loginCenterDelta).toBeLessThanOrEqual(1)
+        expect(metrics.routeWidthRatio).toBeGreaterThanOrEqual(0.96)
         expect(metrics.scrollOwners).toBeLessThanOrEqual(1)
         expect(metrics.viewport.visualHeight).toBe(metrics.viewport.height)
 
-        if ((size.width === 834 && size.height === 1194) || (size.width === 1194 && size.height === 834)) {
+        if (size.width > size.height) {
           mkdirSync(evidenceDir, { recursive: true })
           await page.screenshot({ path: join(evidenceDir, `${browserName}-${screen}-${theme}-${size.width}x${size.height}.png`), fullPage: false })
         }
