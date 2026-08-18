@@ -52,6 +52,7 @@ import {
   PosAddCustomerModal,
   type CreatedPosCustomer,
 } from '@/components/pos-add-customer-modal'
+import { PosPreparingScreen } from '@/components/pos-preparing-screen'
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
@@ -834,13 +835,7 @@ export default function PosPage() {
   }
 
   if (access.loading || !access.allowed) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-[#020817] text-white">
-        <div className="rounded-[24px] border border-cyan-300/20 bg-[rgba(2,8,23,0.72)] px-6 py-4 text-sm font-bold text-slate-200 shadow-[0_0_40px_rgba(34,211,238,0.12)]">
-          جارٍ تحميل نقطة البيع...
-        </div>
-      </div>
-    )
+    return <PosPreparingScreen />
   }
 
   if (Boolean(activePosEmployee)) {

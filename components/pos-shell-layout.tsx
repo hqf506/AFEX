@@ -6,6 +6,7 @@ import { useAuthState } from '@/components/auth-state-provider'
 import { FeatureDisabledState } from '@/components/feature-disabled-state'
 import { PosTabletFrame } from '@/components/pos-tablet-frame'
 import { PosResponsiveShell } from '@/components/pos-shell/pos-responsive-shell'
+import { PosPreparingScreen } from '@/components/pos-preparing-screen'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { canAccessPos } from '@/lib/permissions'
 import {
@@ -228,9 +229,7 @@ function ProtectedPosShellLayout({
   if (authState.loading || (requireEmployee && allowed && !employeeCheckReady)) {
     return (
       <PosShellViewport>
-        <div className="page-wrap">
-          <div className="page-card">جار تجهيز نقطة البيع...</div>
-        </div>
+        <PosPreparingScreen />
       </PosShellViewport>
     )
   }

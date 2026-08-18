@@ -233,6 +233,117 @@ body {
   padding: 0;
 }
 
+@keyframes afex-pos-preparing-dot {
+  0%, 70%, 100% { opacity: .34; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-3px); }
+}
+
+.afex-pos-preparing {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  place-items: center;
+  padding:
+    max(24px, env(safe-area-inset-top))
+    max(24px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
+  background: var(--afex-pos-base);
+  color: var(--afex-pos-text);
+  text-align: center;
+}
+
+.afex-pos-preparing-mark {
+  position: absolute;
+  z-index: -1;
+  inset-inline-start: clamp(-72px, -3vw, -20px);
+  top: 50%;
+  color: color-mix(in srgb, var(--afex-pos-emerald) 7%, transparent);
+  font-size: clamp(300px, 50vw, 720px);
+  font-weight: 950;
+  line-height: .72;
+  letter-spacing: -.09em;
+  transform: translateY(-50%);
+  user-select: none;
+  pointer-events: none;
+}
+
+.afex-pos-preparing-content {
+  display: grid;
+  width: min(100%, 440px);
+  min-width: 0;
+  justify-items: center;
+}
+
+.afex-pos-preparing-wordmark {
+  margin: 0 0 22px;
+  color: var(--afex-pos-emerald);
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: .22em;
+  line-height: 1;
+}
+
+.afex-pos-preparing h1 {
+  margin: 0;
+  color: var(--afex-pos-text);
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.afex-pos-preparing-subtitle {
+  margin: 10px 0 0;
+  color: var(--afex-pos-text-secondary);
+  font-size: clamp(14px, 1.8vw, 17px);
+  font-weight: 650;
+  line-height: 1.7;
+}
+
+.afex-pos-preparing-indicator {
+  display: flex;
+  height: 12px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 25px;
+}
+
+.afex-pos-preparing-indicator span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--afex-pos-emerald);
+  animation: afex-pos-preparing-dot 1.35s ease-in-out infinite;
+}
+
+.afex-pos-preparing-indicator span:nth-child(2) { animation-delay: 150ms; }
+.afex-pos-preparing-indicator span:nth-child(3) { animation-delay: 300ms; }
+
+.afex-pos-preparing-accent {
+  width: 54px;
+  height: 1px;
+  margin-top: 17px;
+  background: color-mix(in srgb, var(--afex-pos-emerald) 72%, transparent);
+}
+
+@media (max-width: 520px) {
+  .afex-pos-preparing-mark {
+    inset-inline-start: -72px;
+    opacity: .72;
+    font-size: min(105vw, 390px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .afex-pos-preparing-indicator span { animation: none; opacity: .72; transform: none; }
+}
+
 /* ================== AFEX POS responsive shell ================== */
 
 .pos-operational-home {
