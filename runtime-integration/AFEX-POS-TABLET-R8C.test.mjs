@@ -2,46 +2,53 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const css = readFileSync('app/globals.css', 'utf8')
-const marker = '/* AFEX POS R8D: final tablet presentation contract.'
-const start = css.indexOf(marker)
-const end = css.indexOf('@media (prefers-reduced-motion: reduce)', start)
-const tabletBlock = css.slice(start, end)
+const globalCss = readFileSync('app/globals.css', 'utf8')
+const tabletCss = readFileSync('app/pos-tablet.css', 'utf8')
 
-test('R8C correction is isolated to tablet media contracts', () => {
-  assert.ok(start >= 0)
-  assert.match(tabletBlock, /min-width:\s*768px/)
-  assert.match(tabletBlock, /max-width:\s*1366px/)
-  assert.match(tabletBlock, /hover:\s*none/)
-  assert.match(tabletBlock, /pointer:\s*coarse/)
-  assert.doesNotMatch(tabletBlock, /@media[^\n]*(?:max-width:\s*(?:767|430|390|375|360|320)px)/)
+test('R8F replaces stacked R8C/R8D/R8E contracts with one tablet stylesheet', () => {
+  assert.doesNotMatch(globalCss, /AFEX POS R8[CD E]:/)
+  assert.match(tabletCss, /AFEX POS R8F/)
+  assert.match(tabletCss, /min-width:\s*768px/)
+  assert.match(tabletCss, /max-width:\s*1366px/)
+  assert.match(tabletCss, /orientation:\s*landscape/)
+  assert.doesNotMatch(tabletCss, /pointer:|hover:/)
+  assert.doesNotMatch(tabletCss, /@media[^\n]*max-width:\s*(?:767|430|390|375|360|320)px/)
 })
 
-test('tablet login and PIN use the complete dynamic viewport with one page scroll surface', () => {
-  assert.match(tabletBlock, /\.pos-entry-login,\s*\.pos-entry-pin\s*\{[^}]*width:\s*100dvw\s*!important;[^}]*height:\s*100dvh/)
-  assert.match(tabletBlock, /\.pos-entry-login > div:last-child,\s*\.pos-entry-pin \.pos-pin-frame\s*\{[^}]*width:\s*100dvw\s*!important;[^}]*aspect-ratio:\s*auto\s*!important;/)
-  assert.match(tabletBlock, /\.pos-entry-pin\s*\{[^}]*height:\s*100dvh[^}]*overflow-y:\s*auto/)
-  assert.match(tabletBlock, /\.pos-entry-pin button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/)
-  assert.doesNotMatch(tabletBlock, /100vh/)
+test('short-height phone rules no longer leak into geometric tablet landscape', () => {
+  assert.doesNotMatch(globalCss, /max-height:\s*500px\)\s*and\s*\(pointer:\s*coarse/)
 })
 
-test('tablet history and status consume the complete route width', () => {
-  assert.match(tabletBlock, /\.pos-invoice-history > main\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;/)
-  assert.match(tabletBlock, /\.pos-order-history-page \.pos-history-grid\s*\{[^}]*auto-fit[^}]*minmax\(min\(280px, 100%\), 1fr\)/)
-  assert.match(tabletBlock, /\.pos-order-status-workflow \.pos-status-columns\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/)
+test('tablet entry surfaces use the dynamic viewport without a device frame', () => {
+  assert.match(tabletCss, /\.pos-entry-login,\s*\.pos-entry-pin\s*\{[^}]*width:\s*100dvw[^}]*height:\s*100dvh/s)
+  assert.match(tabletCss, /aspect-ratio:\s*auto\s*!important/)
+  assert.match(tabletCss, /env\(safe-area-inset-top\)[^}]*env\(safe-area-inset-right\)[^}]*env\(safe-area-inset-bottom\)[^}]*env\(safe-area-inset-left\)/s)
+  assert.match(tabletCss, /\.pos-entry-pin button,[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/s)
+  assert.doesNotMatch(tabletCss, /100vh/)
 })
 
-test('tablet cart retains semantic three-row ownership and bottom footer', () => {
-  assert.match(tabletBlock, /\.afex-pos-app-shell\.is-sale-route\s*\{[^}]*height:\s*100dvh;[^}]*overflow:\s*hidden;/)
-  assert.match(tabletBlock, /\.afex-sale-cart\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto;/)
-  assert.match(tabletBlock, /\.afex-sale-layout\s*\{[^}]*grid-template-columns:\s*clamp\(320px, 30vw, 360px\) minmax\(0, 1fr\)/)
-  assert.match(tabletBlock, /\[data-mobile-cart-scroll-body\][^}]*overflow-y:\s*auto/)
-  assert.match(tabletBlock, /\[data-mobile-cart-footer\][^}]*align-self:\s*end/)
-  assert.match(tabletBlock, /\.afex-mobile-cart-item-controls button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/)
-  assert.match(tabletBlock, /\[data-mobile-cart-actions\] button\s*\{[^}]*height:\s*48px\s*!important;[^}]*min-height:\s*48px;[^}]*max-height:\s*48px;/)
-  assert.doesNotMatch(tabletBlock, /nth-child|nth-of-type|margin-(?:top|bottom|block):\s*-/)
+test('history and status consume complete tablet width with an explicit scroll contract', () => {
+  assert.match(tabletCss, /\.pos-order-history-page,\s*\.pos-order-status-workflow,[^}]*width:\s*100%\s*!important;[^}]*max-width:\s*none/s)
+  assert.match(tabletCss, /\.pos-order-history-page \.pos-history-grid\s*\{[^}]*auto-fit[^}]*minmax\(min\(270px, 100%\), 1fr\)/s)
+  assert.match(tabletCss, /\.pos-order-status-workflow > main\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\)[^}]*overflow:\s*hidden/s)
+  assert.match(tabletCss, /\.pos-order-status-workflow \.pos-status-columns\s*\{[^}]*overflow-y:\s*auto/s)
 })
 
-test('R8C tablet CSS contains no business or authority surface', () => {
-  assert.doesNotMatch(tabletBlock, /\/api\/|supabase|checkout\(|fetch\(|sessionStorage|localStorage/)
+test('tablet cart is a semantic three-row grid with one body and equal bottom actions', () => {
+  assert.match(tabletCss, /\.afex-sale-cart\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto/s)
+  assert.match(tabletCss, /\[data-mobile-cart-scroll-body\][^}]*overflow-y:\s*auto/s)
+  assert.match(tabletCss, /\[data-mobile-cart-footer\][^}]*align-self:\s*end/s)
+  assert.match(tabletCss, /\[data-mobile-cart-actions\][^}]*repeat\(2, minmax\(0, 1fr\)\)/s)
+  assert.match(tabletCss, /\[data-mobile-cart-actions\] button\s*\{[^}]*height:\s*48px\s*!important[^}]*min-height:\s*48px[^}]*max-height:\s*48px/s)
+  assert.doesNotMatch(tabletCss, /nth-child|nth-of-type|margin-(?:top|bottom|block):\s*-/)
+})
+
+test('tablet checkout has one vertical scroll surface and no fixed action dock', () => {
+  assert.match(tabletCss, /\.afex-checkout-workspace\s*\{[^}]*min-height:\s*0[^}]*overflow-y:\s*auto[^}]*touch-action:\s*pan-y/s)
+  assert.match(tabletCss, /\.afex-checkout-action-dock\s*\{[^}]*position:\s*static/s)
+  assert.doesNotMatch(tabletCss, /position:\s*fixed/)
+})
+
+test('R8F CSS contains no application, authority, or business behavior', () => {
+  assert.doesNotMatch(tabletCss, /\/api\/|fetch\(|supabase|sessionStorage|localStorage|router\.|checkout\(/)
 })

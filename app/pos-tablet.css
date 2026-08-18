@@ -1,0 +1,431 @@
+/*
+ * AFEX POS R8F — one geometric tablet contract.
+ * Phone and conventional desktop ranges are outside this file.
+ */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .pos-entry-login,
+  .pos-entry-pin {
+    display: grid !important;
+    width: 100dvw !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    place-items: center;
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+    padding:
+      max(12px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left)) !important;
+    overscroll-behavior: contain;
+  }
+
+  .pos-entry-login > div:last-child,
+  .pos-entry-pin .pos-pin-frame {
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom))) !important;
+    max-height: none !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--afex-pos-base) !important;
+  }
+
+  .pos-entry-login > div:last-child > section,
+  .pos-entry-pin .pos-pin-frame > section {
+    width: 100%;
+    min-height: inherit;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) {
+    display: grid;
+    width: 100%;
+    max-width: none;
+    place-items: center;
+    padding: clamp(16px, 3vw, 32px) !important;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div {
+    width: min(100%, 480px);
+    margin: auto;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section > section {
+    display: grid;
+    min-width: 0;
+    place-items: center;
+    padding: clamp(14px, 2.4vw, 28px) !important;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section > section > div {
+    width: min(100%, 430px);
+    max-width: 430px;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section > section [dir='ltr'] {
+    gap: 8px !important;
+    margin-top: 12px !important;
+  }
+
+  .pos-entry-pin button,
+  .pos-order-history-page .pos-history-header > button,
+  .pos-order-history-page .pos-history-tools > button,
+  .pos-order-status-workflow .pos-history-header > button,
+  .pos-order-status-workflow .pos-history-tools > button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .afex-pos-shell-content:has(.pos-order-history-page),
+  .afex-pos-shell-content:has(.pos-order-status-workflow),
+  .afex-pos-shell-content:has(.pos-order-history-page) > .afex-pos-route-content,
+  .afex-pos-shell-content:has(.pos-order-status-workflow) > .afex-pos-route-content {
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .pos-order-history-page,
+  .pos-order-status-workflow,
+  .pos-order-history-page > main,
+  .pos-order-status-workflow > main {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0;
+    margin-inline: 0 !important;
+  }
+
+  .pos-order-history-page,
+  .pos-order-status-workflow {
+    padding-inline: max(12px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
+  }
+
+  .pos-order-history-page .pos-history-grid {
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(min(270px, 100%), 1fr));
+    align-content: start;
+  }
+
+  .pos-order-status-workflow > main {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .pos-order-status-workflow .pos-status-columns {
+    width: 100%;
+    min-height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .afex-pos-app-shell.is-sale-route {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .afex-pos-app-shell.is-sale-route .afex-pos-shell-content,
+  .afex-pos-app-shell.is-sale-route .afex-pos-shell-content > .afex-pos-route-content {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .afex-sale-layout {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: clamp(320px, 30vw, 360px) minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .afex-sale-cart {
+    position: static;
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 0;
+    overflow: hidden;
+    padding: 10px 10px 0;
+  }
+
+  .afex-sale-cart > [data-mobile-cart-header] {
+    min-height: 48px;
+    padding: 6px 8px;
+  }
+
+  .afex-sale-cart > [data-mobile-cart-scroll-body] {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-block: 6px;
+  }
+
+  .afex-sale-cart [data-mobile-cart-customer] {
+    display: grid;
+    min-height: 46px;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--afex-pos-border);
+    padding: 5px 2px;
+  }
+
+  .afex-sale-cart [data-mobile-cart-items-heading] {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .afex-sale-cart [data-mobile-cart-item-list] {
+    display: grid;
+    gap: 7px;
+  }
+
+  .afex-sale-cart .afex-mobile-cart-item {
+    display: grid;
+    min-width: 0;
+    min-height: 100px;
+    grid-template-rows: auto auto;
+    align-content: start;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .afex-sale-cart .afex-mobile-cart-item-main,
+  .afex-sale-cart .afex-mobile-cart-item-controls {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .afex-sale-cart .afex-mobile-cart-item-main > div,
+  .afex-sale-cart .afex-mobile-cart-item-main p {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .afex-sale-cart .afex-mobile-cart-item-main > button,
+  .afex-sale-cart .afex-mobile-cart-item-controls button,
+  .afex-sale-cart .afex-mobile-quantity-stepper > button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .afex-sale-cart .afex-mobile-quantity-stepper {
+    width: 140px;
+    min-width: 140px;
+    grid-template-columns: 44px 32px 44px;
+    gap: 10px !important;
+  }
+
+  .afex-sale-cart > [data-mobile-cart-footer] {
+    width: 100%;
+    min-height: 0;
+    align-self: end;
+    border-top: 1px solid var(--afex-pos-border);
+    background: var(--afex-pos-panel);
+    padding: 7px 0 0;
+  }
+
+  .afex-sale-cart [data-mobile-cart-totals] {
+    padding: 0 2px 6px;
+  }
+
+  .afex-sale-cart [data-mobile-cart-actions] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .afex-sale-cart [data-mobile-cart-actions] button {
+    width: 100%;
+    height: 48px !important;
+    min-height: 48px;
+    max-height: 48px;
+  }
+
+  .afex-checkout-workspace {
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .afex-checkout-layout {
+    width: 100%;
+    max-width: 1366px;
+    min-height: 0;
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    gap: clamp(16px, 2.2vw, 28px);
+    padding: clamp(16px, 2.2vw, 28px);
+  }
+
+  .afex-checkout-summary {
+    min-height: 0;
+  }
+
+  .afex-checkout-action-dock {
+    position: static;
+  }
+
+  .afex-checkout-submit {
+    min-height: 48px;
+  }
+
+  .afex-checkout-header button,
+  .afex-payment-methods button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
+  .pos-entry-login,
+  .pos-entry-pin {
+    padding:
+      env(safe-area-inset-top)
+      env(safe-area-inset-right)
+      env(safe-area-inset-bottom)
+      env(safe-area-inset-left) !important;
+  }
+
+  .pos-entry-login > div:last-child,
+  .pos-entry-pin .pos-pin-frame,
+  .pos-entry-login > div:last-child > section,
+  .pos-entry-pin .pos-pin-frame > section {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) {
+    padding: clamp(8px, 2dvh, 18px) clamp(16px, 3dvw, 40px) !important;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div {
+    width: min(100%, 720px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section {
+    display: grid !important;
+    grid-template-columns: minmax(230px, 32%) minmax(0, 1fr) !important;
+    align-items: stretch;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section > aside {
+    display: flex !important;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(8px, 2dvh, 18px) !important;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section > aside > div {
+    width: 100%;
+    max-width: 320px;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section > section {
+    padding: clamp(8px, 2dvh, 18px) max(14px, env(safe-area-inset-left)) !important;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section > section [dir='ltr'] {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(64px, 92px));
+    justify-content: center;
+    gap: 6px !important;
+    margin-top: 8px !important;
+  }
+
+  .pos-entry-pin .pos-pin-frame > section > section [dir='ltr'] button {
+    width: 100%;
+    height: 48px;
+    min-height: 48px;
+  }
+
+  .pos-order-history-page .pos-history-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  }
+
+  .pos-order-status-workflow .pos-status-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .afex-sale-layout {
+    grid-template-columns: clamp(320px, 30dvw, 360px) minmax(0, 1fr);
+  }
+
+  .afex-checkout-header {
+    min-height: 60px;
+    padding: 8px 20px;
+  }
+
+  .afex-checkout-layout {
+    grid-template-columns: minmax(270px, 320px) minmax(0, 1fr);
+    gap: 16px;
+    padding: 14px 18px;
+  }
+
+  .afex-checkout-summary {
+    padding: 14px;
+  }
+
+  .afex-checkout-customer {
+    margin: 8px 0;
+    padding: 8px;
+  }
+
+  .afex-checkout-items {
+    max-height: 180px;
+  }
+
+  .afex-checkout-payment > h2,
+  .afex-checkout-due {
+    margin-bottom: 8px;
+  }
+
+  .afex-payment-methods button {
+    min-height: 76px;
+    padding: 10px;
+  }
+
+  .afex-cash-fields {
+    margin-top: 10px;
+  }
+
+  .afex-checkout-options {
+    margin-top: 10px;
+  }
+}

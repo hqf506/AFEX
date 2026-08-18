@@ -4,7 +4,10 @@ import { join } from 'node:path'
 
 test.use({ hasTouch: true })
 
-const css = readFileSync('app/globals.css', 'utf8')
+const css = [
+  readFileSync('app/globals.css', 'utf8'),
+  readFileSync('app/pos-tablet.css', 'utf8'),
+].join('\n')
 const evidenceDir = process.env.AFEX_R8E_EVIDENCE_DIR || process.env.AFEX_R8D_EVIDENCE_DIR || join('test-results', 'r8d')
 const sizes = [
   { width: 768, height: 1024 }, { width: 810, height: 1080 },
@@ -24,6 +27,7 @@ const screens = {
   history: `<div class="afex-pos-shell-content" data-r8d-screen="history"><div class="afex-pos-route-content"><section class="pos-invoice-history pos-order-history-page"><main><div class="pos-order-history-controls"><header class="pos-history-header"><div class="pos-history-heading"><div><h1>سجل الطلبات</h1><p>آخر 48 ساعة</p></div></div><button aria-label="العودة إلى نقطة البيع">×</button></header><div class="pos-history-tools"><label><input placeholder="البحث" /></label><button>تحديث</button></div></div><div class="pos-order-history-scroll"><section class="pos-history-grid">${card.repeat(9)}</section></div></main></section></div></div>`,
   status: `<div class="afex-pos-shell-content" data-r8d-screen="status"><div class="afex-pos-route-content"><section class="pos-invoice-history pos-order-status-workflow"><main><header class="pos-history-header"><div class="pos-history-heading"><div><h1>حالة الطلبات</h1></div></div><button aria-label="العودة إلى نقطة البيع">×</button></header><div class="pos-history-tools"><p>الانتقالات القانونية فقط</p><button>تحديث</button></div><section class="pos-status-columns"><section class="pos-status-column"><header><span>قيد التنفيذ</span></header><div>${card.repeat(3)}</div></section><section class="pos-status-column"><header><span>جاهز</span></header><div>${card.repeat(3)}</div></section></section></main></section></div></div>`,
   cart: `<div class="afex-pos-app-shell is-sale-route" data-r8d-screen="cart"><header class="afex-pos-sale-header"><a href="#">←</a><strong>اختيار العناصر</strong></header><div class="afex-pos-shell-content"><div class="afex-pos-route-content"><main class="afex-sale-layout"><aside class="afex-sale-cart"><div data-mobile-cart-header><h2>ملخص الفاتورة</h2></div><div data-mobile-cart-scroll-body><div data-mobile-cart-customer><b>العميل</b><span>عميل تجريبي</span></div><section><div data-mobile-cart-items-heading><h3>العناصر</h3></div><div data-mobile-cart-item-list>${item.repeat(12)}</div></section></div><footer data-mobile-cart-footer><div data-mobile-cart-totals><div class="afex-mobile-cart-total-lines"><div><span>الإجمالي</span><span>276 ر.س</span></div></div></div><div data-mobile-cart-actions><button class="afex-sale-complete-button">إتمام البيع</button><button class="afex-sale-cancel-button">إلغاء الفاتورة</button></div></footer></aside><section class="afex-sale-catalog"><div class="afex-sale-tools"><h1>الكتالوج</h1></div><div class="afex-sale-product-grid">${card.repeat(8)}</div></section></main></div></div></div>`,
+  checkout: `<div class="afex-pos-app-shell is-sale-route" data-r8d-screen="checkout"><header class="afex-pos-sale-header"><a href="#">←</a><strong>الدفع</strong></header><div class="afex-pos-shell-content"><div class="afex-pos-route-content"><main class="afex-checkout-workspace"><header class="afex-checkout-header"><div><p>إتمام البيع</p><h1>الدفع وإنشاء الفاتورة</h1></div><button>عودة</button></header><div class="afex-checkout-layout"><aside class="afex-checkout-summary"><div class="afex-checkout-section-heading"><h2>ملخص الطلب</h2></div><div class="afex-checkout-customer"><span>ع</span><div>عميل تجريبي</div></div><div class="afex-checkout-items">${'<div><span><b>خدمة إصلاح جلد</b><small>الكمية 1</small></span><b>240 ر.س</b></div>'.repeat(8)}</div><div class="afex-checkout-totals"><div class="is-total"><span>الإجمالي</span><b>276 ر.س</b></div></div></aside><section class="afex-checkout-payment"><div class="afex-checkout-due"><span>المبلغ المستحق</span><strong>276 ر.س</strong></div><h2>طريقة الدفع</h2><div class="afex-payment-methods"><button>مدى</button><button>نقدي</button></div><div class="afex-payment-detail"><div class="afex-checkout-options"><label>ملاحظة<textarea></textarea></label></div><div class="afex-checkout-action-dock"><button class="afex-checkout-submit">إنشاء الفاتورة</button></div></div></section></div></main></div></div></div>`,
 } as const
 
 async function mount(page: Page, markup: string, theme: string) {
@@ -41,6 +45,9 @@ for (const [screen, markup] of Object.entries(screens)) {
       await mount(page, markup, theme)
       for (const size of sizes) {
         await page.setViewportSize(size)
+        if (screen === 'checkout') {
+          await page.locator('.afex-checkout-workspace').evaluate((element) => { element.scrollTop = 0 })
+        }
         const metrics = await page.evaluate(() => {
           const screen = document.querySelector<HTMLElement>('[data-r8d-screen]')?.dataset.r8dScreen
           const primarySelector = screen === 'login'
@@ -51,7 +58,9 @@ for (const [screen, markup] of Object.entries(screens)) {
                 ? '.pos-order-history-controls button'
                 : screen === 'status'
                   ? '.pos-order-status-workflow > main > .pos-history-header button, .pos-order-status-workflow > main > .pos-history-tools button'
-                  : '.afex-pos-sale-header > a, [data-mobile-cart-footer] button'
+                  : screen === 'cart'
+                    ? '.afex-pos-sale-header > a, [data-mobile-cart-footer] button'
+                    : '.afex-checkout-header button'
           const primaryControls = [...document.querySelectorAll<HTMLElement>(primarySelector)]
           const invalidPrimary = primaryControls.filter((el) => {
             const r = el.getBoundingClientRect()
@@ -70,7 +79,9 @@ for (const [screen, markup] of Object.entries(screens)) {
               ? document.querySelector('.pos-order-history-page')
               : screen === 'status'
                 ? document.querySelector('.pos-order-status-workflow')
-                : document.querySelector('[data-r8d-screen]')
+                : screen === 'checkout'
+                  ? document.querySelector('.afex-checkout-workspace')
+                  : document.querySelector('[data-r8d-screen]')
           const scrollOwners = [...(scrollRoot?.querySelectorAll<HTMLElement>('*') ?? [])].filter((el) => {
             const style = getComputedStyle(el)
             return /(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1
@@ -84,7 +95,8 @@ for (const [screen, markup] of Object.entries(screens)) {
             horizontalOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
             invalidControls: invalidPrimary.map((el) => {
               const r = el.getBoundingClientRect()
-              return { label: el.getAttribute('aria-label') || el.textContent?.trim(), x: r.x, y: r.y, width: r.width, height: r.height }
+              const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+              return { label: el.getAttribute('aria-label') || el.textContent?.trim(), x: r.x, y: r.y, width: r.width, height: r.height, hit: hit ? `${hit.tagName}.${(hit as HTMLElement).className}` : null }
             }),
             undersizedTargets: undersizedTargets.map((el) => {
               const r = el.getBoundingClientRect()
@@ -109,6 +121,22 @@ for (const [screen, markup] of Object.entries(screens)) {
         expect(metrics.routeWidthRatio).toBeGreaterThanOrEqual(0.96)
         expect(metrics.scrollOwners).toBeLessThanOrEqual(1)
         expect(metrics.viewport.visualHeight).toBe(metrics.viewport.height)
+
+        if (screen === 'checkout') {
+          for (const control of await page.locator('.afex-payment-methods button, .afex-checkout-submit').all()) {
+            await control.scrollIntoViewIfNeeded()
+            const box = await control.boundingBox()
+            expect(box).not.toBeNull()
+            expect(box!.width).toBeGreaterThanOrEqual(44)
+            expect(box!.height).toBeGreaterThanOrEqual(44)
+            const centerClickable = await control.evaluate((element) => {
+              const rect = element.getBoundingClientRect()
+              const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+              return rect.top >= -1 && rect.bottom <= innerHeight + 1 && Boolean(hit && element.contains(hit))
+            })
+            expect(centerClickable, `${screen} ${theme} ${size.width}x${size.height} ${await control.textContent()}`).toBe(true)
+          }
+        }
 
         if (size.width > size.height) {
           mkdirSync(evidenceDir, { recursive: true })

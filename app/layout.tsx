@@ -3,6 +3,7 @@ import localFont from 'next/font/local'
 import { AuthStateProvider } from '@/components/auth-state-provider'
 import { DevCacheReset } from '@/components/dev-cache-reset'
 import './globals.css'
+import './pos-tablet.css'
 
 const cairo = localFont({
   src: [
