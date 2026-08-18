@@ -16,6 +16,18 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
   ready: 'closed',
 }
 const PAGE_SIZE = 24
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
+const EASTERN_ARABIC_DIGITS = '۰۱۲۳۴۵۶۷۸۹'
+
+function normalizeDisplayedOrderNumber(value: string) {
+  return value
+    .trim()
+    .replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(EASTERN_ARABIC_DIGITS.indexOf(digit)))
+    .replace(/[\s\u00a0\u2000-\u200b\u2010-\u2015-]+/g, '')
+    .toLowerCase()
+}
+
 function WorkflowIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="m16 15 2 2 3-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
 }
@@ -28,6 +40,10 @@ function CloseIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
 }
 
+function SearchIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" /><path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+}
+
 export default function PosOrderStatusPage() {
   const router = useRouter()
   const access = usePageAccess({ allowedRoles: [...POS_ACCESS_ROLES], redirectIfNoUser: '/pos/login', redirectIfForbidden: '/pos' })
@@ -38,7 +54,8 @@ export default function PosOrderStatusPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const listRef = useRef<HTMLElement>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const listRef = useRef<HTMLDivElement>(null)
   const selectedRowRef = useRef<HTMLButtonElement>(null)
 
   const loadOrders = useCallback(async (requestedPage = 1) => {
@@ -79,9 +96,14 @@ export default function PosOrderStatusPage() {
     ready: orders.filter((order) => order.status === 'ready'),
   }), [orders])
 
+  const normalizedSearchQuery = useMemo(() => normalizeDisplayedOrderNumber(searchQuery), [searchQuery])
+  const filteredOrders = useMemo(
+    () => normalizedSearchQuery ? orders.filter((order) => normalizeDisplayedOrderNumber(order.order_number).includes(normalizedSearchQuery)) : orders,
+    [normalizedSearchQuery, orders],
+  )
   const selectedOrder = useMemo(
-    () => orders.find((order) => order.id === selectedId) ?? orders[0] ?? null,
-    [orders, selectedId],
+    () => filteredOrders.find((order) => order.id === selectedId) ?? filteredOrders[0] ?? null,
+    [filteredOrders, selectedId],
   )
   const selectedNextStatus = selectedOrder ? STATUS_TRANSITIONS[selectedOrder.status] : undefined
 
@@ -98,6 +120,13 @@ export default function PosOrderStatusPage() {
     })
     return () => window.cancelAnimationFrame(frame)
   }, [orders, selectedOrder?.id])
+
+  const updateSearch = (value: string) => {
+    const normalizedValue = normalizeDisplayedOrderNumber(value)
+    const nextOrders = normalizedValue ? orders.filter((order) => normalizeDisplayedOrderNumber(order.order_number).includes(normalizedValue)) : orders
+    setSearchQuery(value)
+    setSelectedId((current) => current && nextOrders.some((order) => order.id === current) ? current : nextOrders[0]?.id ?? null)
+  }
 
   const advance = async (order: OrderRecord) => {
     const nextStatus = STATUS_TRANSITIONS[order.status]
@@ -121,7 +150,7 @@ export default function PosOrderStatusPage() {
       <div className="pos-history-heading"><span><WorkflowIcon /></span><div><h1>حالة الطلبات</h1><p>عرض ومتابعة الطلبات الحالية وتحديث حالتها</p></div></div>
       <div className="pos-status-header-actions">
         <button type="button" onClick={() => void loadOrders()} disabled={loading}><RefreshIcon /><span>{loading ? 'جارٍ التحديث...' : 'تحديث'}</span></button>
-        <button type="button" onClick={() => router.push('/pos')}><CloseIcon /><span>إغلاق وعودة إلى POS</span></button>
+        <button type="button" onClick={() => router.push('/pos')} aria-label="إغلاق"><CloseIcon /><span>إغلاق</span></button>
       </div>
     </header>
 
@@ -135,9 +164,14 @@ export default function PosOrderStatusPage() {
     {!loading && !error && orders.length === 0 ? <section className="pos-history-empty"><WorkflowIcon /><h2>لا توجد طلبات تشغيلية حالية</h2><p>ستظهر الطلبات قيد التنفيذ أو الجاهزة هنا.</p></section> : null}
 
     {!error && orders.length > 0 ? <section className="pos-status-workspace">
-      <section className="pos-status-list" data-order-status-list aria-label="الطلبات التشغيلية" ref={listRef}>
-        <div className="pos-status-list-labels" aria-hidden="true"><span>الطلب والعميل</span><span>التاريخ</span><span>الإجمالي</span><span>الحالة</span></div>
-        {orders.map((order) => <button
+      <section className="pos-status-list" aria-label="الطلبات التشغيلية">
+        <div className="pos-status-search">
+          <label><span className="sr-only">البحث برقم الفاتورة</span><SearchIcon /><input type="search" inputMode="numeric" value={searchQuery} onChange={(event) => updateSearch(event.target.value)} placeholder="البحث برقم الفاتورة" aria-label="البحث برقم الفاتورة" /></label>
+          {searchQuery ? <button type="button" onClick={() => updateSearch('')} aria-label="مسح البحث">مسح</button> : null}
+        </div>
+        <div className="pos-status-list-scroll" data-order-status-list ref={listRef}>
+          <div className="pos-status-list-labels" aria-hidden="true"><span>الطلب والعميل</span><span>التاريخ</span><span>الإجمالي</span><span>الحالة</span></div>
+          {filteredOrders.map((order) => <button
           type="button"
           className="pos-status-row"
           data-order-status-row
@@ -151,8 +185,10 @@ export default function PosOrderStatusPage() {
           <time dateTime={order.created_at}>{formatPosGregorianDateTime(order.created_at)}</time>
           <b>{formatCurrency(order.total)}</b>
           <span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span>
-        </button>)}
-        {hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadOrders(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : 'تحميل المزيد'}</button></div> : null}
+          </button>)}
+          {filteredOrders.length === 0 ? <div className="pos-status-search-empty"><SearchIcon /><strong>لا توجد فاتورة مطابقة</strong><button type="button" onClick={() => updateSearch('')}>مسح البحث</button></div> : null}
+          {hasMore && filteredOrders.length > 0 ? <div className="pos-history-more"><button type="button" onClick={() => void loadOrders(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : 'تحميل المزيد'}</button></div> : null}
+        </div>
       </section>
 
       {selectedOrder ? <aside className="pos-status-details" data-order-status-details aria-live="polite">
@@ -181,7 +217,7 @@ export default function PosOrderStatusPage() {
         <footer data-order-status-action>
           {selectedNextStatus ? <button type="button" onClick={() => void advance(selectedOrder)} disabled={updatingId !== null} aria-busy={updatingId === selectedOrder.id}>{updatingId === selectedOrder.id ? 'جارٍ التحديث...' : selectedNextStatus === 'ready' ? 'نقل إلى جاهز' : 'تم التسليم'}</button> : <p role="status">لا يوجد انتقال حالة متاح لهذا الطلب.</p>}
         </footer>
-      </aside> : null}
+      </aside> : <aside className="pos-status-details is-empty" data-order-status-details aria-live="polite"><SearchIcon /><h2>لا توجد فاتورة مطابقة</h2><p>امسح البحث لعرض الطلبات المتاحة.</p></aside>}
     </section> : null}
   </main></div>
 }

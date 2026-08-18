@@ -419,8 +419,79 @@
   }
 
   .pos-order-status-workflow .pos-status-list {
+    display: grid;
     min-width: 0;
     min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid var(--afex-pos-border);
+    border-radius: 16px;
+    background: var(--afex-pos-panel);
+  }
+
+  .pos-order-status-workflow .pos-status-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--afex-pos-border);
+    background: var(--afex-pos-panel);
+  }
+
+  .pos-order-status-workflow .pos-status-search label {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+  }
+
+  .pos-order-status-workflow .pos-status-search label > svg {
+    position: absolute;
+    inset-inline-start: 13px;
+    width: 18px;
+    height: 18px;
+    color: var(--afex-pos-text-secondary);
+    pointer-events: none;
+  }
+
+  .pos-order-status-workflow .pos-status-search input {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    padding-inline: 42px 14px;
+    border: 1px solid var(--afex-pos-border);
+    border-radius: 11px;
+    outline: 0;
+    background: var(--afex-pos-raised);
+    color: var(--afex-pos-text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: start;
+  }
+
+  .pos-order-status-workflow .pos-status-search input:focus-visible {
+    border-color: var(--afex-pos-emerald);
+    box-shadow: var(--afex-pos-focus);
+  }
+
+  .pos-order-status-workflow .pos-status-search > button,
+  .pos-order-status-workflow .pos-status-search-empty button {
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding-inline: 12px;
+    border: 1px solid var(--afex-pos-border);
+    border-radius: 11px;
+    background: var(--afex-pos-raised);
+    color: var(--afex-pos-text);
+    font: inherit;
+    font-weight: 800;
+  }
+
+  .pos-order-status-workflow .pos-status-list-scroll {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -429,9 +500,41 @@
     scroll-padding-block: 44px max(16px, env(safe-area-inset-bottom));
     scrollbar-gutter: stable;
     padding-bottom: max(12px, env(safe-area-inset-bottom));
-    border: 1px solid var(--afex-pos-border);
-    border-radius: 16px;
-    background: var(--afex-pos-panel);
+  }
+
+  .pos-order-status-workflow .pos-status-search-empty {
+    display: grid;
+    min-height: 220px;
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: var(--afex-pos-text-secondary);
+    text-align: center;
+  }
+
+  .pos-order-status-workflow .pos-status-search-empty > svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .pos-order-status-workflow .pos-status-details.is-empty {
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    padding: 24px;
+    color: var(--afex-pos-text-secondary);
+    text-align: center;
+  }
+
+  .pos-order-status-workflow .pos-status-details.is-empty > svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .pos-order-status-workflow .pos-status-details.is-empty h2,
+  .pos-order-status-workflow .pos-status-details.is-empty p {
+    margin: 0;
   }
 
   .pos-order-status-workflow .pos-status-list-labels,

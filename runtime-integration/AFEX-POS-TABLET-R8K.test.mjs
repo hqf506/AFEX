@@ -11,7 +11,8 @@ test('R8K exposes a semantic tablet master-detail workspace', () => {
     'data-order-status-row', 'data-order-status-details', 'data-order-status-action',
   ]) assert.match(page, new RegExp(attribute))
   assert.match(page, /عرض ومتابعة الطلبات الحالية وتحديث حالتها/)
-  assert.match(page, /إغلاق وعودة إلى POS/)
+  assert.doesNotMatch(page, /إغلاق وعودة إلى POS/)
+  assert.match(page, /<span>إغلاق<\/span>/)
   assert.match(page, /router\.push\('\/pos'\)/)
   assert.doesNotMatch(page, /router\.back/)
 })
@@ -26,7 +27,11 @@ test('R8K derives only supported states and preserves the existing mutation boun
   assert.match(page, /disabled=\{updatingId !== null\}/)
   assert.match(page, /لا يوجد انتقال حالة متاح لهذا الطلب/)
   assert.match(page, /scrollIntoView\(\{ block: 'nearest', inline: 'nearest', behavior: 'smooth' \}\)/)
-  assert.match(page, /orders\.find\(\(order\) => order\.id === selectedId\) \?\? orders\[0\] \?\? null/)
+  assert.match(page, /normalizeDisplayedOrderNumber\(order\.order_number\)\.includes\(normalizedSearchQuery\)/)
+  assert.match(page, /البحث برقم الفاتورة/)
+  assert.match(page, /لا توجد فاتورة مطابقة/)
+  assert.match(page, /onClick=\{\(\) => updateSearch\(''\)\}/)
+  assert.match(page, /filteredOrders\.find\(\(order\) => order\.id === selectedId\) \?\? filteredOrders\[0\] \?\? null/)
 })
 
 test('R8K tablet CSS is closed to 768–1366 and avoids DOM-order geometry', () => {
