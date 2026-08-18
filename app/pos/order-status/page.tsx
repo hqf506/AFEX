@@ -20,6 +20,14 @@ function WorkflowIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="m16 15 2 2 3-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
 }
 
+function RefreshIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 5v6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+}
+
+function CloseIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+}
+
 export default function PosOrderStatusPage() {
   const router = useRouter()
   const access = usePageAccess({ allowedRoles: [...POS_ACCESS_ROLES], redirectIfNoUser: '/pos/login', redirectIfForbidden: '/pos' })
@@ -29,6 +37,7 @@ export default function PosOrderStatusPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const loadOrders = useCallback(async (requestedPage = 1) => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
@@ -68,6 +77,11 @@ export default function PosOrderStatusPage() {
     ready: orders.filter((order) => order.status === 'ready'),
   }), [orders])
 
+  const selectedOrder = useMemo(
+    () => orders.find((order) => order.id === selectedId) ?? orders[0] ?? null,
+    [orders, selectedId],
+  )
+
   const advance = async (order: OrderRecord) => {
     const nextStatus = STATUS_TRANSITIONS[order.status]
     if (!nextStatus || updatingId || !access.tenantId || !access.branchId) return
@@ -85,13 +99,69 @@ export default function PosOrderStatusPage() {
 
   if (access.loading || !access.allowed) return <div className="pos-history-gate">جارٍ التحقق من الصلاحية...</div>
 
-  return <div className="pos-invoice-history pos-order-status-workflow" dir="rtl"><main>
-    <header className="pos-history-header"><div className="pos-history-heading"><span><WorkflowIcon /></span><div><h1>حالة الطلبات</h1><p>متابعة الطلبات ضمن سير العمل التشغيلي</p></div></div><button type="button" onClick={() => router.push('/pos')} aria-label="العودة إلى نقطة البيع">←</button></header>
-    <div className="pos-history-tools"><p>الانتقالات المتاحة فقط: قيد التنفيذ ← جاهز ← تم التسليم</p><button type="button" onClick={() => void loadOrders()} disabled={loading}>تحديث</button></div>
+  return <div className="pos-invoice-history pos-order-status-workflow" data-order-status-page dir="rtl"><main>
+    <header className="pos-status-header" data-order-status-header>
+      <div className="pos-history-heading"><span><WorkflowIcon /></span><div><h1>حالة الطلبات</h1><p>عرض ومتابعة الطلبات الحالية وتحديث حالتها</p></div></div>
+      <div className="pos-status-header-actions">
+        <button type="button" onClick={() => void loadOrders()} disabled={loading}><RefreshIcon /><span>{loading ? 'جارٍ التحديث...' : 'تحديث'}</span></button>
+        <button type="button" onClick={() => router.push('/pos')}><CloseIcon /><span>إغلاق وعودة إلى POS</span></button>
+      </div>
+    </header>
+
+    <section className="pos-status-metrics" aria-label="ملخص حالات الطلبات">
+      <article><span className="pos-status-dot is-progress" /><div><small>قيد التنفيذ</small><strong>{columns.in_progress.length}</strong></div></article>
+      <article><span className="pos-status-dot is-ready" /><div><small>جاهزة</small><strong>{columns.ready.length}</strong></div></article>
+    </section>
+
     {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadOrders()}>إعادة المحاولة</button></div> : null}
-    {loading && orders.length === 0 ? <div className="pos-history-grid" aria-label="جارٍ تحميل حالة الطلبات">{[1, 2, 3].map((item) => <div className="pos-history-skeleton" key={item} />)}</div> : null}
+    {loading && orders.length === 0 ? <div className="pos-status-loading" aria-label="جارٍ تحميل حالة الطلبات">{[1, 2, 3].map((item) => <div className="pos-history-skeleton" key={item} />)}</div> : null}
     {!loading && !error && orders.length === 0 ? <section className="pos-history-empty"><WorkflowIcon /><h2>لا توجد طلبات تشغيلية حالية</h2><p>ستظهر الطلبات قيد التنفيذ أو الجاهزة هنا.</p></section> : null}
-    {!error && orders.length > 0 ? <section className="pos-status-columns" aria-label="حالة الطلبات التشغيلية">{(['in_progress', 'ready'] as const).map((status) => <section key={status} className="pos-status-column"><header><span className={ORDER_STATUS_MAP[status].className}>{ORDER_STATUS_MAP[status].label}</span><b>{columns[status].length}</b></header><div>{columns[status].map((order) => <article className="pos-history-card" key={order.id}><div className="pos-history-card-top"><div><small>رقم الطلب</small><strong dir="ltr">{order.order_number}</strong></div><span>{ORDER_STATUS_MAP[order.status].label}</span></div><dl><div className="is-customer"><dt>العميل</dt><dd>{order.customer_name || 'عميل نقدي'}</dd></div><div><dt>التاريخ والوقت</dt><dd>{formatPosGregorianDateTime(order.created_at)}</dd></div><div className="is-total"><dt>الإجمالي</dt><dd>{formatCurrency(order.total)}</dd></div></dl><button type="button" onClick={() => void advance(order)} disabled={updatingId === order.id}>{updatingId === order.id ? 'جارٍ التحديث...' : order.status === 'in_progress' ? 'نقل إلى جاهز' : 'تم التسليم'}</button></article>)}</div></section>)}</section> : null}
-    {!error && hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadOrders(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : 'تحميل المزيد'}</button></div> : null}
+
+    {!error && orders.length > 0 ? <section className="pos-status-workspace">
+      <section className="pos-status-list" data-order-status-list aria-label="الطلبات التشغيلية">
+        <div className="pos-status-list-labels" aria-hidden="true"><span>الطلب والعميل</span><span>التاريخ</span><span>الإجمالي</span><span>الحالة</span></div>
+        {orders.map((order) => <button
+          type="button"
+          className="pos-status-row"
+          data-order-status-row
+          data-selected={order.id === selectedOrder?.id ? 'true' : 'false'}
+          aria-pressed={order.id === selectedOrder?.id}
+          key={order.id}
+          onClick={() => setSelectedId(order.id)}
+        >
+          <span className="pos-status-row-identity"><strong dir="ltr">{order.order_number}</strong><small>{order.customer_name || 'عميل نقدي'}{order.customer_phone ? ` · ${order.customer_phone}` : ''}</small></span>
+          <time dateTime={order.created_at}>{formatPosGregorianDateTime(order.created_at)}</time>
+          <b>{formatCurrency(order.total)}</b>
+          <span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span>
+        </button>)}
+        {hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadOrders(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : 'تحميل المزيد'}</button></div> : null}
+      </section>
+
+      {selectedOrder ? <aside className="pos-status-details" data-order-status-details aria-live="polite">
+        <header><div><small>تفاصيل الطلب</small><h2 dir="ltr">{selectedOrder.order_number}</h2></div><span className={ORDER_STATUS_MAP[selectedOrder.status].className}>{ORDER_STATUS_MAP[selectedOrder.status].label}</span></header>
+        <div className="pos-status-details-body">
+          <dl className="pos-status-details-meta">
+            <div><dt>العميل</dt><dd>{selectedOrder.customer_name || 'عميل نقدي'}</dd></div>
+            <div><dt>الهاتف</dt><dd dir="ltr">{selectedOrder.customer_phone || 'غير متاح'}</dd></div>
+            <div><dt>التاريخ والوقت</dt><dd>{formatPosGregorianDateTime(selectedOrder.created_at)}</dd></div>
+            <div><dt>طريقة الدفع</dt><dd>{selectedOrder.payment_method || 'غير متاح'}</dd></div>
+          </dl>
+          <section className="pos-status-details-items" aria-label="عناصر الطلب">
+            <h3>العناصر</h3>
+            {selectedOrder.items.length > 0 ? selectedOrder.items.map((item, index) => <article key={`${selectedOrder.id}-${index}`}>
+              <div><strong>{item.item_name || 'عنصر غير متاح'}</strong><small>{item.quantity} × {formatCurrency(item.unit_price)}</small></div><b>{formatCurrency(item.line_total)}</b>
+            </article>) : <p>غير متاح</p>}
+          </section>
+          <dl className="pos-status-totals">
+            <div><dt>المجموع قبل الضريبة</dt><dd>{formatCurrency(selectedOrder.subtotal)}</dd></div>
+            <div><dt>الضريبة</dt><dd>{formatCurrency(selectedOrder.tax)}</dd></div>
+            <div><dt>الخصم</dt><dd>{formatCurrency(selectedOrder.discount)}</dd></div>
+            <div className="is-grand-total"><dt>الإجمالي النهائي</dt><dd>{formatCurrency(selectedOrder.total)}</dd></div>
+          </dl>
+          <div className="pos-status-history"><span>سجل الحالة</span><strong>غير متاح</strong></div>
+        </div>
+        <footer data-order-status-action><button type="button" onClick={() => void advance(selectedOrder)} disabled={updatingId === selectedOrder.id}>{updatingId === selectedOrder.id ? 'جارٍ التحديث...' : selectedOrder.status === 'in_progress' ? 'نقل إلى جاهز' : 'تم التسليم'}</button></footer>
+      </aside> : null}
+    </section> : null}
   </main></div>
 }

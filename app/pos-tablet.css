@@ -250,8 +250,8 @@
   .pos-entry-pin button,
   .pos-order-history-page .pos-history-header > button,
   .pos-order-history-page .pos-history-tools > button,
-  .pos-order-status-workflow .pos-history-header > button,
-  .pos-order-status-workflow .pos-history-tools > button {
+  .pos-order-status-workflow .pos-status-header button,
+  .pos-order-status-workflow [data-order-status-action] button {
     min-width: 44px;
     min-height: 44px;
   }
@@ -286,19 +286,388 @@
     align-content: start;
   }
 
+  .pos-order-status-workflow {
+    height: 100%;
+    padding-block: 12px max(12px, env(safe-area-inset-bottom));
+    overflow: hidden;
+    background: var(--afex-pos-base);
+  }
+
   .pos-order-status-workflow > main {
     display: grid;
+    height: 100%;
+    min-height: 0;
     grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 10px;
     overflow: hidden;
   }
 
-  .pos-order-status-workflow .pos-status-columns {
-    width: 100%;
+  .pos-order-status-workflow .pos-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--afex-pos-border);
+    border-radius: 16px;
+    background: var(--afex-pos-panel);
+  }
+
+  .pos-order-status-workflow .pos-history-heading {
+    min-width: 0;
+  }
+
+  .pos-order-status-workflow .pos-history-heading h1 {
+    margin: 0;
+    font-size: clamp(22px, 2.4vw, 30px);
+    line-height: 1.25;
+  }
+
+  .pos-order-status-workflow .pos-history-heading p {
+    margin: 3px 0 0;
+    color: var(--afex-pos-text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .pos-order-status-workflow .pos-status-header-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .pos-order-status-workflow .pos-status-header-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding-inline: 14px;
+    border: 1px solid var(--afex-pos-border);
+    border-radius: 11px;
+    background: var(--afex-pos-raised);
+    color: var(--afex-pos-text);
+    font: inherit;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .pos-order-status-workflow .pos-status-header-actions button:last-child {
+    border-color: color-mix(in srgb, var(--afex-pos-danger) 42%, var(--afex-pos-border));
+    background: color-mix(in srgb, var(--afex-pos-danger) 10%, var(--afex-pos-panel));
+    color: var(--afex-pos-danger);
+  }
+
+  .pos-order-status-workflow .pos-status-header-actions svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .pos-order-status-workflow .pos-status-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 190px));
+    gap: 8px;
+  }
+
+  .pos-order-status-workflow .pos-status-metrics article {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 54px;
+    padding: 8px 12px;
+    border: 1px solid var(--afex-pos-border);
+    border-radius: 13px;
+    background: var(--afex-pos-panel);
+  }
+
+  .pos-order-status-workflow .pos-status-metrics div {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .pos-order-status-workflow .pos-status-metrics small {
+    color: var(--afex-pos-text-secondary);
+    font-weight: 800;
+  }
+
+  .pos-order-status-workflow .pos-status-metrics strong {
+    font-size: 20px;
+  }
+
+  .pos-order-status-workflow .pos-status-dot {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 10px;
+    border-radius: 50%;
+    background: #c58a45;
+  }
+
+  .pos-order-status-workflow .pos-status-dot.is-ready {
+    background: #268d65;
+  }
+
+  .pos-order-status-workflow .pos-status-workspace {
+    display: grid;
+    min-width: 0;
     min-height: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
+    grid-template-columns: minmax(0, 1.94fr) minmax(300px, 1fr);
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .pos-order-status-workflow .pos-status-list {
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    border: 1px solid var(--afex-pos-border);
+    border-radius: 16px;
+    background: var(--afex-pos-panel);
+  }
+
+  .pos-order-status-workflow .pos-status-list-labels,
+  .pos-order-status-workflow .pos-status-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.5fr) minmax(130px, 1fr) minmax(100px, .7fr) minmax(100px, .7fr);
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pos-order-status-workflow .pos-status-list-labels {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--afex-pos-border);
+    background: var(--afex-pos-raised);
+    color: var(--afex-pos-text-secondary);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .pos-order-status-workflow .pos-status-row {
+    width: 100%;
+    min-height: 66px;
+    padding: 9px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--afex-pos-border);
+    border-inline-start: 3px solid transparent;
+    background: transparent;
+    color: var(--afex-pos-text);
+    font: inherit;
+    text-align: start;
+  }
+
+  .pos-order-status-workflow .pos-status-row[data-selected='true'] {
+    border-inline-start-color: var(--afex-pos-emerald);
+    background: color-mix(in srgb, var(--afex-pos-emerald) 9%, var(--afex-pos-panel));
+  }
+
+  .pos-order-status-workflow .pos-status-row:focus-visible {
+    outline: 2px solid var(--afex-pos-emerald);
+    outline-offset: -3px;
+  }
+
+  .pos-order-status-workflow .pos-status-row-identity {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+  }
+
+  .pos-order-status-workflow .pos-status-row-identity strong,
+  .pos-order-status-workflow .pos-status-row-identity small,
+  .pos-order-status-workflow .pos-status-row time,
+  .pos-order-status-workflow .pos-status-row > b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pos-order-status-workflow .pos-status-row-identity small,
+  .pos-order-status-workflow .pos-status-row time {
+    color: var(--afex-pos-text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .pos-order-status-workflow .pos-status-row > span:last-child {
+    justify-self: start;
+    white-space: nowrap;
+  }
+
+  .pos-order-status-workflow .pos-status-details {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    border: 1px solid var(--afex-pos-border);
+    border-radius: 16px;
+    background: var(--afex-pos-panel);
+  }
+
+  .pos-order-status-workflow .pos-status-details > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--afex-pos-border);
+  }
+
+  .pos-order-status-workflow .pos-status-details header small,
+  .pos-order-status-workflow .pos-status-details header h2 {
+    display: block;
+    margin: 0;
+  }
+
+  .pos-order-status-workflow .pos-status-details header small {
+    color: var(--afex-pos-text-secondary);
+    font-weight: 700;
+  }
+
+  .pos-order-status-workflow .pos-status-details header h2 {
+    margin-top: 3px;
+    font-size: 19px;
+  }
+
+  .pos-order-status-workflow .pos-status-details-body {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px 14px;
+  }
+
+  .pos-order-status-workflow .pos-status-details-meta,
+  .pos-order-status-workflow .pos-status-totals {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+  }
+
+  .pos-order-status-workflow .pos-status-details-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pos-order-status-workflow .pos-status-details-meta div,
+  .pos-order-status-workflow .pos-status-totals div,
+  .pos-order-status-workflow .pos-status-history {
+    min-width: 0;
+    padding: 8px 9px;
+    border-radius: 10px;
+    background: var(--afex-pos-raised);
+  }
+
+  .pos-order-status-workflow .pos-status-details-meta dt,
+  .pos-order-status-workflow .pos-status-totals dt,
+  .pos-order-status-workflow .pos-status-history span {
+    color: var(--afex-pos-text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .pos-order-status-workflow .pos-status-details-meta dd,
+  .pos-order-status-workflow .pos-status-totals dd {
+    margin: 3px 0 0;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .pos-order-status-workflow .pos-status-details-items {
+    margin-block: 12px;
+  }
+
+  .pos-order-status-workflow .pos-status-details-items h3 {
+    margin: 0 0 7px;
+    font-size: 14px;
+  }
+
+  .pos-order-status-workflow .pos-status-details-items article {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--afex-pos-border);
+  }
+
+  .pos-order-status-workflow .pos-status-details-items article div {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .pos-order-status-workflow .pos-status-details-items article strong {
+    overflow-wrap: anywhere;
+    font-size: 13px;
+  }
+
+  .pos-order-status-workflow .pos-status-details-items article small {
+    color: var(--afex-pos-text-secondary);
+    font-size: 11px;
+  }
+
+  .pos-order-status-workflow .pos-status-totals div,
+  .pos-order-status-workflow .pos-status-history {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .pos-order-status-workflow .pos-status-totals .is-grand-total {
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 34%, var(--afex-pos-border));
+  }
+
+  .pos-order-status-workflow .pos-status-history {
+    margin-top: 8px;
+  }
+
+  .pos-order-status-workflow [data-order-status-action] {
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--afex-pos-border);
+    background: var(--afex-pos-panel);
+  }
+
+  .pos-order-status-workflow [data-order-status-action] button {
+    width: 100%;
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 75%, #000);
+    border-radius: 11px;
+    background: var(--afex-pos-emerald);
+    color: #fff;
+    font: inherit;
+    font-weight: 900;
+  }
+
+  .pos-order-status-workflow .pos-status-loading {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  @media (orientation: portrait) {
+    .pos-order-status-workflow .pos-status-workspace {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(260px, 1fr) auto;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .pos-order-status-workflow .pos-status-list {
+      max-height: 48dvh;
+    }
+
+    .pos-order-status-workflow .pos-status-details {
+      min-height: 420px;
+      overflow: visible;
+    }
   }
 
   .afex-pos-app-shell.is-sale-route {

@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import test from 'node:test'
+
+const page = readFileSync('app/pos/order-status/page.tsx', 'utf8')
+const tablet = readFileSync('app/pos-tablet.css', 'utf8')
+
+test('R8K exposes a semantic tablet master-detail workspace', () => {
+  for (const attribute of [
+    'data-order-status-page', 'data-order-status-header', 'data-order-status-list',
+    'data-order-status-row', 'data-order-status-details', 'data-order-status-action',
+  ]) assert.match(page, new RegExp(attribute))
+  assert.match(page, /عرض ومتابعة الطلبات الحالية وتحديث حالتها/)
+  assert.match(page, /إغلاق وعودة إلى POS/)
+  assert.match(page, /router\.push\('\/pos'\)/)
+  assert.doesNotMatch(page, /router\.back/)
+})
+
+test('R8K derives only supported states and preserves the existing mutation boundary', () => {
+  assert.match(page, /in_progress:\s*'ready'/)
+  assert.match(page, /ready:\s*'closed'/)
+  assert.doesNotMatch(page, /في الطريق/)
+  assert.match(page, /supabase\.from\('orders'\)\.update\(\{ status: nextStatus \}\)/)
+  assert.match(page, /orders\.find\(\(order\) => order\.id === selectedId\) \?\? orders\[0\] \?\? null/)
+})
+
+test('R8K tablet CSS is closed to 768–1366 and avoids DOM-order geometry', () => {
+  assert.match(tablet, /@media \(min-width: 768px\) and \(max-width: 1366px\)/)
+  const r8kStart = tablet.indexOf('.pos-order-status-workflow .pos-status-header')
+  assert.ok(r8kStart > 0)
+  const r8kCss = tablet.slice(r8kStart, tablet.indexOf('.afex-pos-app-shell.is-sale-route', r8kStart))
+  assert.doesNotMatch(r8kCss, /nth-(?:child|of-type)/)
+  assert.match(r8kCss, /grid-template-columns:\s*minmax\(0, 1\.94fr\) minmax\(300px, 1fr\)/)
+  assert.match(r8kCss, /overflow-y:\s*auto/)
+  assert.match(r8kCss, /min-height:\s*44px/)
+})
