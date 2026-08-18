@@ -2075,6 +2075,32 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
     padding: clamp(12px, 2dvh, 20px) !important;
     overscroll-behavior: contain;
   }
+  @media (max-height: 500px) {
+    .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div {
+      width: min(760px, 100%);
+      max-height: 100% !important;
+      overflow: hidden !important;
+      padding: 10px 14px !important;
+    }
+    .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div > [class~='mb-4'] { display: none !important; }
+    .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div > div:has(> h2) { margin: 0 0 8px !important; }
+    .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div > div:has(> h2) > div,
+    .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div > div:has(> h2) > p { display: none !important; }
+    .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) h2 { font-size: 24px !important; line-height: 1.2 !important; }
+    .pos-entry-login form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 12px !important;
+    }
+    .pos-entry-login form > div { min-width: 0; }
+    .pos-entry-login form > div > label { margin-bottom: 4px !important; }
+    .pos-entry-login form > div > div { min-height: 48px !important; }
+    .pos-entry-login form input { height: 44px !important; }
+    .pos-entry-login form > .flex,
+    .pos-entry-login form > button { grid-column: 1 / -1; }
+    .pos-entry-login form > .flex { min-height: 36px !important; }
+    .pos-entry-login form > button { min-height: 48px !important; }
+  }
 
   .pos-entry-pin .pos-pin-frame > section {
     display: grid !important;

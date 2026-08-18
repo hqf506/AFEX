@@ -24,6 +24,7 @@ test('landscape entry surfaces fill the dynamic viewport and honor safe areas', 
   assert.match(landscape, /\.pos-entry-pin \.pos-pin-frame > section\s*\{[^}]*grid-template-columns:\s*minmax\(230px, 32%\) minmax\(0, 1fr\)/s)
   assert.match(landscape, /aspect-ratio:\s*auto\s*!important/)
   assert.doesNotMatch(landscape, /aspect-ratio:\s*(?:16\s*\/\s*9|[0-9.]+)/)
+  assert.match(landscape, /@media \(max-height:\s*500px\)[\s\S]*\.pos-entry-login form\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
 })
 
 test('history and status own the complete landscape width', () => {
