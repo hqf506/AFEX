@@ -1803,45 +1803,80 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
    contract to large touch tablets without changing fine-pointer desktops. */
 @media (min-width: 768px) and (max-width: 1199px),
        (min-width: 1200px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) {
+  .pos-entry-login,
   .pos-entry-pin {
+    width: 100% !important;
     height: 100dvh !important;
     min-height: 100dvh;
-    align-items: flex-start !important;
+    align-items: center !important;
+    justify-content: center !important;
     overflow-x: clip !important;
     overflow-y: auto !important;
     padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
     overscroll-behavior: contain;
   }
+  .pos-entry-login > div:last-child {
+    width: min(100%, 1120px) !important;
+    height: auto !important;
+    min-height: min(680px, calc(100dvh - 24px));
+    max-height: none !important;
+    aspect-ratio: auto !important;
+    margin: auto;
+    overflow: visible !important;
+  }
+  .pos-entry-login > div:last-child > section {
+    min-height: inherit;
+    overflow: visible;
+  }
   .pos-entry-pin .pos-pin-frame {
     width: min(100%, 1240px) !important;
     height: auto !important;
-    min-height: min(756px, calc(100dvh - max(24px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom))));
+    min-height: min(720px, calc(100dvh - 24px));
     max-height: none !important;
     aspect-ratio: auto !important;
     overflow: visible !important;
     margin: auto;
   }
-  .pos-entry-pin .pos-pin-frame > section { min-height: inherit; overflow: visible; }
+  .pos-entry-pin .pos-pin-frame > section { height: auto !important; min-height: inherit; overflow: visible; }
+  .pos-entry-pin .pos-pin-frame > section > section { padding-block: 14px !important; }
+  .pos-entry-pin .pos-pin-frame > section > section > div { max-width: 440px; }
+  .pos-entry-pin .pos-pin-frame > section > section [dir='ltr'] { margin-top: 14px !important; gap: 8px !important; }
+  .pos-entry-pin .pos-pin-frame > section > section [dir='ltr'] button { min-height: 52px; }
   .pos-entry-pin button { min-width: 44px; min-height: 44px; }
 
-  .pos-invoice-history { width: 100%; padding-inline: 12px; }
+  .pos-invoice-history { width: 100%; max-width: none; padding-inline: clamp(10px, 1.5vw, 18px); }
   .pos-invoice-history > main { width: 100%; max-width: none; margin-inline: 0; }
-  .pos-order-history-page .pos-history-grid { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+  .pos-order-history-page .pos-history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pos-order-history-page .pos-history-card { width: 100%; min-width: 0; }
+  .pos-order-history-page .pos-history-header > button,
+  .pos-order-status-workflow .pos-history-header > button,
+  .pos-order-status-workflow .pos-history-tools > button { min-width: 44px; min-height: 44px; }
 
   .pos-order-status-workflow { width: 100%; }
   .pos-order-status-workflow > main { width: 100%; max-width: none; margin-inline: 0; }
   .pos-order-status-workflow .pos-status-columns { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .pos-order-status-workflow .pos-status-column { width: 100%; min-width: 0; }
 
-  .afex-sale-layout { height: 100%; min-height: 0; }
-  .afex-sale-cart { height: 100%; max-height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; }
-  .afex-sale-cart > [data-mobile-cart-header] { min-height: 64px; align-self: start; }
-  .afex-sale-cart > [data-mobile-cart-scroll-body] { min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding-block: 8px; }
-  .afex-sale-cart > [data-mobile-cart-footer] { width: 100%; min-height: 0; align-self: end; border-top: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); padding-top: 10px; }
+  .afex-sale-layout { height: 100%; min-height: 0; grid-template-columns: clamp(320px, 36vw, 390px) minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .afex-sale-cart { height: 100%; max-height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0; padding: 10px; overflow: hidden; }
+  .afex-sale-cart > [data-mobile-cart-header] { min-height: 54px; align-self: start; padding: 8px 10px; }
+  .afex-sale-cart > [data-mobile-cart-scroll-body] { min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding-block: 6px; scrollbar-gutter: stable; }
+  .afex-sale-cart [data-mobile-cart-customer] { display: grid; min-height: 48px; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--afex-pos-border); padding: 6px 2px; }
+  .afex-sale-cart [data-mobile-cart-items-heading] { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 8px; }
   .afex-sale-cart [data-mobile-cart-item-list] { display: grid; gap: 8px; }
-  .afex-sale-cart .afex-mobile-cart-item { min-width: 0; }
+  .afex-sale-cart .afex-mobile-cart-item { display: grid; min-width: 0; min-height: 112px; gap: 8px; padding: 9px; }
+  .afex-sale-cart .afex-mobile-cart-item-main { min-width: 0; }
+  .afex-sale-cart .afex-mobile-cart-item-controls { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 6px; }
+  .afex-sale-cart .afex-mobile-cart-item-controls button { min-width: 44px; min-height: 44px; }
+  .afex-sale-cart > [data-mobile-cart-footer] { width: 100%; min-height: 0; flex: 0 0 auto; align-self: end; border-top: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); padding: 8px 0 0; }
+  .afex-sale-cart [data-mobile-cart-totals] { padding: 0 2px 6px; }
+  .afex-sale-cart [data-mobile-cart-actions] { display: grid; gap: 6px; }
   .afex-sale-cart [data-mobile-cart-actions] button { min-height: 44px; }
+}
+
+@media (min-width: 960px) and (max-width: 1199px),
+       (min-width: 1200px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) {
+  .pos-order-history-page .pos-history-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
