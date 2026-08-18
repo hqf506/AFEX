@@ -10,6 +10,7 @@ import { normalizeOrderRecord, type OrderSourceRow } from '@/lib/orders/normaliz
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { resolveInvoicePaymentDisplay } from '@/lib/invoices/order-payment'
 import { formatRiyadhDateTime, formatRiyadhTime, groupInvoicesByRiyadhDate, normalizeInvoiceLedgerSearch } from '@/lib/pos/invoice-ledger'
+import { PosInvoicePreviewCurtain, type InvoicePreviewMode } from '@/components/pos-invoice-preview-curtain'
 
 const PAGE_SIZE = 24
 type InvoiceFilter = 'all' | 'paid' | 'refunded'
@@ -17,8 +18,11 @@ type InvoiceFilter = 'all' | 'paid' | 'refunded'
 function InvoiceIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-4 2-4-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 }
-function PrintIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg>
+function ReceiptIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+}
+function DigitalInvoiceIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h7l4 4v14H7V3Z" stroke="currentColor" strokeWidth="1.7"/><path d="M14 3v5h5M10 13h5M10 17h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 }
 function paymentStatusLabel(value: string) {
   const normalized = value.trim().toLowerCase()
@@ -37,7 +41,7 @@ export default function PosInvoiceHistoryPage() {
   const [selectedDetails, setSelectedDetails] = useState<OrderRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [detailsLoading, setDetailsLoading] = useState(false)
-  const [printing, setPrinting] = useState(false)
+  const [preview, setPreview] = useState<{ mode: InvoicePreviewMode; invoice: OrderRecord } | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [error, setError] = useState('')
   const [detailsError, setDetailsError] = useState('')
@@ -48,7 +52,6 @@ export default function PosInvoiceHistoryPage() {
   const [totalCount, setTotalCount] = useState(0)
   const loadingRef = useRef(false)
   const detailsRequestRef = useRef(0)
-  const detailBodyRef = useRef<HTMLDivElement>(null)
   const normalizedSearch = useMemo(() => normalizeInvoiceLedgerSearch(search), [search])
 
   const loadInvoices = useCallback(async (requestedPage = 1) => {
@@ -107,21 +110,9 @@ export default function PosInvoiceHistoryPage() {
     })()
   }, [selectedSummaryId])
 
-  const printInvoice = async () => {
-    if (!selected || printing || detailsLoading || detailsError) return
-    setPrinting(true)
-    try {
-      const response = await fetch('/api/invoices/pdf', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        invoiceNumber: selected.invoice_number, orderNumber: selected.order_number, customerName: selected.customer_name, customerPhone: selected.customer_phone,
-        issuedAt: selected.created_at, paymentMethod: selected.payment_method_raw || selected.payment_method_key, numericCashReceived: selected.cash_received,
-        remainingFromCustomer: selected.remaining_from_customer, cashChange: selected.cash_change,
-        invoiceItems: selected.items.map((item) => ({ item_name: item.item_name, quantity: item.quantity, unit_price: item.unit_price, line_total: item.line_total })),
-        subtotal: selected.subtotal, discount: selected.discount, tax: selected.tax, finalTotal: selected.total, note: selected.note,
-      }) })
-      if (!response.ok) throw new Error('تعذر تجهيز الفاتورة للطباعة.')
-      const url = URL.createObjectURL(await response.blob()); window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-    } catch (printError) { setDetailsError(printError instanceof Error ? printError.message : 'تعذر تجهيز الفاتورة للطباعة.') }
-    finally { setPrinting(false) }
+  const openPreview = (mode: InvoicePreviewMode) => {
+    if (!selected || detailsLoading || detailsError) return
+    setPreview({ mode, invoice: selected })
   }
 
   if (access.loading || !access.allowed) return <div className="pos-history-gate">جارٍ التحقق من الصلاحية...</div>
@@ -135,13 +126,13 @@ export default function PosInvoiceHistoryPage() {
         {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadInvoices(1)}>إعادة المحاولة</button></div> : null}
         {loading && orders.length === 0 ? <div className="pos-invoice-ledger-loading" aria-label="جارٍ تحميل الفواتير">جارٍ تحميل الفواتير...</div> : null}
         {!loading && !error && visibleOrders.length === 0 ? <section className="pos-invoice-ledger-empty"><InvoiceIcon /><h2>لا توجد فواتير مطابقة</h2><p>غيّر البحث أوعامل التصفية لعرض الفواتير.</p></section> : null}
-        {!error ? groups.map((group) => <section className="pos-invoice-date-group" key={group.key}><h2>{group.label}</h2><div>{group.invoices.map((order) => <button type="button" className="pos-invoice-ledger-row" data-selected={order.id === selectedSummary?.id} aria-pressed={order.id === selectedSummary?.id} onClick={() => { setSelectedId(order.id); setDetailOpen(true) }} key={order.id}><span className="is-identity"><strong dir="ltr">{order.invoice_number}</strong><small>{order.customer_name || 'عميل نقدي'}</small></span><time>{formatRiyadhTime(order.created_at)}</time><span>{order.payment_method}</span><b>{formatCurrency(order.total)}</b><i>{paymentStatusLabel(order.payment_status)}</i></button>)}</div></section>) : null}
+        {!error ? groups.map((group) => <section className="pos-invoice-date-group" key={group.key}><h2>{group.label}</h2><div>{group.invoices.map((order) => <button type="button" className="pos-invoice-ledger-row" data-selected={order.id === selectedSummary?.id} aria-pressed={order.id === selectedSummary?.id} onClick={() => { setPreview(null); setSelectedId(order.id); setDetailOpen(true) }} key={order.id}><span className="is-identity"><strong dir="ltr">{order.invoice_number}</strong><small>{order.customer_name || 'عميل نقدي'}</small></span><time>{formatRiyadhTime(order.created_at)}</time><span>{order.payment_method}</span><b>{formatCurrency(order.total)}</b><i>{paymentStatusLabel(order.payment_status)}</i></button>)}</div></section>) : null}
         {!error && hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadInvoices(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : `تحميل المزيد (${orders.length} من ${totalCount})`}</button></div> : null}
       </div>
       <aside className="pos-invoice-detail-pane" data-open={detailOpen} data-testid="invoice-detail-pane" aria-live="polite">
         {!selected ? <div className="pos-invoice-detail-empty"><InvoiceIcon /><h2>اختر فاتورة</h2><p>ستظهر تفاصيل الفاتورة المحددة هنا.</p></div> : <>
           <header><div><small>تفاصيل الفاتورة</small><h2 dir="ltr">{selected.invoice_number}</h2></div><i>{paymentStatusLabel(selected.payment_status)}</i><button type="button" className="pos-invoice-mobile-close" onClick={() => setDetailOpen(false)}>إغلاق</button></header>
-          <div className="pos-invoice-detail-scroll" ref={detailBodyRef}>
+          <div className="pos-invoice-detail-scroll">
             {detailsLoading ? <p className="pos-sheet-message">جارٍ تحميل التفاصيل...</p> : null}{detailsError ? <p className="pos-sheet-error" role="alert">{detailsError}</p> : null}
             {!detailsLoading && !detailsError ? <>
               <dl className="pos-invoice-detail-meta"><div><dt>العميل</dt><dd>{selected.customer_name || 'عميل نقدي'}</dd></div><div><dt>التاريخ والوقت</dt><dd>{formatRiyadhDateTime(selected.created_at)}</dd></div><div><dt>طريقة الدفع</dt><dd>{selected.payment_method}</dd></div><div><dt>رقم الطلب</dt><dd dir="ltr">{selected.order_number}</dd></div></dl>
@@ -154,9 +145,9 @@ export default function PosInvoiceHistoryPage() {
               {paymentDisplay?.kind === 'refunded-without-refund-amount' ? <p className="pos-invoice-refund-note">الفاتورة مستردة. مبلغ الاسترداد التفصيلي غير متاح.</p> : null}
             </> : null}
           </div>
-          <footer><button type="button" onClick={() => detailBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}>عرض التفاصيل</button><button type="button" onClick={() => void printInvoice()} disabled={printing || detailsLoading || Boolean(detailsError)}><PrintIcon />{printing ? 'جارٍ التجهيز...' : 'طباعة'}</button></footer>
+          <footer><button type="button" onClick={() => openPreview('thermal')} disabled={detailsLoading || Boolean(detailsError)}><ReceiptIcon />الفاتورة الحرارية</button><button type="button" onClick={() => openPreview('digital')} disabled={detailsLoading || Boolean(detailsError)}><DigitalInvoiceIcon />عرض الفاتورة الرقمية</button></footer>
         </>}
       </aside>
     </section>
-  </main></div>
+  </main>{preview ? <PosInvoicePreviewCurtain key={`${preview.mode}-${preview.invoice.id}`} mode={preview.mode} invoice={preview.invoice} onClose={() => setPreview(null)} /> : null}</div>
 }

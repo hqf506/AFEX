@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ReceiptView } from '@/components/receipt-view'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import {
+  buildCombinedThermalPrintHtml,
   renderThermalInvoiceHtml,
   renderThermalShopCopyHtml,
 } from '@/lib/invoices/thermal-template'
@@ -174,66 +175,6 @@ type ServerThermalReceiptSettings = {
   tiktokLink?: string | null
   googleReviewLink?: string | null
   mapLink?: string | null
-}
-
-function extractHtmlTagContent(html: string, tagName: string) {
-  const match = html.match(
-    new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)</${tagName}>`, 'i')
-  )
-
-  return match?.[1]?.trim() ?? ''
-}
-
-function extractPrintableBodyContent(html: string) {
-  const bodyContent = extractHtmlTagContent(html, 'body')
-
-  if (bodyContent) {
-    return bodyContent
-  }
-
-  return html
-    .replace(/<!DOCTYPE[^>]*>/gi, '')
-    .replace(/<html[^>]*>/gi, '')
-    .replace(/<\/html>/gi, '')
-    .replace(/<head[\s\S]*?<\/head>/gi, '')
-    .replace(/<body[^>]*>/gi, '')
-    .replace(/<\/body>/gi, '')
-    .trim()
-}
-
-function extractStyleTags(html: string) {
-  return html.match(/<style[^>]*>[\s\S]*?<\/style>/gi)?.join('\n') ?? ''
-}
-
-function buildCombinedThermalPrintHtml(
-  customerReceiptHtml: string,
-  shopCopyHtml: string
-) {
-  const styles = extractStyleTags(customerReceiptHtml)
-  const customerBody = extractPrintableBodyContent(customerReceiptHtml)
-  const shopBody = extractPrintableBodyContent(shopCopyHtml)
-
-  return `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Thermal Print Bundle</title>
-  ${styles}
-  <style>
-    .print-page-break {
-      page-break-after: always;
-      break-after: page;
-      height: 0;
-    }
-  </style>
-</head>
-<body style="background: #ffffff; margin: 0;">
-  ${customerBody}
-  <div class="print-page-break"></div>
-  ${shopBody}
-</body>
-</html>`
 }
 
 export default function PosSaleSuccessPage() {

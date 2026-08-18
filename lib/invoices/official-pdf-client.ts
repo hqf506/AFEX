@@ -23,16 +23,18 @@ export function buildOfficialInvoicePdfPayload(snapshot: InvoiceSuccessSnapshot)
   }
 }
 
-export async function loadOfficialInvoicePdf(snapshot: InvoiceSuccessSnapshot) {
-  if (!snapshot.invoiceId || !snapshot.orderId || !snapshot.invoiceNumber || !snapshot.orderNumber) {
-    throw new Error('OFFICIAL_INVOICE_IDENTITY_UNAVAILABLE')
-  }
+export type OfficialInvoicePdfPayload = ReturnType<typeof buildOfficialInvoicePdfPayload>
 
+export async function loadOfficialInvoicePdfPayload(
+  payload: OfficialInvoicePdfPayload,
+  signal?: AbortSignal
+) {
   const response = await fetch('/api/invoices/pdf', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildOfficialInvoicePdfPayload(snapshot)),
+    body: JSON.stringify(payload),
+    signal,
   })
 
   if (!response.ok || !response.headers.get('content-type')?.includes('application/pdf')) {
@@ -40,4 +42,15 @@ export async function loadOfficialInvoicePdf(snapshot: InvoiceSuccessSnapshot) {
   }
 
   return response.blob()
+}
+
+export async function loadOfficialInvoicePdf(
+  snapshot: InvoiceSuccessSnapshot,
+  signal?: AbortSignal
+) {
+  if (!snapshot.invoiceId || !snapshot.orderId || !snapshot.invoiceNumber || !snapshot.orderNumber) {
+    throw new Error('OFFICIAL_INVOICE_IDENTITY_UNAVAILABLE')
+  }
+
+  return loadOfficialInvoicePdfPayload(buildOfficialInvoicePdfPayload(snapshot), signal)
 }
