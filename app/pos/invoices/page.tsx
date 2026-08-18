@@ -10,6 +10,7 @@ import { normalizeOrderRecord, type OrderSourceRow } from '@/lib/orders/normaliz
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { resolveInvoicePaymentDisplay } from '@/lib/invoices/order-payment'
 import { formatRiyadhDateTime, formatRiyadhTime, groupInvoicesByRiyadhDate, normalizeInvoiceLedgerSearch } from '@/lib/pos/invoice-ledger'
+import { isLatestInvoiceLedgerRequest, mergeInvoiceLedgerPage, selectInvoiceLedgerCollection } from '@/lib/pos/invoice-ledger-collection'
 import { PosInvoicePreviewCurtain, type InvoicePreviewMode } from '@/components/pos-invoice-preview-curtain'
 
 const PAGE_SIZE = 24
@@ -37,6 +38,7 @@ export default function PosInvoiceHistoryPage() {
   const router = useRouter()
   const access = usePageAccess({ allowedRoles: [...POS_ACCESS_ROLES], redirectIfNoUser: '/pos/login', redirectIfForbidden: '/pos' })
   const [orders, setOrders] = useState<OrderRecord[]>([])
+  const [searchResults, setSearchResults] = useState<OrderRecord[] | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedDetails, setSelectedDetails] = useState<OrderRecord | null>(null)
   const [loading, setLoading] = useState(false)
@@ -47,46 +49,82 @@ export default function PosInvoiceHistoryPage() {
   const [detailsError, setDetailsError] = useState('')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<InvoiceFilter>('all')
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(false)
-  const [totalCount, setTotalCount] = useState(0)
-  const loadingRef = useRef(false)
+  const [unfilteredMeta, setUnfilteredMeta] = useState({ page: 1, hasMore: false, totalCount: 0 })
+  const [searchMeta, setSearchMeta] = useState({ page: 1, hasMore: false, totalCount: 0 })
+  const invoiceRequestRef = useRef(0)
+  const invoiceRequestControllerRef = useRef<AbortController | null>(null)
+  const authoritativeLoadedRef = useRef(false)
   const detailsRequestRef = useRef(0)
   const normalizedSearch = useMemo(() => normalizeInvoiceLedgerSearch(search), [search])
 
-  const loadInvoices = useCallback(async (requestedPage = 1) => {
-    if (!access.allowed || !access.tenantId || !access.branchId || loadingRef.current) return
-    loadingRef.current = true; setLoading(true); setError('')
+  const loadInvoices = useCallback(async (requestedPage = 1, query = normalizedSearch) => {
+    if (!access.allowed || !access.tenantId || !access.branchId) return
+    invoiceRequestControllerRef.current?.abort()
+    const controller = new AbortController()
+    invoiceRequestControllerRef.current = controller
+    const requestId = ++invoiceRequestRef.current
+    setLoading(true); setError('')
     try {
       const params = new URLSearchParams({ mode: 'full', page: String(requestedPage), pageSize: String(PAGE_SIZE) })
-      if (normalizedSearch) params.set('search', normalizedSearch)
-      const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
+      if (query) params.set('search', query)
+      const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store', signal: controller.signal })
       const result = await response.json().catch(() => null)
       if (!response.ok || !result?.success) throw new Error(getClientErrorMessage(result, 'تعذر تحميل سجل الفواتير.'))
       const rows = Array.isArray(result.items) ? result.items as OrderSourceRow[] : []
       const mapped = rows.map((row, index) => mapOrderSummaryToOrderRecord(normalizeOrderRecord(row, index)))
-      setOrders((current) => {
-        if (requestedPage === 1) return mapped
-        const unique = new Map(current.map((order) => [order.id, order]))
-        for (const order of mapped) unique.set(order.id, order)
-        return [...unique.values()]
-      })
-      setPage(requestedPage); setHasMore(Boolean(result.hasMore)); setTotalCount(Number(result.totalCount) || mapped.length)
-    } catch (loadError) { setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل الفواتير.') }
-    finally { loadingRef.current = false; setLoading(false) }
+      if (!isLatestInvoiceLedgerRequest(invoiceRequestRef.current, requestId, controller.signal.aborted)) return
+      const updateCollection = (current: OrderRecord[]) => mergeInvoiceLedgerPage(current, mapped, requestedPage)
+      const nextMeta = { page: requestedPage, hasMore: Boolean(result.hasMore), totalCount: Number(result.totalCount) || mapped.length }
+      if (query) {
+        setSearchResults((current) => updateCollection(current ?? []))
+        setSearchMeta(nextMeta)
+      } else {
+        setOrders(updateCollection)
+        setUnfilteredMeta(nextMeta)
+        authoritativeLoadedRef.current = true
+      }
+    } catch (loadError) {
+      if (!controller.signal.aborted && invoiceRequestRef.current === requestId) setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل الفواتير.')
+    } finally {
+      if (invoiceRequestRef.current === requestId) setLoading(false)
+    }
   }, [access.allowed, access.branchId, access.tenantId, normalizedSearch])
 
   useEffect(() => {
+    if (!normalizedSearch) {
+      if (!authoritativeLoadedRef.current) void loadInvoices(1, '')
+      return
+    }
     const timeoutId = window.setTimeout(() => void loadInvoices(1), 250)
     return () => window.clearTimeout(timeoutId)
-  }, [loadInvoices])
+  }, [loadInvoices, normalizedSearch])
 
-  const visibleOrders = useMemo(() => orders.filter((order) => {
+  useEffect(() => () => {
+    invoiceRequestControllerRef.current?.abort()
+    invoiceRequestRef.current += 1
+  }, [])
+
+  const updateSearch = (value: string) => {
+    const nextQuery = normalizeInvoiceLedgerSearch(value)
+    if (nextQuery !== normalizedSearch) {
+      invoiceRequestControllerRef.current?.abort()
+      invoiceRequestRef.current += 1
+      setLoading(false)
+    }
+    setSearch(nextQuery ? value : '')
+    if (!nextQuery) {
+      setSearchResults(null)
+      setError('')
+    }
+  }
+  const activeOrders = useMemo(() => selectInvoiceLedgerCollection(normalizedSearch, orders, searchResults), [normalizedSearch, orders, searchResults])
+  const activeMeta = normalizedSearch ? searchMeta : unfilteredMeta
+  const visibleOrders = useMemo(() => activeOrders.filter((order) => {
     const matchesSearch = !normalizedSearch || [order.invoice_number, order.order_number, order.customer_name].some((value) => normalizeInvoiceLedgerSearch(value).includes(normalizedSearch))
     const status = order.payment_status.trim().toLowerCase()
     const matchesFilter = filter === 'all' || (filter === 'paid' ? ['paid', 'completed', 'succeeded'].includes(status) : status === 'refunded')
     return matchesSearch && matchesFilter
-  }), [filter, normalizedSearch, orders])
+  }), [activeOrders, filter, normalizedSearch])
   const groups = useMemo(() => groupInvoicesByRiyadhDate(visibleOrders), [visibleOrders])
   const selectedSummary = useMemo(() => visibleOrders.find((order) => order.id === selectedId) ?? visibleOrders[0] ?? null, [selectedId, visibleOrders])
   const selected = selectedDetails?.id === selectedSummary?.id ? selectedDetails : selectedSummary
@@ -120,14 +158,15 @@ export default function PosInvoiceHistoryPage() {
 
   return <div className="pos-invoice-history pos-invoices-page" dir="rtl"><main>
     <header className="pos-invoices-header"><div className="pos-history-heading"><span><InvoiceIcon /></span><div><h1>الفواتير</h1><p>سجل المبيعات والفواتير</p></div></div><div><button type="button" className="is-close" onClick={() => router.push('/pos')}>إغلاق</button><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}>{loading ? 'جارٍ التحديث...' : 'تحديث'}</button></div></header>
-    <div className="pos-invoices-toolbar"><label><span className="sr-only">ابحث برقم الفاتورة أو اسم العميل</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو اسم العميل" /></label><div role="group" aria-label="تصفية الفواتير"><button type="button" data-active={filter === 'all'} onClick={() => setFilter('all')}>الكل</button><button type="button" data-active={filter === 'paid'} onClick={() => setFilter('paid')}>مدفوعة</button><button type="button" data-active={filter === 'refunded'} onClick={() => setFilter('refunded')}>مستردة</button></div></div>
+    <div className="pos-invoices-toolbar"><label className="pos-invoices-search"><span className="sr-only">ابحث برقم الفاتورة أو اسم العميل</span><input value={search} onChange={(event) => updateSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو اسم العميل" />{search ? <button type="button" className="pos-invoices-search-clear" aria-label="مسح البحث" onClick={() => updateSearch('')}>مسح</button> : null}</label><div role="group" aria-label="تصفية الفواتير"><button type="button" data-active={filter === 'all'} onClick={() => setFilter('all')}>الكل</button><button type="button" data-active={filter === 'paid'} onClick={() => setFilter('paid')}>مدفوعة</button><button type="button" data-active={filter === 'refunded'} onClick={() => setFilter('refunded')}>مستردة</button></div></div>
     <section className="pos-invoices-workspace">
-      <div className="pos-invoice-ledger" data-testid="invoices-scroll-viewport">
+      <div className="pos-invoice-ledger" data-testid="invoices-scroll-viewport" role="grid" aria-label="سجل الفواتير">
+        <div className="pos-invoice-ledger-columns" role="row"><span role="columnheader">رقم الفاتورة</span><span role="columnheader">اسم العميل</span><span role="columnheader">التوقيت</span><span role="columnheader">طريقة الدفع</span><span role="columnheader">الإجمالي</span><span role="columnheader">حالة الفاتورة</span></div>
         {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadInvoices(1)}>إعادة المحاولة</button></div> : null}
         {loading && orders.length === 0 ? <div className="pos-invoice-ledger-loading" aria-label="جارٍ تحميل الفواتير">جارٍ تحميل الفواتير...</div> : null}
         {!loading && !error && visibleOrders.length === 0 ? <section className="pos-invoice-ledger-empty"><InvoiceIcon /><h2>لا توجد فواتير مطابقة</h2><p>غيّر البحث أوعامل التصفية لعرض الفواتير.</p></section> : null}
-        {!error ? groups.map((group) => <section className="pos-invoice-date-group" key={group.key}><h2>{group.label}</h2><div>{group.invoices.map((order) => <button type="button" className="pos-invoice-ledger-row" data-selected={order.id === selectedSummary?.id} aria-pressed={order.id === selectedSummary?.id} onClick={() => { setPreview(null); setSelectedId(order.id); setDetailOpen(true) }} key={order.id}><span className="is-identity"><strong dir="ltr">{order.invoice_number}</strong><small>{order.customer_name || 'عميل نقدي'}</small></span><time>{formatRiyadhTime(order.created_at)}</time><span>{order.payment_method}</span><b>{formatCurrency(order.total)}</b><i>{paymentStatusLabel(order.payment_status)}</i></button>)}</div></section>) : null}
-        {!error && hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadInvoices(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : `تحميل المزيد (${orders.length} من ${totalCount})`}</button></div> : null}
+        {!error ? groups.map((group) => <section className="pos-invoice-date-group" role="rowgroup" key={group.key}><h2>{group.label}</h2><div>{group.invoices.map((order) => <button type="button" className="pos-invoice-ledger-row" role="row" data-selected={order.id === selectedSummary?.id} aria-selected={order.id === selectedSummary?.id} onClick={() => { setPreview(null); setSelectedId(order.id); setDetailOpen(true) }} key={order.id}><strong role="gridcell" data-label="رقم الفاتورة" dir="ltr">{order.invoice_number}</strong><span role="gridcell" data-label="اسم العميل" className="is-customer" title={order.customer_name || 'عميل نقدي'}>{order.customer_name || 'عميل نقدي'}</span><time role="gridcell" data-label="التوقيت">{formatRiyadhTime(order.created_at)}</time><span role="gridcell" data-label="طريقة الدفع" className="is-payment">{order.payment_method}</span><b role="gridcell" data-label="الإجمالي">{formatCurrency(order.total)}</b><i role="gridcell" data-label="حالة الفاتورة">{paymentStatusLabel(order.payment_status)}</i></button>)}</div></section>) : null}
+        {!error && activeMeta.hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadInvoices(activeMeta.page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : `تحميل المزيد (${activeOrders.length} من ${activeMeta.totalCount})`}</button></div> : null}
       </div>
       <aside className="pos-invoice-detail-pane" data-open={detailOpen} data-testid="invoice-detail-pane" aria-live="polite">
         {!selected ? <div className="pos-invoice-detail-empty"><InvoiceIcon /><h2>اختر فاتورة</h2><p>ستظهر تفاصيل الفاتورة المحددة هنا.</p></div> : <>
