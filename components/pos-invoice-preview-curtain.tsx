@@ -240,7 +240,7 @@ export function PosInvoicePreviewCurtain({ invoice, mode, onClose }: Props) {
         {loading ? <section className="pos-invoice-preview-state" aria-live="polite"><span aria-hidden="true" /><h3>جارٍ تجهيز {title}...</h3><p>يتم تحميل النسخة الرسمية بأمان.</p></section> : null}
         {error ? <section className="pos-invoice-preview-state is-error" role="alert"><h3>{error}</h3><button type="button" onClick={retry}>إعادة المحاولة</button></section> : null}
         {!loading && !error && mode === 'thermal' && thermalHtml ? <div className="pos-invoice-thermal-canvas"><div className="pos-invoice-thermal-paper" style={{ width: thermalWidth }}><iframe ref={thermalFrameRef} title={`الفاتورة الحرارية ${invoice.invoice_number}`} srcDoc={thermalHtml} style={{ height: thermalHeight }} onLoad={() => { if (thermalFrameRef.current) fitThermalPreviewIframe(thermalFrameRef.current, setThermalHeight) }} /></div></div> : null}
-        {!loading && !error && mode === 'digital' && digitalUrl ? <iframe className="pos-invoice-digital-frame" title={`الفاتورة الرقمية ${invoice.invoice_number}`} src={digitalUrl} /> : null}
+        {!loading && !error && mode === 'digital' && digitalUrl ? <div className="pos-invoice-digital-canvas"><div className="pos-invoice-digital-page"><iframe className="pos-invoice-digital-frame" title={`الفاتورة الرقمية ${invoice.invoice_number}`} src={digitalUrl} /></div></div> : null}
       </div>
       {thermalPrintHtml ? <iframe ref={printFrameRef} className="pos-invoice-print-frame" title="نسخة الطباعة الحرارية" srcDoc={thermalPrintHtml} /> : null}
     </div>
