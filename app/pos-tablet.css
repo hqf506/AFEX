@@ -6,6 +6,7 @@
   .pos-entry-login,
   .pos-entry-pin {
     display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
     width: 100dvw !important;
     max-width: none !important;
     height: 100dvh !important;
@@ -23,6 +24,7 @@
 
   .pos-entry-login > div:last-child,
   .pos-entry-pin .pos-pin-frame {
+    justify-self: stretch;
     width: 100% !important;
     max-width: none !important;
     height: auto !important;
@@ -34,6 +36,17 @@
     border: 0 !important;
     border-radius: 0 !important;
     background: var(--afex-pos-base) !important;
+  }
+
+  /* Subroutes do not render the desktop sidebar. Collapse its reserved track
+     instead of sizing every page to the first column of the desktop shell. */
+  .afex-pos-app-shell.is-pos-subroute:not(.is-sale-route) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .afex-pos-app-shell.is-pos-subroute:not(.is-sale-route) > .afex-pos-shell-content {
+    grid-column: 1;
+    width: 100%;
   }
 
   .pos-entry-login > div:last-child > section,
@@ -65,8 +78,8 @@
   }
 
   .pos-entry-pin .pos-pin-frame > section > section > div {
-    width: min(100%, 430px);
-    max-width: 430px;
+    width: min(100%, 520px);
+    max-width: 520px;
   }
 
   .pos-entry-pin .pos-pin-frame > section > section [dir='ltr'] {
@@ -337,7 +350,7 @@
 
   .pos-entry-pin .pos-pin-frame > section {
     display: grid !important;
-    grid-template-columns: minmax(230px, 32%) minmax(0, 1fr) !important;
+    grid-template-columns: minmax(280px, 34%) minmax(0, 1fr) !important;
     align-items: stretch;
   }
 
