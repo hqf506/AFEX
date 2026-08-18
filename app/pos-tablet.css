@@ -162,6 +162,33 @@
     margin-top: 12px !important;
   }
 
+  .pos-entry-pin .pos-pin-indicators {
+    display: grid !important;
+    width: 148px;
+    min-width: 148px;
+    max-width: 148px;
+    grid-template-columns: repeat(4, 16px);
+    grid-template-rows: 16px;
+    align-items: center;
+    justify-content: center;
+    gap: 28px !important;
+    margin: 22px auto 0 !important;
+    direction: ltr;
+    flex-wrap: nowrap !important;
+  }
+
+  .pos-entry-pin .pos-pin-indicators > .pos-pin-indicator {
+    display: block;
+    width: 16px !important;
+    min-width: 16px;
+    max-width: 16px;
+    height: 16px !important;
+    min-height: 16px;
+    max-height: 16px;
+    grid-row: 1;
+    flex: 0 0 16px;
+  }
+
   .pos-entry-pin button,
   .pos-order-history-page .pos-history-header > button,
   .pos-order-history-page .pos-history-tools > button,
