@@ -41,6 +41,15 @@ test('tablet entry grid stretches its real frame instead of intrinsic-centering 
   assert.match(tabletCss, /\.pos-entry-login > div:last-child,\s*\.pos-entry-pin \.pos-pin-frame\s*\{[^}]*justify-self:\s*stretch/s)
 })
 
+test('tablet login restores its identity surface without leaking to PIN, phone, or desktop', () => {
+  assert.match(tabletCss, /\.pos-entry-login > div:last-child > section\s*\{[^}]*grid-template-rows:\s*minmax\(210px, 28dvh\) minmax\(0, 1fr\)/s)
+  assert.match(tabletCss, /\.pos-entry-login > div:last-child > section > div\[dir='rtl'\]:last-of-type\s*\{[^}]*display:\s*flex\s*!important/s)
+  assert.match(tabletCss, /\.pos-entry-login > div:last-child > section > div\[dir='rtl'\]:not\(:last-of-type\) > div\s*\{[^}]*width:\s*100%\s*!important;[^}]*max-width:\s*560px\s*!important;[^}]*justify-self:\s*stretch/s)
+  assert.match(tabletCss, /\.pos-entry-login > div:last-child > section > div\[dir='rtl'\]:not\(:last-of-type\)\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+  assert.match(tabletCss, /\.pos-tablet-frame-root:has\(\.pos-entry-login\)[^}]*width:\s*100dvw\s*!important;[^}]*height:\s*100dvh\s*!important/s)
+  assert.doesNotMatch(tabletCss, /\.pos-entry-pin[^,{]*> div\[dir='rtl'\]:last-of-type/)
+})
+
 test('tablet cart is a semantic three-row grid with one body and equal bottom actions', () => {
   assert.match(tabletCss, /\.afex-sale-cart\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto/s)
   assert.match(tabletCss, /\[data-mobile-cart-scroll-body\][^}]*overflow-y:\s*auto/s)

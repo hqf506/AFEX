@@ -16,6 +16,8 @@ test('R8F landscape contract is geometric and excludes phone and conventional de
 
 test('landscape login and PIN fill the viewport and expose the full keypad', () => {
   assert.match(landscape, /\.pos-entry-login > div:last-child,[\s\S]*height:\s*100%\s*!important/)
+  assert.match(landscape, /\.pos-entry-login > div:last-child > section\s*\{[^}]*grid-template-columns:\s*minmax\(400px, 46%\) minmax\(0, 1fr\)\s*!important/s)
+  assert.match(landscape, /\.pos-entry-login > div:last-child > section > div\[dir='rtl'\]:last-of-type\s*\{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1/s)
   assert.match(landscape, /\.pos-entry-pin \.pos-pin-frame > section\s*\{[^}]*grid-template-columns:\s*minmax\(280px, 34%\) minmax\(0, 1fr\)/s)
   assert.match(landscape, /\[dir='ltr'\]\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(64px, 92px\)\)/s)
 })

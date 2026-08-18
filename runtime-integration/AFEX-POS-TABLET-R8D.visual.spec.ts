@@ -22,7 +22,7 @@ const card = '<article class="pos-history-card"><div class="pos-history-card-top
 const item = '<article class="afex-mobile-cart-item"><div class="afex-mobile-cart-item-main"><div><p>خدمة إصلاح جلد</p><p>240 ر.س</p></div><button aria-label="حذف العنصر">×</button></div><div class="afex-mobile-cart-item-controls"><div class="afex-mobile-quantity-stepper"><button aria-label="تقليل">−</button><span>1</span><button aria-label="زيادة">+</button></div><p>240 ر.س</p></div></article>'
 
 const screens = {
-  login: `<main class="pos-entry-login" data-r8d-screen="login"><div aria-hidden="true"></div><div><section><div dir="rtl"><form style="width:min(440px,100%);margin:auto"><label>اسم المستخدم<input /></label><label>كلمة المرور<input /></label><button type="submit" style="width:100%;min-height:56px">تسجيل الدخول</button></form></div><div dir="rtl" aria-hidden="true"></div></section></div></main>`,
+  login: `<main class="pos-entry-login" data-r8d-screen="login"><div aria-hidden="true"></div><div><section><div dir="rtl"><div><form style="width:100%"><label>اسم المستخدم<input /></label><label>كلمة المرور<input /></label><button type="submit" style="width:100%;min-height:56px">تسجيل الدخول</button></form></div></div><div dir="rtl" data-tablet-login-identity><div>AFEX</div><h1>مرحباً بك في AFEX POS</h1><p>نقطة بيع ذكية لإدارة أعمالك بسهولة.</p></div></section></div></main>`,
   pin: `<main class="pos-entry-pin" data-r8d-screen="pin"><div class="pos-pin-frame"><section><aside><button>تسجيل الخروج</button><p>معلومات الجلسة</p></aside><section><div><h1>إدخال الرقم السري</h1><div dir="ltr">${Array.from({ length: 12 }, (_, i) => `<button>${i < 9 ? i + 1 : i === 10 ? 0 : '⌫'}</button>`).join('')}</div></div></section></section></div></main>`,
   history: `<div class="afex-pos-shell-content" data-r8d-screen="history"><div class="afex-pos-route-content"><section class="pos-invoice-history pos-order-history-page"><main><div class="pos-order-history-controls"><header class="pos-history-header"><div class="pos-history-heading"><div><h1>سجل الطلبات</h1><p>آخر 48 ساعة</p></div></div><button aria-label="العودة إلى نقطة البيع">×</button></header><div class="pos-history-tools"><label><input placeholder="البحث" /></label><button>تحديث</button></div></div><div class="pos-order-history-scroll"><section class="pos-history-grid">${card.repeat(9)}</section></div></main></section></div></div>`,
   status: `<div class="afex-pos-shell-content" data-r8d-screen="status"><div class="afex-pos-route-content"><section class="pos-invoice-history pos-order-status-workflow"><main><header class="pos-history-header"><div class="pos-history-heading"><div><h1>حالة الطلبات</h1></div></div><button aria-label="العودة إلى نقطة البيع">×</button></header><div class="pos-history-tools"><p>الانتقالات القانونية فقط</p><button>تحديث</button></div><section class="pos-status-columns"><section class="pos-status-column"><header><span>قيد التنفيذ</span></header><div>${card.repeat(3)}</div></section><section class="pos-status-column"><header><span>جاهز</span></header><div>${card.repeat(3)}</div></section></section></main></section></div></div>`,
@@ -51,7 +51,7 @@ for (const [screen, markup] of Object.entries(screens)) {
         const metrics = await page.evaluate(() => {
           const screen = document.querySelector<HTMLElement>('[data-r8d-screen]')?.dataset.r8dScreen
           const primarySelector = screen === 'login'
-            ? '.pos-entry-login button[type="submit"]'
+            ? '.pos-entry-login input[type="text"], .pos-entry-login input[type="password"], .pos-entry-login button[type="submit"]'
             : screen === 'pin'
               ? '.pos-entry-pin button'
               : screen === 'history'
@@ -91,6 +91,10 @@ for (const [screen, markup] of Object.entries(screens)) {
           const cartFooter = document.querySelector<HTMLElement>('[data-mobile-cart-footer]')
           const loginForm = document.querySelector<HTMLElement>('.pos-entry-login form')
           const loginRect = loginForm?.getBoundingClientRect()
+          const loginRegionRect = loginForm?.parentElement?.parentElement?.getBoundingClientRect()
+          const loginRootRect = document.querySelector<HTMLElement>('.pos-entry-login')?.getBoundingClientRect()
+          const loginIdentity = document.querySelector<HTMLElement>('[data-tablet-login-identity]')
+          const loginIdentityStyle = loginIdentity ? getComputedStyle(loginIdentity) : null
           return {
             horizontalOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
             invalidControls: invalidPrimary.map((el) => {
@@ -106,7 +110,10 @@ for (const [screen, markup] of Object.entries(screens)) {
             cartBottomGap: cart && cartFooter
               ? Math.abs(cart.getBoundingClientRect().bottom - Number.parseFloat(getComputedStyle(cart).borderBottomWidth || '0') - cartFooter.getBoundingClientRect().bottom)
               : 0,
-            loginCenterDelta: loginRect ? Math.abs((loginRect.left + loginRect.width / 2) - innerWidth / 2) : 0,
+            loginCenterDelta: loginRect && loginRegionRect ? Math.abs((loginRect.left + loginRect.width / 2) - (loginRegionRect.left + loginRegionRect.width / 2)) : 0,
+            loginFormWidth: loginRect?.width ?? 0,
+            loginRootGap: loginRootRect ? Math.max(Math.abs(loginRootRect.left), Math.abs(innerWidth - loginRootRect.right), Math.abs(loginRootRect.top), Math.abs(innerHeight - loginRootRect.bottom)) : 0,
+            loginIdentityVisible: !loginIdentity || (loginIdentityStyle?.display !== 'none' && loginIdentity.getBoundingClientRect().width > 0 && loginIdentity.getBoundingClientRect().height > 0),
             routeWidthRatio: history ? history.getBoundingClientRect().width / innerWidth : 1,
             scrollOwners: scrollOwners.length,
             viewport: { width: innerWidth, height: innerHeight, visualHeight: visualViewport?.height ?? innerHeight },
@@ -118,6 +125,9 @@ for (const [screen, markup] of Object.entries(screens)) {
         expect(metrics.sideGap).toBeLessThanOrEqual(18)
         expect(metrics.cartBottomGap).toBeLessThanOrEqual(1)
         expect(metrics.loginCenterDelta).toBeLessThanOrEqual(1)
+        if (screen === 'login') expect(metrics.loginFormWidth).toBeGreaterThanOrEqual(320)
+        expect(metrics.loginRootGap).toBeLessThanOrEqual(1)
+        expect(metrics.loginIdentityVisible).toBe(true)
         expect(metrics.routeWidthRatio).toBeGreaterThanOrEqual(0.96)
         expect(metrics.scrollOwners).toBeLessThanOrEqual(1)
         expect(metrics.viewport.visualHeight).toBe(metrics.viewport.height)

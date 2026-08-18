@@ -59,6 +59,7 @@
 
   .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     width: 100%;
     max-width: none;
     place-items: center;
@@ -66,8 +67,82 @@
   }
 
   .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div {
-    width: min(100%, 480px);
+    width: 100% !important;
+    max-width: 560px !important;
+    justify-self: stretch;
     margin: auto;
+  }
+
+  .pos-entry-login {
+    padding:
+      env(safe-area-inset-top)
+      env(safe-area-inset-right)
+      env(safe-area-inset-bottom)
+      env(safe-area-inset-left) !important;
+  }
+
+  /* Tablet login is a full application surface, not the retired device card.
+     These selectors intentionally override the late single-column/login-art
+     retirement rules in globals.css without changing phone or desktop. */
+  .pos-entry-login > div:last-child > section {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(210px, 28dvh) minmax(0, 1fr);
+    overflow: hidden !important;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) {
+    grid-row: 2;
+    min-width: 0;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div {
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:last-of-type {
+    display: flex !important;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    padding: clamp(18px, 2.4dvh, 30px) clamp(24px, 5dvw, 64px) !important;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:last-of-type > h1 {
+    margin-top: 10px;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:last-of-type > p,
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:last-of-type > div:last-child,
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:last-of-type .pos-login-hardware {
+    display: none !important;
+  }
+
+  .pos-tablet-frame-root:has(.pos-entry-login),
+  .pos-tablet-frame-root:has(.pos-entry-login) > .pos-tablet-frame-shell,
+  .pos-tablet-frame-root:has(.pos-entry-login) .pos-tablet-device,
+  .pos-tablet-frame-root:has(.pos-entry-login) .pos-tablet-screen,
+  .pos-tablet-frame-root:has(.pos-entry-login) .pos-tablet-screen > div {
+    width: 100dvw !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--afex-pos-base) !important;
+    box-shadow: none !important;
+  }
+
+  .pos-tablet-frame-root:has(.pos-entry-login) {
+    display: block !important;
   }
 
   .pos-entry-pin .pos-pin-frame > section > section {
@@ -338,14 +413,37 @@
   }
 
   .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) {
-    padding: clamp(8px, 2dvh, 18px) clamp(16px, 3dvw, 40px) !important;
+    grid-column: 1;
+    grid-row: 1;
+    padding: clamp(12px, 2dvh, 22px) clamp(20px, 3dvw, 44px) !important;
   }
 
   .pos-entry-login > div:last-child > section > div[dir='rtl']:not(:last-of-type) > div {
-    width: min(100%, 720px);
+    width: min(100%, 540px);
     max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+
+  .pos-entry-login > div:last-child > section {
+    grid-template-columns: minmax(400px, 46%) minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:last-of-type {
+    grid-column: 2;
+    grid-row: 1;
+    padding: clamp(24px, 4dvh, 52px) clamp(28px, 4dvw, 64px) !important;
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:last-of-type > h1 {
+    margin-top: 18px;
+    font-size: clamp(2.25rem, 4dvw, 4rem);
+  }
+
+  .pos-entry-login > div:last-child > section > div[dir='rtl']:last-of-type > p {
+    display: block !important;
+    max-width: 620px;
   }
 
   .pos-entry-pin .pos-pin-frame > section {
