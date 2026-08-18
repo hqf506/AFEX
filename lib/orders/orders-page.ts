@@ -30,6 +30,7 @@ export type OrderRecord = {
   invoice_number: string
   payment_method: string
   payment_method_key: string
+  payment_method_raw?: string
   payment_status: string
   note: string
   cash_received: number
@@ -103,6 +104,7 @@ export function mapOrderSummaryToOrderRecord(record: OrderSummary): OrderRecord 
       record.paymentMethodRaw
     ),
     payment_method_key: record.paymentMethod,
+    payment_method_raw: record.paymentMethodRaw,
     payment_status: record.paymentStatus,
     note: record.note,
     cash_received: record.cashReceived,
