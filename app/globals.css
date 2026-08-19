@@ -597,6 +597,11 @@ body {
 .pos-invoice-ledger-row > strong { min-width: 0; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.pos-invoice-ledger-row .is-customer { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pos-invoice-ledger-row time, .pos-invoice-ledger-row > span { min-width: 0; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 750; }.pos-invoice-ledger-row .is-payment { white-space: nowrap; }
 .pos-invoice-ledger-row > b { color: var(--afex-pos-text); font-size: 13px; }.pos-invoice-ledger-row > i { min-width: 0; justify-self: stretch; border-radius: 999px; padding: 5px 8px; background: color-mix(in srgb, var(--afex-pos-emerald) 12%, var(--afex-pos-raised)); color: var(--afex-pos-emerald); font-size: 10px; font-style: normal; font-weight: 900; text-align: center; }
+@media (min-width: 921px) {
+  .pos-invoice-ledger-columns > span,
+  .pos-invoice-ledger-row > [role='gridcell'] { min-width: 0; justify-self: stretch; padding-inline: 8px; text-align: center; }
+  .pos-invoice-ledger-row .is-invoice-number { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+}
 .pos-invoice-ledger-empty, .pos-invoice-ledger-loading { display: grid; min-height: 100%; place-items: center; align-content: center; gap: 9px; padding: 24px; color: var(--afex-pos-text-secondary); text-align: center; }.pos-invoice-ledger-empty svg { width: 34px; }.pos-invoice-ledger-empty h2, .pos-invoice-ledger-empty p { margin: 0; }
 .pos-invoice-detail-pane { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid var(--afex-pos-border); border-radius: 15px; background: var(--afex-pos-panel); }
 .pos-invoice-detail-pane > header { display: flex; min-height: 68px; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--afex-pos-border); padding: 10px 14px; }.pos-invoice-detail-pane > header small { color: var(--afex-pos-emerald); font-size: 11px; font-weight: 850; }.pos-invoice-detail-pane > header h2 { margin: 3px 0 0; font-size: 20px; }.pos-invoice-detail-pane > header > i { border-radius: 999px; padding: 6px 9px; background: var(--afex-pos-raised); color: var(--afex-pos-emerald); font-size: 11px; font-style: normal; font-weight: 900; }
