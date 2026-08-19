@@ -5,18 +5,20 @@ import { useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { formatCurrency } from '@/lib/orders/format'
-import { mapOrderSummaryToOrderRecord, ORDER_STATUS_MAP, type OrderRecord } from '@/lib/orders/orders-page'
+import { mapOrderSummaryToOrderRecord, type OrderRecord } from '@/lib/orders/orders-page'
 import { normalizeOrderRecord, type OrderSourceRow } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
+import { filterPosOperations, formatPosOperationTime, groupPosOperations, mapOrdersToPosOperations } from '@/lib/pos/operations-timeline'
+import { readActivePosEmployee } from '@/lib/pos-employee-session'
 
 const PAGE_SIZE = 24
 
-function InvoiceIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-4 2-4-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
-}
 function DetailsIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v14H4z M8 9h8 M8 13h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+}
+function ActivityIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-4 2-4-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 }
 
 function paymentStatusLabel(value: string) {
@@ -40,21 +42,35 @@ export default function PosOrderHistoryPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
+  const [operationKind, setOperationKind] = useState<'all' | 'invoice'>('all')
+  const [employeeName, setEmployeeName] = useState('موظف نقطة البيع')
   const sheetRef = useRef<HTMLElement | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const detailsRequestRef = useRef(0)
+  const loadRequestRef = useRef(0)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const employee = readActivePosEmployee()
+      if (employee?.full_name) setEmployeeName(employee.full_name)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   const loadInvoices = useCallback(async (requestedPage = 1) => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
+    const requestId = loadRequestRef.current + 1
+    loadRequestRef.current = requestId
     setLoading(true); setError('')
     try {
       const params = new URLSearchParams({ mode: 'full', page: String(requestedPage), pageSize: String(PAGE_SIZE), recentHours: '48' })
       if (search.trim()) params.set('search', search.trim())
       const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
       const result = await response.json().catch(() => null)
-      if (!response.ok || !result?.success) throw new Error(getClientErrorMessage(result, 'تعذر تحميل سجل الطلبات.'))
+      if (!response.ok || !result?.success) throw new Error(getClientErrorMessage(result, 'تعذر تحميل سجل العمليات.'))
       const rows = Array.isArray(result.items) ? result.items as OrderSourceRow[] : []
       const mapped = rows.map((row, index) => mapOrderSummaryToOrderRecord(normalizeOrderRecord(row, index)))
+      if (loadRequestRef.current !== requestId) return
       setOrders((current) => {
         if (requestedPage === 1) return mapped
         const unique = new Map(current.map((order) => [order.id, order]))
@@ -65,8 +81,8 @@ export default function PosOrderHistoryPage() {
       setHasMore(Boolean(result.hasMore))
       setTotalCount(Number(result.totalCount) || mapped.length)
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل الطلبات.')
-    } finally { setLoading(false) }
+      if (loadRequestRef.current === requestId) setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل العمليات.')
+    } finally { if (loadRequestRef.current === requestId) setLoading(false) }
   }, [access.allowed, access.branchId, access.tenantId, search])
 
   useEffect(() => {
@@ -117,24 +133,25 @@ export default function PosOrderHistoryPage() {
     }
   }
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('ar')
-    if (!query) return orders
-    return orders.filter((order) => [order.invoice_number, order.order_number, order.customer_name].some((value) => value.toLocaleLowerCase('ar').includes(query)))
-  }, [orders, search])
+  const operations = useMemo(() => mapOrdersToPosOperations(orders), [orders])
+  const filtered = useMemo(() => filterPosOperations(operations, search, operationKind), [operations, search, operationKind])
+  const grouped = useMemo(() => groupPosOperations(filtered), [filtered])
+  const todayCount = useMemo(() => groupPosOperations(operations).find((group) => group.label === 'اليوم')?.operations.length || 0, [operations])
 
   if (access.loading || !access.allowed) return <div className="pos-history-gate">جارٍ التحقق من الصلاحية...</div>
 
   return <div className="pos-invoice-history pos-order-history-page" dir="rtl"><main>
-    <div className="pos-order-history-controls">
-      <header className="pos-history-header"><div className="pos-history-heading"><span><InvoiceIcon /></span><div><h1>سجل الطلبات</h1><p>طلبات آخر 48 ساعة في فرعك الحالي</p></div></div><button type="button" onClick={() => router.push('/pos')} aria-label="العودة إلى نقطة البيع">←</button></header>
-      <div className="pos-history-tools"><label><span className="sr-only">ابحث برقم الفاتورة أو الطلب أو اسم العميل</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو الطلب أو اسم العميل" /></label><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}>تحديث</button></div>
+    <div className="pos-order-history-controls pos-operations-controls">
+      <header className="pos-history-header pos-operations-header"><div className="pos-history-heading"><span><ActivityIcon /></span><div><h1>سجل العمليات</h1><p>نشاطك في نقطة البيع</p></div></div><div className="pos-operations-header-actions"><span className="pos-operations-employee">{employeeName}</span><button type="button" onClick={() => router.push('/pos')} aria-label="إغلاق سجل العمليات">إغلاق</button></div></header>
+      <div className="pos-operations-stats" aria-label="إحصائيات العمليات"><div><small>عمليات اليوم</small><strong>{todayCount}</strong></div><div><small>فواتير</small><strong>{totalCount}</strong></div></div>
+      <div className="pos-history-tools pos-operations-tools"><label><span className="sr-only">ابحث برقم الفاتورة أو العميل أو نوع العملية</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو العميل أو نوع العملية" /></label><label className="pos-operations-filter"><span className="sr-only">تصفية العمليات</span><select value={operationKind} onChange={(event) => setOperationKind(event.target.value as 'all' | 'invoice')}><option value="all">كل العمليات</option><option value="invoice">فواتير</option></select></label><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}>تحديث</button></div>
+      <p className="pos-operations-coverage">يعرض السجل عمليات الطلبات والفواتير المتاحة حاليًا.</p>
     </div>
     <div className="pos-order-history-scroll" data-testid="order-history-scroll-viewport">
     {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadInvoices(1)}>إعادة المحاولة</button></div> : null}
-    {loading && orders.length === 0 ? <div className="pos-history-grid" aria-label="جارٍ تحميل الطلبات">{[1,2,3].map((item) => <div className="pos-history-skeleton" key={item} />)}</div> : null}
-    {!loading && !error && filtered.length === 0 ? <section className="pos-history-empty"><InvoiceIcon /><h2>لا توجد طلبات خلال آخر 48 ساعة</h2><p>{search ? 'لا توجد نتائج مطابقة للبحث.' : 'تظهر هنا الطلبات الحديثة فقط دون تعديلها.'}</p></section> : null}
-    {!error && filtered.length > 0 ? <section className="pos-history-grid" aria-label="سجل الطلبات خلال آخر 48 ساعة">{filtered.map((order) => <article className="pos-history-card" key={order.id}><div className="pos-history-card-top"><div><small>رقم الطلب / الفاتورة</small><strong dir="ltr">{order.order_number} / {order.invoice_number}</strong></div><span>{ORDER_STATUS_MAP[order.status]?.label || order.status}</span></div><dl><div className="is-customer"><dt>العميل</dt><dd>{order.customer_name || 'عميل نقدي'}</dd></div><div><dt>التاريخ والوقت</dt><dd>{formatPosGregorianDateTime(order.created_at)}</dd></div><div className="is-total"><dt>الإجمالي</dt><dd>{formatCurrency(order.total)}</dd></div></dl><button type="button" onClick={(event) => void openDetails(order, event.currentTarget)}><DetailsIcon /><span>عرض التفاصيل</span></button></article>)}</section> : null}
+    {loading && orders.length === 0 ? <div className="pos-operations-timeline" aria-label="جارٍ تحميل العمليات">{[1,2,3].map((item) => <div className="pos-operations-skeleton" key={item} />)}</div> : null}
+    {!loading && !error && filtered.length === 0 ? <section className="pos-history-empty"><ActivityIcon /><h2>{search ? 'لا توجد عمليات مطابقة' : 'لا توجد عمليات مسجلة'}</h2><p>{search ? 'جرّب عبارة بحث مختلفة.' : 'تظهر هنا عمليات الطلبات والفواتير المتاحة فقط.'}</p></section> : null}
+    {!error && grouped.length > 0 ? <section className="pos-operations-timeline" aria-label="سجل العمليات خلال آخر 48 ساعة">{grouped.map((group) => <section className="pos-operations-day" key={group.key}><h2>{group.label}</h2>{group.operations.map((operation) => <article className="pos-operation" key={operation.id}><div className="pos-operation-marker"><ActivityIcon /></div><time>{formatPosOperationTime(operation.createdAt)}</time><div className="pos-operation-content"><div><span className="pos-operation-kind">{operation.kindLabel}</span><strong>{operation.title}</strong><span className={`pos-operation-status is-${operation.statusTone}`}>{operation.statusLabel}</span></div><p>{operation.description}</p><small dir="ltr">{operation.reference}</small><button type="button" onClick={(event) => void openDetails(operation.order, event.currentTarget)}><DetailsIcon /><span>عرض التفاصيل</span></button></div></article>)}</section>)}</section> : null}
       {!error && hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadInvoices(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : `تحميل المزيد (${orders.length} من ${totalCount})`}</button></div> : null}
     </div>
   </main>

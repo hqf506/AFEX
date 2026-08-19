@@ -406,7 +406,7 @@ function PosOperationalHome({
             </button>
             <Link className="pos-home-action" href="/pos/order-history">
               <span className="pos-home-action-icon"><PosIcon name="clipboard" /></span>
-              <div><b>سجل الطلبات</b><small>طلبات آخر 48 ساعة</small></div>
+              <div><b>سجل العمليات</b><small>نشاط الطلبات والفواتير</small></div>
             </Link>
           </div>
           <Link className="pos-home-action is-drafts" href="/pos/offline-drafts">
@@ -439,7 +439,7 @@ function PosOperationalHome({
               <h2 id="pos-recent-orders-title">سجل الطلبات</h2>
               <p>أحدث ستة طلبات خلال آخر 48 ساعة</p>
             </div>
-            <Link href="/pos/order-history">عرض سجل الطلبات</Link>
+            <Link href="/pos/order-history">عرض سجل العمليات</Link>
           </header>
 
           {ordersError ? <p className="pos-orders-message is-error" role="alert">تعذر تحميل الطلبات حاليًا. حاول مرة أخرى.</p> : null}
@@ -937,8 +937,8 @@ export default function PosPage() {
                   className: 'min-h-[104px]',
                 },
                 {
-                  label: 'سجل الطلبات',
-                  subtitle: 'طلبات آخر 48 ساعة',
+                  label: 'سجل العمليات',
+                  subtitle: 'نشاط الطلبات والفواتير',
                   icon: 'clipboard' as const,
                   onClick: handleOpenRecentOrders,
                   className: 'min-h-[104px]',
@@ -1474,7 +1474,7 @@ export default function PosPage() {
                     prefetch={true}
                     className="hidden min-h-[44px] items-center rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:inline-flex"
                   >
-                    عرض سجل الطلبات
+                    عرض سجل العمليات
                   </Link>
                 </div>
               </div>

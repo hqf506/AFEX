@@ -34,7 +34,7 @@ function Icon({ name }: { name: IconName }) {
 const navigation = [
   { label: 'البيع', href: '/pos', icon: 'sale' as const },
   { label: 'حالة الطلبات', href: '/pos/order-status', icon: 'orders' as const },
-  { label: 'سجل الطلبات', href: '/pos/order-history', icon: 'orders' as const },
+  { label: 'سجل العمليات', href: '/pos/order-history', icon: 'orders' as const },
   { label: 'الفواتير', href: '/pos/invoices', icon: 'invoice' as const },
 ]
 

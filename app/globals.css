@@ -676,6 +676,64 @@ body {
   .afex-pos-app-shell:has(.pos-invoices-page) { padding-bottom: 0; }
 }
 
+/* POS operations timeline: authoritative order/invoice activity only. */
+.pos-operations-controls { display: grid; gap: 12px; padding-bottom: 14px; }
+.pos-operations-header { min-height: 64px; }
+.pos-operations-header-actions { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 8px; }
+.pos-operations-header > .pos-operations-header-actions > button { width: auto; height: auto; min-width: 66px; padding-inline: 14px; font-size: 13px; }
+.pos-operations-employee { min-width: 0; max-width: 180px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--afex-pos-bronze) 44%, var(--afex-pos-border)); border-radius: 999px; background: color-mix(in srgb, var(--afex-pos-bronze) 9%, var(--afex-pos-raised)); padding: 8px 11px; color: var(--afex-pos-text); font-size: 12px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+.pos-operations-stats { display: flex; flex-wrap: wrap; gap: 9px; }
+.pos-operations-stats > div { display: grid; min-width: 116px; flex: 0 1 150px; gap: 3px; border: 1px solid var(--afex-pos-border); border-radius: 13px; background: var(--afex-pos-panel); padding: 9px 12px; }
+.pos-operations-stats small { color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 800; }
+.pos-operations-stats strong { color: var(--afex-pos-bronze); font-size: 22px; font-variant-numeric: tabular-nums; }
+.pos-operations-tools { margin-top: 0; }
+.pos-operations-filter { flex: 0 0 138px !important; }
+.pos-operations-filter select { width: 100%; height: 52px; border: 1px solid var(--afex-pos-border); border-radius: 16px; background: var(--afex-pos-panel); padding-inline: 12px; color: var(--afex-pos-text); font: inherit; font-size: 13px; font-weight: 800; }
+.pos-operations-filter select:focus-visible { outline: 2px solid var(--afex-pos-bronze); outline-offset: 2px; }
+.pos-operations-coverage { margin: 0; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 700; }
+.pos-operations-timeline { display: grid; gap: 18px; margin-block: 14px; }
+.pos-operations-day { display: grid; gap: 8px; }
+.pos-operations-day > h2 { margin: 0; color: var(--afex-pos-text-secondary); font-size: 13px; font-weight: 900; }
+.pos-operation { position: relative; display: grid; grid-template-columns: 58px 38px minmax(0, 1fr); align-items: start; gap: 10px; min-width: 0; padding-bottom: 9px; }
+.pos-operation::after { position: absolute; top: 37px; right: 76px; bottom: -10px; width: 1px; background: color-mix(in srgb, var(--afex-pos-border) 86%, transparent); content: ''; }
+.pos-operations-day .pos-operation:last-child::after { display: none; }
+.pos-operation > time { padding-top: 10px; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 800; text-align: end; white-space: nowrap; }
+.pos-operation-marker { position: relative; z-index: 1; display: grid; width: 38px; height: 38px; align-items: center; justify-items: center; border: 1px solid color-mix(in srgb, var(--afex-pos-bronze) 60%, var(--afex-pos-border)); border-radius: 50%; background: var(--afex-pos-raised); color: var(--afex-pos-bronze); }
+.pos-operation-marker svg { width: 18px; height: 18px; }
+.pos-operation-content { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px 10px; border: 1px solid var(--afex-pos-border); border-radius: 14px; background: var(--afex-pos-panel); padding: 10px 11px; box-shadow: 0 4px 13px rgb(0 0 0 / .05); }
+.pos-operation-content > div { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.pos-operation-content strong { min-width: 0; overflow: hidden; color: var(--afex-pos-text); font-size: 14px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+.pos-operation-kind, .pos-operation-status { flex: 0 0 auto; border-radius: 999px; padding: 4px 7px; font-size: 10px; font-weight: 900; }
+.pos-operation-kind { background: color-mix(in srgb, var(--afex-pos-bronze) 12%, var(--afex-pos-raised)); color: var(--afex-pos-bronze); }
+.pos-operation-status.is-success { background: color-mix(in srgb, var(--afex-pos-emerald) 13%, var(--afex-pos-raised)); color: var(--afex-pos-emerald); }
+.pos-operation-status.is-neutral { background: color-mix(in srgb, var(--afex-pos-bronze) 10%, var(--afex-pos-raised)); color: var(--afex-pos-bronze); }
+.pos-operation-status.is-danger { background: color-mix(in srgb, var(--afex-pos-danger) 12%, var(--afex-pos-raised)); color: var(--afex-pos-danger); }
+.pos-operation-content > p { grid-column: 1 / -1; margin: 0; color: var(--afex-pos-text-secondary); font-size: 12px; font-weight: 700; }
+.pos-operation-content > small { color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 800; }
+.pos-operation-content > button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--afex-pos-border); border-radius: 10px; background: var(--afex-pos-raised); padding-inline: 11px; color: var(--afex-pos-text); font: inherit; font-size: 11px; font-weight: 900; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.pos-operation-content > button:hover { border-color: var(--afex-pos-bronze); color: var(--afex-pos-bronze); }
+.pos-operation-content > button:focus-visible { outline: 2px solid var(--afex-pos-bronze); outline-offset: 2px; }
+.pos-operation-content > button svg { width: 16px; height: 16px; }
+.pos-operations-skeleton { height: 94px; margin-right: 76px; border-radius: 14px; background: var(--afex-pos-hover); animation: pulse 1.4s ease-in-out infinite; }
+@media (max-width: 540px) {
+  .pos-operations-header { align-items: flex-start; }
+  .pos-operations-header-actions { flex: 0 0 auto; }
+  .pos-operations-employee { display: none; }
+  .pos-operations-header > .pos-operations-header-actions > button { min-width: 44px; padding-inline: 10px; }
+  .pos-operations-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .pos-operations-tools > label:first-child { grid-column: 1 / -1; }
+  .pos-operations-filter { min-width: 0; flex-basis: auto !important; }
+  .pos-operation { grid-template-columns: 48px 32px minmax(0, 1fr); gap: 7px; }
+  .pos-operation::after { right: 63px; }
+  .pos-operation-marker { width: 32px; height: 32px; }
+  .pos-operation-marker svg { width: 16px; height: 16px; }
+  .pos-operation > time { padding-top: 8px; font-size: 10px; }
+  .pos-operation-content { grid-template-columns: minmax(0, 1fr); padding: 9px; }
+  .pos-operation-content > div { flex-wrap: wrap; }
+  .pos-operation-content > button { grid-row: 3; width: 100%; }
+  .pos-operations-skeleton { margin-right: 63px; }
+}
+
 .pos-drafts-page { display: flex; min-height: 100dvh; min-width: 0; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
 .pos-drafts-panel { display: flex; width: min(100%, 1040px); min-height: 0; margin-inline: auto; flex: 1 1 auto; flex-direction: column; border: 1px solid var(--afex-pos-border); border-radius: 24px; background: var(--afex-pos-panel); padding: 14px; box-shadow: var(--afex-pos-shadow-panel); }
 .pos-drafts-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--afex-pos-border); padding-bottom: 13px; }

@@ -49,7 +49,7 @@ export default function PosSettingsPage() {
     <section className="pos-settings-section" aria-labelledby="pos-settings-work-title"><div className="pos-settings-section-heading"><div><h2 id="pos-settings-work-title">العمل اليومي</h2><p>انتقل إلى مسارات نقطة البيع المصرّح بها.</p></div></div><nav className="pos-settings-links" aria-label="روابط نقطة البيع">
       <Link href="/pos/sale/customer"><SettingsIcon name="sale" /><span><b>عملية بيع جديدة</b><small>اختيار العميل وبدء البيع</small></span><i aria-hidden="true">←</i></Link>
       <Link href="/pos/order-status"><SettingsIcon name="orders" /><span><b>حالة الطلبات</b><small>متابعة سير الطلبات التشغيلية</small></span><i aria-hidden="true">←</i></Link>
-      <Link href="/pos/order-history"><SettingsIcon name="orders" /><span><b>سجل الطلبات</b><small>طلبات آخر 48 ساعة</small></span><i aria-hidden="true">←</i></Link>
+      <Link href="/pos/order-history"><SettingsIcon name="orders" /><span><b>سجل العمليات</b><small>نشاط الطلبات والفواتير</small></span><i aria-hidden="true">←</i></Link>
       <Link href="/pos/invoices"><SettingsIcon name="orders" /><span><b>الفواتير</b><small>السجل التاريخي الكامل</small></span><i aria-hidden="true">←</i></Link>
       <Link href="/pos/offline-drafts"><SettingsIcon name="invoice" /><span><b>المسودات غير المتصلة</b><small>إدارة المسودات المحفوظة</small></span><i aria-hidden="true">←</i></Link>
     </nav></section>
