@@ -7,6 +7,8 @@ import {
   buildSaudiPhoneCandidatePattern,
   buildCustomerSearchFilter,
   CUSTOMER_PHONE_ERRORS,
+  CUSTOMER_CREATE_FAILURE_MESSAGES,
+  type CustomerCreateFailureCode,
   isMissingCustomerIdentityColumnError,
   normalizeCustomerSearchTerm,
   normalizeSaudiCustomerPhone,
@@ -114,10 +116,12 @@ async function findCustomersByNormalizedIdentity(
 function logCustomerDatabaseFailure(
   stage: 'lookup' | 'insert',
   error: CustomerDatabaseError,
-  httpStatus: number
+  httpStatus: number,
+  options: {
+    classification?: string
+    correlationId?: string
+  } = {}
 ) {
-  if (process.env.NODE_ENV !== 'development') return
-
   const code = typeof error.code === 'string' ? error.code : 'UNKNOWN'
   const constraint = resolveCustomerConstraint(error)
   const category =
@@ -138,8 +142,43 @@ function logCustomerDatabaseFailure(
     httpStatus,
     code,
     constraint,
-    category,
+    classification: options.classification || category,
+    correlationId: options.correlationId || null,
   })
+}
+
+function resolveCustomerPersistenceFailure(error: CustomerDatabaseError): {
+  code: CustomerCreateFailureCode
+  status: number
+} {
+  const constraint = resolveCustomerConstraint(error)
+  const isRegistryConflict =
+    error.code === 'P0001' && error.message === 'CUSTOMER_SCOPE_CONFLICT'
+  const isUniqueConflict = error.code === '23505' || isRegistryConflict
+  const isPhoneConflict =
+    isUniqueConflict &&
+    (constraint === 'customers_phone_key' ||
+      constraint === 'customers_tenant_phone_normalized_key' ||
+      constraint === 'customers_tenant_phone_normalized_uidx' ||
+      isRegistryConflict)
+
+  if (isPhoneConflict) {
+    return { code: 'CUSTOMER_PHONE_CONFLICT', status: 409 }
+  }
+
+  if (isUniqueConflict) {
+    return { code: 'CUSTOMER_CONFLICT', status: 409 }
+  }
+
+  if (error.code === '42501') {
+    return { code: 'CUSTOMER_AUTHORIZATION_FAILED', status: 403 }
+  }
+
+  if (error.code === '22023' || error.code === '23503' || error.code === '23514') {
+    return { code: 'CUSTOMER_VALIDATION_FAILED', status: 400 }
+  }
+
+  return { code: 'CUSTOMER_PERSISTENCE_FAILED', status: 500 }
 }
 
 function positiveInteger(value: string | null, fallback: number) {
@@ -530,34 +569,19 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) {
-    const constraint = resolveCustomerConstraint(error)
-    const isRegistryConflict =
-      error.code === 'P0001' && error.message === 'CUSTOMER_SCOPE_CONFLICT'
-    const isUniqueConflict = error.code === '23505' || isRegistryConflict
-    const isPhoneConflict =
-      isUniqueConflict &&
-      (constraint === 'customers_phone_key' ||
-        constraint === 'customers_tenant_phone_normalized_key' ||
-        constraint === 'customers_tenant_phone_normalized_uidx' ||
-        isRegistryConflict)
-    const status = isUniqueConflict ? 409 : 500
-    logCustomerDatabaseFailure('insert', error, status)
+    const failure = resolveCustomerPersistenceFailure(error)
+    logCustomerDatabaseFailure('insert', error, failure.status, {
+      classification: failure.code,
+      correlationId: auth.context.correlationId,
+    })
     return jsonWithAuthCookies(
       auth.response,
       {
         success: false,
-        error: isPhoneConflict
-          ? CUSTOMER_PHONE_ERRORS.duplicate
-          : isUniqueConflict
-            ? 'Customer already exists'
-            : 'Failed to create customer',
-        code: isUniqueConflict
-          ? isPhoneConflict
-            ? 'CUSTOMER_PHONE_CONFLICT'
-            : 'CUSTOMER_CONFLICT'
-          : 'CUSTOMER_PERSISTENCE_FAILED',
+        error: CUSTOMER_CREATE_FAILURE_MESSAGES[failure.code],
+        code: failure.code,
       },
-      status
+      failure.status
     )
   }
 

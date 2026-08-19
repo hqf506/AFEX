@@ -35,8 +35,10 @@ import { getRoleLabel } from '@/lib/app-roles'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
 import { formatPosGregorianDate } from '@/lib/pos/date-format'
 import { PosCustomerWorkspace } from '@/components/pos-customer-workspace'
-import { normalizeSaudiCustomerPhone } from '@/lib/customers'
-import { supabase } from '@/lib/supabase/client'
+import {
+  getCustomerPhoneSearchInput,
+  isCurrentCustomerSearchResponse,
+} from '@/lib/customers'
 
 type ExistingCustomer = CreatedPosCustomer
 
@@ -74,15 +76,16 @@ function normalizeCustomerLookup(
   name: string,
   branchKey: string | null
 ) {
-  const normalizedPhone = phone.trim()
-  const phoneDigits = normalizedPhone.replace(/\D/g, '')
+  const phoneSearch = getCustomerPhoneSearchInput(phone)
+  const normalizedPhone = phoneSearch.displayValue
+  const phoneDigits = phoneSearch.digits
   const normalizedName = name.trim()
   const cacheBranchKey = branchKey || 'all'
 
   if (phoneDigits.length >= 3) {
     return {
       query: normalizedPhone,
-      cacheKey: `customer-search:${cacheBranchKey}:phone:${phoneDigits}`,
+      cacheKey: `customer-search:${cacheBranchKey}:phone:${phoneSearch.normalizedPhone || phoneDigits}`,
       active: true,
     } as const
   }
@@ -153,8 +156,9 @@ export function InvoiceCustomerStep({
   const customerPhoneInputRef = useRef<HTMLInputElement | null>(null)
   const addCustomerButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  const normalizedCustomerPhone = customerPhone.replace(/[\s()-]/g, '')
-  const isValidSaudiPhone = /^(?:\+?966|0)?5\d{8}$/.test(normalizedCustomerPhone)
+  const isValidSaudiPhone = Boolean(
+    getCustomerPhoneSearchInput(customerPhone).normalizedPhone
+  )
   const isValid =
     isInvoiceCustomerDraftValid(customerName, customerPhone) && isValidSaudiPhone
   const activePosEmployee = variant === 'pos' ? readActivePosEmployee() : null
@@ -243,24 +247,6 @@ export function InvoiceCustomerStep({
         const nextMatches = await loadClientResource(
           customerSearch.cacheKey,
           async () => {
-            const exactPhone = normalizeSaudiCustomerPhone(customerSearch.query)
-            if (exactPhone && tenantId) {
-              const { data, error } = await supabase.rpc(
-                'lookup_customer_phone_identity_v1',
-                {
-                  p_tenant_id: tenantId,
-                  p_normalized_phone: exactPhone,
-                  p_branch_id: customerSearchBranchId,
-                }
-              )
-              if (error) throw error
-              return (Array.isArray(data) ? data : []).map((row) => ({
-                id: row.customer_id,
-                name: row.customer_name,
-                phone: row.display_phone,
-              })) as ExistingCustomer[]
-            }
-
             const searchParams = new URLSearchParams({
               q: customerSearch.query,
             })
@@ -300,7 +286,12 @@ export function InvoiceCustomerStep({
           }
         )
 
-        if (customerSearchRequestIdRef.current !== requestId) {
+        if (
+          !isCurrentCustomerSearchResponse(
+            requestId,
+            customerSearchRequestIdRef.current
+          )
+        ) {
           return
         }
 
@@ -308,7 +299,13 @@ export function InvoiceCustomerStep({
         setCustomerSearchError('')
         setCustomerSearchLoading(false)
       } catch {
-        if (controller.signal.aborted || customerSearchRequestIdRef.current !== requestId) {
+        if (
+          controller.signal.aborted ||
+          !isCurrentCustomerSearchResponse(
+            requestId,
+            customerSearchRequestIdRef.current
+          )
+        ) {
           return
         }
 
@@ -322,7 +319,7 @@ export function InvoiceCustomerStep({
           console.timeEnd('customer search')
         }
       }
-    }, normalizeSaudiCustomerPhone(customerSearch.query) ? 0 : CUSTOMER_SEARCH_DEBOUNCE_MS)
+    }, getCustomerPhoneSearchInput(customerSearch.query).normalizedPhone ? 0 : CUSTOMER_SEARCH_DEBOUNCE_MS)
 
     return () => {
       customerSearchRequestIdRef.current += 1
@@ -341,7 +338,6 @@ export function InvoiceCustomerStep({
     customerSearch.query,
     customerSearchRetryGeneration,
     customerSearchBranchId,
-    tenantId,
     variant,
   ])
 

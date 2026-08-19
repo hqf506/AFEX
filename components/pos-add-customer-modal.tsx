@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { clearClientResourcesByPrefix } from '@/lib/client-resource-cache'
-import { validateSaudiCustomerPhone } from '@/lib/customers'
+import {
+  prepareCustomerIdentity,
+  resolveCustomerCreateFailure,
+  resolveCustomerCreateResponse,
+  validateSaudiCustomerPhone,
+} from '@/lib/customers'
 
 export type CreatedPosCustomer = {
   id: string
@@ -113,9 +118,9 @@ export function PosAddCustomerModal({
       return
     }
 
-    const validation = validateSaudiCustomerPhone(normalizedPhone)
-    if (!validation.valid) {
-      setPhoneError(validation.message)
+    const customerIdentity = prepareCustomerIdentity(normalizedPhone)
+    if (!customerIdentity.ok) {
+      setPhoneError(customerIdentity.message)
       return
     }
 
@@ -130,7 +135,7 @@ export function PosAddCustomerModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          phone: normalizedPhone,
+          phone: customerIdentity.identity.phone,
           email: email.trim() || null,
           notes: notes.trim() || null,
           branchId,
@@ -138,24 +143,36 @@ export function PosAddCustomerModal({
       })
       const result = await response.json().catch(() => null)
 
-      if (!response.ok || !result?.success || !result.customer) {
-        if (
-          typeof result?.code === 'string' &&
-          result.code.startsWith('CUSTOMER_PHONE_') &&
-          typeof result?.error === 'string'
-        ) {
-          setPhoneError(result.error)
-          return
-        }
+      const creation = resolveCustomerCreateResponse<CreatedPosCustomer>({
+        httpStatus: response.status,
+        payload: result,
+      })
 
-        throw new Error('safe-customer-save-failure')
+      if (!creation.ok) {
+        const { failure } = creation
+        console.warn('[POS CUSTOMER] create customer failed', {
+          classification: failure.code,
+          httpStatus: response.status,
+        })
+        if (failure.phoneField) {
+          setPhoneError(failure.message)
+        } else {
+          setError(failure.message)
+        }
+        return
       }
 
       clearClientResourcesByPrefix('recent-customers:')
       clearClientResourcesByPrefix('customer-search:')
-      onCreated(result.customer as CreatedPosCustomer)
+      onCreated(creation.customer)
     } catch {
-      setError('تعذر حفظ بيانات العميل. لم يتم إنشاء الطلب بعد.')
+      const failure = resolveCustomerCreateFailure({
+        code: 'CUSTOMER_NETWORK_FAILED',
+      })
+      console.warn('[POS CUSTOMER] create customer failed', {
+        classification: failure.code,
+      })
+      setError(failure.message)
     } finally {
       setSaving(false)
     }

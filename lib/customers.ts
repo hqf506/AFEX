@@ -52,6 +52,28 @@ export type CustomerEngineErrorCode =
   | 'CUSTOMER_VERSION_CONFLICT'
   | 'CUSTOMER_PERSISTENCE_FAILED'
 
+export type CustomerCreateFailureCode =
+  | 'CUSTOMER_PHONE_CONFLICT'
+  | 'CUSTOMER_CONFLICT'
+  | 'CUSTOMER_AUTHORIZATION_FAILED'
+  | 'CUSTOMER_VALIDATION_FAILED'
+  | 'CUSTOMER_PERSISTENCE_FAILED'
+  | 'CUSTOMER_NETWORK_FAILED'
+
+export const CUSTOMER_CREATE_FAILURE_MESSAGES: Record<
+  CustomerCreateFailureCode,
+  string
+> = {
+  CUSTOMER_PHONE_CONFLICT: CUSTOMER_PHONE_ERRORS.duplicate,
+  CUSTOMER_CONFLICT: 'يوجد تعارض في بيانات العميل. راجع البيانات ثم حاول مرة أخرى.',
+  CUSTOMER_AUTHORIZATION_FAILED: 'لا تملك صلاحية إنشاء عميل ضمن نطاق نقطة البيع الحالية.',
+  CUSTOMER_VALIDATION_FAILED: 'بيانات العميل غير مكتملة أو غير صالحة. راجع الحقول المطلوبة.',
+  CUSTOMER_PERSISTENCE_FAILED:
+    'تعذر حفظ بيانات العميل حاليًا. لم يتم إنشاء الطلب بعد. حاول مرة أخرى.',
+  CUSTOMER_NETWORK_FAILED:
+    'تعذر الاتصال لحفظ بيانات العميل. لم يتم إنشاء الطلب بعد. تحقق من الاتصال ثم حاول مرة أخرى.',
+}
+
 const ARABIC_INDIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
 const EASTERN_ARABIC_INDIC_DIGITS = '۰۱۲۳۴۵۶۷۸۹'
 
@@ -92,6 +114,84 @@ export function normalizeSaudiCustomerPhone(value: string | null) {
   }
 
   return /^9665[0-9]{8}$/.test(digits) ? digits : null
+}
+
+export function getCustomerPhoneSearchInput(value: string | null) {
+  const displayValue = normalizeCustomerPhoneDigits(value)
+  const digits = displayValue.replace(/[^0-9]/g, '')
+
+  return {
+    displayValue,
+    digits,
+    normalizedPhone: normalizeSaudiCustomerPhone(displayValue),
+  }
+}
+
+export function resolveCustomerCreateFailure(input: {
+  httpStatus?: number
+  code?: unknown
+}) {
+  const code = typeof input.code === 'string' ? input.code : ''
+  const knownCode = code as CustomerCreateFailureCode
+
+  if (knownCode in CUSTOMER_CREATE_FAILURE_MESSAGES) {
+    return {
+      code: knownCode,
+      message: CUSTOMER_CREATE_FAILURE_MESSAGES[knownCode],
+      phoneField: knownCode === 'CUSTOMER_PHONE_CONFLICT',
+    }
+  }
+
+  if (input.httpStatus === 401 || input.httpStatus === 403) {
+    return {
+      code: 'CUSTOMER_AUTHORIZATION_FAILED' as const,
+      message: CUSTOMER_CREATE_FAILURE_MESSAGES.CUSTOMER_AUTHORIZATION_FAILED,
+      phoneField: false,
+    }
+  }
+
+  if (input.httpStatus === 400 || input.httpStatus === 422) {
+    return {
+      code: 'CUSTOMER_VALIDATION_FAILED' as const,
+      message: CUSTOMER_CREATE_FAILURE_MESSAGES.CUSTOMER_VALIDATION_FAILED,
+      phoneField: false,
+    }
+  }
+
+  return {
+    code: 'CUSTOMER_PERSISTENCE_FAILED' as const,
+    message: CUSTOMER_CREATE_FAILURE_MESSAGES.CUSTOMER_PERSISTENCE_FAILED,
+    phoneField: false,
+  }
+}
+
+export function resolveCustomerCreateResponse<TCustomer>(input: {
+  httpStatus: number
+  payload: unknown
+}) {
+  const payload =
+    input.payload && typeof input.payload === 'object'
+      ? (input.payload as { success?: unknown; customer?: TCustomer; code?: unknown })
+      : null
+
+  if (input.httpStatus >= 200 && input.httpStatus < 300 && payload?.success === true && payload.customer) {
+    return { ok: true as const, customer: payload.customer }
+  }
+
+  return {
+    ok: false as const,
+    failure: resolveCustomerCreateFailure({
+      httpStatus: input.httpStatus,
+      code: payload?.code,
+    }),
+  }
+}
+
+export function isCurrentCustomerSearchResponse(
+  requestId: number,
+  currentRequestId: number
+) {
+  return requestId === currentRequestId
 }
 
 export function validateSaudiCustomerPhone(
