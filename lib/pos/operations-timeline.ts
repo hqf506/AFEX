@@ -14,12 +14,6 @@ export type PosOperation = {
   order: OrderRecord
 }
 
-export type PosOperationGroup = {
-  key: string
-  label: string
-  operations: PosOperation[]
-}
-
 const riyadhDateParts = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Riyadh',
   year: 'numeric',
@@ -43,6 +37,14 @@ const riyadhTime = new Intl.DateTimeFormat('ar-SA', {
 function toDayKey(value: Date) {
   const parts = Object.fromEntries(riyadhDateParts.formatToParts(value).map((part) => [part.type, part.value]))
   return `${parts.year}-${parts.month}-${parts.day}`
+}
+
+export function getRiyadhDayKey(now = new Date()) {
+  return toDayKey(now)
+}
+
+export function getRiyadhDayLabel(now = new Date()) {
+  return `اليوم — ${riyadhDateLabel.format(now)}`
 }
 
 function dateFromOperation(operation: PosOperation) {
@@ -87,24 +89,23 @@ export function filterPosOperations(operations: PosOperation[], search: string, 
   })
 }
 
-export function groupPosOperations(operations: PosOperation[], now = new Date()): PosOperationGroup[] {
+export function currentRiyadhDayOperations(operations: PosOperation[], now = new Date()) {
   const todayKey = toDayKey(now)
-  const yesterday = new Date(now)
-  yesterday.setDate(now.getDate() - 1)
-  const yesterdayKey = toDayKey(yesterday)
-  const grouped = new Map<string, PosOperation[]>()
-
-  for (const operation of operations) {
+  return operations.filter((operation) => {
     const date = dateFromOperation(operation)
-    const key = date ? toDayKey(date) : 'unknown'
-    grouped.set(key, [...(grouped.get(key) || []), operation])
-  }
+    return date !== null && toDayKey(date) === todayKey
+  })
+}
 
-  return [...grouped.entries()].map(([key, group]) => ({
-    key,
-    label: key === todayKey ? 'اليوم' : key === yesterdayKey ? 'أمس' : key === 'unknown' ? 'تاريخ غير متاح' : riyadhDateLabel.format(dateFromOperation(group[0])!),
-    operations: group,
-  }))
+export function countUniqueOperationCustomers(operations: PosOperation[]) {
+  return new Set(operations.map((operation) => operation.customerName.trim()).filter(Boolean)).size
+}
+
+export function millisecondsUntilNextRiyadhMidnight(now = new Date()) {
+  const currentKey = toDayKey(now)
+  const [year, month, day] = currentKey.split('-').map(Number)
+  const nextRiyadhMidnight = new Date(Date.UTC(year, month - 1, day + 1, -3, 0, 0, 0))
+  return Math.max(1, nextRiyadhMidnight.getTime() - now.getTime())
 }
 
 export function formatPosOperationTime(value: string) {

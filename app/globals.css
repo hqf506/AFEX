@@ -734,6 +734,41 @@ body {
   .pos-operations-skeleton { margin-right: 63px; }
 }
 
+/* Exact daily operations view: compact, right-to-left timeline. */
+.pos-operations-controls { gap: 8px; }
+.pos-operations-header { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 18px; min-height: 70px; }
+.pos-operations-header-actions { gap: 8px; }
+.pos-operations-header > .pos-operations-header-actions > button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; border-radius: 11px; padding-inline: 13px; }
+.pos-operations-header-actions > button:first-child { border-color: color-mix(in srgb, var(--afex-pos-text) 38%, var(--afex-pos-border)); background: var(--afex-pos-text); color: var(--afex-pos-base); }
+.pos-operations-header-actions > button:last-child { border-color: color-mix(in srgb, var(--afex-pos-border) 80%, var(--afex-pos-text-secondary)); background: var(--afex-pos-raised); }
+.pos-operations-header-actions svg, .pos-operations-employee svg, .pos-operations-stats svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.pos-operations-employee { display: inline-flex; align-items: center; gap: 7px; max-width: 220px; }
+.pos-operations-stats { flex-wrap: nowrap; gap: 10px; }
+.pos-operations-stats > div { position: relative; grid-template-columns: auto minmax(0, 1fr); align-items: center; min-width: 132px; padding: 9px 11px; }
+.pos-operations-stats > div > svg { grid-row: 1 / span 2; color: var(--afex-pos-bronze); }
+.pos-operations-stats small { grid-column: 2; }.pos-operations-stats strong { grid-column: 2; font-size: 19px; line-height: 1; }
+.pos-operations-tools { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 10px; }
+.pos-operations-tools > label:first-child { grid-column: auto; }.pos-operations-filter { min-width: 0; }
+.pos-operations-timeline { gap: 10px; margin-block: 10px; }
+.pos-operations-day { gap: 6px; }.pos-operations-day > h2 { padding-inline: 4px; color: var(--afex-pos-text); font-size: 14px; }
+.pos-operation { grid-template-columns: 58px 38px minmax(0, 1fr); min-height: 76px; gap: 10px; padding-bottom: 2px; cursor: pointer; }
+.pos-operation::after { top: 36px; right: 76px; bottom: -6px; background: color-mix(in srgb, var(--afex-pos-bronze) 34%, var(--afex-pos-border)); }
+.pos-operation > time { padding-top: 9px; color: var(--afex-pos-text-secondary); }
+.pos-operation-marker { width: 38px; height: 38px; border-color: color-mix(in srgb, var(--afex-pos-bronze) 75%, var(--afex-pos-border)); background: color-mix(in srgb, var(--afex-pos-bronze) 11%, var(--afex-pos-raised)); }
+.pos-operation-content { grid-template-columns: minmax(0, 1.5fr) minmax(90px, .7fr) minmax(82px, .55fr) auto auto; min-height: 76px; align-items: center; gap: 0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 8px rgb(49 41 24 / .05); }
+.pos-operation-content::before { position: absolute; right: 104px; width: 8px; height: 8px; transform: rotate(45deg); border-bottom: 1px solid var(--afex-pos-border); border-left: 1px solid var(--afex-pos-border); background: var(--afex-pos-panel); content: ''; }
+.pos-operation-content > div { display: grid; gap: 3px; padding-inline-end: 12px; }.pos-operation-content > div strong { overflow: visible; font-size: 13px; white-space: normal; }.pos-operation-content > div p { margin: 0; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 700; }
+.pos-operation-content > small { min-width: 0; border-inline-start: 1px solid var(--afex-pos-border); padding-inline: 11px; color: var(--afex-pos-text-secondary); font-size: 11px; overflow-wrap: anywhere; }
+.pos-operation-status { margin-inline: 9px; text-align: center; white-space: nowrap; }
+.pos-operation-content > button { min-height: 34px; border: 0; background: transparent; padding: 0 3px; color: var(--afex-pos-text-secondary); font-size: 10px; text-decoration: none; }
+.pos-operation-content > button:hover { border: 0; color: var(--afex-pos-bronze); }
+@media (max-width: 767px) {
+  .pos-operations-header { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }.pos-operations-employee { grid-column: 1 / -1; grid-row: 2; justify-self: start; }.pos-operations-header-actions { grid-column: 2; grid-row: 1; }.pos-operations-header-actions > button span:not([aria-hidden]) { display: none; }.pos-operations-header > .pos-operations-header-actions > button { width: 44px; min-width: 44px; padding: 0; }
+  .pos-operations-stats { overflow-x: auto; padding-bottom: 2px; }.pos-operations-stats > div { min-width: 118px; }
+  .pos-operations-tools { grid-template-columns: minmax(0, 1fr) 126px; }
+  .pos-operation { grid-template-columns: 44px 32px minmax(0, 1fr); gap: 7px; }.pos-operation::after { right: 58px; }.pos-operation-content { grid-template-columns: minmax(0, 1fr) auto; min-height: 82px; gap: 4px 8px; padding: 8px 9px; }.pos-operation-content::before { right: 73px; }.pos-operation-content > div { grid-column: 1 / -1; padding: 0; }.pos-operation-content > small { border-inline-start: 0; padding: 0; }.pos-operation-status { margin: 0; }.pos-operation-content > button { min-height: 34px; }.pos-operation-marker { width: 32px; height: 32px; }
+}
+
 .pos-drafts-page { display: flex; min-height: 100dvh; min-width: 0; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
 .pos-drafts-panel { display: flex; width: min(100%, 1040px); min-height: 0; margin-inline: auto; flex: 1 1 auto; flex-direction: column; border: 1px solid var(--afex-pos-border); border-radius: 24px; background: var(--afex-pos-panel); padding: 14px; box-shadow: var(--afex-pos-shadow-panel); }
 .pos-drafts-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--afex-pos-border); padding-bottom: 13px; }

@@ -9,7 +9,7 @@ import { mapOrderSummaryToOrderRecord, type OrderRecord } from '@/lib/orders/ord
 import { normalizeOrderRecord, type OrderSourceRow } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
-import { filterPosOperations, formatPosOperationTime, groupPosOperations, mapOrdersToPosOperations } from '@/lib/pos/operations-timeline'
+import { countUniqueOperationCustomers, currentRiyadhDayOperations, filterPosOperations, formatPosOperationTime, getRiyadhDayLabel, mapOrdersToPosOperations, millisecondsUntilNextRiyadhMidnight } from '@/lib/pos/operations-timeline'
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
 
 const PAGE_SIZE = 24
@@ -20,6 +20,8 @@ function DetailsIcon() {
 function ActivityIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-4 2-4-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 }
+function UserIcon() { return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.8"/><path d="M5 20c.7-3.2 3-5 7-5s6.3 1.8 7 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> }
+function RefreshIcon() { return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 0 1 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M20 4v7h-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> }
 
 function paymentStatusLabel(value: string) {
   const normalized = value.trim().toLowerCase()
@@ -63,7 +65,7 @@ export default function PosOrderHistoryPage() {
     loadRequestRef.current = requestId
     setLoading(true); setError('')
     try {
-      const params = new URLSearchParams({ mode: 'full', page: String(requestedPage), pageSize: String(PAGE_SIZE), recentHours: '48' })
+      const params = new URLSearchParams({ mode: 'full', page: String(requestedPage), pageSize: String(PAGE_SIZE), todayRiyadh: '1' })
       if (search.trim()) params.set('search', search.trim())
       const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
       const result = await response.json().catch(() => null)
@@ -88,6 +90,11 @@ export default function PosOrderHistoryPage() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => void loadInvoices(1), 250)
     return () => window.clearTimeout(timeoutId)
+  }, [loadInvoices])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadInvoices(1), millisecondsUntilNextRiyadhMidnight())
+    return () => window.clearTimeout(timer)
   }, [loadInvoices])
 
   const closeDetails = useCallback(() => {
@@ -134,24 +141,24 @@ export default function PosOrderHistoryPage() {
   }
 
   const operations = useMemo(() => mapOrdersToPosOperations(orders), [orders])
-  const filtered = useMemo(() => filterPosOperations(operations, search, operationKind), [operations, search, operationKind])
-  const grouped = useMemo(() => groupPosOperations(filtered), [filtered])
-  const todayCount = useMemo(() => groupPosOperations(operations).find((group) => group.label === 'اليوم')?.operations.length || 0, [operations])
+  const todayOperations = useMemo(() => currentRiyadhDayOperations(operations), [operations])
+  const filtered = useMemo(() => filterPosOperations(todayOperations, search, operationKind), [todayOperations, search, operationKind])
+  const todayCount = todayOperations.length
+  const customerCount = useMemo(() => countUniqueOperationCustomers(todayOperations), [todayOperations])
 
   if (access.loading || !access.allowed) return <div className="pos-history-gate">جارٍ التحقق من الصلاحية...</div>
 
   return <div className="pos-invoice-history pos-order-history-page" dir="rtl"><main>
     <div className="pos-order-history-controls pos-operations-controls">
-      <header className="pos-history-header pos-operations-header"><div className="pos-history-heading"><span><ActivityIcon /></span><div><h1>سجل العمليات</h1><p>نشاطك في نقطة البيع</p></div></div><div className="pos-operations-header-actions"><span className="pos-operations-employee">{employeeName}</span><button type="button" onClick={() => router.push('/pos')} aria-label="إغلاق سجل العمليات">إغلاق</button></div></header>
-      <div className="pos-operations-stats" aria-label="إحصائيات العمليات"><div><small>عمليات اليوم</small><strong>{todayCount}</strong></div><div><small>فواتير</small><strong>{totalCount}</strong></div></div>
-      <div className="pos-history-tools pos-operations-tools"><label><span className="sr-only">ابحث برقم الفاتورة أو العميل أو نوع العملية</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو العميل أو نوع العملية" /></label><label className="pos-operations-filter"><span className="sr-only">تصفية العمليات</span><select value={operationKind} onChange={(event) => setOperationKind(event.target.value as 'all' | 'invoice')}><option value="all">كل العمليات</option><option value="invoice">فواتير</option></select></label><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}>تحديث</button></div>
-      <p className="pos-operations-coverage">يعرض السجل عمليات الطلبات والفواتير المتاحة حاليًا.</p>
+      <header className="pos-history-header pos-operations-header"><div className="pos-history-heading"><span><ActivityIcon /></span><div><h1>سجل العمليات</h1><p>نشاطك في نقطة البيع</p></div></div><span className="pos-operations-employee"><UserIcon />{employeeName}</span><div className="pos-operations-header-actions"><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}><RefreshIcon /><span>تحديث</span></button><button type="button" onClick={() => router.push('/pos')} aria-label="إغلاق سجل العمليات"><span aria-hidden="true">×</span><span>إغلاق</span></button></div></header>
+      <div className="pos-operations-stats" aria-label="إحصائيات العمليات"><div><ActivityIcon /><small>عمليات اليوم</small><strong>{todayCount}</strong></div><div><ActivityIcon /><small>فواتير</small><strong>{todayCount}</strong></div><div><UserIcon /><small>عملاء</small><strong>{customerCount}</strong></div></div>
+      <div className="pos-history-tools pos-operations-tools"><label><span className="sr-only">ابحث برقم الفاتورة أو العميل أو نوع العملية</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو العميل أو نوع العملية" /></label><label className="pos-operations-filter"><span className="sr-only">تصفية العمليات</span><select value={operationKind} onChange={(event) => setOperationKind(event.target.value as 'all' | 'invoice')}><option value="all">كل العمليات</option><option value="invoice">فواتير</option></select></label></div>
     </div>
     <div className="pos-order-history-scroll" data-testid="order-history-scroll-viewport">
     {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadInvoices(1)}>إعادة المحاولة</button></div> : null}
     {loading && orders.length === 0 ? <div className="pos-operations-timeline" aria-label="جارٍ تحميل العمليات">{[1,2,3].map((item) => <div className="pos-operations-skeleton" key={item} />)}</div> : null}
     {!loading && !error && filtered.length === 0 ? <section className="pos-history-empty"><ActivityIcon /><h2>{search ? 'لا توجد عمليات مطابقة' : 'لا توجد عمليات مسجلة'}</h2><p>{search ? 'جرّب عبارة بحث مختلفة.' : 'تظهر هنا عمليات الطلبات والفواتير المتاحة فقط.'}</p></section> : null}
-    {!error && grouped.length > 0 ? <section className="pos-operations-timeline" aria-label="سجل العمليات خلال آخر 48 ساعة">{grouped.map((group) => <section className="pos-operations-day" key={group.key}><h2>{group.label}</h2>{group.operations.map((operation) => <article className="pos-operation" key={operation.id}><div className="pos-operation-marker"><ActivityIcon /></div><time>{formatPosOperationTime(operation.createdAt)}</time><div className="pos-operation-content"><div><span className="pos-operation-kind">{operation.kindLabel}</span><strong>{operation.title}</strong><span className={`pos-operation-status is-${operation.statusTone}`}>{operation.statusLabel}</span></div><p>{operation.description}</p><small dir="ltr">{operation.reference}</small><button type="button" onClick={(event) => void openDetails(operation.order, event.currentTarget)}><DetailsIcon /><span>عرض التفاصيل</span></button></div></article>)}</section>)}</section> : null}
+    {!error && filtered.length > 0 ? <section className="pos-operations-timeline" aria-label="سجل عمليات اليوم"><section className="pos-operations-day"><h2>{getRiyadhDayLabel()}</h2>{filtered.map((operation) => <article className="pos-operation" key={operation.id} onClick={(event) => void openDetails(operation.order, event.currentTarget)}><time>{formatPosOperationTime(operation.createdAt)}</time><div className="pos-operation-marker"><ActivityIcon /></div><div className="pos-operation-content"><div><strong>{operation.title}</strong><p>{operation.description}</p></div><small dir="ltr">{operation.reference}</small>{operation.customerName ? <small>{operation.customerName}</small> : <small>عميل نقدي</small>}<span className={`pos-operation-status is-${operation.statusTone}`}>{operation.statusLabel}</span><button type="button" onClick={(event) => { event.stopPropagation(); void openDetails(operation.order, event.currentTarget) }}><DetailsIcon /><span>عرض التفاصيل</span></button></div></article>)}</section></section> : null}
       {!error && hasMore ? <div className="pos-history-more"><button type="button" onClick={() => void loadInvoices(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : `تحميل المزيد (${orders.length} من ${totalCount})`}</button></div> : null}
     </div>
   </main>

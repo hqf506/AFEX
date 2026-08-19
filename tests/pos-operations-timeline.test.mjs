@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import test from 'node:test'
-import { filterPosOperations, formatPosOperationTime, groupPosOperations, mapOrdersToPosOperations } from '../lib/pos/operations-timeline.ts'
+import { countUniqueOperationCustomers, currentRiyadhDayOperations, filterPosOperations, formatPosOperationTime, getRiyadhDayLabel, mapOrdersToPosOperations, millisecondsUntilNextRiyadhMidnight } from '../lib/pos/operations-timeline.ts'
 
 function order(id, createdAt, overrides = {}) {
   return { id, order_number: `ORD-${id}`, invoice_number: `INV-${id}`, customer_name: 'عميل اختبار', created_at: createdAt, status: 'closed', ...overrides }
@@ -14,14 +14,21 @@ test('operations timeline uses only order and invoice fields, newest first', () 
   assert.equal(operations.every((item) => item.kind === 'invoice'), true)
 })
 
-test('operations are grouped as today, yesterday, then an Arabic Riyadh date', () => {
+test('only current Riyadh-day operations remain after midnight', () => {
   const operations = mapOrdersToPosOperations([
     order('today', '2026-08-20T08:00:00Z'),
     order('yesterday', '2026-08-19T08:00:00Z'),
     order('older', '2026-08-17T08:00:00Z'),
   ])
-  assert.deepEqual(groupPosOperations(operations, new Date('2026-08-20T12:00:00Z')).map((group) => group.label).slice(0, 2), ['اليوم', 'أمس'])
-  assert.match(groupPosOperations(operations, new Date('2026-08-20T12:00:00Z'))[2].label, /\S/u)
+  const current = currentRiyadhDayOperations(operations, new Date('2026-08-20T12:00:00Z'))
+  assert.deepEqual(current.map((operation) => operation.id), ['today'])
+  assert.match(getRiyadhDayLabel(new Date('2026-08-20T12:00:00Z')), /^اليوم — /u)
+})
+
+test('unique customer count is factual and next Riyadh midnight has a finite refresh delay', () => {
+  const operations = mapOrdersToPosOperations([order('1', '2026-08-20T08:00:00Z', { customer_name: 'سارة' }), order('2', '2026-08-20T09:00:00Z', { customer_name: 'سارة' }), order('3', '2026-08-20T10:00:00Z', { customer_name: 'محمد' })])
+  assert.equal(countUniqueOperationCustomers(operations), 2)
+  assert.ok(millisecondsUntilNextRiyadhMidnight(new Date('2026-08-20T12:00:00Z')) > 0)
 })
 
 test('search and the supported invoice filter are functional', () => {
@@ -43,8 +50,14 @@ test('operations page provides authoritative loading, empty, error and retry sta
 
 test('operations page has a functional search, supported-only filter, refresh and stale response guard', async () => {
   const source = await readFile(resolve('app/pos/order-history/page.tsx'), 'utf8')
-  for (const value of ['filterPosOperations', "setOperationKind", 'كل العمليات', '<option value="invoice">فواتير</option>', 'loadRequestRef', 'onClick={() => void loadInvoices(1)}']) assert.ok(source.includes(value))
+  for (const value of ['filterPosOperations', "setOperationKind", 'كل العمليات', '<option value="invoice">فواتير</option>', 'loadRequestRef', 'todayRiyadh', 'millisecondsUntilNextRiyadhMidnight']) assert.ok(source.includes(value))
+  assert.equal(source.includes("recentHours: '48'"), false)
   assert.equal(source.includes('عمليات الجلسات'), false)
+})
+
+test('server applies the current Riyadh day boundary before returning orders', async () => {
+  const source = await readFile(resolve('app/api/orders/route.ts'), 'utf8')
+  for (const value of ["todayRiyadh: params.get('todayRiyadh') === '1'", "timeZone: 'Asia/Riyadh'", "nextQuery = nextQuery.gte('created_at', start).lte('created_at', now.toISOString())"]) assert.ok(source.includes(value))
 })
 
 test('operations entry points use the approved visible name while preserving the route', async () => {
@@ -59,6 +72,6 @@ test('timeline keeps the existing details action and mobile-safe visual hooks', 
   const page = await readFile(resolve('app/pos/order-history/page.tsx'), 'utf8')
   const styles = await readFile(resolve('app/globals.css'), 'utf8')
   assert.ok(page.includes('openDetails(operation.order'))
-  for (const selector of ['.pos-operation-content > button', '.pos-operations-timeline', '.pos-operation::after']) assert.ok(styles.includes(selector))
+  for (const selector of ['.pos-operation-content > button', '.pos-operations-timeline', '.pos-operation::after', 'grid-template-columns: minmax(0, 1.5fr)']) assert.ok(styles.includes(selector))
   assert.ok(styles.includes('min-height: 44px'))
 })

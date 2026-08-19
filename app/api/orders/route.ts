@@ -64,6 +64,7 @@ type OrdersApiQuery = {
   dateTo: string | null
   listFilter: string | null
   recentHours: 48 | null
+  todayRiyadh: boolean
 }
 
 type OrdersApiPayload = {
@@ -2240,6 +2241,7 @@ function parseOrdersQuery(request: NextRequest): OrdersApiQuery {
     dateTo: normalizeOptionalString(params.get('dateTo')),
     listFilter: normalizeOptionalString(params.get('listFilter')),
     recentHours: params.get('recentHours') === '48' ? 48 : null,
+    todayRiyadh: params.get('todayRiyadh') === '1',
   }
 }
 
@@ -2433,6 +2435,14 @@ function applyOrdersFilters<T extends OrdersFilterQuery>(
 
   if (filters.recentHours === 48) {
     nextQuery = nextQuery.gt('created_at', getPosOrderHistoryCutoffIso())
+  }
+
+  if (filters.todayRiyadh) {
+    const now = new Date()
+    const riyadhParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' })
+    const parts = Object.fromEntries(riyadhParts.formatToParts(now).map((part) => [part.type, part.value]))
+    const start = new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00+03:00`).toISOString()
+    nextQuery = nextQuery.gte('created_at', start).lte('created_at', now.toISOString())
   }
 
   const fromIso = toUtcBoundaryIso(filters.dateFrom, 'start')
