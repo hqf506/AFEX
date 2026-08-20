@@ -68,11 +68,19 @@ test('operations entry points use the approved visible name while preserving the
   assert.equal(sources.every((source) => source.includes('سجل العمليات') && source.includes('/pos/order-history')), true)
 })
 
-test('timeline keeps an icon-only details control and reference-accurate desktop hooks', async () => {
+test('timeline keeps an icon-only details control and compact reference scale', async () => {
   const page = await readFile(resolve('app/pos/order-history/page.tsx'), 'utf8')
-  const styles = await readFile(resolve('app/globals.css'), 'utf8')
+  const styles = await readFile(resolve('app/pos/order-history/operations-history.module.css'), 'utf8')
   assert.ok(page.includes('openDetails(operation.order'))
-  for (const selector of ['.pos-operation-content > button', '.pos-operations-timeline', '.pos-operation::after', "grid-template-areas: 'title employee actions'", 'grid-template-columns: minmax(0, 1.6fr) 145px 120px auto 34px']) assert.ok(styles.includes(selector))
-  assert.ok(styles.includes('min-height: 44px'))
+  for (const contract of ['font-size: 32px', 'height: 58px', 'height: 52px', 'height: 78px', 'height: 74px', 'height: 48px', 'overflow-x: hidden']) assert.ok(styles.includes(contract), `missing compact contract: ${contract}`)
   assert.equal(page.includes('<span>عرض التفاصيل</span>'), false)
+})
+
+test('order details dialog is viewport-contained with one scrolling body and accessible dismissal', async () => {
+  const page = await readFile(resolve('app/pos/order-history/page.tsx'), 'utf8')
+  const styles = await readFile(resolve('app/pos/order-history/operations-history.module.css'), 'utf8')
+  for (const contract of ['.dialogBackdrop', '.dialogHeader', '.dialogBody', 'position: fixed', 'inset: 0', 'max-height: calc(100dvh - 48px)', 'max-height: calc(100dvh - 24px)', 'overflow-y: auto', 'min-height: 0', '.dialogClose:focus-visible']) assert.ok(styles.includes(contract), `missing dialog contract: ${contract}`)
+  for (const contract of ['styles.dialogBackdrop', 'styles.dialog', 'styles.dialogHeader', 'styles.dialogClose', 'styles.dialogBody', 'document.body.style.overflow = \'hidden\'', "event.key === 'Escape'", 'aria-modal="true"']) assert.ok(page.includes(contract), `missing dialog behavior: ${contract}`)
+  for (const detail of ['المنتجات والخدمات', 'المجموع قبل الضريبة', 'طريقة الدفع', 'المبلغ المستلم من العميل', 'الباقي للعميل']) assert.ok(page.includes(detail), `missing existing detail: ${detail}`)
+  assert.equal(page.includes('className="pos-invoice-sheet"'), false)
 })
