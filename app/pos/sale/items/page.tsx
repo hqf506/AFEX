@@ -1,20 +1,11 @@
 'use client'
 
 import { InvoiceItemsStep } from '@/components/invoice-items-step'
+import styles from './items-page.module.css'
 
 export default function PosSaleItemsPage() {
   return (
-    <div className="pos-items-page">
-      <style jsx global>{`
-        .afex-pos-shell-content:has(.pos-items-page),
-        .afex-pos-shell-content:has(.pos-items-page) .afex-pos-route-content,
-        .pos-items-page {
-          height: 100%;
-          min-height: 0;
-          overflow: hidden;
-        }
-      `}</style>
-
+    <div className={`pos-items-page ${styles.page}`}>
       <InvoiceItemsStep
         heroTitle="اختيار العناصر وإتمام البيع"
         heroSubtitle="نقطة البيع"

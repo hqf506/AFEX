@@ -17,6 +17,7 @@ const posHome = read('app/pos/page.tsx')
 const customerStep = read('components/invoice-customer-step.tsx')
 const addCustomerModal = read('components/pos-add-customer-modal.tsx')
 const itemsStep = read('components/invoice-items-step.tsx')
+const posItemsModelOneStyles = read('components/pos-items-model-one.module.css')
 const checkoutStep = read('app/pos/sale/checkout/page.tsx')
 const saleReset = read('lib/invoices/sale-reset.ts')
 const successStep = read('app/pos/sale/success/page.tsx')
@@ -150,18 +151,18 @@ assert.ok(
 )
 assert.equal(
   (activePosItemsLayout.match(/paginatedProducts\.map\(/g) || []).length,
-  2,
-  'Active POS items layout must keep one mobile map and one desktop map'
+  1,
+  'Active POS items layout must keep one responsive product map'
 )
 assert.ok(
-  activePosItemsLayout.includes('{isMobileViewport ? (') &&
-    activePosItemsLayout.includes(') : ('),
-  'Active POS product variants must be mutually exclusive at runtime'
+  activePosItemsLayout.includes('className={modelOneStyles.productGrid}') &&
+    !activePosItemsLayout.includes('{isMobileViewport ? ('),
+  'Active POS product catalog must use one CSS-responsive tree'
 )
 assert.equal(
-  (activePosItemsLayout.match(/squarePosCategoryLabels\.map\(/g) || []).length,
+  (activePosItemsLayout.match(/posCategoryLabels\.map\(/g) || []).length,
   1,
-  'Active POS items layout must render categories from one shared map'
+  'Active POS items layout must render authoritative categories from one shared map'
 )
 assert.equal(
   (activePosItemsLayout.match(/placeholder="ابحث عن منتج أو خدمة"/g) || []).length,
@@ -175,20 +176,23 @@ assert.equal(
 )
 assert.ok(
   activePosItemsLayout.includes('aria-label="تصنيفات العناصر"') &&
-    activePosItemsLayout.includes('aria-pressed={active}') &&
+    activePosItemsLayout.includes('aria-pressed={activeFilter === filter}') &&
     activePosItemsLayout.includes('aria-controls="pos-cart-panel"') &&
-    activePosItemsLayout.includes('afex-sale-product-grid--mobile') &&
-    activePosItemsLayout.includes('afex-sale-product-grid--desktop') &&
+    activePosItemsLayout.includes('modelOneStyles.productGrid') &&
+    posItemsModelOneStyles.includes('grid-template-columns: repeat(5, minmax(0, 1fr))') &&
+    posItemsModelOneStyles.includes('@media (max-width: 767px)') &&
     !activePosItemsLayout.includes('window.innerWidth'),
   'POS product browsing must remain single-tree, touch-first, and CSS responsive'
 )
 assert.ok(
-  activePosItemsLayout.includes("'is-open pos-mobile-sheet-enter'") &&
-    activePosItemsLayout.includes('afex-sale-cart') &&
-    activePosItemsLayout.includes('afex-sale-mobile-summary') &&
+  activePosItemsLayout.includes('modelOneStyles.cartOpen') &&
+    activePosItemsLayout.includes('modelOneStyles.cart') &&
+    activePosItemsLayout.includes('modelOneStyles.mobileSummary') &&
     activePosItemsLayout.includes('data-mobile-cart-scroll-body') &&
     activePosItemsLayout.includes('data-mobile-cart-footer') &&
-    (activePosItemsLayout.match(/className="flex h-11 w-11/g) || []).length >= 3,
+    activePosItemsLayout.includes('modelOneStyles.quantityButton') &&
+    activePosItemsLayout.includes('modelOneStyles.deleteButton') &&
+    posItemsModelOneStyles.includes('min-height: 44px !important'),
   'Phone cart must use one full-width scroll surface with accessible item controls'
 )
 assert.ok(
