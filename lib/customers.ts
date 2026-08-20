@@ -4,6 +4,123 @@ export type CustomerListItem = {
   phone: string
 }
 
+export type SelectedCustomerProfile = {
+  id: string
+  customerNumber: string | null
+  name: string
+  phone: string
+  email: string | null
+  city: string | null
+  address: string | null
+  notes: string | null
+  createdAt: string | null
+  visitCount: number | null
+  totalSpending: number | null
+  lastOrderNumber: string | null
+  lastOrderAt: string | null
+}
+
+export type CustomerProfileBaseSource = {
+  id?: unknown
+  customer_code?: unknown
+  name?: unknown
+  phone?: unknown
+  display_phone?: unknown
+  email?: unknown
+  city?: unknown
+  address?: unknown
+  notes?: unknown
+  created_at?: unknown
+}
+
+export type CustomerProfileActivitySource = {
+  visitCount: number | null
+  totalSpending: number | null
+  lastOrderNumber: string | null
+  lastOrderAt: string | null
+}
+
+function optionalCustomerProfileText(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+export function buildSelectedCustomerProfile(
+  customer: CustomerProfileBaseSource,
+  activity: CustomerProfileActivitySource
+): SelectedCustomerProfile | null {
+  const id = optionalCustomerProfileText(customer.id)
+  const name = optionalCustomerProfileText(customer.name)
+  const phone =
+    optionalCustomerProfileText(customer.display_phone) ||
+    optionalCustomerProfileText(customer.phone)
+
+  if (!id || !name || !phone) return null
+
+  return {
+    id,
+    customerNumber: optionalCustomerProfileText(customer.customer_code),
+    name,
+    phone,
+    email: optionalCustomerProfileText(customer.email),
+    city: optionalCustomerProfileText(customer.city),
+    address: optionalCustomerProfileText(customer.address),
+    notes: optionalCustomerProfileText(customer.notes),
+    createdAt: optionalCustomerProfileText(customer.created_at),
+    visitCount:
+      typeof activity.visitCount === 'number' &&
+      Number.isSafeInteger(activity.visitCount) &&
+      activity.visitCount >= 0
+        ? activity.visitCount
+        : null,
+    totalSpending:
+      typeof activity.totalSpending === 'number' &&
+      Number.isFinite(activity.totalSpending) &&
+      activity.totalSpending >= 0
+        ? activity.totalSpending
+        : null,
+    lastOrderNumber: optionalCustomerProfileText(activity.lastOrderNumber),
+    lastOrderAt: optionalCustomerProfileText(activity.lastOrderAt),
+  }
+}
+
+export function isSelectedCustomerProfile(
+  value: unknown
+): value is SelectedCustomerProfile {
+  if (!value || typeof value !== 'object') return false
+  const profile = value as Partial<SelectedCustomerProfile>
+  const optionalStrings = [
+    profile.customerNumber,
+    profile.email,
+    profile.city,
+    profile.address,
+    profile.notes,
+    profile.createdAt,
+    profile.lastOrderNumber,
+    profile.lastOrderAt,
+  ]
+
+  return (
+    typeof profile.id === 'string' &&
+    Boolean(profile.id) &&
+    typeof profile.name === 'string' &&
+    Boolean(profile.name) &&
+    typeof profile.phone === 'string' &&
+    Boolean(profile.phone) &&
+    optionalStrings.every((item) => item === null || typeof item === 'string') &&
+    (profile.visitCount === null ||
+      (typeof profile.visitCount === 'number' && profile.visitCount >= 0)) &&
+    (profile.totalSpending === null ||
+      (typeof profile.totalSpending === 'number' && profile.totalSpending >= 0))
+  )
+}
+
+export function isCurrentCustomerProfileResponse(
+  requestId: number,
+  currentRequestId: number
+) {
+  return requestId === currentRequestId
+}
+
 export const CUSTOMER_PHONE_ERRORS = {
   required: 'أدخل رقم جوال العميل.',
   unsupportedCharacters:

@@ -4,21 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import { clearClientResourcesByPrefix } from '@/lib/client-resource-cache'
 import {
   prepareCustomerIdentity,
+  isSelectedCustomerProfile,
   resolveCustomerCreateFailure,
   resolveCustomerCreateResponse,
+  type SelectedCustomerProfile,
   validateSaudiCustomerPhone,
 } from '@/lib/customers'
 
-export type CreatedPosCustomer = {
-  id: string
-  name: string
-  phone: string
-  lastPurchaseAmount?: number | null
-  firstVisitAt?: string | null
-  lastActivityAt?: string | null
-  visitsCount?: number | null
-  totalSpent?: number | null
-}
+export type CreatedPosCustomer = SelectedCustomerProfile
 
 type PosAddCustomerModalProps = {
   branchId: string | null
@@ -159,6 +152,18 @@ export function PosAddCustomerModal({
         } else {
           setError(failure.message)
         }
+        return
+      }
+
+      if (!isSelectedCustomerProfile(creation.customer)) {
+        const failure = resolveCustomerCreateFailure({
+          code: 'CUSTOMER_PERSISTENCE_FAILED',
+        })
+        console.warn('[POS CUSTOMER] create customer failed', {
+          classification: 'CUSTOMER_CREATE_RESPONSE_INVALID',
+          httpStatus: response.status,
+        })
+        setError(failure.message)
         return
       }
 

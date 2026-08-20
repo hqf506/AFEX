@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { PosStepIndicator } from '@/components/pos-step-indicator'
 import { useMobileViewport } from '@/hooks/use-mobile-viewport'
@@ -11,6 +11,7 @@ import {
   loadClientResource,
   peekClientResource,
   prefetchClientResource,
+  writeClientResource,
 } from '@/lib/client-resource-cache'
 import {
   clearAllInvoiceCatalogCache,
@@ -34,19 +35,26 @@ import {
 import { getRoleLabel } from '@/lib/app-roles'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
 import { formatPosGregorianDate } from '@/lib/pos/date-format'
-import { PosCustomerWorkspace } from '@/components/pos-customer-workspace'
+import {
+  PosCustomerWorkspace,
+  type PosCustomerRecord,
+} from '@/components/pos-customer-workspace'
 import {
   getCustomerPhoneSearchInput,
+  isCurrentCustomerProfileResponse,
   isCurrentCustomerSearchResponse,
+  isSelectedCustomerProfile,
+  type SelectedCustomerProfile,
 } from '@/lib/customers'
 
-type ExistingCustomer = CreatedPosCustomer
+type ExistingCustomer = PosCustomerRecord
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
 const CUSTOMER_SEARCH_CACHE_TTL_MS = 30_000
 const CUSTOMER_SEARCH_DEBOUNCE_MS = 300
 const RECENT_CUSTOMERS_CACHE_TTL_MS = 30_000
+const CUSTOMER_PROFILE_CACHE_TTL_MS = 60_000
 
 const posSidebarItems = [
   { id: 'home', label: 'الرئيسية', href: '/pos', icon: 'home' as const },
@@ -152,7 +160,14 @@ export function InvoiceCustomerStep({
   const [customerListLimit, setCustomerListLimit] = useState(6)
   const [addCustomerOpen, setAddCustomerOpen] = useState(false)
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
+  const [selectedCustomerProfile, setSelectedCustomerProfile] =
+    useState<SelectedCustomerProfile | null>(null)
+  const [customerProfileLoading, setCustomerProfileLoading] = useState(false)
+  const [customerProfileError, setCustomerProfileError] = useState('')
   const customerSearchRequestIdRef = useRef(0)
+  const customerProfileRequestIdRef = useRef(0)
+  const customerProfileAbortRef = useRef<AbortController | null>(null)
+  const selectedCustomerIdRef = useRef<string | null>(null)
   const customerPhoneInputRef = useRef<HTMLInputElement | null>(null)
   const addCustomerButtonRef = useRef<HTMLButtonElement | null>(null)
 
@@ -188,6 +203,127 @@ export function InvoiceCustomerStep({
     : recentCustomersError
   const canLoadMoreCustomers = visibleCustomerCards.length > customerListLimit
   const isMobileViewport = useMobileViewport()
+
+  const clearSelectedCustomerProfileState = useCallback(() => {
+    customerProfileAbortRef.current?.abort()
+    customerProfileAbortRef.current = null
+    customerProfileRequestIdRef.current += 1
+    selectedCustomerIdRef.current = null
+    setSelectedCustomerProfile(null)
+    setCustomerProfileLoading(false)
+    setCustomerProfileError('')
+  }, [])
+
+  const loadSelectedCustomerProfile = useCallback(
+    async (customer: ExistingCustomer, force = false) => {
+      const hadActiveProfileRequest = Boolean(customerProfileAbortRef.current)
+      customerProfileAbortRef.current?.abort()
+      customerProfileAbortRef.current = null
+
+      const requestId = customerProfileRequestIdRef.current + 1
+      customerProfileRequestIdRef.current = requestId
+      const cacheKey = `customer-profile:${tenantId || 'tenant'}:${customer.id}`
+      const cachedProfile = peekClientResource<SelectedCustomerProfile>(cacheKey)
+
+      if (
+        !force &&
+        cachedProfile &&
+        isSelectedCustomerProfile(cachedProfile) &&
+        isClientResourceFresh(cacheKey, CUSTOMER_PROFILE_CACHE_TTL_MS)
+      ) {
+        setSelectedCustomerProfile(cachedProfile)
+        setCustomerProfileLoading(false)
+        setCustomerProfileError('')
+        return
+      }
+
+      const controller = new AbortController()
+      customerProfileAbortRef.current = controller
+      setSelectedCustomerProfile(null)
+      setCustomerProfileLoading(true)
+      setCustomerProfileError('')
+
+      try {
+        const profile = await loadClientResource(
+          cacheKey,
+          async () => {
+            const response = await fetch(
+              `/api/customers/${encodeURIComponent(customer.id)}`,
+              {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-store',
+                signal: controller.signal,
+              }
+            )
+            const result = await response.json().catch(() => null)
+
+            if (
+              !response.ok ||
+              result?.success !== true ||
+              !isSelectedCustomerProfile(result.profile)
+            ) {
+              throw new Error('CUSTOMER_PROFILE_LOAD_FAILED')
+            }
+
+            return result.profile
+          },
+          {
+            ttlMs: CUSTOMER_PROFILE_CACHE_TTL_MS,
+            force: force || hadActiveProfileRequest,
+            protectedResource: true,
+          }
+        )
+
+        if (
+          !isCurrentCustomerProfileResponse(
+            requestId,
+            customerProfileRequestIdRef.current
+          ) ||
+          selectedCustomerIdRef.current !== customer.id
+        ) {
+          return
+        }
+
+        setSelectedCustomerProfile(profile)
+        setCustomerProfileError('')
+      } catch {
+        if (
+          controller.signal.aborted ||
+          !isCurrentCustomerProfileResponse(
+            requestId,
+            customerProfileRequestIdRef.current
+          ) ||
+          selectedCustomerIdRef.current !== customer.id
+        ) {
+          return
+        }
+
+        setCustomerProfileError('تعذر تحميل تفاصيل العميل')
+      } finally {
+        if (customerProfileAbortRef.current === controller) {
+          customerProfileAbortRef.current = null
+        }
+        if (
+          isCurrentCustomerProfileResponse(
+            requestId,
+            customerProfileRequestIdRef.current
+          ) &&
+          selectedCustomerIdRef.current === customer.id
+        ) {
+          setCustomerProfileLoading(false)
+        }
+      }
+    },
+    [tenantId]
+  )
+
+  useEffect(
+    () => () => {
+      customerProfileAbortRef.current?.abort()
+    },
+    []
+  )
 
   useEffect(() => {
     if (!allowed) return
@@ -466,15 +602,24 @@ export function InvoiceCustomerStep({
 
     const timeoutId = window.setTimeout(() => {
       if (storedCustomer) {
+        const restoredCustomer: ExistingCustomer = {
+          id: storedCustomer.customerId || '',
+          name: storedCustomer.name,
+          phone: storedCustomer.phone,
+        }
         setSelectedCustomerId(storedCustomer.customerId)
+        selectedCustomerIdRef.current = storedCustomer.customerId
         setCustomerName(storedCustomer.name)
         setCustomerPhone(storedCustomer.phone)
+        if (restoredCustomer.id) {
+          void loadSelectedCustomerProfile(restoredCustomer)
+        }
       }
       customerPhoneInputRef.current?.focus({ preventScroll: true })
     }, 150)
 
     return () => window.clearTimeout(timeoutId)
-  }, [allowed, variant])
+  }, [allowed, loadSelectedCustomerProfile, variant])
 
   const handleNext = () => {
     if (!isValid) {
@@ -502,6 +647,7 @@ export function InvoiceCustomerStep({
     setCustomerName('')
     setCustomerPhone('')
     setSelectedCustomerId(null)
+    clearSelectedCustomerProfileState()
     setCustomerMatches([])
     setCustomerSearchError('')
     if (variant === 'pos') localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
@@ -520,7 +666,9 @@ export function InvoiceCustomerStep({
     setCustomerName(customer.name)
     setCustomerPhone(customer.phone)
     setSelectedCustomerId(customer.id)
+    selectedCustomerIdRef.current = customer.id
     setCustomerSearchError('')
+    void loadSelectedCustomerProfile(customer)
     if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: customer.id, name: customer.name, phone: customer.phone }))
   }
 
@@ -537,15 +685,27 @@ export function InvoiceCustomerStep({
 
   const changeSelectedCustomer = () => {
     setSelectedCustomerId(null)
+    clearSelectedCustomerProfileState()
     window.setTimeout(() => {
       customerPhoneInputRef.current?.focus({ preventScroll: true })
     }, 0)
   }
 
-  const handleCustomerCreated = (createdCustomer: ExistingCustomer) => {
+  const handleCustomerCreated = (createdCustomer: CreatedPosCustomer) => {
+    customerProfileAbortRef.current?.abort()
+    customerProfileAbortRef.current = null
+    customerProfileRequestIdRef.current += 1
+    selectedCustomerIdRef.current = createdCustomer.id
     setCustomerName(createdCustomer.name)
     setCustomerPhone(createdCustomer.phone)
     setSelectedCustomerId(createdCustomer.id)
+    setSelectedCustomerProfile(createdCustomer)
+    setCustomerProfileLoading(false)
+    setCustomerProfileError('')
+    writeClientResource(
+      `customer-profile:${tenantId || 'tenant'}:${createdCustomer.id}`,
+      createdCustomer
+    )
     setCustomerSearchError('')
     setCustomerMatches((currentMatches) => [
       createdCustomer,
@@ -557,6 +717,18 @@ export function InvoiceCustomerStep({
     ])
     setAddCustomerOpen(false)
     if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: createdCustomer.id, name: createdCustomer.name, phone: createdCustomer.phone }))
+  }
+
+  const retrySelectedCustomerProfile = () => {
+    if (!selectedCustomerId) return
+    const selectedCustomer =
+      visibleCustomerCards.find((customer) => customer.id === selectedCustomerId) ||
+      {
+        id: selectedCustomerId,
+        name: customerName,
+        phone: customerPhone,
+      }
+    void loadSelectedCustomerProfile(selectedCustomer, true)
   }
 
   const handlePosLogout = () => {
@@ -625,6 +797,9 @@ export function InvoiceCustomerStep({
           error={customerCardsError}
           searchActive={customerSearch.active}
           selectedCustomerId={selectedCustomerId}
+          selectedCustomerProfile={selectedCustomerProfile}
+          profileLoading={customerProfileLoading}
+          profileError={customerProfileError}
           customerName={customerName}
           customerPhone={customerPhone}
           canLoadMore={canLoadMoreCustomers}
@@ -632,14 +807,15 @@ export function InvoiceCustomerStep({
           backHref={backHref}
           phoneInputRef={customerPhoneInputRef}
           addButtonRef={addCustomerButtonRef}
-          onNameChange={(value) => { setCustomerName(value); setSelectedCustomerId(null) }}
-          onPhoneChange={(value) => { setCustomerPhone(value); setSelectedCustomerId(null) }}
+          onNameChange={(value) => { setCustomerName(value); setSelectedCustomerId(null); clearSelectedCustomerProfileState() }}
+          onPhoneChange={(value) => { setCustomerPhone(value); setSelectedCustomerId(null); clearSelectedCustomerProfileState() }}
           onSelect={selectExistingCustomer}
           onChangeCustomer={changeSelectedCustomer}
           onRemoveCustomer={handleReset}
           onAddCustomer={openAddCustomerModal}
           onLoadMore={() => setCustomerListLimit((currentLimit) => currentLimit + 6)}
           onRetry={handleCustomerRetry}
+          onProfileRetry={retrySelectedCustomerProfile}
           onContinue={handleNext}
         />
         {addCustomerOpen ? (

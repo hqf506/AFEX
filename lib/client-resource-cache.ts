@@ -22,6 +22,7 @@ const PROTECTED_RESOURCE_CACHE_PREFIXES = [
   'pos-runtime:',
   'pos-home-orders:',
   'invoice-catalog:',
+  'customer-profile:',
 ] as const
 
 const clientResourceCache = new Map<string, CacheEntry<unknown>>()

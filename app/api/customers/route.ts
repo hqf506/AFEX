@@ -8,7 +8,9 @@ import {
   buildCustomerSearchFilter,
   CUSTOMER_PHONE_ERRORS,
   CUSTOMER_CREATE_FAILURE_MESSAGES,
+  buildSelectedCustomerProfile,
   type CustomerCreateFailureCode,
+  type CustomerProfileBaseSource,
   isMissingCustomerIdentityColumnError,
   normalizeCustomerSearchTerm,
   normalizeSaudiCustomerPhone,
@@ -114,7 +116,7 @@ async function findCustomersByNormalizedIdentity(
 }
 
 function logCustomerDatabaseFailure(
-  stage: 'lookup' | 'insert',
+  stage: 'lookup' | 'insert' | 'hydrate',
   error: CustomerDatabaseError,
   httpStatus: number,
   options: {
@@ -196,6 +198,8 @@ type InvoiceCustomerActivityRow = {
 }
 
 const FULL_PHONE_CANDIDATE_LIMIT = 100
+const CUSTOMER_PROFILE_SELECT =
+  'id, customer_code, name, phone, display_phone, email, city, address, notes, created_at'
 
 function readNumber(value: number | string | null | undefined) {
   const numericValue =
@@ -350,8 +354,9 @@ export async function GET(request: NextRequest) {
 
     if (activityError) {
       console.warn('[api/customers] unable to load customer activity', {
-        tenant_id: auth.profile.tenant_id,
-        error: activityError.message,
+        classification: 'CUSTOMER_ACTIVITY_LOAD_FAILED',
+        upstreamCode: activityError.code || 'UNCLASSIFIED',
+        correlationId: auth.context.correlationId,
       })
     } else {
       const activityRows = Array.isArray(activityData)
@@ -424,8 +429,8 @@ export async function GET(request: NextRequest) {
       lastPurchaseAmount: activity?.lastPurchaseAmount ?? null,
       firstVisitAt: activity?.firstVisitAt ?? null,
       lastActivityAt: activity?.lastActivityAt ?? null,
-      visitsCount: activity?.visitsCount ?? 0,
-      totalSpent: activity?.totalSpent ?? 0,
+      visitsCount: normalizedFullPhone ? null : activity?.visitsCount ?? 0,
+      totalSpent: normalizedFullPhone ? null : activity?.totalSpent ?? 0,
     }
   }))
 
@@ -591,15 +596,53 @@ export async function POST(request: NextRequest) {
     phone: string
   }
 
+  let createdProfileQuery = auth.supabase
+    .from('customers')
+    .select(CUSTOMER_PROFILE_SELECT)
+    .eq('id', createdCustomer.id)
+    .limit(1)
+  createdProfileQuery = applyTenantFilter(
+    createdProfileQuery,
+    auth.profile.tenant_id
+  )
+  const createdProfileResult = await createdProfileQuery.maybeSingle()
+
+  if (createdProfileResult.error) {
+    logCustomerDatabaseFailure('hydrate', createdProfileResult.error, 200, {
+      classification: 'CUSTOMER_PROFILE_HYDRATION_FAILED',
+      correlationId: auth.context.correlationId,
+    })
+  }
+
+  const createdProfile = buildSelectedCustomerProfile(
+    (createdProfileResult.data || {
+      ...createdCustomer,
+      email,
+      notes,
+    }) as CustomerProfileBaseSource,
+    {
+      visitCount: 0,
+      totalSpending: 0,
+      lastOrderNumber: null,
+      lastOrderAt: null,
+    }
+  )
+
   return jsonWithAuthCookies(auth.response, {
     success: true,
-    customer: {
-      ...createdCustomer,
-      lastPurchaseAmount: null,
-      firstVisitAt: null,
-      lastActivityAt: null,
-      visitsCount: 0,
-      totalSpent: 0,
-    },
+    customer:
+      createdProfile || {
+        ...createdCustomer,
+        customerNumber: null,
+        email,
+        city: null,
+        address: null,
+        notes,
+        createdAt: null,
+        visitCount: 0,
+        totalSpending: 0,
+        lastOrderNumber: null,
+        lastOrderAt: null,
+      },
   })
 }
