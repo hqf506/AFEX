@@ -22,7 +22,7 @@ test('only current Riyadh-day operations remain after midnight', () => {
   ])
   const current = currentRiyadhDayOperations(operations, new Date('2026-08-20T12:00:00Z'))
   assert.deepEqual(current.map((operation) => operation.id), ['today'])
-  assert.match(getRiyadhDayLabel(new Date('2026-08-20T12:00:00Z')), /^اليوم — /u)
+  assert.match(getRiyadhDayLabel(new Date('2026-08-20T12:00:00Z')), /^اليوم — الخميس، ٢٠ أغسطس ٢٠٢٦$/u)
 })
 
 test('unique customer count is factual and next Riyadh midnight has a finite refresh delay', () => {
@@ -68,10 +68,11 @@ test('operations entry points use the approved visible name while preserving the
   assert.equal(sources.every((source) => source.includes('سجل العمليات') && source.includes('/pos/order-history')), true)
 })
 
-test('timeline keeps the existing details action and mobile-safe visual hooks', async () => {
+test('timeline keeps an icon-only details control and reference-accurate desktop hooks', async () => {
   const page = await readFile(resolve('app/pos/order-history/page.tsx'), 'utf8')
   const styles = await readFile(resolve('app/globals.css'), 'utf8')
   assert.ok(page.includes('openDetails(operation.order'))
-  for (const selector of ['.pos-operation-content > button', '.pos-operations-timeline', '.pos-operation::after', 'grid-template-columns: minmax(0, 1.5fr)']) assert.ok(styles.includes(selector))
+  for (const selector of ['.pos-operation-content > button', '.pos-operations-timeline', '.pos-operation::after', "grid-template-areas: 'title employee actions'", 'grid-template-columns: minmax(0, 1.6fr) 145px 120px auto 34px']) assert.ok(styles.includes(selector))
   assert.ok(styles.includes('min-height: 44px'))
+  assert.equal(page.includes('<span>عرض التفاصيل</span>'), false)
 })

@@ -21,8 +21,9 @@ const riyadhDateParts = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 })
 
-const riyadhDateLabel = new Intl.DateTimeFormat('ar-SA', {
+const riyadhDateLabel = new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
   timeZone: 'Asia/Riyadh',
+  weekday: 'long',
   year: 'numeric',
   month: 'long',
   day: 'numeric',

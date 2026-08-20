@@ -2334,3 +2334,30 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
   [data-responsive-table='audit'] td:nth-child(5)::before { content: 'الوصف'; }
   [data-responsive-table='audit'] td:nth-child(6)::before { content: 'التفاصيل'; }
 }
+
+/* Approved operations reference. This deliberately follows every legacy history rule. */
+.pos-order-history-page .pos-operations-controls { gap: 18px; padding-bottom: 18px; }
+.pos-order-history-page .pos-operations-header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: 'title employee actions'; align-items: center; gap: 24px; width: 100%; min-height: 78px; }
+.pos-order-history-page .pos-operations-header > .pos-history-heading { grid-area: title; justify-self: start; }
+.pos-order-history-page .pos-operations-header > .pos-operations-employee { grid-area: employee; justify-self: center; }
+.pos-order-history-page .pos-operations-header > .pos-operations-header-actions { grid-area: actions; justify-self: end; }
+.pos-order-history-page .pos-operations-stats { width: max-content; margin-inline-start: auto; direction: ltr; justify-content: flex-start; }
+.pos-order-history-page .pos-operations-stats > div { width: 158px; min-width: 158px; direction: rtl; }
+.pos-order-history-page .pos-operations-tools { grid-template-columns: minmax(0, 1fr) 278px; }
+.pos-order-history-page .pos-operations-day > h2 { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 14px; padding: 8px 0 14px; text-align: center; }
+.pos-order-history-page .pos-operations-day > h2::before, .pos-order-history-page .pos-operations-day > h2::after { height: 1px; background: var(--afex-pos-border); content: ''; }
+.pos-order-history-page .pos-operation { grid-template-columns: 62px 48px minmax(0, 1fr); min-height: 84px; }
+.pos-order-history-page .pos-operation::after { right: 85px; top: 43px; bottom: -4px; }
+.pos-order-history-page .pos-operation-marker { width: 48px; height: 48px; background: var(--afex-pos-base); }
+.pos-order-history-page .pos-operation-content { position: relative; grid-template-columns: minmax(0, 1.6fr) 145px 120px auto 34px; min-height: 82px; border-radius: 10px; background: color-mix(in srgb, var(--afex-pos-panel) 94%, #fff); }
+.pos-order-history-page .pos-operation-content > button { width: 34px; min-height: 44px; padding: 0; }
+.pos-order-history-page .pos-operation-content > button > svg { width: 17px; height: 17px; }
+@media (max-width: 767px) {
+  .pos-order-history-page .pos-operations-header { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'title actions' 'employee employee'; gap: 10px; }
+  .pos-order-history-page .pos-operations-header > .pos-operations-employee { justify-self: start; }
+  .pos-order-history-page .pos-operations-stats { width: 100%; margin: 0; }
+  .pos-order-history-page .pos-operations-stats > div { width: 118px; min-width: 118px; }
+  .pos-order-history-page .pos-operations-tools { grid-template-columns: minmax(0, 1fr) 132px; }
+  .pos-order-history-page .pos-operation-content { grid-template-columns: minmax(0, 1fr) auto; min-height: 82px; }
+  .pos-order-history-page .pos-operation-content > button { width: 34px; }
+}
