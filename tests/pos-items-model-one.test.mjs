@@ -30,8 +30,24 @@ test('product cards render one full-bleed cover image without a separate white f
 
 test('every Model 1 card overlays a translucent black name strip with white text', () => {
   assert.match(posBranch, /className=\{modelOneStyles\.productNameStrip\}/)
-  assert.match(styles, /\.productNameStrip\s*\{[\s\S]*?color:\s*#fff;[\s\S]*?background:\s*rgb\(10 8 6 \/ 0\.73\);/)
+  assert.match(styles, /\.productNameStrip\s*\{[\s\S]*?inset-inline:\s*0;[\s\S]*?bottom:\s*0;[\s\S]*?color:\s*#fff;[\s\S]*?background:\s*rgb\(10 8 6 \/ 0\.73\);/)
   assert.match(styles, /-webkit-line-clamp:\s*2/)
+})
+
+test('catalog grid reserves a complete implicit row for every aspect-ratio card', () => {
+  const gridRule = styles.match(/\.productGrid\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+  const cardRule = styles.match(/\.productCard\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+
+  assert.doesNotMatch(gridRule, /(?:^|\n)\s*height:\s*100%;/)
+  assert.match(gridRule, /height:\s*auto;/)
+  assert.match(gridRule, /max-height:\s*100%;/)
+  assert.match(gridRule, /grid-auto-rows:\s*max-content;/)
+  assert.match(gridRule, /align-items:\s*start;/)
+  assert.match(gridRule, /overflow-y:\s*auto;/)
+  assert.match(cardRule, /width:\s*100%;/)
+  assert.match(cardRule, /aspect-ratio:\s*0\.93;/)
+  assert.match(cardRule, /align-self:\s*start;/)
+  assert.doesNotMatch(cardRule, /position:\s*absolute|margin(?:-block|-top|-bottom)?:\s*-/)
 })
 
 test('Model 1 active source and styles contain zero forbidden cyan or green-family tokens', () => {
@@ -54,6 +70,7 @@ test('missing images use the dedicated factual Model 1 fallback', () => {
   assert.match(component, /data-catalog-image-fallback="model-one"/)
   assert.match(component, /لا توجد صورة متاحة/)
   assert.match(styles, /\.placeholder\s*\{/)
+  assert.match(posBranch, /<PosCatalogItemImage[\s\S]*?<span className=\{modelOneStyles\.productNameStrip\}>[\s\S]*?\{product\.name\}/)
 })
 
 test('search, category filtering, refresh and stale-request protections remain wired', () => {
@@ -110,6 +127,22 @@ test('responsive geometry uses dense five-column catalog and existing mobile car
   assert.match(styles, /@media \(max-width: 767px\)[\s\S]*?repeat\(2, minmax\(0, 1fr\)\)/)
   assert.match(styles, /\.cartOpen\s*\{[\s\S]*?display:\s*grid !important;/)
   assert.match(styles, /overflow-x:\s*hidden/)
+})
+
+test('categories remain an internal 44px scroll strip and item controls keep tablet hit areas', () => {
+  const categoriesRule = styles.match(/\.categories\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+  const categoryButtonRule = styles.match(/\.categoryButton\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+  const clearSearchRule = styles.match(/\.clearSearch\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+
+  assert.match(categoriesRule, /width:\s*100%;/)
+  assert.match(categoriesRule, /max-width:\s*100%;/)
+  assert.match(categoriesRule, /overflow-x:\s*auto;/)
+  assert.match(categoriesRule, /overflow-y:\s*hidden;/)
+  assert.match(categoriesRule, /overscroll-behavior-inline:\s*contain;/)
+  assert.match(categoriesRule, /contain:\s*inline-size;/)
+  assert.match(categoryButtonRule, /min-height:\s*44px;/)
+  assert.match(clearSearchRule, /width:\s*44px;/)
+  assert.match(clearSearchRule, /height:\s*44px;/)
 })
 
 test('the generic sale header is replaced only on the items route and page styles stay scoped', () => {
