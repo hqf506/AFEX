@@ -803,7 +803,6 @@ export function InvoiceCustomerStep({
           customerName={customerName}
           customerPhone={customerPhone}
           canLoadMore={canLoadMoreCustomers}
-          employeeName={employeeDisplayName}
           backHref={backHref}
           phoneInputRef={customerPhoneInputRef}
           addButtonRef={addCustomerButtonRef}

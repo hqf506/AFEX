@@ -27,7 +27,6 @@ type Props = {
   customerName: string
   customerPhone: string
   canLoadMore: boolean
-  employeeName: string
   backHref: string
   phoneInputRef: RefObject<HTMLInputElement | null>
   addButtonRef: RefObject<HTMLButtonElement | null>
@@ -65,7 +64,8 @@ function DetailIcon({ children }: { children: ReactNode }) {
 }
 
 function DetailRow({ icon, label, value, ltr = false }: { icon: ReactNode; label: string; value: ReactNode; ltr?: boolean }) {
-  return <div className="afex-customer-detail-row">{icon}<span>{label}</span><strong dir={ltr ? 'ltr' : undefined}>{value}</strong></div>
+  const valueTitle = typeof value === 'string' || typeof value === 'number' ? String(value) : undefined
+  return <div className="afex-customer-detail-row">{icon}<span>{label}</span><strong dir={ltr ? 'ltr' : undefined} title={valueTitle}>{value}</strong></div>
 }
 
 function CustomerProfile({ profile }: { profile: SelectedCustomerProfile }) {
@@ -94,16 +94,11 @@ function CustomerProfile({ profile }: { profile: SelectedCustomerProfile }) {
   )
 }
 
-export function PosCustomerWorkspace({ customers, loading, error, searchActive, selectedCustomerId, selectedCustomerProfile, profileLoading, profileError, customerName, customerPhone, canLoadMore, employeeName, backHref, phoneInputRef, addButtonRef, onNameChange, onPhoneChange, onSelect, onChangeCustomer, onRemoveCustomer, onAddCustomer, onLoadMore, onRetry, onProfileRetry, onContinue }: Props) {
+export function PosCustomerWorkspace({ customers, loading, error, searchActive, selectedCustomerId, selectedCustomerProfile, profileLoading, profileError, customerName, customerPhone, canLoadMore, backHref, phoneInputRef, addButtonRef, onNameChange, onPhoneChange, onSelect, onChangeCustomer, onRemoveCustomer, onAddCustomer, onLoadMore, onRetry, onProfileRetry, onContinue }: Props) {
   const selected = selectedCustomerId ? customers.find((customer) => customer.id === selectedCustomerId) || { id: selectedCustomerId, name: selectedCustomerProfile?.name || customerName, phone: selectedCustomerProfile?.phone || customerPhone } : null
 
   return (
     <main className="afex-customer-workspace" dir="rtl">
-      <header className="afex-customer-header">
-        <div><p className="afex-customer-eyebrow">عملية بيع جديدة</p><h1>اختيار العميل</h1><p>ابحث بالاسم أو رقم الجوال، ثم اختر السجل الصحيح صراحةً.</p></div>
-        <div className="afex-customer-operator" aria-label={`الموظف الحالي ${employeeName}`}><span>{employeeName.slice(0, 1)}</span><div><b>{employeeName}</b><small>نقطة البيع</small></div></div>
-      </header>
-
       <div className="afex-customer-layout">
         <aside className="afex-customer-ticket" aria-label="ملف العميل المحدد">
           <div className="afex-customer-ticket-heading"><div><span>العميل المحدد</span><strong>بيانات العميل</strong></div><span className={selected ? 'is-ready' : ''}>{selected ? 'محدد' : 'مطلوب'}</span></div>

@@ -235,14 +235,14 @@ test('customer profile keeps one in-panel scroll owner and fixed structural acti
   assert.match(cssSource, /\.afex-customer-profile-scroll \{[^}]*overflow-y: auto/s)
   assert.match(cssSource, /\.afex-customer-ticket-actions \{[^}]*flex: 0 0 auto/s)
   assert.match(cssSource, /\.afex-customer-ticket-footer \{[^}]*flex: 0 0 auto/s)
-  assert.match(cssSource, /grid-template-columns: clamp\(380px, 29vw, 410px\)/)
+  assert.match(cssSource, /\.afex-customer-layout \{[^}]*grid-template-columns: 355px minmax\(0, 1fr\)/s)
   assert.match(workspaceSource, /onContinue} disabled={!selected}/)
   assert.doesNotMatch(workspaceSource, /disabled={!selectedCustomerProfile|disabled={profileLoading/)
 })
 
 test('mobile profile remains in document flow after search results without a fixed action overlay', () => {
-  assert.match(cssSource, /@media \(max-width: 700px\)[\s\S]*\.afex-customer-ticket \{ order: 2/)
-  assert.match(cssSource, /@media \(max-width: 700px\)[\s\S]*\.afex-customer-panel \{ order: 1/)
+  assert.match(cssSource, /@media \(max-width: 767px\)[\s\S]*\.afex-customer-ticket \{ order: 2/)
+  assert.match(cssSource, /@media \(max-width: 767px\)[\s\S]*\.afex-customer-panel \{ order: 1/)
   assert.doesNotMatch(workspaceSource, /afex-customer-mobile-action/)
   assert.match(cssSource, /\.afex-customer-detail-row \{[^}]*min-width: 0/s)
 })

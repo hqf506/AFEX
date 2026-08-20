@@ -57,6 +57,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   const isMore = pathname.startsWith('/pos/settings')
   const isPosHome = pathname === '/pos'
   const isSaleRoute = pathname.startsWith('/pos/sale/')
+  const isCustomerRoute = pathname === '/pos/sale/customer'
   const saleHeader = pathname === '/pos/sale/customer'
     ? { title: 'اختيار العميل', back: '/pos' }
     : pathname === '/pos/sale/checkout'
@@ -115,8 +116,21 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   )
 
   return (
-    <div className={`afex-pos-app-shell ${isPosHome ? 'is-pos-home' : 'is-pos-subroute'} ${isSaleRoute ? 'is-sale-route' : ''} ${isMore ? 'is-more-route' : ''}`} dir="rtl">
-      {isSaleRoute ? <header className="afex-pos-sale-header" data-testid="pos-sale-operational-header">
+    <div className={`afex-pos-app-shell ${isPosHome ? 'is-pos-home' : 'is-pos-subroute'} ${isSaleRoute ? 'is-sale-route' : ''} ${isCustomerRoute ? 'is-customer-route' : ''} ${isMore ? 'is-more-route' : ''}`} dir="rtl">
+      {isSaleRoute ? isCustomerRoute ? <header className="afex-pos-sale-header is-customer" data-testid="pos-sale-operational-header">
+        <div className="afex-pos-sale-right-controls">
+          <Link href={saleHeader.back} data-testid="pos-sale-step-back" aria-label={`الرجوع من ${saleHeader.title}`}>‹</Link>
+          <button type="button" className="afex-pos-sale-home" data-testid="pos-sale-home" aria-label="العودة إلى نقطة البيع" onClick={returnToPosHome}><Icon name="sale" /><span>نقطة البيع</span></button>
+        </div>
+        <strong>{saleHeader.title}</strong>
+        <div className="afex-pos-sale-left-controls">
+          <PosThemeToggle />
+          <section className="afex-pos-sale-employee" aria-label="هوية موظف نقطة البيع">
+            <span aria-hidden="true">{(employee.full_name?.trim() || employee.username?.trim() || 'م').charAt(0)}</span>
+            <div><b>{employee.full_name?.trim() || employee.username?.trim() || 'موظف نقطة البيع'}</b><small>نقطة البيع</small></div>
+          </section>
+        </div>
+      </header> : <header className="afex-pos-sale-header" data-testid="pos-sale-operational-header">
         <Link href={saleHeader.back} data-testid="pos-sale-step-back" aria-label={`الرجوع من ${saleHeader.title}`}>‹</Link>
         <button type="button" className="afex-pos-sale-home" data-testid="pos-sale-home" aria-label="العودة إلى نقطة البيع" onClick={returnToPosHome}><Icon name="sale" /><span>نقطة البيع</span></button>
         <strong>{saleHeader.title}</strong>
