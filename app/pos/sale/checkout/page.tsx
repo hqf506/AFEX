@@ -44,6 +44,7 @@ import {
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
 import { PosCheckoutWorkspace } from '@/components/pos-checkout-workspace'
+import checkoutStyles from '@/components/pos-checkout-workspace.module.css'
 import { PosThermalDraftPreview } from '@/components/pos-thermal-draft-preview'
 
 type ThermalReceiptSettings = {
@@ -567,19 +568,18 @@ export default function PosSaleCheckoutPage() {
   if (authError === 'timeout') {
     console.warn('[POS CHECKOUT] auth timeout', currentPathname, authStatus)
     return (
-      <div className="fixed inset-0 flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#020817] p-5 text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-        <div className="relative w-full max-w-md space-y-4 rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 p-5 text-right shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+      <div className={checkoutStyles.statePage}>
+        <div className={checkoutStyles.stateCard}>
           <div>
-            <h2 className="text-lg font-black text-white">تعذر تجهيز نقطة البيع</h2>
-            <p className="mt-1 text-sm font-bold text-slate-400">تحقق من تسجيل الدخول أو أعد المحاولة</p>
+            <h2>تعذر تجهيز نقطة البيع</h2>
+            <p>تحقق من تسجيل الدخول أو أعد المحاولة</p>
           </div>
           <button
             type="button"
             onClick={() => {
               window.location.href = '/pos/login'
             }}
-            className="rounded-2xl bg-cyan-300 px-4 py-2 text-sm font-black text-[#02101c]"
+            className={checkoutStyles.stateButton}
           >
             تسجيل الدخول
           </button>
@@ -590,9 +590,8 @@ export default function PosSaleCheckoutPage() {
 
   if (authLoading || !allowed || !ready) {
     return (
-      <div className="fixed inset-0 flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#020817] p-5 text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-        <div className="relative rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 px-6 py-4 text-sm font-black text-cyan-100 shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+      <div className={checkoutStyles.statePage}>
+        <div className={checkoutStyles.stateCard} role="status">
           جارٍ تحميل بيانات الفاتورة...
         </div>
       </div>
@@ -601,33 +600,19 @@ export default function PosSaleCheckoutPage() {
 
   if (missingCheckoutData) {
     return (
-      <div className="pos-checkout-page">
-        <style jsx global>{`
-          body:has(.pos-checkout-page) .app-shell .page-wrap main.text-right {
-            margin-top: 0 !important;
-          }
-
-          body:has(.pos-checkout-page) .app-shell .page-wrap main > .space-y-5,
-          body:has(.pos-checkout-page) .app-shell .page-wrap main > .md\\:space-y-6 {
-            margin-top: 0 !important;
-          }
-        `}</style>
-
-        <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] p-5 text-white">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-          <div className="relative rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 p-5 text-right shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
-            <p className="text-sm font-bold text-slate-300">
+      <div className={checkoutStyles.statePage}>
+          <div className={`${checkoutStyles.stateCard} ${checkoutStyles.stateError}`} role="alert">
+            <p>
               لا يمكن إتمام الفاتورة حالياً لأن بيانات العميل أو العناصر غير متوفرة بشكل صحيح.
             </p>
             <button
               type="button"
               onClick={() => router.push('/pos/sale/items')}
-              className="mt-4 flex h-[48px] items-center justify-center rounded-2xl border border-cyan-300/18 bg-cyan-400/10 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15"
+              className={checkoutStyles.stateButton}
             >
               العودة إلى العناصر
             </button>
           </div>
-        </div>
       </div>
     )
   }
@@ -663,7 +648,13 @@ export default function PosSaleCheckoutPage() {
           loadingDiscounts={loadingDiscounts}
           loading={checkout.loading}
           canSubmit={canSubmitInvoice}
-          errorMessage={checkout.errorMessage}
+          errorMessage={
+            hasInvalidBranchContext
+              ? 'لا يمكن إنشاء فاتورة لأن حسابك غير مرتبط بفرع صالح.'
+              : hasAmbiguousAdminBranchContext
+                ? 'اختر فرعًا محددًا قبل استخدام شاشة الدفع.'
+                : checkout.errorMessage
+          }
           offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'أنت غير متصل؛ سيتم حفظ الفاتورة كمسودة فقط.' : '')}
           cashWarning={cashWarningMessage}
           onPreview={() => setShowThermalPreview(true)}
