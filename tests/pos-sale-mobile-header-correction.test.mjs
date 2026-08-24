@@ -35,7 +35,34 @@ test('items preserves mobile search outside the compact top row and keeps every 
 test('items cart sheet retains exactly one real close control and no business behavior changes', () => {
   assert.equal((itemsSource.match(/className=\{modelOneStyles\.cartClose\}/g) ?? []).length, 1)
   assert.equal((itemsSource.match(/aria-label="إغلاق ملخص الفاتورة"/g) ?? []).length, 1)
-  assert.match(itemsCss, /\.cartClose\s*\{[^}]*display:\s*inline-flex/s)
+  assert.match(itemsHeaderContract, /\.cartClose\s*\{[^}]*display:\s*inline-flex[^}]*width:\s*48px[^}]*height:\s*48px/s)
+})
+
+test('items cart sheet is logically anchored to the complete mobile viewport', () => {
+  assert.match(itemsHeaderContract, /\.cartBackdrop\s*\{[^}]*inset-block:\s*0[^}]*inset-inline:\s*0[^}]*transform:\s*none/s)
+  assert.match(itemsHeaderContract, /\.cart\s*\{[^}]*inset-block:\s*0\s*!important[^}]*inset-inline:\s*0\s*!important[^}]*box-sizing:\s*border-box[^}]*width:\s*auto\s*!important[^}]*overflow-x:\s*hidden\s*!important/s)
+  assert.doesNotMatch(itemsHeaderContract, /\.cart\s*\{[^}]*translate[XY]?\([^)]/s)
+})
+
+test('items cart header defeats the historical full-width child rule without clipping close', () => {
+  assert.match(itemsHeaderContract, /\.cartHeader > \.cartHeaderIdentity\s*\{[^}]*width:\s*auto[^}]*flex:\s*1 1 auto[^}]*overflow:\s*hidden/s)
+  assert.match(itemsHeaderContract, /\.cartHeader > \.cartHeaderControls\s*\{[^}]*width:\s*auto[^}]*min-width:\s*48px[^}]*flex:\s*0 0 auto/s)
+})
+
+test('closing the items cart stays on-route, restores trigger focus, and unlocks page scrolling', () => {
+  const closeContract = itemsSource.slice(
+    itemsSource.indexOf('const closeMobileCart'),
+    itemsSource.indexOf('if (authError')
+  )
+
+  assert.match(closeContract, /setShowItemsModal\(false\)/)
+  assert.match(closeContract, /requestAnimationFrame\(\(\) => mobileCartTriggerRef\.current\?\.focus\(\)\)/)
+  assert.match(closeContract, /root\.style\.overflow = 'hidden'/)
+  assert.match(closeContract, /body\.style\.overflow = 'hidden'/)
+  assert.match(closeContract, /root\.style\.overflow = previousRootOverflow/)
+  assert.match(closeContract, /body\.style\.overflow = previousBodyOverflow/)
+  assert.doesNotMatch(closeContract, /router\.(?:push|replace|back)/)
+  assert.match(itemsSource, /ref=\{mobileCartTriggerRef\}[\s\S]*?onClick=\{\(\) => setShowItemsModal\(true\)\}/)
 })
 
 test('customer mobile header keeps the shared toggle, employee avatar/name, and complete POS label', () => {
@@ -61,4 +88,5 @@ test('header corrections are phone and supported short-landscape scoped, not tab
   assert.match(customerHeaderContract, combinedMedia)
   assert.doesNotMatch(itemsHeaderContract, /min-width:\s*768px/)
   assert.doesNotMatch(customerHeaderContract, /min-width:\s*768px/)
+  assert.match(itemsHeaderContract, /\.layout\s*\{[^}]*display:\s*block[^}]*direction:\s*rtl/s)
 })

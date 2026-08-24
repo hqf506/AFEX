@@ -566,6 +566,7 @@ export function InvoiceItemsStep({
     ]
   )
   const [showItemsModal, setShowItemsModal] = useState(false)
+  const mobileCartTriggerRef = useRef<HTMLButtonElement | null>(null)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [hydratedSaleDraft, setHydratedSaleDraft] = useState(false)
   const [vatSetting, setVatSetting] = useState<CheckoutVatSetting | null>(null)
@@ -1254,6 +1255,28 @@ export function InvoiceItemsStep({
     checkout.clearCheckout()
   }
 
+  const closeMobileCart = useCallback(() => {
+    setShowItemsModal(false)
+    window.requestAnimationFrame(() => mobileCartTriggerRef.current?.focus())
+  }, [])
+
+  useEffect(() => {
+    if (variant !== 'pos' || !showItemsModal) return
+
+    const root = document.documentElement
+    const body = document.body
+    const previousRootOverflow = root.style.overflow
+    const previousBodyOverflow = body.style.overflow
+
+    root.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+
+    return () => {
+      root.style.overflow = previousRootOverflow
+      body.style.overflow = previousBodyOverflow
+    }
+  }, [showItemsModal, variant])
+
   useEffect(() => {
     if (!ready || !hydratedSaleDraft || checkoutMode !== 'separate') return
 
@@ -1574,7 +1597,7 @@ export function InvoiceItemsStep({
           {showItemsModal ? (
             <button
               type="button"
-              onClick={() => setShowItemsModal(false)}
+              onClick={closeMobileCart}
               aria-label="إغلاق السلة"
               className={modelOneStyles.cartBackdrop}
             />
@@ -1604,7 +1627,7 @@ export function InvoiceItemsStep({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowItemsModal(false)}
+                  onClick={closeMobileCart}
                   aria-label="إغلاق ملخص الفاتورة"
                   className={modelOneStyles.cartClose}
                 >
@@ -1744,6 +1767,7 @@ export function InvoiceItemsStep({
             </div>
             <button
               type="button"
+              ref={mobileCartTriggerRef}
               onClick={() => setShowItemsModal(true)}
               aria-expanded={showItemsModal}
               aria-controls="pos-cart-panel"

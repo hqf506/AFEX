@@ -1070,7 +1070,8 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px),
+  (max-height: 500px) and (hover: none) and (pointer: coarse) {
   .layout {
     display: block;
     direction: rtl;
@@ -1122,23 +1123,38 @@
 
   .cartBackdrop {
     position: fixed;
-    inset: 0;
+    inset-block: 0;
+    inset-inline: 0;
     z-index: 90;
     display: block;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
     border: 0;
     background: rgb(26 17 11 / 0.62);
     backdrop-filter: blur(3px);
+    transform: none;
   }
 
   .cart {
     position: fixed !important;
-    inset: 0 !important;
+    inset-block: 0 !important;
+    inset-inline: 0 !important;
     z-index: 100 !important;
     display: none !important;
-    width: 100% !important;
+    box-sizing: border-box;
+    width: auto !important;
+    min-width: 0 !important;
     height: 100dvh !important;
     max-width: none !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
     padding: 0 !important;
+    overflow-x: hidden !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    translate: none !important;
   }
 
   .cartOpen {
@@ -1147,11 +1163,33 @@
 
   .cartClose {
     display: inline-flex;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    flex: 0 0 48px;
+    border-radius: 12px;
   }
 
   .cartHeader {
     min-height: 64px !important;
-    padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right)) !important;
+    width: 100%;
+    min-width: 0;
+    padding-left: max(12px, env(safe-area-inset-left)) !important;
+    padding-right: max(12px, env(safe-area-inset-right)) !important;
+  }
+
+  .cartHeader > .cartHeaderIdentity {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .cartHeader > .cartHeaderControls {
+    width: auto;
+    min-width: 48px;
+    flex: 0 0 auto;
   }
 
   .cartCount {
