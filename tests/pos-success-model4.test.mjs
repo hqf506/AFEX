@@ -93,8 +93,10 @@ test('touch targets and tablet responsive contracts are explicit', () => {
 
 test('short mobile landscape keeps the primary action visible and owns vertical overflow', () => {
   assert.match(css, /@media \(orientation: landscape\) and \(max-width: 932px\) and \(max-height: 430px\)/)
-  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?\.primaryScreen \{[\s\S]*?justify-content: flex-start;[\s\S]*?overflow-y: auto;/)
-  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?\.newSale \{ min-height: 48px;/)
+  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?\.primaryScreen \{[\s\S]*?display: grid;[\s\S]*?overflow-y: auto;/)
+  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\) 44px;/)
+  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?\.newSale \{[\s\S]*?min-height: 44px;/)
+  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?\.returnNow \{[\s\S]*?min-width: 44px;/)
 })
 
 test('active Model 4 styles contain no forbidden visual identities', () => {
