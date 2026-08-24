@@ -15,6 +15,7 @@ import { normalizeOrderRecord, type OrderSourceRow, type OrderStatus } from '@/l
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 import { supabase } from '@/lib/supabase/client'
+import { PosThemeToggle } from '@/components/pos-theme-toggle'
 import styles from './order-status.module.css'
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -355,6 +356,7 @@ export default function PosOrderStatusPage() {
     <header className="pos-status-header" data-order-status-header>
       <div className="pos-history-heading"><span><WorkflowIcon /></span><div><h1>حالة الطلبات</h1><p>عرض ومتابعة الطلبات الحالية وتحديث حالتها</p></div></div>
       <div className="pos-status-header-actions">
+        <span className="afex-pos-desktop-theme-control"><PosThemeToggle /></span>
         <button type="button" onClick={() => void loadOrders()} disabled={loading}><RefreshIcon /><span>{loading ? 'جارٍ التحديث...' : 'تحديث'}</span></button>
         <button type="button" onClick={() => router.push('/pos')} aria-label="إغلاق"><CloseIcon /><span>إغلاق</span></button>
       </div>

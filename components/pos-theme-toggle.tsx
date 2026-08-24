@@ -88,14 +88,10 @@ export function PosThemeToggle() {
       data-pos-theme-toggle="model-one"
       onClick={toggleTheme}
     >
-      <span className={styles.legacyIcon} aria-hidden="true">
-        ◐
-      </span>
       <span className={styles.actionIcon} aria-hidden="true">
         <MoonIcon />
         <SunIcon />
       </span>
-      <b className={styles.label}>المظهر</b>
     </button>
   )
 }

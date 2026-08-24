@@ -1360,6 +1360,7 @@ export function InvoiceItemsStep({
               </label>
 
               <div className={modelOneStyles.headerActions}>
+                <PosThemeToggle />
                 <button
                   type="button"
                   onClick={() => void forceReloadCatalog({ showRefreshing: true })}
@@ -1598,7 +1599,6 @@ export function InvoiceItemsStep({
                 </div>
               </div>
               <div className={modelOneStyles.cartHeaderControls}>
-                <PosThemeToggle />
                 <span className={modelOneStyles.cartCount} aria-label={invoiceItemCount + ' عنصر'}>
                   {invoiceItemCount}
                 </span>

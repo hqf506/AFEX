@@ -12,6 +12,7 @@ import { resolveInvoicePaymentDisplay } from '@/lib/invoices/order-payment'
 import { formatRiyadhDateTime, formatRiyadhTime, groupInvoicesByRiyadhDate, normalizeInvoiceLedgerSearch } from '@/lib/pos/invoice-ledger'
 import { isLatestInvoiceLedgerRequest, mergeInvoiceLedgerPage, selectInvoiceLedgerCollection } from '@/lib/pos/invoice-ledger-collection'
 import { PosInvoicePreviewCurtain, type InvoicePreviewMode } from '@/components/pos-invoice-preview-curtain'
+import { PosThemeToggle } from '@/components/pos-theme-toggle'
 import styles from './invoice-mobile-interactions.module.css'
 
 const PAGE_SIZE = 24
@@ -342,7 +343,7 @@ export default function PosInvoiceHistoryPage() {
   const mobilePaymentDisplay = mobileInvoice ? resolveInvoicePaymentDisplay({ paymentMethod: mobileInvoice.payment_method_raw || mobileInvoice.payment_method_key, paymentStatus: mobileInvoice.payment_status, total: mobileInvoice.total, cashReceived: mobileInvoice.cash_received, remainingFromCustomer: mobileInvoice.remaining_from_customer }) : null
 
   return <div className="pos-invoice-history pos-invoices-page" dir="rtl"><main>
-    <header className="pos-invoices-header"><div className="pos-history-heading"><span><InvoiceIcon /></span><div><h1>الفواتير</h1><p>سجل المبيعات والفواتير</p></div></div><div><button type="button" className="is-close" data-pos-invoices-page-close onClick={closeInvoicePage}>إغلاق</button><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}>{loading ? 'جارٍ التحديث...' : 'تحديث'}</button></div></header>
+    <header className="pos-invoices-header"><div className="pos-history-heading"><span><InvoiceIcon /></span><div><h1>الفواتير</h1><p>سجل المبيعات والفواتير</p></div></div><div><span className="afex-pos-desktop-theme-control"><PosThemeToggle /></span><button type="button" className="is-close" data-pos-invoices-page-close onClick={closeInvoicePage}>إغلاق</button><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}>{loading ? 'جارٍ التحديث...' : 'تحديث'}</button></div></header>
     <div className="pos-invoices-toolbar"><label className="pos-invoices-search"><span className="sr-only">ابحث برقم الفاتورة أو اسم العميل</span><input value={search} onChange={(event) => updateSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو اسم العميل" />{search ? <button type="button" className="pos-invoices-search-clear" aria-label="مسح البحث" onClick={() => updateSearch('')}>مسح</button> : null}</label><div role="group" aria-label="تصفية الفواتير"><button type="button" data-active={filter === 'all'} onClick={() => setFilter('all')}>الكل</button><button type="button" data-active={filter === 'paid'} onClick={() => setFilter('paid')}>مدفوعة</button><button type="button" data-active={filter === 'refunded'} onClick={() => setFilter('refunded')}>مستردة</button></div></div>
     <section className="pos-invoices-workspace">
       <div ref={invoiceLedgerRef} className="pos-invoice-ledger" data-testid="invoices-scroll-viewport" role="grid" aria-label="سجل الفواتير">

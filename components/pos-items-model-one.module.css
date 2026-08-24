@@ -138,7 +138,11 @@
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
+}
+
+.headerActions :global(.afex-pos-theme-toggle) {
+  flex: 0 0 48px;
 }
 
 .searchField {
@@ -622,38 +626,6 @@
   gap: 8px;
 }
 
-.cartHeader :global(.afex-pos-theme-toggle) {
-  position: static !important;
-  display: inline-flex !important;
-  width: auto !important;
-  min-width: 44px !important;
-  height: 44px !important;
-  min-height: 44px !important;
-  max-width: none !important;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  overflow: visible !important;
-  border: 1px solid var(--model-one-line) !important;
-  border-radius: 9px !important;
-  padding: 0 11px !important;
-  color: var(--model-one-ink) !important;
-  background: var(--model-one-raised) !important;
-  box-shadow: none !important;
-  transform: none !important;
-  white-space: nowrap;
-}
-
-.cartHeader :global(.afex-pos-theme-toggle):focus-visible {
-  outline: 3px solid var(--model-one-gold) !important;
-  outline-offset: 2px;
-  box-shadow: none !important;
-}
-
-.cartHeader :global(.afex-pos-theme-toggle) span {
-  color: var(--model-one-leather) !important;
-}
-
 .cartCount {
   display: inline-flex;
   min-width: 44px;
@@ -1089,7 +1061,6 @@
     font-size: 0.72rem;
   }
 
-  .cartHeader :global(.afex-pos-theme-toggle) b,
   .employeeCopy small {
     display: none;
   }
@@ -1199,7 +1170,6 @@
     padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right)) !important;
   }
 
-  .cartHeader :global(.afex-pos-theme-toggle),
   .cartCount {
     display: none !important;
   }

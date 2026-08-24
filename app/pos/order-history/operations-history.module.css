@@ -83,7 +83,7 @@
   grid-area: actions;
   justify-self: end;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   direction: ltr;
 }
 

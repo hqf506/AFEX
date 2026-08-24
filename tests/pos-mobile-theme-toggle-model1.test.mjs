@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import test from 'node:test'
 
-const [component, styles, layout, globals, shell, settings, items] = await Promise.all([
+const [component, styles, layout, globals, shell, settings, items, history, invoices, orderStatus] = await Promise.all([
   readFile(resolve('components/pos-theme-toggle.tsx'), 'utf8'),
   readFile(resolve('components/pos-theme-toggle.module.css'), 'utf8'),
   readFile(resolve('app/pos/layout.tsx'), 'utf8'),
@@ -11,47 +11,50 @@ const [component, styles, layout, globals, shell, settings, items] = await Promi
   readFile(resolve('components/pos-shell/pos-responsive-shell.tsx'), 'utf8'),
   readFile(resolve('app/pos/settings/page.tsx'), 'utf8'),
   readFile(resolve('components/invoice-items-step.tsx'), 'utf8'),
+  readFile(resolve('app/pos/order-history/page.tsx'), 'utf8'),
+  readFile(resolve('app/pos/invoices/page.tsx'), 'utf8'),
+  readFile(resolve('app/pos/order-status/page.tsx'), 'utf8'),
 ])
 
-const mobileRule = styles.slice(styles.indexOf('@media (max-width: 767.98px)'), styles.indexOf('@media (prefers-reduced-motion'))
+const sharedRule = styles.slice(0, styles.indexOf('@media (prefers-reduced-motion'))
 
 test('the existing shared POS theme control owns one scoped Model 1 implementation', () => {
   assert.match(component, /import styles from '\.\/pos-theme-toggle\.module\.css'/)
   assert.equal((component.match(/data-pos-theme-toggle="model-one"/g) ?? []).length, 1)
 })
 
-test('the circular redesign is restricted to phone widths and the approved short-phone-landscape contract', () => {
-  assert.match(styles, /@media \(max-width: 767\.98px\),\s*\(max-height: 500px\) and \(hover: none\) and \(pointer: coarse\)/)
-  assert.doesNotMatch(styles, /@media[^\{]*\(min-width:\s*768px\)/)
+test('one shared circular implementation applies without device-specific forks', () => {
+  assert.doesNotMatch(sharedRule, /@media/)
+  assert.doesNotMatch(styles, /pointer:\s*coarse|hover:\s*none|min-width:\s*768px/)
 })
 
-test('mobile geometry is a fixed perfect 48px circle', () => {
+test('all-device geometry is a fixed perfect 48px circle', () => {
   for (const declaration of [
-    /width:\s*48px;/,
-    /min-width:\s*48px;/,
-    /max-width:\s*48px;/,
-    /height:\s*48px;/,
-    /min-height:\s*48px;/,
+    /width:\s*48px(?:\s*!important)?;/,
+    /min-width:\s*48px(?:\s*!important)?;/,
+    /max-width:\s*48px(?:\s*!important)?;/,
+    /height:\s*48px(?:\s*!important)?;/,
+    /min-height:\s*48px(?:\s*!important)?;/,
     /aspect-ratio:\s*1;/,
-    /border-radius:\s*50%;/,
-  ]) assert.match(mobileRule, declaration)
+    /border-radius:\s*50%(?:\s*!important)?;/,
+  ]) assert.match(sharedRule, declaration)
 })
 
-test('the mobile icon remains centered at the approved 24px visual size', () => {
-  assert.match(mobileRule, /\.toggle \.actionIcon\s*\{[\s\S]*?display:\s*grid;[\s\S]*?width:\s*24px;[\s\S]*?height:\s*24px;[\s\S]*?place-items:\s*center;/)
-  assert.match(mobileRule, /\.actionIcon svg\s*\{[\s\S]*?width:\s*24px;[\s\S]*?height:\s*24px;/)
+test('the icon remains centered at the approved 24px visual size', () => {
+  assert.match(sharedRule, /\.actionIcon\s*\{[\s\S]*?display:\s*grid;[\s\S]*?width:\s*24px;[\s\S]*?height:\s*24px;[\s\S]*?place-items:\s*center;/)
+  assert.match(sharedRule, /\.actionIcon svg\s*\{[\s\S]*?width:\s*24px;[\s\S]*?height:\s*24px;/)
 })
 
 test('Light Mode exposes exactly the Moon action icon and suppresses the Sun icon', () => {
   assert.equal((component.match(/data-pos-theme-icon="moon"/g) ?? []).length, 1)
-  assert.match(mobileRule, /html\[data-pos-theme='light'\][\s\S]*?\.moonIcon\s*\{\s*display:\s*block;/)
-  assert.match(mobileRule, /\.moonIcon,\s*\.sunIcon\s*\{\s*display:\s*none;/)
+  assert.match(sharedRule, /html\[data-pos-theme='light'\][\s\S]*?\.moonIcon\s*\{\s*display:\s*block;/)
+  assert.match(sharedRule, /\.moonIcon,\s*\.sunIcon\s*\{\s*display:\s*none;/)
 })
 
 test('Dark Mode exposes exactly the Sun action icon and suppresses the Moon icon', () => {
   assert.equal((component.match(/data-pos-theme-icon="sun"/g) ?? []).length, 1)
-  assert.match(mobileRule, /html\[data-pos-theme='dark'\][\s\S]*?\.sunIcon\s*\{\s*display:\s*block;/)
-  assert.match(mobileRule, /\.moonIcon,\s*\.sunIcon\s*\{\s*display:\s*none;/)
+  assert.match(sharedRule, /html\[data-pos-theme='dark'\][\s\S]*?\.sunIcon\s*\{\s*display:\s*block;/)
+  assert.match(sharedRule, /\.moonIcon,\s*\.sunIcon\s*\{\s*display:\s*none;/)
 })
 
 test('Moon and Sun use the established SVG stroke language without emoji icons', () => {
@@ -61,23 +64,22 @@ test('Moon and Sun use the established SVG stroke language without emoji icons',
 })
 
 test('Light Mode uses the AFEX ivory surface, warm-gold border and warm-gold Moon', () => {
-  const rule = mobileRule.match(/html\[data-pos-theme='light'\][^\{]*\.toggle\.toggle\.toggle\s*\{([\s\S]*?)\n\s*\}/)?.[1] ?? ''
+  const rule = sharedRule.match(/html\[data-pos-theme='light'\][^\{]*\.toggle\.toggle\.toggle\s*\{([\s\S]*?)\n\s*\}/)?.[1] ?? ''
   assert.match(rule, /background:\s*var\(--afex-pos-raised\)/)
   assert.match(rule, /border-color:\s*var\(--afex-pos-emerald-strong\)/)
   assert.match(rule, /color:\s*var\(--afex-pos-emerald-strong\)/)
 })
 
 test('Dark Mode uses the AFEX warm-gold surface and charcoal icon token', () => {
-  const rule = mobileRule.match(/html\[data-pos-theme='dark'\][^\{]*\.toggle\.toggle\.toggle\s*\{([\s\S]*?)\n\s*\}/)?.[1] ?? ''
+  const rule = sharedRule.match(/html\[data-pos-theme='dark'\][^\{]*\.toggle\.toggle\.toggle\s*\{([\s\S]*?)\n\s*\}/)?.[1] ?? ''
   assert.match(rule, /background:\s*var\(--afex-pos-emerald\)/)
   assert.match(rule, /border-color:\s*var\(--afex-pos-emerald-strong\)/)
   assert.match(rule, /color:\s*var\(--afex-pos-base\)/)
 })
 
-test('the visible mobile word is removed while the frozen tablet and desktop label remains available', () => {
-  assert.match(component, /<b className=\{styles\.label\}>المظهر<\/b>/)
-  assert.match(styles, /\.label\s*\{\s*display:\s*inline;/)
-  assert.match(mobileRule, /\.toggle \.legacyIcon,\s*\.toggle \.label\s*\{\s*display:\s*none;/)
+test('the old visible theme word and legacy icon are absent on every device', () => {
+  assert.doesNotMatch(component, /المظهر|legacyIcon|◐/u)
+  assert.doesNotMatch(styles, /\.label|\.legacyIcon/)
 })
 
 test('accessible name and title always describe the destination theme', () => {
@@ -108,14 +110,14 @@ test('the trusted pre-paint theme persistence contract remains unchanged', () =>
 })
 
 test('focus, press and reduced-motion states are bounded and do not rotate the icon', () => {
-  assert.match(mobileRule, /:focus-visible\s*\{[\s\S]*?outline:\s*2px solid var\(--afex-pos-emerald\)/)
-  assert.match(mobileRule, /:active\s*\{[\s\S]*?transform:\s*scale\(0\.97\)/)
+  assert.match(sharedRule, /:focus-visible\s*\{[\s\S]*?outline:\s*2px solid var\(--afex-pos-emerald\)/)
+  assert.match(sharedRule, /:active\s*\{[\s\S]*?transform:\s*scale\(0\.97\)/)
   assert.match(styles, /prefers-reduced-motion:\s*reduce[\s\S]*?transition:\s*none;/)
   assert.doesNotMatch(styles, /rotate|animation:/)
 })
 
-test('the mobile control preserves header heights and keeps ten-pixel neighboring spacing', () => {
-  assert.match(mobileRule, /afex-pos-responsive-actions[\s\S]*?afex-pos-sale-left-controls[\s\S]*?gap:\s*10px;/)
+test('the shared control preserves header heights and keeps ten-pixel neighboring spacing', () => {
+  assert.match(sharedRule, /afex-pos-responsive-actions[\s\S]*?afex-pos-sale-left-controls[\s\S]*?gap:\s*10px;/)
   assert.doesNotMatch(styles, /:global\(\.afex-pos-(?:responsive|sale)-header\)\s*\{/)
   assert.match(globals, /\.afex-pos-responsive-header\s*\{[\s\S]*?height:\s*68px;/)
 })
@@ -124,12 +126,15 @@ test('all existing POS consumers continue to use the one shared theme component'
   assert.equal((shell.match(/<PosThemeToggle \/>/g) ?? []).length, 4)
   assert.equal((settings.match(/<PosThemeToggle \/>/g) ?? []).length, 1)
   assert.equal((items.match(/<PosThemeToggle \/>/g) ?? []).length, 1)
-  assert.doesNotMatch(shell + settings + items, /data-pos-theme-icon=/)
+  assert.equal((history.match(/<PosThemeToggle \/>/g) ?? []).length, 1)
+  assert.equal((invoices.match(/<PosThemeToggle \/>/g) ?? []).length, 1)
+  assert.equal((orderStatus.match(/<PosThemeToggle \/>/g) ?? []).length, 1)
+  assert.doesNotMatch(shell + settings + items + history + invoices + orderStatus, /data-pos-theme-icon=/)
 })
 
-test('the mobile rule wins historical pill colors without undefined or off-brand tokens', () => {
-  assert.match(mobileRule, /background:\s*var\(--afex-pos-raised\) !important/)
-  assert.match(mobileRule, /background:\s*var\(--afex-pos-emerald\) !important/)
+test('the shared rule wins historical pill colors without undefined or off-brand tokens', () => {
+  assert.match(sharedRule, /background:\s*var\(--afex-pos-raised\) !important/)
+  assert.match(sharedRule, /background:\s*var\(--afex-pos-emerald\) !important/)
   assert.doesNotMatch(styles, /--afex-pos-(?:bronze|cyan)|\b(?:blue|purple|red)\b/iu)
 })
 

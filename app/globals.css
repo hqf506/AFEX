@@ -30,6 +30,7 @@
   --afex-pos-border: #393a3d;
   --afex-pos-text: #f4f1ea;
   --afex-pos-text-secondary: #a9a49b;
+  --afex-pos-muted: var(--afex-pos-text-secondary);
   --afex-pos-emerald: #b89a64;
   --afex-pos-emerald-strong: #9a7540;
   --afex-pos-cyan: #c7aa72;
@@ -819,7 +820,7 @@ body {
 .pos-settings-live { display: flex; align-items: center; gap: 6px; border-radius: 999px; background: color-mix(in srgb, var(--afex-pos-emerald) 12%, var(--afex-pos-raised)); padding: 7px 10px; color: var(--afex-pos-emerald); font-size: 11px; font-weight: 900; }.pos-settings-live i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .pos-settings-section { border-radius: 18px; padding: 14px; }
 .pos-settings-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.pos-settings-section-heading h2 { margin: 0; font-size: 15px; font-weight: 900; }.pos-settings-section-heading p { margin: 4px 0 0; color: var(--afex-pos-text-secondary); font-size: 11px; font-weight: 700; }
-.pos-settings-section .afex-pos-theme-toggle { min-width: 112px; min-height: 44px; flex: 0 0 auto; }
+.pos-settings-section .afex-pos-theme-toggle { width: 48px; min-width: 48px; height: 48px; min-height: 48px; flex: 0 0 48px; }
 .pos-settings-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
 .pos-settings-links > a { display: grid; min-width: 0; min-height: 70px; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid var(--afex-pos-border); border-radius: 14px; background: var(--afex-pos-raised); padding: 10px; color: var(--afex-pos-text); transition: border-color .16s ease, background .16s ease, transform .16s ease; }
 .pos-settings-links > a:hover { border-color: var(--afex-pos-bronze); background: var(--afex-pos-hover); }.pos-settings-links > a:active { transform: translateY(1px); }.pos-settings-links svg { width: 24px; height: 24px; color: var(--afex-pos-bronze); }.pos-settings-links span { display: grid; min-width: 0; gap: 3px; }.pos-settings-links b { font-size: 12px; }.pos-settings-links small { overflow: hidden; color: var(--afex-pos-text-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }.pos-settings-links i { color: var(--afex-pos-text-secondary); font-style: normal; }
@@ -834,7 +835,7 @@ body {
 @media (max-width: 540px) { .pos-invoice-cash-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }.pos-invoice-cash-details > div:last-child { grid-column: 1 / -1; } }
 @media (max-width: 390px) {
   .pos-settings-header { align-items: flex-start; padding: 13px; }.pos-settings-header > a { min-width: 44px; width: 44px; padding: 0; }.pos-settings-header > a b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .pos-settings-section-heading { align-items: flex-start; }.pos-settings-section .afex-pos-theme-toggle { min-width: 104px; }
+  .pos-settings-section-heading { align-items: flex-start; }
 }
 
 /* Phase 6A-R1 entry and home surfaces. These overrides deliberately retire the
@@ -1257,8 +1258,7 @@ body {
   .afex-pos-sale-header.is-customer { gap: 6px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
   .afex-pos-sale-left-controls, .afex-pos-sale-right-controls { gap: 6px; }
   .afex-pos-sale-left-controls { max-width: 100%; overflow: hidden; }
-  .afex-pos-sale-left-controls .afex-pos-theme-toggle { width: 44px; min-width: 44px; padding-inline: 0; }
-  .afex-pos-sale-left-controls .afex-pos-theme-toggle b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .afex-pos-sale-left-controls .afex-pos-theme-toggle { width: 48px; min-width: 48px; padding-inline: 0; }
   .afex-pos-sale-employee { max-width: 70px; gap: 5px; padding: 5px 6px; }
   .afex-pos-sale-employee > span { width: 26px; height: 26px; flex-basis: 26px; border-radius: 8px; }
   .afex-pos-sale-employee b { font-size: 10px; }
@@ -1923,32 +1923,37 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 .afex-pos-theme-toggle {
   position: static;
   display: inline-flex;
-  width: max-content;
-  min-width: 84px;
-  max-width: calc(100vw - max(16px, env(safe-area-inset-left)) - max(16px, env(safe-area-inset-right)));
-  min-height: 44px;
-  flex: 0 0 auto;
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  flex: 0 0 48px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 0;
   margin: 0;
-  padding-inline: 12px;
+  padding: 0;
   overflow: visible;
   border: 1px solid var(--afex-pos-border);
-  border-radius: 12px;
+  border-radius: 50%;
   background: var(--afex-pos-card);
   color: var(--afex-pos-text);
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.14);
   font: inherit;
-  font-size: 12px;
-  white-space: nowrap;
   cursor: pointer;
 }
-.afex-pos-responsive-actions { display: flex; min-width: max-content; flex: 0 0 auto; align-items: center; gap: 8px; overflow: visible; }
-.afex-pos-theme-toggle span { color: var(--afex-pos-cyan); font-size: 17px; }
+.afex-pos-responsive-actions { display: flex; min-width: max-content; flex: 0 0 auto; align-items: center; gap: 10px; overflow: visible; }
 .afex-pos-theme-toggle:focus-visible { outline: none; box-shadow: var(--afex-pos-focus); }
 .afex-pos-theme-toggle:active { transform: scale(.98); }
+.afex-pos-desktop-theme-control { display: inline-flex; flex: 0 0 48px; align-items: center; justify-content: center; }
+.pos-invoices-header > div:last-child:has(> .afex-pos-desktop-theme-control),
+.pos-status-header-actions:has(> .afex-pos-desktop-theme-control) { gap: 10px; }
+
+@media (max-width: 1199px) {
+  .afex-pos-desktop-theme-control { display: none; }
+}
 
 /* Retire the former neon/glass presentation without duplicating page trees. */
 .pos-shell-viewport :where([class*='bg-[radial-gradient'], [class*='bg-[linear-gradient'], [class*='bg-gradient']) {
@@ -2084,7 +2089,6 @@ body:has([data-admin-drawer], [data-admin-dialog], [data-admin-preview], [data-m
 }
 
 @media (max-width: 767px) {
-  .afex-pos-theme-toggle { width: max-content; min-width: 84px; padding-inline: 10px; }
   .afex-sale-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .afex-sale-cart { border-radius: 22px 22px 0 0; box-shadow: 0 -16px 42px rgb(0 0 0 / .28); }
   .afex-pos-bottom-nav { border-top: 1px solid var(--afex-pos-border); }

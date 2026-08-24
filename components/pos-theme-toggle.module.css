@@ -1,106 +1,94 @@
-.legacyIcon {
-  display: inline;
+.actionIcon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: inherit;
 }
 
-.actionIcon {
+.toggle.toggle.toggle {
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  flex: 0 0 48px !important;
+  aspect-ratio: 1;
+  gap: 0 !important;
+  padding: 0 !important;
+  overflow: visible;
+  border: 1px solid var(--afex-pos-emerald-strong) !important;
+  border-radius: 50% !important;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.actionIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.moonIcon,
+.sunIcon {
   display: none;
 }
 
-.label {
-  display: inline;
+:global(html[data-pos-theme='light']) .toggle.toggle.toggle {
+  border-color: var(--afex-pos-emerald-strong) !important;
+  background: var(--afex-pos-raised) !important;
+  color: var(--afex-pos-emerald-strong) !important;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--afex-pos-emerald-strong) 16%, transparent) !important;
 }
 
-@media (max-width: 767.98px),
-  (max-height: 500px) and (hover: none) and (pointer: coarse) {
-  .toggle.toggle.toggle {
-    width: 48px;
-    min-width: 48px;
-    max-width: 48px;
-    height: 48px;
-    min-height: 48px;
-    flex: 0 0 48px;
-    aspect-ratio: 1;
-    gap: 0;
-    padding: 0;
-    overflow: visible;
-    border: 1px solid var(--afex-pos-emerald-strong);
-    border-radius: 50%;
-    transition:
-      background-color 160ms ease,
-      border-color 160ms ease,
-      color 160ms ease,
-      transform 160ms ease;
-  }
-
-  .toggle .legacyIcon,
-  .toggle .label {
-    display: none;
-  }
-
-  .toggle .actionIcon {
-    display: grid;
-    width: 24px;
-    height: 24px;
-    place-items: center;
-    color: inherit;
-  }
-
-  .actionIcon svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  .moonIcon,
-  .sunIcon {
-    display: none;
-  }
-
-  :global(html[data-pos-theme='light']) .toggle.toggle.toggle {
-    border-color: var(--afex-pos-emerald-strong) !important;
-    background: var(--afex-pos-raised) !important;
-    color: var(--afex-pos-emerald-strong) !important;
-    box-shadow: 0 5px 14px color-mix(in srgb, var(--afex-pos-emerald-strong) 16%, transparent) !important;
-  }
-
-  :global(html[data-pos-theme='light']) .toggle .moonIcon {
-    display: block;
-  }
-
-  :global(html[data-pos-theme='dark']) .toggle.toggle.toggle {
-    border-color: var(--afex-pos-emerald-strong) !important;
-    background: var(--afex-pos-emerald) !important;
-    color: var(--afex-pos-base) !important;
-    box-shadow: 0 6px 16px rgb(0 0 0 / 28%) !important;
-  }
-
-  :global(html[data-pos-theme='dark']) .toggle .sunIcon {
-    display: block;
-  }
-
-  :global(html[data-pos-theme='light']) .toggle.toggle.toggle:active {
-    background: var(--afex-pos-hover) !important;
-    transform: scale(0.97);
-  }
-
-  :global(html[data-pos-theme='dark']) .toggle.toggle.toggle:active {
-    background: var(--afex-pos-emerald-strong) !important;
-    transform: scale(0.97);
-  }
-
-  .toggle.toggle.toggle:focus-visible {
-    outline: 2px solid var(--afex-pos-emerald);
-    outline-offset: 3px;
-  }
-
-  :global(.afex-pos-responsive-actions):has(.toggle),
-  :global(.afex-pos-sale-left-controls):has(.toggle),
-  :global(.afex-pos-sale-header):has(> .toggle) {
-    gap: 10px;
-  }
+:global(html[data-pos-theme='light']) .toggle .moonIcon {
+  display: block;
 }
 
-@media (prefers-reduced-motion: reduce) and (max-width: 767.98px),
-  (prefers-reduced-motion: reduce) and (max-height: 500px) and (hover: none) and (pointer: coarse) {
+:global(html[data-pos-theme='dark']) .toggle.toggle.toggle {
+  border-color: var(--afex-pos-emerald-strong) !important;
+  background: var(--afex-pos-emerald) !important;
+  color: var(--afex-pos-base) !important;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 28%) !important;
+}
+
+:global(html[data-pos-theme='dark']) .toggle .sunIcon {
+  display: block;
+}
+
+:global(html[data-pos-theme='light']) .toggle.toggle.toggle:hover {
+  background: var(--afex-pos-hover) !important;
+}
+
+:global(html[data-pos-theme='dark']) .toggle.toggle.toggle:hover {
+  background: color-mix(in srgb, var(--afex-pos-emerald) 88%, white) !important;
+}
+
+:global(html[data-pos-theme='light']) .toggle.toggle.toggle:active {
+  background: var(--afex-pos-hover) !important;
+  transform: scale(0.97);
+}
+
+:global(html[data-pos-theme='dark']) .toggle.toggle.toggle:active {
+  background: var(--afex-pos-emerald-strong) !important;
+  transform: scale(0.97);
+}
+
+.toggle.toggle.toggle:focus-visible {
+  outline: 2px solid var(--afex-pos-emerald) !important;
+  outline-offset: 3px;
+}
+
+:global(.afex-pos-responsive-actions):has(.toggle),
+:global(.afex-pos-sale-left-controls):has(.toggle),
+:global(.afex-pos-sale-header):has(> .toggle),
+:global(.afex-pos-desktop-theme-control):has(.toggle) {
+  gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
   .toggle.toggle.toggle {
     transition: none;
   }

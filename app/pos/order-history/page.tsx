@@ -11,6 +11,7 @@ import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 import { countUniqueOperationCustomers, currentRiyadhDayOperations, filterPosOperations, formatPosOperationTime, getRiyadhDayLabel, mapOrdersToPosOperations, millisecondsUntilNextRiyadhMidnight } from '@/lib/pos/operations-timeline'
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
+import { PosThemeToggle } from '@/components/pos-theme-toggle'
 import styles from './operations-history.module.css'
 
 const PAGE_SIZE = 24
@@ -152,7 +153,7 @@ export default function PosOrderHistoryPage() {
 
   return <div className={styles.page} dir="rtl"><main className={styles.main}>
     <div className={styles.headerArea}>
-      <header className={styles.header}><div className={styles.title}><span><InvoiceIcon /></span><div><h1>سجل العمليات</h1><p>نشاطك في نقطة البيع</p></div></div><span className={styles.employee}><UserIcon />{employeeName}</span><div className={styles.actions}><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}><RefreshIcon /><span>تحديث</span></button><button type="button" onClick={() => router.push('/pos')} aria-label="إغلاق سجل العمليات"><span aria-hidden="true">×</span><span>إغلاق</span></button></div></header>
+      <header className={styles.header}><div className={styles.title}><span><InvoiceIcon /></span><div><h1>سجل العمليات</h1><p>نشاطك في نقطة البيع</p></div></div><span className={styles.employee}><UserIcon />{employeeName}</span><div className={styles.actions}><span className="afex-pos-desktop-theme-control"><PosThemeToggle /></span><button type="button" onClick={() => void loadInvoices(1)} disabled={loading}><RefreshIcon /><span>تحديث</span></button><button type="button" onClick={() => router.push('/pos')} aria-label="إغلاق سجل العمليات"><span aria-hidden="true">×</span><span>إغلاق</span></button></div></header>
       <div className={styles.summary} aria-label="إحصائيات العمليات"><div><UserIcon /><small>عملاء</small><strong>{customerCount}</strong></div><div><InvoiceIcon /><small>فواتير</small><strong>{todayCount}</strong></div><div><ActivityIcon /><small>عمليات اليوم</small><strong>{todayCount}</strong></div></div>
       <div className={styles.toolbar}><label className={styles.searchField}><span className="sr-only">ابحث برقم الفاتورة أو العميل أو نوع العملية</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم الفاتورة أو العميل أو نوع العملية" /></label><label className={styles.filterField}><span className="sr-only">تصفية العمليات</span><select value={operationKind} onChange={(event) => setOperationKind(event.target.value as 'all' | 'invoice')}><option value="all">كل العمليات</option><option value="invoice">فواتير</option></select></label></div>
     </div>
