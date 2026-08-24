@@ -96,7 +96,7 @@ test('mobile scrolling anchors the connected header in the actual list owner', (
 })
 
 test('mobile action reuses the approved solid AFEX action token and preserves transition semantics', () => {
-  assert.match(css, /\[data-order-status-action\] button \{[\s\S]*?background-color: var\(--afex-pos-emerald\);[\s\S]*?color: #fff;[\s\S]*?font-size: 16px/)
+  assert.match(css, /\[data-order-status-action\] button \{[\s\S]*?background-color: color-mix\(in srgb, var\(--afex-pos-emerald-strong\) 90%, #2f1a08\);[\s\S]*?color: #fff;[\s\S]*?font-size: 16px/)
   assert.match(css, /button:active:not\(:disabled\) \{[\s\S]*?filter: brightness\(\.9\)/)
   assert.match(css, /button:disabled \{[\s\S]*?opacity: \.72/)
   assert.match(page, /nextStatus === 'ready' \? 'نقل إلى جاهز' : 'تم التسليم'/)
