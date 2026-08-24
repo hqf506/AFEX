@@ -1,0 +1,306 @@
+.page {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace {
+  --success-ivory: #fbf8f2;
+  --success-ivory-deep: #f3ede3;
+  --success-brown: #9b6b31;
+  --success-brown-strong: #875825;
+  --success-gold: #aa7a3f;
+  --success-ink: #17222a;
+  --success-muted: #7c7a76;
+  --success-line: #e4d9ca;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--success-ivory);
+  color: var(--success-ink);
+}
+
+.primaryScreen {
+  width: min(100%, 920px);
+  height: 100%;
+  min-height: 0;
+  margin-inline: auto;
+  padding: clamp(28px, 4.5dvh, 54px) clamp(24px, 4vw, 48px) max(20px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 2.1dvh, 24px);
+  text-align: center;
+}
+
+.successIcon {
+  width: clamp(92px, 8.2vw, 112px);
+  height: clamp(92px, 8.2vw, 112px);
+  flex: 0 0 auto;
+  color: var(--success-gold);
+}
+
+.successIcon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.identity {
+  display: grid;
+  justify-items: center;
+  gap: clamp(7px, 1dvh, 12px);
+}
+
+.identity h1 {
+  margin: 0;
+  color: var(--success-ink);
+  font-size: clamp(2.25rem, 3.1vw, 2.75rem);
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.invoiceNumber,
+.total {
+  margin: 0;
+  color: var(--success-gold);
+  font-weight: 900;
+  unicode-bidi: isolate;
+}
+
+.invoiceNumber {
+  font-size: clamp(1.55rem, 2.05vw, 1.85rem);
+  line-height: 1.2;
+}
+
+.total {
+  font-size: clamp(3.25rem, 4.5vw, 4rem);
+  line-height: 1.08;
+}
+
+.newSale {
+  width: min(100%, 820px);
+  min-height: 72px;
+  margin-top: clamp(10px, 1.6dvh, 18px);
+  padding: 14px 28px;
+  border: 1px solid var(--success-brown);
+  border-radius: 12px;
+  background: var(--success-brown);
+  color: #fffdf8;
+  font-size: clamp(1.35rem, 2vw, 1.75rem);
+  font-weight: 900;
+  line-height: 1.3;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.newSale:hover:not(:disabled) { background: var(--success-brown-strong); border-color: var(--success-brown-strong); }
+.newSale:active:not(:disabled) { transform: translateY(1px); }
+.newSale:focus-visible,
+.secondaryActions button:focus-visible,
+.returnNow:focus-visible,
+.invoiceDialog button:focus-visible { outline: 3px solid color-mix(in srgb, var(--success-gold) 62%, white); outline-offset: 3px; }
+.newSale:disabled { opacity: .66; cursor: wait; }
+
+.secondaryActions {
+  width: min(100%, 650px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr) 1px minmax(0, 1fr);
+  align-items: stretch;
+  gap: clamp(16px, 2.5vw, 34px);
+}
+
+.secondaryActions button {
+  min-width: 0;
+  min-height: 78px;
+  padding: 7px 8px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--success-ink);
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.secondaryActions button:hover:not(:disabled) { background: var(--success-ivory-deep); }
+.secondaryActions button:active:not(:disabled) { transform: translateY(1px); }
+.secondaryActions button:disabled { opacity: .46; cursor: not-allowed; }
+.secondaryActions svg { width: 38px; height: 38px; fill: none; stroke: var(--success-gold); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.secondaryActions span { font-size: .96rem; font-weight: 800; }
+.secondaryActions small { color: var(--success-muted); font-size: .68rem; line-height: 1; }
+
+.separator {
+  width: 1px;
+  min-height: 62px;
+  align-self: center;
+  background: var(--success-line);
+}
+
+.actionMessage {
+  max-width: 720px;
+  margin: -4px 0 0;
+  color: var(--success-brown-strong);
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.countdown {
+  margin: clamp(2px, .8dvh, 8px) 0 0;
+  color: var(--success-muted);
+  font-size: .88rem;
+}
+
+.countdown b { color: var(--success-gold); font-size: 1.05rem; }
+
+.returnNow {
+  min-width: 96px;
+  min-height: 44px;
+  margin-top: -12px;
+  border: 0;
+  background: transparent;
+  color: var(--success-brown-strong);
+  font-size: .78rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.dialogBackdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  display: grid;
+  place-items: center;
+  background: rgb(33 27 20 / 42%);
+}
+
+.invoiceDialog {
+  width: min(720px, 100%);
+  max-height: calc(100dvh - max(32px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--success-line);
+  border-radius: 18px;
+  background: var(--success-ivory);
+  box-shadow: 0 18px 46px rgb(62 43 24 / 18%);
+}
+
+.invoiceDialog > header {
+  min-height: 72px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--success-line);
+}
+
+.invoiceDialog header p { margin: 0 0 2px; color: var(--success-muted); font-size: .75rem; }
+.invoiceDialog header h2 { margin: 0; color: var(--success-gold); font-size: 1.3rem; font-weight: 900; unicode-bidi: isolate; }
+.invoiceDialog header button { min-width: 76px; min-height: 44px; border: 1px solid #d9a19b; border-radius: 10px; background: #fff3f1; color: #9a332b; font-weight: 900; }
+
+.dialogScroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+}
+
+.meta,
+.totals { display: grid; gap: 9px; margin: 0; }
+.meta { padding-bottom: 16px; border-bottom: 1px solid var(--success-line); }
+.meta > div,
+.totals > div { display: flex; justify-content: space-between; gap: 18px; }
+.meta dt,
+.totals dt { color: var(--success-muted); font-size: .78rem; }
+.meta dd,
+.totals dd { max-width: 62%; margin: 0; text-align: start; font-size: .84rem; font-weight: 800; overflow-wrap: anywhere; unicode-bidi: isolate; }
+
+.invoiceItems { display: grid; padding-block: 8px; }
+.invoiceItems > div { min-height: 58px; padding-block: 9px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--success-line); }
+.invoiceItems span { min-width: 0; display: grid; gap: 3px; text-align: start; }
+.invoiceItems strong { overflow-wrap: anywhere; }
+.invoiceItems small { color: var(--success-muted); font-size: .73rem; }
+.invoiceItems b { flex: 0 0 auto; font-size: .84rem; unicode-bidi: isolate; }
+
+.totals { padding-top: 14px; }
+.dialogTotal { margin-top: 5px; padding-top: 12px; border-top: 1px solid var(--success-line); }
+.dialogTotal dt { color: var(--success-ink); font-size: 1rem; font-weight: 900; }
+.dialogTotal dd { color: var(--success-gold); font-size: 1.35rem; }
+
+.invalidPage {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--success-ivory, #fbf8f2);
+  color: var(--success-ink, #17222a);
+}
+
+.invalidState {
+  width: min(100% - 32px, 460px);
+  padding: 28px;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  border: 1px solid #e4d9ca;
+  border-radius: 16px;
+  background: #fbf8f2;
+  text-align: center;
+}
+
+.invalidState p { margin: 0; font-weight: 900; }
+.invalidState button { min-width: 180px; min-height: 48px; border: 1px solid #9b6b31; border-radius: 10px; background: #9b6b31; color: #fffdf8; font-weight: 900; }
+
+@media (max-height: 850px) and (min-width: 933px) {
+  .primaryScreen { gap: 11px; padding-block: 18px; }
+  .successIcon { width: 82px; height: 82px; }
+  .identity { gap: 4px; }
+  .identity h1 { font-size: 2.2rem; }
+  .invoiceNumber { font-size: 1.45rem; }
+  .total { font-size: 3.1rem; }
+  .newSale { min-height: 62px; margin-top: 5px; }
+  .secondaryActions button { min-height: 68px; }
+  .secondaryActions svg { width: 32px; height: 32px; }
+  .countdown { margin-top: 0; }
+}
+
+@media (max-width: 932px) {
+  .primaryScreen { width: min(100%, 760px); padding-inline: max(18px, env(safe-area-inset-left), env(safe-area-inset-right)); }
+  .identity h1 { font-size: clamp(1.8rem, 6vw, 2.25rem); }
+  .total { font-size: clamp(2.7rem, 9vw, 3.35rem); }
+  .newSale { min-height: 64px; }
+}
+
+@media (max-width: 540px) {
+  .primaryScreen { justify-content: flex-start; padding-top: max(28px, env(safe-area-inset-top)); gap: 13px; overflow-y: auto; }
+  .successIcon { width: 78px; height: 78px; }
+  .identity h1 { white-space: normal; }
+  .secondaryActions { gap: 8px; }
+  .secondaryActions button { min-height: 70px; padding-inline: 2px; }
+  .secondaryActions svg { width: 31px; height: 31px; }
+  .secondaryActions span { font-size: .8rem; }
+  .separator { min-height: 50px; }
+  .returnNow { margin-top: -8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .newSale,
+  .secondaryActions button { transition: none; }
+}

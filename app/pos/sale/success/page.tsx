@@ -21,6 +21,7 @@ import { INVOICE_UX_MESSAGES } from '@/lib/invoice-ux-messages'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 import { normalizeWhatsAppDestination } from '@/lib/whatsapp/messages'
 import { PosInvoiceSuccessWorkspace } from '@/components/pos-invoice-success-workspace'
+import successStyles from '@/components/pos-invoice-success-workspace.module.css'
 import { loadOfficialInvoicePdf } from '@/lib/invoices/official-pdf-client'
 
 const THERMAL_RECEIPT_SETTINGS_KEY = 'THERMAL_RECEIPT_SETTINGS_KEY'
@@ -438,7 +439,7 @@ export default function PosSaleSuccessPage() {
 
   if (!snapshot) {
     return (
-      <div className="pos-success-page">
+      <div className={`pos-success-page ${successStyles.invalidPage}`}>
         <style jsx global>{`
           body:has(.pos-success-page) .app-shell .page-wrap main.text-right {
             margin-top: 0 !important;
@@ -450,29 +451,23 @@ export default function PosSaleSuccessPage() {
           }
         `}</style>
 
-        <div className="fixed inset-0 h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(34,211,238,0.16),transparent_34%),radial-gradient(circle_at_80%_82%,rgba(20,184,166,0.12),transparent_36%),linear-gradient(135deg,#020817_0%,#061426_54%,#020817_100%)]" />
-          <div className="relative flex h-full items-center justify-center p-5 text-right">
-            <div className="w-full max-w-md rounded-[30px] border border-cyan-300/12 bg-[#020817]/72 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.36)] backdrop-blur-2xl">
-              <p className="text-sm font-bold text-slate-300">
+        <div className={successStyles.invalidState}>
+              <p>
               لا توجد فاتورة مكتملة
               </p>
               <button
                 type="button"
                 onClick={() => router.push('/pos')}
-                className="mt-5 flex h-12 w-full items-center justify-center rounded-[20px] border border-cyan-300/18 bg-cyan-400/10 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15"
               >
                 العودة إلى POS
               </button>
-            </div>
-          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="pos-success-page">
+    <div className={`pos-success-page ${successStyles.page}`}>
       <style jsx global>{`
         body:has(.pos-success-page) .app-shell .page-wrap main.text-right { margin-top: 0 !important; }
         body:has(.pos-success-page) .app-shell .page-wrap main > .space-y-5,
@@ -497,7 +492,6 @@ export default function PosSaleSuccessPage() {
         actionMessage={actionMessage}
         redirectCountdown={redirectCountdown}
         onPrint={handlePagePrint}
-        onThermalPrint={() => void runThermalPrint()}
         onWhatsApp={handleWhatsApp}
         onNewSale={handleNewSale}
         onBackToPos={() => router.push('/pos')}

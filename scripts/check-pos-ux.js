@@ -22,6 +22,7 @@ const checkoutStep = read('app/pos/sale/checkout/page.tsx')
 const saleReset = read('lib/invoices/sale-reset.ts')
 const successStep = read('app/pos/sale/success/page.tsx')
 const successWorkspace = read('components/pos-invoice-success-workspace.tsx')
+const successWorkspaceStyles = read('components/pos-invoice-success-workspace.module.css')
 const posLayout = read('app/pos/layout.tsx')
 const posThemeToggle = read('components/pos-theme-toggle.tsx')
 const activePosItemsLayout = itemsStep.slice(
@@ -235,19 +236,21 @@ assert.equal(
   'POS success receipt must render one responsive order-item list'
 )
 assert.ok(
-  successWorkspace.includes('afex-success-mobile-card') &&
-    successWorkspace.includes('afex-success-receipt'),
-  'POS success workspace must expose responsive summary and receipt surfaces'
+  successWorkspace.includes('data-success-primary-screen') &&
+    successWorkspace.includes('data-success-invoice-dialog') &&
+    successWorkspaceStyles.includes('max-height: calc(100dvh'),
+  'POS success workspace must expose the Model 4 primary surface and contained invoice dialog'
 )
 assert.equal(
-  (successWorkspace.match(/onClick=\{props\.onNewSale\}/g) || []).length,
+  (successWorkspace.match(/data-success-primary-action/g) || []).length,
   1,
-  'POS success page must keep one responsive New Sale action'
+  'POS success page must keep one guarded responsive New Sale action'
 )
 assert.ok(
   !successWorkspace.includes('/admin') &&
     successWorkspace.includes('aria-expanded={detailsOpen}') &&
-    successWorkspace.includes('disabled={!snapshot.customerPhone'),
+    successWorkspace.includes('disabled={!whatsappAvailable || props.whatsappOpening}') &&
+    (successWorkspace.match(/data-success-secondary-action=/g) || []).length === 3,
   'POS success page must preserve contained actions, disclosure semantics, and WhatsApp gating'
 )
 assert.ok(
