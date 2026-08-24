@@ -127,7 +127,8 @@ test('collapse and reopen reuse the per-order cache and in-flight guard', () => 
 test('status transition behavior remains unchanged and details opening performs no mutation', () => {
   assert.match(page, /in_progress: 'ready',[\s\S]*?ready: 'closed'/)
   assert.match(page, /nextStatus === 'ready' \? 'نقل إلى جاهز' : 'تم التسليم'/)
-  assert.match(page, /supabase\.from\('orders'\)\.update\(\{ status: nextStatus \}\)/)
+  assert.match(page, /fetch\(`\/api\/pos\/orders\/\$\{encodeURIComponent\(order\.id\)\}\/status`/)
+  assert.doesNotMatch(page, /supabase\.from\('orders'\)\.update/)
   const detailsLoader = page.slice(page.indexOf('const loadOrderDetails'), page.indexOf('const loadOrders'))
   assert.doesNotMatch(detailsLoader, /\.update\(|method:\s*'POST'|method:\s*'PATCH'/)
 })

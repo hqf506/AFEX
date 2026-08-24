@@ -12,6 +12,7 @@ type WriteAuditLogInput = {
   entityType: string
   entityId?: string | null
   branchId?: string | null
+  actorUserId?: string | null
   metadata?: unknown
 }
 
@@ -44,14 +45,16 @@ export async function writeAuditLog({
   entityType,
   entityId = null,
   branchId = null,
+  actorUserId = null,
   metadata = {},
 }: WriteAuditLogInput) {
+  const effectiveActorUserId = actorUserId || auth.user.id
   try {
     const { error } = await supabaseAdmin
       .from('audit_logs')
       .insert({
         tenant_id: auth.profile.tenant_id,
-        actor_user_id: auth.user.id,
+        actor_user_id: effectiveActorUserId,
         branch_id: branchId || null,
         action,
         entity_type: entityType,
@@ -70,7 +73,7 @@ export async function writeAuditLog({
           entityId,
           branchId,
           tenantId: auth.profile.tenant_id,
-          actorUserId: auth.user.id,
+          actorUserId: effectiveActorUserId,
           message: error.message,
           code: error.code,
         })
@@ -85,7 +88,7 @@ export async function writeAuditLog({
         entityId,
         branchId,
         tenantId: auth.profile.tenant_id,
-        actorUserId: auth.user.id,
+        actorUserId: effectiveActorUserId,
         error,
       })
     )

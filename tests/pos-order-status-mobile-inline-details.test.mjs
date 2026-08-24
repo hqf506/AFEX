@@ -49,9 +49,9 @@ test('opening details is state-only and status mutation remains behind the delib
   const selectOrder = page.slice(page.indexOf('const selectOrder'), page.indexOf('const advance'))
   assert.doesNotMatch(selectOrder, /fetch\(|supabase|\.update\(/)
   assert.match(page, /onClick=\{\(\) => onAdvance\(order\)\}/)
-  assert.match(page, /disabled=\{updatingId !== null\}/)
-  assert.match(page, /supabase\.from\('orders'\)\.update\(\{ status: nextStatus \}\)/)
-  assert.match(page, /\.eq\('tenant_id', access\.tenantId\)\.eq\('branch_id', access\.branchId\)/)
+  assert.match(page, /disabled=\{updatingId === order\.id\}/)
+  assert.match(page, /fetch\(`\/api\/pos\/orders\/\$\{encodeURIComponent\(order\.id\)\}\/status`/)
+  assert.doesNotMatch(page, /supabase\.from\('orders'\)\.update/)
 })
 
 test('phone breakpoint is SSR-safe and leaves protected widths on desktop details', () => {

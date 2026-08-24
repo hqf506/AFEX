@@ -14,7 +14,6 @@ import { mapOrderSummaryToOrderRecord, ORDER_STATUS_MAP, type OrderRecord } from
 import { normalizeOrderRecord, type OrderSourceRow, type OrderStatus } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
-import { supabase } from '@/lib/supabase/client'
 import { PosThemeToggle } from '@/components/pos-theme-toggle'
 import styles from './order-status.module.css'
 
@@ -44,6 +43,30 @@ type OrderDetailsApiResponse = {
     readState?: unknown
     entries?: unknown
   }
+}
+
+type OrderStatusMutationResponse = {
+  success?: boolean
+  errorCode?: string
+  order?: { id?: unknown; status?: unknown }
+}
+
+type MutationFeedback = { type: 'success' | 'error'; message: string }
+
+function getOrderStatusMutationMessage(errorCode: string | undefined, status: number) {
+  if (status === 401 || errorCode === 'POS_ACTOR_SESSION_REQUIRED') {
+    return 'انتهت جلسة موظف نقطة البيع. أدخل رمز الموظف مرة أخرى.'
+  }
+  if (status === 403 || errorCode === 'ORDER_STATUS_FORBIDDEN' || errorCode === 'ORDER_SCOPE_FORBIDDEN') {
+    return 'لا تملك صلاحية تحديث حالة هذا الطلب.'
+  }
+  if (errorCode === 'ORDER_STATUS_STALE' || errorCode === 'ORDER_STATUS_TRANSITION_INVALID') {
+    return 'تغيرت حالة الطلب في جلسة أخرى. حدّث القائمة ثم حاول مجددًا.'
+  }
+  if (status === 404 || errorCode === 'ORDER_NOT_FOUND') {
+    return 'الطلب غير موجود أو لم يعد متاحًا.'
+  }
+  return 'تعذر حفظ حالة الطلب. بقيت الحالة الحالية دون تغيير.'
 }
 
 function normalizeDisplayedOrderNumber(value: string) {
@@ -148,7 +171,7 @@ function OrderDetailsPanel({
       </section>
     </div>
     <footer data-order-status-action>
-      {nextStatus ? <button type="button" onClick={() => onAdvance(order)} disabled={updatingId !== null} aria-busy={updatingId === order.id}>{updatingId === order.id ? 'جارٍ التحديث...' : nextStatus === 'ready' ? 'نقل إلى جاهز' : 'تم التسليم'}</button> : <p role="status">لا يوجد انتقال حالة متاح لهذا الطلب.</p>}
+      {nextStatus ? <button type="button" onClick={() => onAdvance(order)} disabled={updatingId === order.id} aria-busy={updatingId === order.id}>{updatingId === order.id ? 'جارٍ التحديث...' : nextStatus === 'ready' ? 'نقل إلى جاهز' : 'تم التسليم'}</button> : <p role="status">لا يوجد انتقال حالة متاح لهذا الطلب.</p>}
     </footer>
   </aside>
 }
@@ -159,6 +182,7 @@ export default function PosOrderStatusPage() {
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mutationFeedback, setMutationFeedback] = useState<MutationFeedback | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -339,15 +363,50 @@ export default function PosOrderStatusPage() {
     const nextStatus = STATUS_TRANSITIONS[order.status]
     if (!nextStatus || updatingId || !access.tenantId || !access.branchId) return
     setUpdatingId(order.id)
-    setError('')
-    const { data, error: updateError } = await supabase.from('orders').update({ status: nextStatus }).eq('id', order.id).eq('tenant_id', access.tenantId).eq('branch_id', access.branchId).eq('status', order.status).select('id').maybeSingle()
-    if (updateError || !data) {
-      setError(`تعذر تحديث حالة الطلب ${order.order_number}. أعد تحميل الصفحة للتحقق.`)
+    setMutationFeedback(null)
+    try {
+      const response = await fetch(`/api/pos/orders/${encodeURIComponent(order.id)}/status`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const result = await response.json().catch(() => null) as OrderStatusMutationResponse | null
+      const persistedStatus = result?.order?.status
+      if (!response.ok || !result?.success || result.order?.id !== order.id || persistedStatus !== nextStatus) {
+        setMutationFeedback({
+          type: 'error',
+          message: getOrderStatusMutationMessage(result?.errorCode, response.status),
+        })
+        return
+      }
+
+      setOrders((current) => current
+        .map((item) => item.id === order.id ? { ...item, status: nextStatus } : item)
+        .filter((item) => STATUS_TRANSITIONS[item.status]))
+      const cached = orderDetailsCacheRef.current[order.id]
+      if (cached?.order) {
+        storeOrderDetails(order.id, {
+          ...cached,
+          order: { ...cached.order, status: nextStatus },
+        })
+      }
+      setMutationFeedback({
+        type: 'success',
+        message: nextStatus === 'ready'
+          ? `تم نقل الطلب ${order.order_number} إلى جاهز.`
+          : `تم تسجيل تسليم الطلب ${order.order_number}.`,
+      })
+      await loadOrders(1)
+      if (nextStatus === 'ready') await loadOrderDetails(order.id, true)
+    } catch {
+      setMutationFeedback({
+        type: 'error',
+        message: 'تعذر الاتصال بالخادم. بقيت حالة الطلب دون تغيير.',
+      })
+    } finally {
       setUpdatingId(null)
-      return
     }
-    setOrders((current) => current.map((item) => item.id === order.id ? { ...item, status: nextStatus } : item).filter((item) => STATUS_TRANSITIONS[item.status]))
-    setUpdatingId(null)
   }
 
   if (access.loading || !access.allowed) return <div className="pos-history-gate">جارٍ التحقق من الصلاحية...</div>
@@ -368,6 +427,7 @@ export default function PosOrderStatusPage() {
     </section>
 
     {error ? <div className="pos-history-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadOrders()}>إعادة المحاولة</button></div> : null}
+    {mutationFeedback ? <div className="pos-history-error" role={mutationFeedback.type === 'error' ? 'alert' : 'status'} data-feedback-type={mutationFeedback.type}><p>{mutationFeedback.message}</p></div> : null}
     {loading && orders.length === 0 ? <div className="pos-status-loading" aria-label="جارٍ تحميل حالة الطلبات">{[1, 2, 3].map((item) => <div className="pos-history-skeleton" key={item} />)}</div> : null}
     {!loading && !error && orders.length === 0 ? <section className="pos-history-empty"><WorkflowIcon /><h2>لا توجد طلبات تشغيلية حالية</h2><p>ستظهر الطلبات قيد التنفيذ أو الجاهزة هنا.</p></section> : null}
 

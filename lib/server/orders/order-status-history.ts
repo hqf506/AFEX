@@ -60,14 +60,24 @@ export async function loadAuthorizedOrderStatusHistory({
       .select('id, full_name')
       .eq('tenant_id', tenantId)
       .in('id', actorIds)
+    let posProfilesQuery = supabaseAdmin
+      .from('pos_profiles')
+      .select('id, full_name')
+      .eq('tenant_id', tenantId)
+      .in('id', actorIds)
 
     if (shouldFilterByBranch(scopeType, branchId)) {
       profilesQuery = profilesQuery.eq('branch_id', branchId as string)
+      posProfilesQuery = posProfilesQuery.eq('branch_id', branchId as string)
     }
 
-    const profilesResult = await profilesQuery
-    if (!profilesResult.error) {
-      for (const profile of profilesResult.data || []) {
+    const [profilesResult, posProfilesResult] = await Promise.all([
+      profilesQuery,
+      posProfilesQuery,
+    ])
+    for (const result of [profilesResult, posProfilesResult]) {
+      if (result.error) continue
+      for (const profile of result.data || []) {
         const id = typeof profile.id === 'string' ? profile.id.trim() : ''
         const fullName = typeof profile.full_name === 'string' ? profile.full_name.trim() : ''
         if (id && fullName) employeeNames[id] = fullName
