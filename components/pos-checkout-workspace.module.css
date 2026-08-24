@@ -8,6 +8,7 @@
   --muted: #7b746b;
   --brown: #8a5f2b;
   --brown-dark: #70491f;
+  --secondary-action: var(--brown-dark);
   --gold: #a87635;
   --gold-soft: #f5ead8;
   --danger: #a33b35;
@@ -44,6 +45,7 @@
   --muted: var(--afex-pos-text-secondary);
   --brown: #9a7540;
   --brown-dark: #73552f;
+  --secondary-action: #c7aa72;
   --gold: #c7aa72;
   --gold-soft: color-mix(in srgb, #b89a64 18%, var(--afex-pos-card));
   --danger: var(--afex-pos-danger);
@@ -285,7 +287,7 @@
   .payment { height: 100%; border-inline-start: 0; }
   .paymentScroll { padding: 16px clamp(16px, 4vw, 34px) 18px; }
   .mobileSummaryBar { display: flex; width: min(100%, 840px); align-items: stretch; gap: 10px; margin: 0 auto 14px; }
-  .mobileSummaryBar button { display: flex; min-height: 48px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--brown-dark); background: var(--paper); font-size: .78rem; font-weight: 900; }
+  .mobileSummaryBar button { display: flex; min-height: 48px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--secondary-action); background: var(--paper); font-size: .78rem; font-weight: 900; }
   .mobileSummaryBar button:first-child { flex: 1 1 auto; }
   .mobileSummaryBar button:last-child { flex: 0 0 auto; }
   .mobileSummaryBar b { display: grid; min-width: 24px; height: 24px; place-items: center; border-radius: 50%; color: #fffdf7; background: var(--gold); font-size: .68rem; }

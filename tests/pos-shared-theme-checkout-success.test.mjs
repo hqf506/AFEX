@@ -88,6 +88,8 @@ test('checkout defines an explicit layered Dark palette and inherits native colo
     assert.ok(dark.includes(token), `missing checkout dark token: ${token}`)
   }
   assert.doesNotMatch(checkoutStyles, /color-scheme:\s*light/)
+  assert.match(dark, /--secondary-action:\s*#c7aa72/)
+  assert.match(checkoutStyles, /\.mobileSummaryBar button\s*\{[^}]*color:\s*var\(--secondary-action\)/s)
 })
 
 test('checkout header, cards, inputs, action dock and drawer resolve through theme tokens', () => {
