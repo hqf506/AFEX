@@ -378,7 +378,9 @@ assert.ok(
 )
 assert.ok(
   posThemeToggle.includes("window.localStorage.setItem(STORAGE_KEY, nextTheme)") &&
-    posThemeToggle.includes('aria-label="التبديل بين الوضع الفاتح والداكن"'),
+    posThemeToggle.includes("theme === 'light' ? 'تفعيل الوضع الليلي' : 'تفعيل الوضع النهاري'") &&
+    posThemeToggle.includes('aria-label={actionLabel}') &&
+    posThemeToggle.includes('type="button"'),
   'POS theme toggle must be persistent and keyboard accessible'
 )
 assert.ok(
