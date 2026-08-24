@@ -91,6 +91,12 @@ test('touch targets and tablet responsive contracts are explicit', () => {
   assert.match(css, /overflow:\s*hidden/)
 })
 
+test('short mobile landscape keeps the primary action visible and owns vertical overflow', () => {
+  assert.match(css, /@media \(orientation: landscape\) and \(max-width: 932px\) and \(max-height: 430px\)/)
+  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?\.primaryScreen \{[\s\S]*?justify-content: flex-start;[\s\S]*?overflow-y: auto;/)
+  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?\.newSale \{ min-height: 48px;/)
+})
+
 test('active Model 4 styles contain no forbidden visual identities', () => {
   assert.doesNotMatch(css, /green|cyan|emerald|gradient/i)
   assert.doesNotMatch(css, /backdrop-filter|backdrop-blur/i)
