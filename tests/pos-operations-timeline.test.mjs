@@ -68,12 +68,14 @@ test('operations entry points use the approved visible name while preserving the
   assert.equal(sources.every((source) => source.includes('سجل العمليات') && source.includes('/pos/order-history')), true)
 })
 
-test('timeline keeps an icon-only details control and compact reference scale', async () => {
+test('timeline keeps desktop geometry while exposing the labeled mobile details control', async () => {
   const page = await readFile(resolve('app/pos/order-history/page.tsx'), 'utf8')
   const styles = await readFile(resolve('app/pos/order-history/operations-history.module.css'), 'utf8')
   assert.ok(page.includes('openDetails(operation.order'))
   for (const contract of ['font-size: 32px', 'height: 58px', 'height: 52px', 'height: 78px', 'height: 74px', 'height: 48px', 'overflow-x: hidden']) assert.ok(styles.includes(contract), `missing compact contract: ${contract}`)
-  assert.equal(page.includes('<span>عرض التفاصيل</span>'), false)
+  assert.ok(page.includes('<span>عرض التفاصيل</span>'))
+  assert.ok(styles.includes('.detailsAction > span { display: none; }'))
+  assert.ok(styles.includes('.detailsAction > span {\n    display: inline;'))
 })
 
 test('order details dialog is viewport-contained with one scrolling body and accessible dismissal', async () => {

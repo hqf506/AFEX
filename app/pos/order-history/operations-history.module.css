@@ -130,6 +130,7 @@
 
 .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 235px; gap: 16px; direction: rtl; }
 .toolbar label { min-width: 0; }
+.mobileTime { display: none; }
 .toolbar input,
 .toolbar select {
   width: 100%;
@@ -214,6 +215,7 @@
 .neutral { background: #f8f0df; color: #956b20; }
 .danger { background: #fff0ee; color: var(--danger); }
 .card button { display: grid; width: 34px; height: 44px; place-items: center; border: 0; background: transparent; color: #797269; cursor: pointer; }
+.detailsAction > span { display: none; }
 .card button:focus-visible,
 .item:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .skeleton { height: 74px; margin-bottom: 14px; border-radius: 10px; background: #f0ebe3; }
@@ -274,7 +276,6 @@
   .actions { gap: 7px; }
   .actions button,
   .actions button + button { width: 46px; height: 46px; padding: 0; }
-  .actions button span:not(:first-child) { display: none; }
   .summary { max-width: 100%; overflow-x: auto; gap: 9px; }
   .summary > div,
   .summary > div:nth-child(3) { min-width: 135px; width: 135px; }
@@ -322,6 +323,8 @@
   }
 
   .header {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'title' 'actions' 'employee';
     min-height: 0;
     gap: 7px;
   }
@@ -353,10 +356,23 @@
     font-size: 12px;
   }
 
+  .actions {
+    width: 100%;
+    justify-self: stretch;
+  }
+
   .actions button,
   .actions button + button {
-    width: 44px;
+    width: auto;
+    min-width: 0;
     height: 44px;
+    flex: 1 1 0;
+    padding-inline: 12px;
+    font-size: 14px;
+  }
+
+  .actions button + button span:first-child {
+    font-size: 22px;
   }
 
   .summary {
@@ -392,7 +408,12 @@
   }
 
   .toolbar {
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
+  }
+
+  .filterField {
+    display: none;
   }
 
   .toolbar input,
@@ -422,35 +443,48 @@
 
   .item {
     min-height: 0;
-    grid-template-columns: 42px minmax(0, 1fr);
-    grid-template-areas: 'marker time' 'card card';
-    gap: 5px 8px;
-    margin-bottom: 8px;
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-areas: 'marker card';
+    align-items: start;
+    gap: 8px;
+    margin-bottom: 10px;
   }
 
   .item::after {
+    right: 19px;
+    top: 40px;
+    bottom: -10px;
+  }
+
+  .desktopTime {
     display: none;
   }
 
-  .item time {
+  .mobileTime {
+    display: block;
     grid-area: time;
     justify-self: end;
-    align-self: center;
-    font-size: 11px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.35;
     unicode-bidi: isolate;
+    white-space: nowrap;
   }
 
   .marker {
     grid-area: marker;
+    width: 40px;
+    height: 40px;
   }
 
   .card {
     grid-area: card;
-    min-height: 0;
+    min-height: 112px;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: 'operation operation' 'reference customer' 'status action';
-    gap: 5px 8px;
-    padding: 8px 9px;
+    grid-template-areas: 'operation status' 'customer time' 'reference action';
+    gap: 6px 8px;
+    border-radius: 15px;
+    padding: 12px;
   }
 
   .card::after {
@@ -463,25 +497,24 @@
   }
 
   .operation strong {
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: 16px;
+    line-height: 1.35;
   }
 
   .operation p {
-    font-size: 10px;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.3;
   }
 
   .reference,
   .customer {
     display: grid;
     min-width: 0;
-    gap: 1px;
     border: 0;
     padding: 0;
     overflow-wrap: anywhere;
-    font-size: 11px;
-    line-height: 1.4;
+    font-size: 13px;
+    line-height: 1.35;
   }
 
   .reference {
@@ -493,21 +526,6 @@
     grid-area: customer;
   }
 
-  .reference::before,
-  .customer::before {
-    color: var(--muted);
-    font-size: 8px;
-    font-weight: 800;
-  }
-
-  .reference::before {
-    content: 'المرجع';
-  }
-
-  .customer::before {
-    content: 'العميل';
-  }
-
   .status {
     grid-area: status;
     justify-self: start;
@@ -516,12 +534,78 @@
     font-size: 10px;
   }
 
-  .card button {
+  .card .detailsAction {
     grid-area: action;
-    width: 44px;
+    display: inline-flex;
+    width: auto;
+    min-width: 112px;
     height: 44px;
-    border: 1px solid var(--border);
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #d7c29d;
     border-radius: 10px;
-    background: var(--surface);
+    background: #fbf5e9;
+    color: #79571d;
+    padding-inline: 11px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .detailsAction > span {
+    display: inline;
+  }
+
+  .detailsAction svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .headerArea {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'header header' 'summary toolbar';
+    align-items: center;
+  }
+
+  .header {
+    grid-area: header;
+    grid-template-columns: minmax(0, 1fr) minmax(88px, auto) auto;
+    grid-template-areas: 'title employee actions';
+  }
+
+  .title > span {
+    width: 40px;
+    height: 40px;
+  }
+
+  .title h1 {
+    font-size: 18px;
+  }
+
+  .employee {
+    width: auto;
+    max-width: 112px;
+  }
+
+  .actions {
+    width: auto;
+  }
+
+  .actions button,
+  .actions button + button {
+    min-width: 76px;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  .summary {
+    grid-area: summary;
+  }
+
+  .toolbar {
+    grid-area: toolbar;
   }
 }
