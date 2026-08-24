@@ -27,10 +27,11 @@ test('dashboard has one bottom reserve and compact structured order cards', () =
   assert.match(home, /pos-order-total[^\n]*<strong dir="ltr">/)
 })
 
-test('invoice mobile layout has fixed controls and one content-sized ledger viewport', () => {
+test('invoice mobile layout has compact controls and one content-sized ledger viewport', () => {
   assert.match(mobile, /\.pos-invoices-page > main\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\)/s)
-  assert.match(mobile, /\.pos-invoice-ledger\s*\{[^}]*height:\s*100%;[^}]*overflow-y:\s*auto;/s)
-  assert.match(mobile, /\.pos-invoice-ledger-row\s*\{[^}]*height:\s*auto;/s)
+  assert.match(mobile, /\.pos-invoices-toolbar label\s*\{[^}]*flex:\s*0 0 44px;/s)
+  assert.match(mobile, /\.pos-invoice-ledger\s*\{[^}]*--pos-invoice-mobile-bottom-clearance:\s*max\(12px, calc\(env\(safe-area-inset-bottom\) \+ 8px\)\);[^}]*height:\s*100%;[^}]*overflow-y:\s*auto;[^}]*padding-bottom:\s*var\(--pos-invoice-mobile-bottom-clearance\)/s)
+  assert.match(mobile, /\.pos-invoice-ledger-row\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*132px;/s)
   assert.match(mobile, /content:\s*attr\(data-label\)/)
 })
 
