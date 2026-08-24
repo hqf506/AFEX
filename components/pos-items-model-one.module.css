@@ -1083,23 +1083,7 @@
   }
 
   .catalogHeader {
-    min-height: 62px;
-    gap: 6px;
-    padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left));
-  }
-
-  .catalogHeaderTitle h1 {
-    font-size: 1rem;
-  }
-
-  .searchField:focus-within,
-  .searchField[data-has-value='true'] {
-    position: absolute;
-    inset-inline: 58px 10px;
-    z-index: 12;
-    width: auto;
-    max-width: none;
-    background: var(--model-one-leather-dark);
+    min-height: 64px;
   }
 
   .categories {
@@ -1230,10 +1214,6 @@
 }
 
 @media (max-width: 370px) {
-  .catalogHeaderTitle h1 {
-    max-width: 104px;
-  }
-
   .productGrid,
   .skeletonGrid {
     gap: 6px;
@@ -1242,6 +1222,79 @@
   .productNameStrip {
     padding-inline: 5px;
     font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 767px),
+  (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .catalogHeader {
+    position: relative;
+    z-index: 15;
+    min-height: 64px;
+    grid-template-columns: 48px minmax(0, 1fr) 44px 44px;
+    grid-template-areas: 'theme title sale back';
+    gap: 8px;
+    padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left));
+    direction: ltr;
+  }
+
+  .catalogHeaderTitle,
+  .headerActions {
+    display: contents;
+  }
+
+  .catalogHeaderTitle > .headerControl {
+    grid-area: sale;
+  }
+
+  .catalogHeaderTitle h1 {
+    grid-area: title;
+    max-width: none;
+    font-size: 1rem;
+    text-align: center;
+    direction: rtl;
+  }
+
+  .headerActions > :global(.afex-pos-theme-toggle) {
+    grid-area: theme;
+    align-self: center;
+    justify-self: center;
+  }
+
+  .headerActions > .headerControl {
+    grid-area: back;
+  }
+
+  .refreshButton {
+    display: none;
+  }
+
+  .searchField {
+    position: absolute;
+    inset-block-start: calc(100% + 7px);
+    left: max(10px, env(safe-area-inset-left));
+    z-index: 18;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border-color: var(--model-one-line-strong);
+    background: var(--model-one-canvas);
+    color: var(--model-one-ink);
+  }
+
+  .searchField:focus-within,
+  .searchField[data-has-value='true'] {
+    inset-inline: auto;
+    right: max(10px, env(safe-area-inset-right));
+    left: max(10px, env(safe-area-inset-left));
+    width: auto;
+    max-width: none;
+    background: var(--model-one-canvas);
+  }
+
+  .categories {
+    padding-inline-end: max(64px, calc(env(safe-area-inset-left) + 54px));
   }
 }
 

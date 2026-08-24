@@ -1255,22 +1255,121 @@ body {
 @media (max-width: 767px) {
   .afex-pos-app-shell.is-sale-route.is-customer-route .afex-pos-shell-content { overflow-y: auto; }
   .afex-pos-app-shell.is-sale-route.is-customer-route .afex-pos-route-content { height: auto; overflow: visible; }
-  .afex-pos-sale-header.is-customer { gap: 6px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
-  .afex-pos-sale-left-controls, .afex-pos-sale-right-controls { gap: 6px; }
-  .afex-pos-sale-left-controls { max-width: 100%; overflow: hidden; }
-  .afex-pos-sale-left-controls .afex-pos-theme-toggle { width: 48px; min-width: 48px; padding-inline: 0; }
-  .afex-pos-sale-employee { max-width: 70px; gap: 5px; padding: 5px 6px; }
-  .afex-pos-sale-employee > span { width: 26px; height: 26px; flex-basis: 26px; border-radius: 8px; }
-  .afex-pos-sale-employee b { font-size: 10px; }
-  .afex-pos-sale-employee small { display: none; }
-  .afex-pos-sale-right-controls .afex-pos-sale-home { width: 44px; padding-inline: 0; }
-  .afex-pos-sale-right-controls .afex-pos-sale-home span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .afex-pos-sale-header.is-customer > strong { max-width: 78px; font-size: 12px; }
   .afex-customer-workspace { height: auto; min-height: 100%; padding: 12px 12px max(16px, env(safe-area-inset-bottom)); overflow: visible; }
   .afex-customer-layout { display: flex; flex-direction: column; }.afex-customer-ticket { order: 2; min-height: 0; padding: 14px; }.afex-customer-panel { order: 1; }.afex-customer-ticket-empty { min-height: 150px; }.afex-customer-profile-scroll { max-height: none; overflow: visible; }.afex-customer-ticket-actions { margin-top: 10px; }
   .afex-customer-panel { padding: 16px; border-radius: 20px; }.afex-customer-search-heading { align-items: flex-start; }.afex-customer-search-heading p { display: none; }.afex-customer-search-heading button { padding: 0 12px; }
   .afex-customer-search-grid { grid-template-columns: 1fr; margin: 16px 0; }.afex-customer-results { max-height: none; overflow: visible; }.afex-customer-result { min-height: 88px; }.afex-customer-result-action { min-width: 70px; }
   .afex-customer-profile { overflow: visible; }.afex-customer-detail-row { grid-template-columns: 32px minmax(76px, .8fr) minmax(0, 1.2fr); }
+}
+
+@media (max-width: 767px),
+  (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .afex-pos-sale-header.is-customer {
+    min-height: 64px;
+    grid-template-columns: minmax(108px, 1.1fr) minmax(54px, .8fr) minmax(116px, 1fr);
+    gap: 6px;
+    padding-block: max(8px, env(safe-area-inset-top)) 8px;
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    overflow: visible;
+  }
+
+  .afex-pos-sale-left-controls,
+  .afex-pos-sale-right-controls {
+    width: 100%;
+    max-width: none;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .afex-pos-sale-left-controls .afex-pos-theme-toggle {
+    width: 48px;
+    min-width: 48px;
+    flex: 0 0 48px;
+    padding-inline: 0;
+  }
+
+  .afex-pos-sale-employee {
+    min-width: 52px;
+    max-width: 148px;
+    height: 44px;
+    flex: 1 1 0;
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .afex-pos-sale-employee > span {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+    border-radius: 7px;
+  }
+
+  .afex-pos-sale-employee b {
+    font-size: 10px;
+  }
+
+  .afex-pos-sale-employee small {
+    display: none;
+  }
+
+  .afex-pos-sale-right-controls > a {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+  }
+
+  .afex-pos-sale-right-controls .afex-pos-sale-home {
+    width: auto;
+    min-width: 64px;
+    min-height: 44px;
+    flex: 1 1 72px;
+    gap: 3px;
+    padding-inline: 4px;
+    font-size: 9px;
+  }
+
+  .afex-pos-sale-right-controls .afex-pos-sale-home svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .afex-pos-sale-right-controls .afex-pos-sale-home span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: nowrap;
+  }
+
+  .afex-pos-sale-header.is-customer > strong {
+    width: 100%;
+    max-width: none;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 350px) {
+  .afex-pos-sale-employee {
+    gap: 3px;
+    padding: 3px;
+  }
+
+  .afex-pos-sale-employee > span {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+  }
+
+  .afex-pos-sale-employee b,
+  .afex-pos-sale-right-controls .afex-pos-sale-home {
+    font-size: 8.5px;
+  }
+
+  .afex-pos-sale-header.is-customer > strong {
+    font-size: 9.5px;
+  }
 }
 
 .afex-success-workspace { min-height: 100svh; background: var(--afex-pos-base); color: var(--afex-pos-text); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
