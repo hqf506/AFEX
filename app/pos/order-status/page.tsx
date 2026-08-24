@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
@@ -10,6 +10,7 @@ import { normalizeOrderRecord, type OrderSourceRow, type OrderStatus } from '@/l
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 import { supabase } from '@/lib/supabase/client'
+import styles from './order-status.module.css'
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
   in_progress: 'ready',
@@ -18,6 +19,8 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
 const PAGE_SIZE = 24
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
 const EASTERN_ARABIC_DIGITS = '۰۱۲۳۴۵۶۷۸۹'
+const PHONE_LAYOUT_QUERY = '(max-width: 767.98px)'
+const SHORT_PHONE_LANDSCAPE_QUERY = '(max-height: 500px) and (hover: none) and (pointer: coarse)'
 
 function normalizeDisplayedOrderNumber(value: string) {
   return value
@@ -42,6 +45,60 @@ function CloseIcon() {
 
 function SearchIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" /><path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+}
+
+function isPhoneLayout() {
+  return window.matchMedia(PHONE_LAYOUT_QUERY).matches || window.matchMedia(SHORT_PHONE_LANDSCAPE_QUERY).matches
+}
+
+function OrderDetailsPanel({
+  id,
+  inline,
+  nextStatus,
+  onAdvance,
+  order,
+  updatingId,
+}: {
+  id?: string
+  inline?: boolean
+  nextStatus?: OrderStatus
+  onAdvance: (order: OrderRecord) => void
+  order: OrderRecord
+  updatingId: string | null
+}) {
+  return <aside
+    id={id}
+    className={`pos-status-details ${inline ? styles.inlineDetails : styles.desktopDetails}`}
+    data-order-status-details={inline ? undefined : ''}
+    data-order-status-inline-details={inline ? '' : undefined}
+    aria-live="polite"
+  >
+    <header><div><small>تفاصيل الطلب</small><h2 dir="ltr">{order.order_number}</h2></div><span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span></header>
+    <div className="pos-status-details-body">
+      <dl className="pos-status-details-meta">
+        <div><dt>العميل</dt><dd>{order.customer_name || 'عميل نقدي'}</dd></div>
+        <div><dt>الهاتف</dt><dd dir="ltr">{order.customer_phone || 'غير متاح'}</dd></div>
+        <div><dt>التاريخ والوقت</dt><dd>{formatPosGregorianDateTime(order.created_at)}</dd></div>
+        <div><dt>طريقة الدفع</dt><dd>{order.payment_method || 'غير متاح'}</dd></div>
+      </dl>
+      <section className="pos-status-details-items" aria-label="عناصر الطلب">
+        <h3>العناصر</h3>
+        {order.items.length > 0 ? order.items.map((item, index) => <article key={`${order.id}-${index}`}>
+          <div><strong>{item.item_name || 'عنصر غير متاح'}</strong><small>{item.quantity} × {formatCurrency(item.unit_price)}</small></div><b>{formatCurrency(item.line_total)}</b>
+        </article>) : <p>غير متاح</p>}
+      </section>
+      <dl className="pos-status-totals">
+        <div><dt>المجموع قبل الضريبة</dt><dd>{formatCurrency(order.subtotal)}</dd></div>
+        <div><dt>الضريبة</dt><dd>{formatCurrency(order.tax)}</dd></div>
+        <div><dt>الخصم</dt><dd>{formatCurrency(order.discount)}</dd></div>
+        <div className="is-grand-total"><dt>الإجمالي النهائي</dt><dd>{formatCurrency(order.total)}</dd></div>
+      </dl>
+      <div className="pos-status-history"><span>سجل الحالة</span><strong>غير متاح</strong></div>
+    </div>
+    <footer data-order-status-action>
+      {nextStatus ? <button type="button" onClick={() => onAdvance(order)} disabled={updatingId !== null} aria-busy={updatingId === order.id}>{updatingId === order.id ? 'جارٍ التحديث...' : nextStatus === 'ready' ? 'نقل إلى جاهز' : 'تم التسليم'}</button> : <p role="status">لا يوجد انتقال حالة متاح لهذا الطلب.</p>}
+    </footer>
+  </aside>
 }
 
 export default function PosOrderStatusPage() {
@@ -108,24 +165,45 @@ export default function PosOrderStatusPage() {
   const selectedNextStatus = selectedOrder ? STATUS_TRANSITIONS[selectedOrder.status] : undefined
 
   useEffect(() => {
+    if (!selectedId || filteredOrders.some((order) => order.id === selectedId)) return
+    const timeoutId = window.setTimeout(() => {
+      setSelectedId((current) => current === selectedId ? null : current)
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [filteredOrders, selectedId])
+
+  useEffect(() => {
+    if (!selectedId) return
     const list = listRef.current
     const row = selectedRowRef.current
     if (!list || !row) return
     const frame = window.requestAnimationFrame(() => {
-      const listRect = list.getBoundingClientRect()
+      const phoneLayout = isPhoneLayout()
+      const scrollViewport = phoneLayout ? list.closest<HTMLElement>('.pos-status-workspace') : list
+      if (!scrollViewport) return
+      const listRect = scrollViewport.getBoundingClientRect()
       const rowRect = row.getBoundingClientRect()
-      if (rowRect.top < listRect.top || rowRect.bottom > listRect.bottom) {
-        row.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+      const detailRect = phoneLayout ? document.getElementById(`pos-order-status-details-${selectedId}`)?.getBoundingClientRect() : undefined
+      if (rowRect.top < listRect.top || (detailRect?.bottom ?? rowRect.bottom) > listRect.bottom) {
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        if (phoneLayout && reducedMotion) row.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' })
+        else row.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
       }
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [orders, selectedOrder?.id])
+  }, [orders, selectedId])
 
   const updateSearch = (value: string) => {
     const normalizedValue = normalizeDisplayedOrderNumber(value)
     const nextOrders = normalizedValue ? orders.filter((order) => normalizeDisplayedOrderNumber(order.order_number).includes(normalizedValue)) : orders
+    const phoneLayout = isPhoneLayout()
     setSearchQuery(value)
-    setSelectedId((current) => current && nextOrders.some((order) => order.id === current) ? current : nextOrders[0]?.id ?? null)
+    setSelectedId((current) => current && nextOrders.some((order) => order.id === current) ? current : phoneLayout ? null : nextOrders[0]?.id ?? null)
+  }
+
+  const selectOrder = (orderId: string) => {
+    const phoneLayout = isPhoneLayout()
+    setSelectedId((current) => phoneLayout && current === orderId ? null : orderId)
   }
 
   const advance = async (order: OrderRecord) => {
@@ -145,7 +223,7 @@ export default function PosOrderStatusPage() {
 
   if (access.loading || !access.allowed) return <div className="pos-history-gate">جارٍ التحقق من الصلاحية...</div>
 
-  return <div className="pos-invoice-history pos-order-status-workflow" data-order-status-page dir="rtl"><main>
+  return <div className={`pos-invoice-history pos-order-status-workflow ${styles.orderStatusPage}`} data-order-status-page dir="rtl"><main>
     <header className="pos-status-header" data-order-status-header>
       <div className="pos-history-heading"><span><WorkflowIcon /></span><div><h1>حالة الطلبات</h1><p>عرض ومتابعة الطلبات الحالية وتحديث حالتها</p></div></div>
       <div className="pos-status-header-actions">
@@ -171,53 +249,37 @@ export default function PosOrderStatusPage() {
         </div>
         <div className="pos-status-list-scroll" data-order-status-list ref={listRef}>
           <div className="pos-status-list-labels" aria-hidden="true"><span>الطلب والعميل</span><span>التاريخ</span><span>الإجمالي</span><span>الحالة</span></div>
-          {filteredOrders.map((order) => <button
-          type="button"
-          className="pos-status-row"
-          data-order-status-row
-          data-selected={order.id === selectedOrder?.id ? 'true' : 'false'}
-          aria-pressed={order.id === selectedOrder?.id}
-          ref={order.id === selectedOrder?.id ? selectedRowRef : undefined}
-          key={order.id}
-          onClick={() => setSelectedId(order.id)}
-        >
-          <span className="pos-status-row-identity"><strong dir="ltr">{order.order_number}</strong><small>{order.customer_name || 'عميل نقدي'}{order.customer_phone ? ` · ${order.customer_phone}` : ''}</small></span>
-          <time dateTime={order.created_at}>{formatPosGregorianDateTime(order.created_at)}</time>
-          <b>{formatCurrency(order.total)}</b>
-          <span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span>
-          </button>)}
+          {filteredOrders.map((order) => {
+            const expanded = order.id === selectedId
+            const detailsId = `pos-order-status-details-${order.id}`
+            return <Fragment key={order.id}>
+              <button
+                type="button"
+                className={`pos-status-row ${styles.mobileOrderRow}`}
+                data-order-status-row
+                data-selected={order.id === selectedOrder?.id ? 'true' : 'false'}
+                data-mobile-expanded={expanded ? 'true' : 'false'}
+                aria-pressed={order.id === selectedOrder?.id}
+                aria-expanded={expanded}
+                aria-controls={detailsId}
+                aria-label={`عرض تفاصيل الطلب ${order.order_number}`}
+                ref={expanded ? selectedRowRef : undefined}
+                onClick={() => selectOrder(order.id)}
+              >
+                <span className="pos-status-row-identity"><strong dir="ltr">{order.order_number}</strong><small>{order.customer_name || 'عميل نقدي'}{order.customer_phone ? ` · ${order.customer_phone}` : ''}</small></span>
+                <time dateTime={order.created_at}>{formatPosGregorianDateTime(order.created_at)}</time>
+                <b>{formatCurrency(order.total)}</b>
+                <span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span>
+              </button>
+              {expanded ? <OrderDetailsPanel id={detailsId} inline order={order} nextStatus={STATUS_TRANSITIONS[order.status]} updatingId={updatingId} onAdvance={(selected) => void advance(selected)} /> : null}
+            </Fragment>
+          })}
           {filteredOrders.length === 0 ? <div className="pos-status-search-empty"><SearchIcon /><strong>لا توجد فاتورة مطابقة</strong><button type="button" onClick={() => updateSearch('')}>مسح البحث</button></div> : null}
           {hasMore && filteredOrders.length > 0 ? <div className="pos-history-more"><button type="button" onClick={() => void loadOrders(page + 1)} disabled={loading}>{loading ? 'جارٍ التحميل...' : 'تحميل المزيد'}</button></div> : null}
         </div>
       </section>
 
-      {selectedOrder ? <aside className="pos-status-details" data-order-status-details aria-live="polite">
-        <header><div><small>تفاصيل الطلب</small><h2 dir="ltr">{selectedOrder.order_number}</h2></div><span className={ORDER_STATUS_MAP[selectedOrder.status].className}>{ORDER_STATUS_MAP[selectedOrder.status].label}</span></header>
-        <div className="pos-status-details-body">
-          <dl className="pos-status-details-meta">
-            <div><dt>العميل</dt><dd>{selectedOrder.customer_name || 'عميل نقدي'}</dd></div>
-            <div><dt>الهاتف</dt><dd dir="ltr">{selectedOrder.customer_phone || 'غير متاح'}</dd></div>
-            <div><dt>التاريخ والوقت</dt><dd>{formatPosGregorianDateTime(selectedOrder.created_at)}</dd></div>
-            <div><dt>طريقة الدفع</dt><dd>{selectedOrder.payment_method || 'غير متاح'}</dd></div>
-          </dl>
-          <section className="pos-status-details-items" aria-label="عناصر الطلب">
-            <h3>العناصر</h3>
-            {selectedOrder.items.length > 0 ? selectedOrder.items.map((item, index) => <article key={`${selectedOrder.id}-${index}`}>
-              <div><strong>{item.item_name || 'عنصر غير متاح'}</strong><small>{item.quantity} × {formatCurrency(item.unit_price)}</small></div><b>{formatCurrency(item.line_total)}</b>
-            </article>) : <p>غير متاح</p>}
-          </section>
-          <dl className="pos-status-totals">
-            <div><dt>المجموع قبل الضريبة</dt><dd>{formatCurrency(selectedOrder.subtotal)}</dd></div>
-            <div><dt>الضريبة</dt><dd>{formatCurrency(selectedOrder.tax)}</dd></div>
-            <div><dt>الخصم</dt><dd>{formatCurrency(selectedOrder.discount)}</dd></div>
-            <div className="is-grand-total"><dt>الإجمالي النهائي</dt><dd>{formatCurrency(selectedOrder.total)}</dd></div>
-          </dl>
-          <div className="pos-status-history"><span>سجل الحالة</span><strong>غير متاح</strong></div>
-        </div>
-        <footer data-order-status-action>
-          {selectedNextStatus ? <button type="button" onClick={() => void advance(selectedOrder)} disabled={updatingId !== null} aria-busy={updatingId === selectedOrder.id}>{updatingId === selectedOrder.id ? 'جارٍ التحديث...' : selectedNextStatus === 'ready' ? 'نقل إلى جاهز' : 'تم التسليم'}</button> : <p role="status">لا يوجد انتقال حالة متاح لهذا الطلب.</p>}
-        </footer>
-      </aside> : <aside className="pos-status-details is-empty" data-order-status-details aria-live="polite"><SearchIcon /><h2>لا توجد فاتورة مطابقة</h2><p>امسح البحث لعرض الطلبات المتاحة.</p></aside>}
+      {selectedOrder ? <OrderDetailsPanel order={selectedOrder} nextStatus={selectedNextStatus} updatingId={updatingId} onAdvance={(selected) => void advance(selected)} /> : <aside className={`pos-status-details is-empty ${styles.desktopDetails}`} data-order-status-details aria-live="polite"><SearchIcon /><h2>لا توجد فاتورة مطابقة</h2><p>امسح البحث لعرض الطلبات المتاحة.</p></aside>}
     </section> : null}
   </main></div>
 }
