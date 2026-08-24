@@ -1,0 +1,23 @@
+.fixtureRoot {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  width: 100dvw;
+  height: 100dvh;
+  background: #fbf8f2;
+}
+
+.badge {
+  position: fixed;
+  z-index: 1001;
+  inset-block-start: max(8px, env(safe-area-inset-top));
+  inset-inline-start: max(8px, env(safe-area-inset-left));
+  padding: 4px 8px;
+  border: 1px solid #aa7a3f;
+  border-radius: 999px;
+  background: #fff8e9;
+  color: #6f451b;
+  font: 800 10px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: .04em;
+  pointer-events: none;
+}
