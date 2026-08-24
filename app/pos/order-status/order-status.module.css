@@ -179,6 +179,36 @@
   }
 }
 
+@media (max-width: 767.98px) and (max-height: 500px) {
+  .orderStatusPage > main {
+    gap: 5px;
+  }
+
+  .orderStatusPage :global(.pos-status-header) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 7px;
+  }
+
+  .orderStatusPage :global(.pos-status-header-actions) {
+    grid-template-columns: repeat(2, 44px);
+  }
+
+  .orderStatusPage :global(.pos-status-header-actions button) {
+    width: 44px;
+    padding: 0;
+  }
+
+  .orderStatusPage :global(.pos-status-header-actions button span) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orderStatusPage .mobileOrderRow {
     transition: none;

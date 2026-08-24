@@ -95,6 +95,14 @@ test('mobile scrolling anchors the connected header in the actual list owner', (
   assert.doesNotMatch(page, /window\.scrollTo|document\.body\.scrollHeight/)
 })
 
+test('short mobile landscape reserves enough list height without relying on pointer detection', () => {
+  assert.match(css, /@media \(max-width: 767\.98px\) and \(max-height: 500px\)/)
+  assert.match(css, /\.orderStatusPage > main \{\s*gap: 5px;/)
+  assert.match(css, /:global\(\.pos-status-header\) \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;/)
+  assert.match(css, /:global\(\.pos-status-header-actions\) \{\s*grid-template-columns: repeat\(2, 44px\);/)
+  assert.match(css, /:global\(\.pos-status-header-actions button\) \{[\s\S]*?width: 44px;/)
+})
+
 test('mobile action reuses the approved solid AFEX action token and preserves transition semantics', () => {
   assert.match(css, /\[data-order-status-action\] button \{[\s\S]*?background-color: color-mix\(in srgb, var\(--afex-pos-emerald-strong\) 90%, #2f1a08\);[\s\S]*?color: #fff;[\s\S]*?font-size: 16px/)
   assert.match(css, /button:active:not\(:disabled\) \{[\s\S]*?filter: brightness\(\.9\)/)
