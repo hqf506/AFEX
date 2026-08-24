@@ -73,7 +73,13 @@ function OrderDetailsPanel({
     data-order-status-inline-details={inline ? '' : undefined}
     aria-live="polite"
   >
-    <header><div><small>تفاصيل الطلب</small><h2 dir="ltr">{order.order_number}</h2></div><span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span></header>
+    <header className={inline ? styles.inlineDetailsHeader : undefined} data-order-status-inline-header={inline ? '' : undefined}>
+      <div><small>{inline ? 'تفاصيل الطلب المحدد' : 'تفاصيل الطلب'}</small><h2 dir="ltr">{order.order_number}</h2></div>
+      {inline ? <div className={styles.inlineDetailsStatus}>
+        <span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span>
+        <span className={styles.collapseChevron} aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><path d="m5 12 5-5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+      </div> : <span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span>}
+    </header>
     <div className="pos-status-details-body">
       <dl className="pos-status-details-meta">
         <div><dt>العميل</dt><dd>{order.customer_name || 'عميل نقدي'}</dd></div>
@@ -183,11 +189,19 @@ export default function PosOrderStatusPage() {
       if (!scrollViewport) return
       const listRect = scrollViewport.getBoundingClientRect()
       const rowRect = row.getBoundingClientRect()
-      const detailRect = phoneLayout ? document.getElementById(`pos-order-status-details-${selectedId}`)?.getBoundingClientRect() : undefined
-      if (rowRect.top < listRect.top || (detailRect?.bottom ?? rowRect.bottom) > listRect.bottom) {
-        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        if (phoneLayout && reducedMotion) row.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' })
-        else row.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (phoneLayout) {
+        const breathingRoom = 10
+        const detailHeader = document.querySelector<HTMLElement>(`#pos-order-status-details-${CSS.escape(selectedId)} [data-order-status-inline-header]`)
+        const detailHeaderRect = detailHeader?.getBoundingClientRect()
+        const selectedHeaderIsClipped = rowRect.top < listRect.top + breathingRoom
+          || (detailHeaderRect?.bottom ?? rowRect.bottom) > listRect.bottom - breathingRoom
+        if (selectedHeaderIsClipped) {
+          const targetTop = Math.max(0, scrollViewport.scrollTop + rowRect.top - listRect.top - breathingRoom)
+          scrollViewport.scrollTo({ top: targetTop, behavior: reducedMotion ? 'auto' : 'smooth' })
+        }
+      } else if (rowRect.top < listRect.top || rowRect.bottom > listRect.bottom) {
+        row.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' })
       }
     })
     return () => window.cancelAnimationFrame(frame)

@@ -22,10 +22,11 @@
     grid-template-rows: auto auto auto;
     margin: -1px 0 0;
     overflow: visible;
-    border: 1px solid color-mix(in srgb, var(--afex-pos-bronze) 58%, var(--afex-pos-border));
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 68%, var(--afex-pos-border));
+    border-top-color: transparent;
     border-radius: 0 0 14px 14px;
-    background: color-mix(in srgb, var(--afex-pos-bronze) 5%, var(--afex-pos-panel));
-    box-shadow: 0 10px 22px color-mix(in srgb, var(--afex-pos-bronze) 9%, transparent);
+    background: color-mix(in srgb, var(--afex-pos-emerald) 4%, var(--afex-pos-panel));
+    box-shadow: none;
     scroll-margin-top: 8px;
   }
 
@@ -38,30 +39,100 @@
 
   .orderStatusPage .mobileOrderRow:active {
     transform: scale(.99);
-    border-color: color-mix(in srgb, var(--afex-pos-bronze) 55%, var(--afex-pos-border));
-    background: color-mix(in srgb, var(--afex-pos-bronze) 9%, var(--afex-pos-panel));
+    border-color: color-mix(in srgb, var(--afex-pos-emerald) 62%, var(--afex-pos-border));
+    background: color-mix(in srgb, var(--afex-pos-emerald) 10%, var(--afex-pos-panel));
   }
 
   .orderStatusPage .mobileOrderRow:focus-visible {
-    outline: 2px solid var(--afex-pos-bronze);
+    outline: 2px solid var(--afex-pos-emerald);
     outline-offset: -3px;
   }
 
   .orderStatusPage .mobileOrderRow[data-mobile-expanded='true'] {
-    border: 1px solid color-mix(in srgb, var(--afex-pos-bronze) 68%, var(--afex-pos-border));
+    z-index: 1;
+    overflow: visible;
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 74%, var(--afex-pos-border));
     border-bottom-color: transparent;
     border-radius: 14px 14px 0 0;
-    background: color-mix(in srgb, var(--afex-pos-bronze) 9%, var(--afex-pos-panel));
+    background: color-mix(in srgb, var(--afex-pos-emerald) 11%, var(--afex-pos-raised));
   }
 
-  .orderStatusPage .inlineDetails > header {
-    border-bottom-color: color-mix(in srgb, var(--afex-pos-bronze) 24%, var(--afex-pos-border));
+  .orderStatusPage .mobileOrderRow[data-mobile-expanded='true'] + .inlineDetails {
+    border-inline-color: color-mix(in srgb, var(--afex-pos-emerald) 74%, var(--afex-pos-border));
+    border-bottom-color: color-mix(in srgb, var(--afex-pos-emerald) 74%, var(--afex-pos-border));
+  }
+
+  .orderStatusPage .inlineDetailsHeader {
+    min-height: 60px;
+    border-bottom-color: color-mix(in srgb, var(--afex-pos-emerald) 25%, var(--afex-pos-border));
+    background: color-mix(in srgb, var(--afex-pos-emerald) 8%, var(--afex-pos-panel));
+  }
+
+  .orderStatusPage .inlineDetailsHeader small {
+    color: var(--afex-pos-text-secondary);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .orderStatusPage .inlineDetailsHeader h2 {
+    margin-top: 3px;
+    color: var(--afex-pos-text);
+    font-size: 16px;
+    font-weight: 900;
+  }
+
+  .orderStatusPage .inlineDetailsStatus {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .orderStatusPage .collapseChevron {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 42%, var(--afex-pos-border));
+    border-radius: 50%;
+    color: var(--afex-pos-emerald);
+  }
+
+  .orderStatusPage .collapseChevron svg {
+    width: 18px;
+    height: 18px;
   }
 
   .orderStatusPage .inlineDetails :global(.pos-status-details-body) {
     min-height: 0;
     max-height: none;
     overflow: visible;
+    background: color-mix(in srgb, var(--afex-pos-emerald) 2%, var(--afex-pos-panel));
+  }
+
+  .orderStatusPage .inlineDetails :global(.pos-status-details-meta),
+  .orderStatusPage .inlineDetails :global(.pos-status-totals) {
+    gap: 7px;
+  }
+
+  .orderStatusPage .inlineDetails :global(.pos-status-details-meta) > div,
+  .orderStatusPage .inlineDetails :global(.pos-status-totals) > div,
+  .orderStatusPage .inlineDetails :global(.pos-status-history) {
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 10%, var(--afex-pos-border));
+    background: color-mix(in srgb, var(--afex-pos-emerald) 4%, var(--afex-pos-raised));
+  }
+
+  .orderStatusPage .inlineDetails dt,
+  .orderStatusPage .inlineDetails :global(.pos-status-history) > span {
+    color: var(--afex-pos-text-secondary);
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .orderStatusPage .inlineDetails :global(.pos-status-details-items) {
+    border-block: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 14%, var(--afex-pos-border));
+    padding-block: 9px;
   }
 
   .orderStatusPage .inlineDetails h2,
@@ -73,22 +144,38 @@
 
   .orderStatusPage .inlineDetails [data-order-status-action] {
     padding-bottom: 10px;
-    background: color-mix(in srgb, var(--afex-pos-bronze) 5%, var(--afex-pos-panel));
+    background: color-mix(in srgb, var(--afex-pos-emerald) 5%, var(--afex-pos-panel));
   }
 
   .orderStatusPage .inlineDetails [data-order-status-action] button {
+    width: 100%;
     min-height: 48px;
-    border: 1px solid color-mix(in srgb, var(--afex-pos-bronze) 76%, #2f1a08);
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 78%, #2f1a08);
     border-radius: 11px;
-    background: var(--afex-pos-bronze);
+    background-color: var(--afex-pos-emerald);
     color: #fff;
     font: inherit;
+    font-size: 16px;
     font-weight: 900;
+    opacity: 1;
+    transition: filter 90ms ease, transform 90ms ease;
   }
 
   .orderStatusPage .inlineDetails [data-order-status-action] button:focus-visible {
     outline: 2px solid var(--afex-pos-text);
     outline-offset: 2px;
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] button:active:not(:disabled) {
+    transform: translateY(1px);
+    filter: brightness(.9);
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] button:disabled {
+    background-color: color-mix(in srgb, var(--afex-pos-emerald) 70%, var(--afex-pos-panel));
+    color: #fff;
+    cursor: not-allowed;
+    opacity: .72;
   }
 }
 
@@ -99,5 +186,9 @@
 
   .orderStatusPage .mobileOrderRow:active {
     transform: none;
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] button {
+    transition: none;
   }
 }

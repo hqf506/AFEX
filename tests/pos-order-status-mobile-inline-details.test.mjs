@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const page = readFileSync(new URL('../app/pos/order-status/page.tsx', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../app/pos/order-status/order-status.module.css', import.meta.url), 'utf8')
+const globals = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8')
 
 test('mobile details are adjacent to their authoritative order row inside the mapping', () => {
   const mapStart = page.indexOf('filteredOrders.map((order) =>')
@@ -27,6 +28,14 @@ test('mobile disclosure accessibility is bound to a stable details id', () => {
   assert.match(page, /aria-expanded=\{expanded\}/)
   assert.match(page, /aria-controls=\{detailsId\}/)
   assert.match(page, /aria-label=\{`عرض تفاصيل الطلب \$\{order\.order_number\}`\}/)
+})
+
+test('mobile details header identifies the selected order and expanded disclosure', () => {
+  assert.match(page, /inline \? 'تفاصيل الطلب المحدد' : 'تفاصيل الطلب'/)
+  assert.match(page, /<h2 dir="ltr">\{order\.order_number\}<\/h2>/)
+  assert.match(page, /data-order-status-inline-header=\{inline \? '' : undefined\}/)
+  assert.match(page, /className=\{styles\.collapseChevron\} aria-hidden="true"/)
+  assert.match(css, /\.inlineDetailsHeader \{[\s\S]*?min-height: 60px/)
 })
 
 test('search and refresh cannot leave an orphaned mobile details panel', () => {
@@ -56,26 +65,42 @@ test('phone breakpoint is SSR-safe and leaves protected widths on desktop detail
 
 test('mobile cards provide immediate pressed, selected, focus, and reduced-motion feedback', () => {
   assert.match(css, /\.mobileOrderRow:active \{[\s\S]*?transform: scale\(\.99\)/)
-  assert.match(css, /\.mobileOrderRow\[data-mobile-expanded='true'\] \{[\s\S]*?var\(--afex-pos-bronze\)/)
-  assert.match(css, /\.mobileOrderRow:focus-visible \{[\s\S]*?var\(--afex-pos-bronze\)/)
+  assert.match(css, /\.mobileOrderRow\[data-mobile-expanded='true'\] \{[\s\S]*?var\(--afex-pos-emerald\)/)
+  assert.match(css, /\.mobileOrderRow:focus-visible \{[\s\S]*?var\(--afex-pos-emerald\)/)
+  assert.match(globals, /--afex-pos-emerald: #b89a64/)
+  assert.match(globals, /--afex-pos-emerald: #a6844f/)
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?transition: none/)
-  assert.doesNotMatch(css, /emerald|cyan|green/i)
+  assert.doesNotMatch(css, /--afex-pos-cyan|#[0-9a-f]{0,2}(?:008000|00ff00)/i)
 })
 
 test('inline panel is content-driven, connected, overflow-safe, and keeps a 48px action', () => {
+  const inlinePanelRule = css.slice(css.indexOf('.orderStatusPage .inlineDetails {'), css.indexOf('.orderStatusPage .mobileOrderRow {'))
   assert.match(css, /\.inlineDetails \{[\s\S]*?max-height: none;[\s\S]*?margin: -1px 0 0;[\s\S]*?overflow: visible;/)
   assert.match(css, /:global\(\.pos-status-workspace\) \{\s*grid-template-columns: minmax\(0, 1fr\)/)
   assert.match(css, /\.inlineDetails :global\(\.pos-status-details-body\) \{[\s\S]*?max-height: none;[\s\S]*?overflow: visible;/)
   assert.match(css, /border-radius: 0 0 14px 14px/)
+  assert.match(css, /\.mobileOrderRow\[data-mobile-expanded='true'\] \+ \.inlineDetails \{[\s\S]*?border-inline-color:/)
+  assert.match(css, /\.mobileOrderRow\[data-mobile-expanded='true'\] \{[\s\S]*?border-bottom-color: transparent;/)
+  assert.match(css, /\.inlineDetails \{[\s\S]*?border-top-color: transparent;/)
   assert.match(css, /\[data-order-status-action\] button \{[\s\S]*?min-height: 48px/)
-  assert.doesNotMatch(css, /position:\s*(fixed|sticky)|(?:^|\n)\s*height:\s*\d+px/m)
+  assert.doesNotMatch(inlinePanelRule, /position:\s*(fixed|sticky)|(?:^|\n)\s*height:\s*\d+px/m)
 })
 
-test('nearest scrolling respects reduced motion and never targets the page bottom', () => {
-  assert.match(page, /if \(phoneLayout && reducedMotion\) row\.scrollIntoView\(\{ block: 'nearest', inline: 'nearest', behavior: 'auto' \}\)/)
-  assert.match(page, /else row\.scrollIntoView\(\{ block: 'nearest', inline: 'nearest', behavior: 'smooth' \}\)/)
+test('mobile scrolling anchors the connected header in the actual list owner', () => {
+  assert.match(page, /const scrollViewport = phoneLayout \? list\.closest<HTMLElement>\('\.pos-status-workspace'\) : list/)
+  assert.match(page, /const breathingRoom = 10/)
+  assert.match(page, /detailHeaderRect\?\.bottom/)
+  assert.match(page, /scrollViewport\.scrollTo\(\{ top: targetTop, behavior: reducedMotion \? 'auto' : 'smooth' \}\)/)
   assert.match(page, /prefers-reduced-motion: reduce/)
-  assert.doesNotMatch(page, /scrollHeight|scrollTo\(/)
+  assert.doesNotMatch(page, /window\.scrollTo|document\.body\.scrollHeight/)
+})
+
+test('mobile action reuses the approved solid AFEX action token and preserves transition semantics', () => {
+  assert.match(css, /\[data-order-status-action\] button \{[\s\S]*?background-color: var\(--afex-pos-emerald\);[\s\S]*?color: #fff;[\s\S]*?font-size: 16px/)
+  assert.match(css, /button:active:not\(:disabled\) \{[\s\S]*?filter: brightness\(\.9\)/)
+  assert.match(css, /button:disabled \{[\s\S]*?opacity: \.72/)
+  assert.match(page, /nextStatus === 'ready' \? 'نقل إلى جاهز' : 'تم التسليم'/)
+  assert.doesNotMatch(css, /--afex-pos-bronze/)
 })
 
 test('no broad global CSS file is changed by the focused mobile module contract', () => {
