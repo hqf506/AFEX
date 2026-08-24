@@ -10,7 +10,7 @@ test('mobile details are adjacent to their authoritative order row inside the ma
   const mapStart = page.indexOf('filteredOrders.map((order) =>')
   const loadMore = page.indexOf("hasMore && filteredOrders.length > 0", mapStart)
   const inlineDetails = page.indexOf('<OrderDetailsPanel id={detailsId} inline', mapStart)
-  const desktopDetails = page.indexOf('<OrderDetailsPanel order={selectedOrder}', mapStart)
+  const desktopDetails = page.indexOf('<OrderDetailsPanel order={orderDetailsById[selectedOrder.id]?.order ?? selectedOrder}', mapStart)
   assert.ok(mapStart >= 0 && inlineDetails > mapStart && inlineDetails < loadMore)
   assert.ok(desktopDetails > loadMore)
   assert.match(page.slice(mapStart, loadMore), /<Fragment key=\{order\.id\}>[\s\S]*?<button[\s\S]*?<OrderDetailsPanel id=\{detailsId\} inline/)

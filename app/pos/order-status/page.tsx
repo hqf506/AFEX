@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { formatCurrency } from '@/lib/orders/format'
+import {
+  formatOrderStatusHistoryDateTime,
+  parseOrderStatusHistoryEntries,
+  type OrderStatusHistoryEntry,
+} from '@/lib/orders/order-status-details'
 import { mapOrderSummaryToOrderRecord, ORDER_STATUS_MAP, type OrderRecord } from '@/lib/orders/orders-page'
 import { normalizeOrderRecord, type OrderSourceRow, type OrderStatus } from '@/lib/orders/normalize'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
@@ -21,6 +26,24 @@ const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
 const EASTERN_ARABIC_DIGITS = '۰۱۲۳۴۵۶۷۸۹'
 const PHONE_LAYOUT_QUERY = '(max-width: 767.98px)'
 const SHORT_PHONE_LANDSCAPE_QUERY = '(max-height: 500px) and (hover: none) and (pointer: coarse)'
+
+type OrderDetailsReadState = 'loading' | 'success' | 'error'
+
+type OrderDetailsCacheEntry = {
+  readState: OrderDetailsReadState
+  order?: OrderRecord
+  historyReadState: OrderDetailsReadState
+  history: OrderStatusHistoryEntry[]
+}
+
+type OrderDetailsApiResponse = {
+  success?: boolean
+  items?: unknown[]
+  statusHistory?: {
+    readState?: unknown
+    entries?: unknown
+  }
+}
 
 function normalizeDisplayedOrderNumber(value: string) {
   return value
@@ -57,6 +80,8 @@ function OrderDetailsPanel({
   nextStatus,
   onAdvance,
   order,
+  details,
+  onRetryDetails,
   updatingId,
 }: {
   id?: string
@@ -64,8 +89,14 @@ function OrderDetailsPanel({
   nextStatus?: OrderStatus
   onAdvance: (order: OrderRecord) => void
   order: OrderRecord
+  details?: OrderDetailsCacheEntry
+  onRetryDetails: (orderId: string) => void
   updatingId: string | null
 }) {
+  const detailsReadState = details?.readState ?? 'loading'
+  const historyReadState = details?.historyReadState ?? (detailsReadState === 'error' ? 'error' : 'loading')
+  const detailedOrder = details?.order ?? order
+
   return <aside
     id={id}
     className={`pos-status-details ${inline ? styles.inlineDetails : styles.desktopDetails}`}
@@ -89,9 +120,12 @@ function OrderDetailsPanel({
       </dl>
       <section className="pos-status-details-items" aria-label="عناصر الطلب">
         <h3>العناصر</h3>
-        {order.items.length > 0 ? order.items.map((item, index) => <article key={`${order.id}-${index}`}>
-          <div><strong>{item.item_name || 'عنصر غير متاح'}</strong><small>{item.quantity} × {formatCurrency(item.unit_price)}</small></div><b>{formatCurrency(item.line_total)}</b>
-        </article>) : <p>غير متاح</p>}
+        {detailsReadState === 'loading' ? <p role="status">جارٍ تحميل عناصر الطلب...</p> : null}
+        {detailsReadState === 'error' ? <div className={styles.detailsReadError} role="alert"><p>تعذر تحميل عناصر الطلب.</p><button type="button" onClick={() => onRetryDetails(order.id)}>إعادة المحاولة</button></div> : null}
+        {detailsReadState === 'success' && detailedOrder.items.length > 0 ? detailedOrder.items.map((item, index) => <article key={`${order.id}-${index}`}>
+          <div><strong>{item.item_name || 'عنصر غير متاح'}</strong><small>الكمية: {item.quantity} × {formatCurrency(item.unit_price)}</small></div><b>الإجمالي: {formatCurrency(item.line_total)}</b>
+        </article>) : null}
+        {detailsReadState === 'success' && detailedOrder.items.length === 0 ? <p>لا توجد عناصر مسجلة لهذا الطلب</p> : null}
       </section>
       <dl className="pos-status-totals">
         <div><dt>المجموع قبل الضريبة</dt><dd>{formatCurrency(order.subtotal)}</dd></div>
@@ -99,7 +133,18 @@ function OrderDetailsPanel({
         <div><dt>الخصم</dt><dd>{formatCurrency(order.discount)}</dd></div>
         <div className="is-grand-total"><dt>الإجمالي النهائي</dt><dd>{formatCurrency(order.total)}</dd></div>
       </dl>
-      <div className="pos-status-history"><span>سجل الحالة</span><strong>غير متاح</strong></div>
+      <section className="pos-status-history" aria-label="سجل الحالة">
+        <span>سجل الحالة</span>
+        {historyReadState === 'loading' ? <p role="status">جارٍ تحميل سجل الحالة...</p> : null}
+        {historyReadState === 'error' ? <div className={styles.detailsReadError} role="alert"><p>تعذر تحميل سجل الحالة.</p><button type="button" onClick={() => onRetryDetails(order.id)}>إعادة المحاولة</button></div> : null}
+        {historyReadState === 'success' && details?.history.length ? <ol className={styles.historyList}>
+          {details.history.map((entry) => <li key={entry.id} data-current={entry.isCurrent ? 'true' : 'false'}>
+            <div><strong>{ORDER_STATUS_MAP[entry.status].label}</strong>{entry.employeeName ? <small>{entry.employeeName}</small> : null}</div>
+            <time dateTime={entry.createdAt}>{formatOrderStatusHistoryDateTime(entry.createdAt)}</time>
+          </li>)}
+        </ol> : null}
+        {historyReadState === 'success' && details?.history.length === 0 ? <p>لا يوجد سجل تغييرات لهذا الطلب</p> : null}
+      </section>
     </div>
     <footer data-order-status-action>
       {nextStatus ? <button type="button" onClick={() => onAdvance(order)} disabled={updatingId !== null} aria-busy={updatingId === order.id}>{updatingId === order.id ? 'جارٍ التحديث...' : nextStatus === 'ready' ? 'نقل إلى جاهز' : 'تم التسليم'}</button> : <p role="status">لا يوجد انتقال حالة متاح لهذا الطلب.</p>}
@@ -118,8 +163,73 @@ export default function PosOrderStatusPage() {
   const [hasMore, setHasMore] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [orderDetailsById, setOrderDetailsById] = useState<Record<string, OrderDetailsCacheEntry>>({})
   const listRef = useRef<HTMLDivElement>(null)
   const selectedRowRef = useRef<HTMLButtonElement>(null)
+  const orderDetailsCacheRef = useRef<Record<string, OrderDetailsCacheEntry>>({})
+  const orderDetailsInFlightRef = useRef(new Map<string, AbortController>())
+
+  const storeOrderDetails = useCallback((orderId: string, entry: OrderDetailsCacheEntry) => {
+    orderDetailsCacheRef.current = { ...orderDetailsCacheRef.current, [orderId]: entry }
+    setOrderDetailsById((current) => ({ ...current, [orderId]: entry }))
+  }, [])
+
+  const loadOrderDetails = useCallback(async (orderId: string, force = false) => {
+    const cached = orderDetailsCacheRef.current[orderId]
+    if (!force && cached?.readState === 'success') return
+    if (orderDetailsInFlightRef.current.has(orderId)) return
+
+    const controller = new AbortController()
+    orderDetailsInFlightRef.current.set(orderId, controller)
+    storeOrderDetails(orderId, {
+      readState: 'loading',
+      order: cached?.order,
+      historyReadState: 'loading',
+      history: cached?.history ?? [],
+    })
+
+    try {
+      const params = new URLSearchParams({ mode: 'details', id: orderId })
+      const response = await fetch(`/api/orders?${params.toString()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+      const result = await response.json().catch(() => null) as OrderDetailsApiResponse | null
+      if (!response.ok || !result?.success || !Array.isArray(result.items) || result.items.length !== 1) {
+        throw new Error('ORDER_DETAILS_READ_FAILED')
+      }
+
+      const detailedOrder = mapOrderSummaryToOrderRecord(normalizeOrderRecord(result.items[0] as OrderSourceRow, 0))
+      if (detailedOrder.id !== orderId) throw new Error('ORDER_DETAILS_ID_MISMATCH')
+
+      const historyReadState = result.statusHistory?.readState === 'success' ? 'success' : 'error'
+      storeOrderDetails(orderId, {
+        readState: 'success',
+        order: detailedOrder,
+        historyReadState,
+        history: historyReadState === 'success'
+          ? parseOrderStatusHistoryEntries(result.statusHistory?.entries)
+          : [],
+      })
+    } catch {
+      if (controller.signal.aborted) return
+      storeOrderDetails(orderId, {
+        readState: 'error',
+        historyReadState: 'error',
+        history: [],
+      })
+    } finally {
+      if (orderDetailsInFlightRef.current.get(orderId) === controller) {
+        orderDetailsInFlightRef.current.delete(orderId)
+      }
+    }
+  }, [storeOrderDetails])
+
+  useEffect(() => () => {
+    for (const controller of orderDetailsInFlightRef.current.values()) controller.abort()
+    orderDetailsInFlightRef.current.clear()
+  }, [])
 
   const loadOrders = useCallback(async (requestedPage = 1) => {
     if (!access.allowed || !access.tenantId || !access.branchId) return
@@ -169,6 +279,10 @@ export default function PosOrderStatusPage() {
     [filteredOrders, selectedId],
   )
   const selectedNextStatus = selectedOrder ? STATUS_TRANSITIONS[selectedOrder.status] : undefined
+
+  useEffect(() => {
+    if (selectedOrder?.id) void loadOrderDetails(selectedOrder.id)
+  }, [loadOrderDetails, selectedOrder?.id])
 
   useEffect(() => {
     if (!selectedId || filteredOrders.some((order) => order.id === selectedId)) return
@@ -266,6 +380,8 @@ export default function PosOrderStatusPage() {
           {filteredOrders.map((order) => {
             const expanded = order.id === selectedId
             const detailsId = `pos-order-status-details-${order.id}`
+            const orderDetails = orderDetailsById[order.id]
+            const displayedOrder = orderDetails?.order ?? order
             return <Fragment key={order.id}>
               <button
                 type="button"
@@ -285,7 +401,7 @@ export default function PosOrderStatusPage() {
                 <b>{formatCurrency(order.total)}</b>
                 <span className={ORDER_STATUS_MAP[order.status].className}>{ORDER_STATUS_MAP[order.status].label}</span>
               </button>
-              {expanded ? <OrderDetailsPanel id={detailsId} inline order={order} nextStatus={STATUS_TRANSITIONS[order.status]} updatingId={updatingId} onAdvance={(selected) => void advance(selected)} /> : null}
+              {expanded ? <OrderDetailsPanel id={detailsId} inline order={displayedOrder} details={orderDetails} nextStatus={STATUS_TRANSITIONS[order.status]} updatingId={updatingId} onRetryDetails={(orderId) => void loadOrderDetails(orderId, true)} onAdvance={(selected) => void advance(selected)} /> : null}
             </Fragment>
           })}
           {filteredOrders.length === 0 ? <div className="pos-status-search-empty"><SearchIcon /><strong>لا توجد فاتورة مطابقة</strong><button type="button" onClick={() => updateSearch('')}>مسح البحث</button></div> : null}
@@ -293,7 +409,7 @@ export default function PosOrderStatusPage() {
         </div>
       </section>
 
-      {selectedOrder ? <OrderDetailsPanel order={selectedOrder} nextStatus={selectedNextStatus} updatingId={updatingId} onAdvance={(selected) => void advance(selected)} /> : <aside className={`pos-status-details is-empty ${styles.desktopDetails}`} data-order-status-details aria-live="polite"><SearchIcon /><h2>لا توجد فاتورة مطابقة</h2><p>امسح البحث لعرض الطلبات المتاحة.</p></aside>}
+      {selectedOrder ? <OrderDetailsPanel order={orderDetailsById[selectedOrder.id]?.order ?? selectedOrder} details={orderDetailsById[selectedOrder.id]} nextStatus={selectedNextStatus} updatingId={updatingId} onRetryDetails={(orderId) => void loadOrderDetails(orderId, true)} onAdvance={(selected) => void advance(selected)} /> : <aside className={`pos-status-details is-empty ${styles.desktopDetails}`} data-order-status-details aria-live="polite"><SearchIcon /><h2>لا توجد فاتورة مطابقة</h2><p>امسح البحث لعرض الطلبات المتاحة.</p></aside>}
     </section> : null}
   </main></div>
 }

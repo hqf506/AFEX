@@ -6,6 +6,72 @@
   min-width: 0;
 }
 
+.orderStatusPage .historyList {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.orderStatusPage .historyList li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-inline-start: 2px solid var(--afex-pos-border);
+  border-radius: 8px;
+}
+
+.orderStatusPage .historyList li[data-current='true'] {
+  border-inline-start-color: var(--afex-pos-emerald);
+  background: color-mix(in srgb, var(--afex-pos-emerald) 9%, transparent);
+}
+
+.orderStatusPage .historyList li div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.orderStatusPage .historyList strong,
+.orderStatusPage .historyList small,
+.orderStatusPage .historyList time {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.orderStatusPage .historyList small,
+.orderStatusPage .historyList time {
+  color: var(--afex-pos-text-secondary);
+  font-size: 10px;
+}
+
+.orderStatusPage .detailsReadError {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.orderStatusPage .detailsReadError p {
+  margin: 0;
+}
+
+.orderStatusPage .detailsReadError button {
+  min-height: 44px;
+  border: 1px solid var(--afex-pos-border);
+  border-radius: 9px;
+  background: var(--afex-pos-raised);
+  color: var(--afex-pos-text);
+  font: inherit;
+  font-weight: 800;
+}
+
 @media (max-width: 767.98px), (max-height: 500px) and (hover: none) and (pointer: coarse) {
   .orderStatusPage .desktopDetails {
     display: none !important;

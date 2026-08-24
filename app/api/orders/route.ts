@@ -39,8 +39,9 @@ import {
   POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
 import type { ServerTiming } from '@/lib/performance/server-timing'
-import type { OrderStatus } from '@/lib/orders/normalize'
+import { normalizeOrderStatus, type OrderStatus } from '@/lib/orders/normalize'
 import { getPosOrderHistoryCutoffIso } from '@/lib/orders/recent-window'
+import { loadAuthorizedOrderStatusHistory } from '@/lib/server/orders/order-status-history'
 import {
   resolveEffectiveOrderStatus,
   type EffectiveOrderStatus,
@@ -78,6 +79,7 @@ type OrdersApiPayload = {
   comparisonSignature: string
   summary?: Record<string, number>
   employeeNames?: Record<string, string>
+  statusHistory?: Awaited<ReturnType<typeof loadAuthorizedOrderStatusHistory>>
 }
 
 let hasHandledOrderPerformanceRequest = false
@@ -504,6 +506,16 @@ export async function GET(request: NextRequest) {
         )
       }
 
+      const statusHistory = data
+        ? await timing.measure('status_history', () => loadAuthorizedOrderStatusHistory({
+            tenantId: auth.profile.tenant_id as string,
+            branchId: auth.profile.branch_id,
+            scopeType: auth.profile.scope_type,
+            orderId: query.id as string,
+            currentStatus: normalizeOrderStatus(data.status),
+          }))
+        : { readState: 'success' as const, entries: [] }
+
       return jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
         success: true,
         mode: query.mode,
@@ -515,6 +527,7 @@ export async function GET(request: NextRequest) {
         comparisonSignature: data
           ? buildOrdersComparisonSignature([data])
           : '',
+        statusHistory,
       })
     }
 
