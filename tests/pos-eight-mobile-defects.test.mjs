@@ -67,6 +67,7 @@ test('checkout mobile contract compacts presentation while retaining 44px target
   assert.match(checkout, /@media \(max-width: 767\.98px\),[\s\S]*?\.methods > button\s*\{[^}]*min-height:\s*72px;/s)
   assert.match(checkout, /@media \(max-width: 767\.98px\),[\s\S]*?\.discountOptions button\s*\{[^}]*min-height:\s*44px;/s)
   assert.match(checkout, /@media \(max-width: 767\.98px\),[\s\S]*?\.submit\s*\{[^}]*min-height:\s*48px;/s)
+  assert.match(checkout, /@media \(max-width: 767\.98px\),[\s\S]*?\.mobileSummaryBar button:last-child\s*\{[^}]*min-width:\s*44px;[^}]*flex-basis:\s*44px;/s)
 })
 
 test('success Model 4 balances phone height without changing the landscape contract', () => {

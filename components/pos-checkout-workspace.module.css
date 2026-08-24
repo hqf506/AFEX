@@ -305,6 +305,11 @@
     padding-inline: 10px;
   }
 
+  .mobileSummaryBar button:last-child {
+    min-width: 44px;
+    flex-basis: 44px;
+  }
+
   .due {
     gap: 1px;
     margin-bottom: 7px;
