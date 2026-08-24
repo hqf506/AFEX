@@ -14,7 +14,7 @@ test('mobile invoice controls retain continuous source order', () => {
   const search = page.indexOf('className="pos-invoices-search"')
   const filters = page.indexOf('aria-label="تصفية الفواتير"')
   const dateHeading = page.indexOf('className="pos-invoice-date-group"')
-  const card = page.indexOf('className="pos-invoice-ledger-row"')
+  const card = page.indexOf('data-mobile-invoice-row')
   assert.ok(search > 0 && search < filters && filters < dateHeading && dateHeading < card)
 })
 
@@ -48,7 +48,7 @@ test('card rows preserve all authoritative invoice fields', () => {
   for (const field of ['invoice-number', 'customer', 'time', 'payment', 'total', 'status']) {
     assert.match(page, new RegExp(`data-column="${field}"`))
   }
-  assert.match(page, /data-mobile-action="عرض التفاصيل"/)
+  assert.match(page, /data-mobile-invoice-details-trigger[^>]*aria-label=\{`عرض تفاصيل الفاتورة/)
 })
 
 test('invoice and monetary values remain bidi isolated and tabular', () => {

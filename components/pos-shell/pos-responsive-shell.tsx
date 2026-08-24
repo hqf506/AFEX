@@ -46,11 +46,20 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [ending, setEnding] = useState(false)
   const [saleHomeConfirmOpen, setSaleHomeConfirmOpen] = useState(false)
+  const [mobileSubrouteNavigationEnabled, setMobileSubrouteNavigationEnabled] = useState(false)
   const { settings } = useSystemSettings(true)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setEmployee(readActivePosEmployee()), 0)
     return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    const mobileNavigationQuery = window.matchMedia('(max-width: 767.98px)')
+    const synchronizeMobileNavigation = () => setMobileSubrouteNavigationEnabled(mobileNavigationQuery.matches)
+    synchronizeMobileNavigation()
+    mobileNavigationQuery.addEventListener('change', synchronizeMobileNavigation)
+    return () => mobileNavigationQuery.removeEventListener('change', synchronizeMobileNavigation)
   }, [])
 
   const branchName = settings?.branch_name?.trim() || 'الفرع الرئيسي'
@@ -59,6 +68,7 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   const isSaleRoute = pathname.startsWith('/pos/sale/')
   const isCustomerRoute = pathname === '/pos/sale/customer'
   const isItemsRoute = pathname === '/pos/sale/items'
+  const mobileNavigationOpen = drawerOpen && (isPosHome || mobileSubrouteNavigationEnabled)
   const saleHeader = pathname === '/pos/sale/customer'
     ? { title: 'اختيار العميل', back: '/pos' }
     : pathname === '/pos/sale/checkout'
@@ -86,6 +96,15 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
     }
     router.replace('/pos')
   }, [router])
+
+  useEffect(() => {
+    if (!mobileNavigationOpen) return
+    const closeNavigationOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDrawerOpen(false)
+    }
+    window.addEventListener('keydown', closeNavigationOnEscape)
+    return () => window.removeEventListener('keydown', closeNavigationOnEscape)
+  }, [mobileNavigationOpen])
 
   if (!employee) return <>{children}</>
 
@@ -138,10 +157,10 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
         <PosThemeToggle />
       </header> : !isSaleRoute && !isMore ? <header className="afex-pos-responsive-header">
         <strong>نقطة البيع</strong>
-        <div className="afex-pos-responsive-actions"><PosThemeToggle /><button type="button" aria-label="فتح التنقل" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>☰</button></div>
+        <div className="afex-pos-responsive-actions"><PosThemeToggle /><button type="button" data-pos-mobile-menu-trigger aria-label="فتح القائمة" aria-controls="afex-pos-mobile-navigation" aria-expanded={mobileNavigationOpen} onClick={() => { if (isPosHome || mobileSubrouteNavigationEnabled) setDrawerOpen(true) }}>☰</button></div>
       </header> : null}
       {isPosHome ? <aside className="afex-pos-sidebar">{menu}</aside> : null}
-      {isPosHome && drawerOpen ? <div className="afex-pos-drawer-backdrop" onMouseDown={() => setDrawerOpen(false)}><aside className="afex-pos-drawer" onMouseDown={(event) => event.stopPropagation()}>{menu}</aside></div> : null}
+      {mobileNavigationOpen ? <div className="afex-pos-drawer-backdrop" data-pos-mobile-navigation-backdrop onMouseDown={(event) => { if (event.target === event.currentTarget) setDrawerOpen(false) }}><aside id="afex-pos-mobile-navigation" className="afex-pos-drawer" aria-label="قائمة نقطة البيع" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="afex-pos-drawer-close" aria-label="إغلاق القائمة" onClick={() => setDrawerOpen(false)}>×</button>{menu}</aside></div> : null}
       <div className={`afex-pos-shell-content ${isMore ? 'is-more-route' : ''}`}>
         <div className="afex-pos-route-content">{children}</div>
       </div>
