@@ -289,6 +289,212 @@
   .submit { min-height: 56px; font-size: .9rem; }
 }
 
+@media (max-width: 767.98px),
+  (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .paymentScroll {
+    padding: 8px max(10px, env(safe-area-inset-right)) 9px max(10px, env(safe-area-inset-left));
+  }
+
+  .mobileSummaryBar {
+    gap: 6px;
+    margin-bottom: 7px;
+  }
+
+  .mobileSummaryBar button {
+    min-height: 44px;
+    padding-inline: 10px;
+  }
+
+  .due {
+    gap: 1px;
+    margin-bottom: 7px;
+  }
+
+  .due span {
+    font-size: .72rem;
+  }
+
+  .due strong {
+    font-size: clamp(1.7rem, 8.5vw, 2.2rem);
+  }
+
+  .methodSection > h2 {
+    margin-bottom: 6px;
+    font-size: .9rem;
+  }
+
+  .methods {
+    gap: 6px;
+  }
+
+  .methods > button {
+    min-height: 72px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 12px;
+    text-align: start;
+  }
+
+  .methodIcon {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
+
+  .methodIcon svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .methodCopy {
+    gap: 1px;
+  }
+
+  .methodCopy strong {
+    font-size: .8rem;
+  }
+
+  .methodCopy small {
+    font-size: .6rem;
+    line-height: 1.3;
+  }
+
+  .selectedCheck {
+    inset-block-start: 5px;
+    inset-inline-end: 5px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .paymentContext {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-top: 7px;
+    padding: 7px 8px;
+    border-radius: 12px;
+  }
+
+  .contextIcon {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
+
+  .contextIcon svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .contextCopy h3 {
+    font-size: .8rem;
+  }
+
+  .contextCopy p {
+    margin-top: 1px;
+    font-size: .62rem;
+  }
+
+  .contextStatus {
+    grid-column: auto;
+    width: auto;
+  }
+
+  .contextStatus > b {
+    font-size: .7rem;
+  }
+
+  .paymentReady {
+    width: auto;
+    min-height: 44px;
+    padding-inline: 9px;
+    font-size: .68rem;
+  }
+
+  .cashFields {
+    gap: 6px;
+    margin-top: 0;
+  }
+
+  .cashFields label,
+  .cashFields > div {
+    min-height: 56px;
+    gap: 2px;
+    padding: 6px 8px;
+  }
+
+  .options {
+    gap: 7px;
+    margin-top: 7px;
+    padding: 7px;
+    border-radius: 12px;
+  }
+
+  .discountOptions {
+    gap: 4px;
+  }
+
+  .discountOptions button {
+    min-width: 108px;
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: .68rem;
+  }
+
+  .noteField {
+    gap: 4px;
+  }
+
+  .noteField textarea {
+    min-height: 54px;
+    max-height: 80px;
+    padding: 7px 8px;
+  }
+
+  .actionDock {
+    padding: 6px max(10px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+
+  .submit {
+    min-height: 48px;
+    border-radius: 11px;
+    font-size: .82rem;
+  }
+}
+
+@media (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .paymentScroll {
+    padding-block: 5px;
+  }
+
+  .due {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 7px;
+    margin-bottom: 4px;
+  }
+
+  .due strong {
+    font-size: 1.55rem;
+  }
+
+  .methods > button {
+    min-height: 56px;
+  }
+
+  .methodCopy small,
+  .contextCopy p {
+    display: none;
+  }
+
+  .paymentContext,
+  .options {
+    margin-top: 4px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .workspace *, .workspace *::before, .workspace *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }

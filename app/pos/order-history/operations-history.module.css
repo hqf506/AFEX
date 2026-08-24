@@ -296,3 +296,232 @@
   .dialogHeader { padding: 14px 15px; }
   .dialogBody { padding: 14px 15px 20px; }
 }
+
+@media (max-width: 767.98px),
+  (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .page {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .main {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    padding: 8px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .headerArea {
+    gap: 7px;
+    padding-bottom: 8px;
+    background: var(--surface);
+  }
+
+  .header {
+    min-height: 0;
+    gap: 7px;
+  }
+
+  .title {
+    gap: 8px;
+  }
+
+  .title > span {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .title h1 {
+    font-size: 20px;
+  }
+
+  .title p {
+    margin-top: 2px;
+    font-size: 10px;
+  }
+
+  .employee {
+    max-width: none;
+    height: 44px;
+    justify-self: stretch;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .actions button,
+  .actions button + button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .summary {
+    display: grid;
+    width: 100%;
+    max-width: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .summary > div,
+  .summary > div:nth-child(3) {
+    width: auto;
+    min-width: 0;
+    height: 48px;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 4px;
+    padding: 5px 7px;
+  }
+
+  .summary svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .summary small {
+    font-size: 9px;
+  }
+
+  .summary strong {
+    font-size: 17px;
+  }
+
+  .toolbar {
+    gap: 6px;
+  }
+
+  .toolbar input,
+  .toolbar select {
+    height: 44px;
+    padding-inline: 11px;
+    font-size: 12px;
+  }
+
+  .scroll {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .timeline {
+    margin-top: 8px;
+  }
+
+  .day {
+    gap: 7px;
+    margin: 10px 0;
+    font-size: 12px;
+  }
+
+  .item {
+    min-height: 0;
+    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-areas: 'marker time' 'card card';
+    gap: 5px 8px;
+    margin-bottom: 8px;
+  }
+
+  .item::after {
+    display: none;
+  }
+
+  .item time {
+    grid-area: time;
+    justify-self: end;
+    align-self: center;
+    font-size: 11px;
+    unicode-bidi: isolate;
+  }
+
+  .marker {
+    grid-area: marker;
+  }
+
+  .card {
+    grid-area: card;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'operation operation' 'reference customer' 'status action';
+    gap: 5px 8px;
+    padding: 8px 9px;
+  }
+
+  .card::after {
+    display: none;
+  }
+
+  .operation {
+    grid-area: operation;
+    gap: 1px;
+  }
+
+  .operation strong {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .operation p {
+    font-size: 10px;
+    line-height: 1.45;
+  }
+
+  .reference,
+  .customer {
+    display: grid;
+    min-width: 0;
+    gap: 1px;
+    border: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .reference {
+    grid-area: reference;
+    unicode-bidi: isolate;
+  }
+
+  .customer {
+    grid-area: customer;
+  }
+
+  .reference::before,
+  .customer::before {
+    color: var(--muted);
+    font-size: 8px;
+    font-weight: 800;
+  }
+
+  .reference::before {
+    content: 'المرجع';
+  }
+
+  .customer::before {
+    content: 'العميل';
+  }
+
+  .status {
+    grid-area: status;
+    justify-self: start;
+    min-height: 28px;
+    padding: 4px 9px;
+    font-size: 10px;
+  }
+
+  .card button {
+    grid-area: action;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+}

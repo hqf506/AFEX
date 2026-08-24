@@ -1168,7 +1168,7 @@
   .cartBackdrop {
     position: fixed;
     inset: 0;
-    z-index: 40;
+    z-index: 90;
     display: block;
     border: 0;
     background: rgb(26 17 11 / 0.62);
@@ -1178,7 +1178,7 @@
   .cart {
     position: fixed !important;
     inset: 0 !important;
-    z-index: 50 !important;
+    z-index: 100 !important;
     display: none !important;
     width: 100% !important;
     height: 100dvh !important;

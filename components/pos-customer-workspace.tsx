@@ -59,17 +59,32 @@ function formatRiyadhDate(value: string | null) {
   }).format(date)
 }
 
+function formatRiyadhLastOrder(value: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return {
+    date: new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
+      timeZone: 'Asia/Riyadh', year: 'numeric', month: 'short', day: 'numeric',
+    }).format(date),
+    time: new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
+      timeZone: 'Asia/Riyadh', hour: '2-digit', minute: '2-digit',
+    }).format(date),
+  }
+}
+
 function DetailIcon({ children }: { children: ReactNode }) {
   return <span className="afex-customer-detail-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{children}</svg></span>
 }
 
-function DetailRow({ icon, label, value, ltr = false }: { icon: ReactNode; label: string; value: ReactNode; ltr?: boolean }) {
+function DetailRow({ icon, label, value, ltr = false, className = '' }: { icon: ReactNode; label: string; value: ReactNode; ltr?: boolean; className?: string }) {
   const valueTitle = typeof value === 'string' || typeof value === 'number' ? String(value) : undefined
-  return <div className="afex-customer-detail-row">{icon}<span>{label}</span><strong dir={ltr ? 'ltr' : undefined} title={valueTitle}>{value}</strong></div>
+  return <div className={`afex-customer-detail-row${className ? ` ${className}` : ''}`}>{icon}<span>{label}</span><strong dir={ltr ? 'ltr' : undefined} title={valueTitle}>{value}</strong></div>
 }
 
 function CustomerProfile({ profile }: { profile: SelectedCustomerProfile }) {
   const noOrders = profile.visitCount === 0
+  const lastOrderDateTime = formatRiyadhLastOrder(profile.lastOrderAt)
   return (
     <div className="afex-customer-profile-scroll" data-customer-profile-scroll>
       <div className="afex-customer-detail-group">
@@ -87,7 +102,7 @@ function CustomerProfile({ profile }: { profile: SelectedCustomerProfile }) {
         <div className="afex-customer-detail-group" aria-label="نشاط العميل">
           {profile.visitCount !== null ? <DetailRow label="عدد الزيارات" value={`${profile.visitCount}`} icon={<DetailIcon><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></DetailIcon>} /> : null}
           {profile.totalSpending !== null ? <DetailRow label="إجمالي المشتريات" value={formatCurrency(profile.totalSpending)} icon={<DetailIcon><circle cx="12" cy="12" r="9" /><path d="M8 12h8M12 8v8" /></DetailIcon>} /> : null}
-          {noOrders || profile.lastOrderNumber || profile.lastOrderAt ? <DetailRow label="آخر طلب" value={noOrders ? 'لا يوجد' : `${profile.lastOrderNumber || missingValue} · ${formatRiyadhDate(profile.lastOrderAt)}`} icon={<DetailIcon><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z" /><path d="M9 7h6M9 11h6" /></DetailIcon>} /> : null}
+          {noOrders || profile.lastOrderNumber || profile.lastOrderAt ? <DetailRow className="is-customer-last-order" label="آخر طلب" value={noOrders ? 'لا يوجد' : <span className="afex-customer-last-order-value"><bdi dir="ltr">{profile.lastOrderNumber || missingValue}</bdi><span className="is-separator" aria-hidden="true">·</span><time dateTime={profile.lastOrderAt || undefined}><bdi>{lastOrderDateTime?.date || missingValue}</bdi><span className="is-separator" aria-hidden="true">·</span><bdi>{lastOrderDateTime?.time || missingValue}</bdi></time></span>} icon={<DetailIcon><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z" /><path d="M9 7h6M9 11h6" /></DetailIcon>} /> : null}
         </div>
       ) : null}
     </div>

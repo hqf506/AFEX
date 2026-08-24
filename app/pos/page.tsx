@@ -456,10 +456,10 @@ function PosOperationalHome({
                 const statusUi = status ? POS_ORDER_STATUS_UI[status] : null
                 return (
                   <article key={order.id} className="pos-order-row" role="listitem">
-                    <div className="pos-order-number"><small>رقم الطلب</small><strong>{order.order_number}</strong></div>
-                    <div className="pos-order-date"><small>التاريخ والوقت</small><span>{formatPosGregorianDate(order.created_at)} · {formatOrderTime(order.created_at)}</span></div>
+                    <div className="pos-order-number"><small>رقم الطلب</small><strong dir="ltr">{order.order_number}</strong></div>
+                    <div className="pos-order-date"><small>التاريخ والوقت</small><span><bdi>{formatPosGregorianDate(order.created_at)}</bdi><span aria-hidden="true"> · </span><bdi>{formatOrderTime(order.created_at)}</bdi></span></div>
                     <div className="pos-order-status"><small>الحالة</small><span><i className={statusUi?.dotClassName || 'bg-slate-400'} />{statusUi?.label || order.status}</span></div>
-                    <div className="pos-order-total"><small>الإجمالي</small><strong>{formatCurrency(order.total)}</strong></div>
+                    <div className="pos-order-total"><small>الإجمالي</small><strong dir="ltr">{formatCurrency(order.total)}</strong></div>
                     <div className="pos-order-action"><Link href="/pos/order-history">عرض التفاصيل</Link></div>
                   </article>
                 )

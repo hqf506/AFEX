@@ -4,6 +4,7 @@ import { AuthStateProvider } from '@/components/auth-state-provider'
 import { DevCacheReset } from '@/components/dev-cache-reset'
 import './globals.css'
 import './pos-tablet.css'
+import './pos-mobile-defects.css'
 
 const cairo = localFont({
   src: [
