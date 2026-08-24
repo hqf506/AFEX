@@ -300,6 +300,87 @@
 
 @media (max-width: 767.98px),
   (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  :global(html[data-pos-theme='dark']) .page {
+    --gold: var(--afex-pos-emerald);
+    --border: var(--afex-pos-border);
+    --surface: var(--afex-pos-panel);
+    --text: var(--afex-pos-text);
+    --muted: var(--afex-pos-text-secondary);
+    --success: #b7e4c0;
+    --danger: #ff9aa4;
+    background: var(--afex-pos-base);
+    color-scheme: dark;
+  }
+
+  :global(html[data-pos-theme='dark']) .title > span,
+  :global(html[data-pos-theme='dark']) .employee,
+  :global(html[data-pos-theme='dark']) .toolbar input,
+  :global(html[data-pos-theme='dark']) .toolbar select,
+  :global(html[data-pos-theme='dark']) .card,
+  :global(html[data-pos-theme='dark']) .marker {
+    border-color: var(--border);
+    background: var(--surface);
+    box-shadow: none;
+  }
+
+  :global(html[data-pos-theme='dark']) .actions button + button {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  :global(html[data-pos-theme='dark']) .toolbar input::placeholder,
+  :global(html[data-pos-theme='dark']) .item time,
+  :global(html[data-pos-theme='dark']) .reference,
+  :global(html[data-pos-theme='dark']) .customer,
+  :global(html[data-pos-theme='dark']) .card button {
+    color: var(--muted);
+  }
+
+  :global(html[data-pos-theme='dark']) .toolbar input:focus-visible,
+  :global(html[data-pos-theme='dark']) .toolbar select:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  :global(html[data-pos-theme='dark']) .day {
+    color: var(--muted);
+  }
+
+  :global(html[data-pos-theme='dark']) .item::after {
+    background: var(--border);
+  }
+
+  :global(html[data-pos-theme='dark']) .card::after {
+    border-color: var(--border);
+    background: var(--surface);
+  }
+
+  :global(html[data-pos-theme='dark']) .success {
+    background: color-mix(in srgb, #26743b 28%, var(--surface));
+    color: var(--success);
+  }
+
+  :global(html[data-pos-theme='dark']) .neutral {
+    background: color-mix(in srgb, var(--gold) 18%, var(--surface));
+    color: #e7c985;
+  }
+
+  :global(html[data-pos-theme='dark']) .danger {
+    background: color-mix(in srgb, var(--afex-pos-danger) 18%, var(--surface));
+    color: var(--danger);
+  }
+
+  :global(html[data-pos-theme='dark']) .card .detailsAction {
+    border-color: color-mix(in srgb, var(--gold) 58%, var(--border));
+    background: color-mix(in srgb, var(--gold) 12%, var(--surface));
+    color: #e7c985;
+  }
+
+  :global(html[data-pos-theme='dark']) .skeleton {
+    background: var(--afex-pos-hover);
+  }
+
   .page {
     height: 100%;
     min-height: 0;

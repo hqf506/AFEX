@@ -181,7 +181,7 @@
   .mobileSheetFooter button {
     display: flex;
     min-width: 0;
-    min-height: 46px;
+    min-height: 48px;
     align-items: center;
     justify-content: center;
     gap: 7px;
@@ -197,14 +197,22 @@
   }
 
   .mobileSheetFooter button:last-child {
-    border-color: var(--afex-pos-bronze);
-    background: var(--afex-pos-bronze);
-    color: #fff;
+    border-color: var(--afex-pos-emerald);
+    background: var(--afex-pos-raised);
+    color: var(--afex-pos-emerald);
+  }
+
+  :global(html[data-pos-theme='light']) .mobileSheetFooter button:last-child {
+    color: var(--afex-pos-emerald-strong);
   }
 
   .mobileSheetFooter button:disabled {
-    cursor: wait;
-    opacity: .55;
+    border-color: var(--afex-pos-border);
+    border-style: dashed;
+    background: var(--afex-pos-panel);
+    color: var(--afex-pos-text-secondary);
+    cursor: not-allowed;
+    opacity: 1;
   }
 
   .mobileSheetFooter svg {
