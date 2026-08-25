@@ -48,7 +48,13 @@ type OrderDetailsApiResponse = {
 type OrderStatusMutationResponse = {
   success?: boolean
   errorCode?: string
+  idempotent?: boolean
   order?: { id?: unknown; status?: unknown }
+  transition?: { outcome?: unknown; classification?: unknown }
+  notification?: {
+    outcome?: unknown
+    classification?: unknown
+  }
 }
 
 type MutationFeedback = { type: 'success' | 'error'; message: string }
@@ -67,6 +73,41 @@ function getOrderStatusMutationMessage(errorCode: string | undefined, status: nu
     return 'الطلب غير موجود أو لم يعد متاحًا.'
   }
   return 'تعذر حفظ حالة الطلب. بقيت الحالة الحالية دون تغيير.'
+}
+
+function getOrderStatusSuccessFeedback(
+  result: OrderStatusMutationResponse,
+  nextStatus: 'ready' | 'closed'
+): MutationFeedback {
+  const notificationClassification = result.notification?.classification
+
+  if (result.idempotent || notificationClassification === 'ALREADY_APPLIED_NO_RESEND') {
+    return {
+      type: 'success',
+      message: 'حالة الطلب محدثة مسبقًا. لم يُعد إرسال إشعار واتساب.',
+    }
+  }
+
+  if (notificationClassification === 'WHATSAPP_SENT') {
+    return {
+      type: 'success',
+      message: nextStatus === 'ready'
+        ? 'تم نقل الطلب إلى جاهز وإشعار العميل عبر واتساب.'
+        : 'تم تسجيل تسليم الطلب وإشعار العميل عبر واتساب.',
+    }
+  }
+
+  if (notificationClassification === 'PHONE_UNAVAILABLE') {
+    return {
+      type: 'error',
+      message: 'تم تحديث حالة الطلب، ولا يوجد رقم جوال صالح لإرسال إشعار واتساب.',
+    }
+  }
+
+  return {
+    type: 'error',
+    message: 'تم تحديث حالة الطلب، لكن تعذر إرسال إشعار واتساب للعميل.',
+  }
 }
 
 function normalizeDisplayedOrderNumber(value: string) {
@@ -362,6 +403,7 @@ export default function PosOrderStatusPage() {
   const advance = async (order: OrderRecord) => {
     const nextStatus = STATUS_TRANSITIONS[order.status]
     if (!nextStatus || updatingId || !access.tenantId || !access.branchId) return
+    if (nextStatus !== 'ready' && nextStatus !== 'closed') return
     setUpdatingId(order.id)
     setMutationFeedback(null)
     try {
@@ -391,12 +433,7 @@ export default function PosOrderStatusPage() {
           order: { ...cached.order, status: nextStatus },
         })
       }
-      setMutationFeedback({
-        type: 'success',
-        message: nextStatus === 'ready'
-          ? `تم نقل الطلب ${order.order_number} إلى جاهز.`
-          : `تم تسجيل تسليم الطلب ${order.order_number}.`,
-      })
+      setMutationFeedback(getOrderStatusSuccessFeedback(result, nextStatus))
       await loadOrders(1)
       if (nextStatus === 'ready') await loadOrderDetails(order.id, true)
     } catch {

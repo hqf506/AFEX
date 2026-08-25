@@ -9,6 +9,7 @@ import {
   type OrderStatusTransitionClassification,
   type OrderStatusTransitionGateway,
 } from '@/lib/server/orders/order-status-transition'
+import { sendPersistedOrderStatusWhatsApp } from '@/lib/server/orders/order-status-whatsapp'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type UpdateOrderStatusBody = { status?: unknown }
@@ -57,6 +58,7 @@ function logTransition(input: {
   classification: string
   httpStatus: number
   transition: string
+  notification?: string
 }) {
   const level = input.httpStatus >= 500 ? 'error' : input.httpStatus >= 400 ? 'warn' : 'info'
   console[level]('[POS order status transition]', input)
@@ -180,21 +182,51 @@ export async function PATCH(
       },
     }, gateway)
 
-    const status = result.ok ? 200 : FAILURE_HTTP_STATUS[result.classification]
-    logTransition({
-      correlationId: auth.context.correlationId,
-      classification: result.classification,
-      httpStatus: status,
-      transition: transitionName,
-    })
-
     if (!result.ok) {
+      const status = FAILURE_HTTP_STATUS[result.classification]
+      logTransition({
+        correlationId: auth.context.correlationId,
+        classification: result.classification,
+        httpStatus: status,
+        transition: transitionName,
+        notification: 'STATUS_NOT_PERSISTED',
+      })
       return statusResponse(auth, {
         success: false,
         errorCode: result.classification,
         error: FAILURE_MESSAGES[result.classification],
       }, status)
     }
+
+    const notificationTarget = targetStatus === 'ready' || targetStatus === 'closed'
+      ? targetStatus
+      : null
+    const previousStatus = notificationTarget === 'ready' ? 'in_progress' as const : 'ready' as const
+    const notification = notificationTarget
+      ? await sendPersistedOrderStatusWhatsApp({
+          auth,
+          request,
+          transition: result,
+          orderId,
+          tenantId: actor.tenantId,
+          branchId: actorBranchId,
+          actorId: actor.id,
+          correlationId: auth.context.correlationId,
+          previousStatus,
+          targetStatus: notificationTarget,
+        }).catch(() => ({
+          outcome: 'failed' as const,
+          classification: 'WHATSAPP_DELIVERY_FAILED' as const,
+        }))
+      : { outcome: 'not_attempted' as const, classification: 'STATUS_NOT_PERSISTED' as const }
+
+    logTransition({
+      correlationId: auth.context.correlationId,
+      classification: result.classification,
+      httpStatus: 200,
+      transition: transitionName,
+      notification: notification.classification,
+    })
 
     return statusResponse(auth, {
       success: true,
@@ -204,6 +236,11 @@ export async function PATCH(
         id: result.order.id,
         status: result.order.status,
       },
+      transition: {
+        outcome: 'persisted',
+        classification: result.classification,
+      },
+      notification,
     })
   } catch {
     const status = 500
