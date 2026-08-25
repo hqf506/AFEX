@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { getClientErrorMessage } from '@/lib/api/client-error'
@@ -59,6 +59,15 @@ type OrderStatusMutationResponse = {
 
 type MutationFeedback = { type: 'success' | 'error'; message: string }
 
+type TransitionResultDialogSnapshot = {
+  kind: 'success' | 'warning'
+  publicOrderNumber: string
+  previousStatus: 'in_progress' | 'ready'
+  nextStatus: 'ready' | 'closed'
+  transitionClassification: 'ORDER_STATUS_UPDATED'
+  notificationClassification: string
+}
+
 function getOrderStatusMutationMessage(errorCode: string | undefined, status: number) {
   if (status === 401 || errorCode === 'POS_ACTOR_SESSION_REQUIRED') {
     return 'انتهت جلسة موظف نقطة البيع. أدخل رمز الموظف مرة أخرى.'
@@ -110,6 +119,29 @@ function getOrderStatusSuccessFeedback(
   }
 }
 
+function createTransitionResultDialogSnapshot(
+  result: OrderStatusMutationResponse,
+  order: OrderRecord,
+  nextStatus: 'ready' | 'closed'
+): TransitionResultDialogSnapshot | null {
+  const transitionClassification = result.transition?.classification
+  const notificationClassification = result.notification?.classification
+
+  if (
+    transitionClassification !== 'ORDER_STATUS_UPDATED' ||
+    typeof notificationClassification !== 'string'
+  ) return null
+
+  return {
+    kind: notificationClassification === 'WHATSAPP_SENT' ? 'success' : 'warning',
+    publicOrderNumber: order.order_number,
+    previousStatus: nextStatus === 'ready' ? 'in_progress' : 'ready',
+    nextStatus,
+    transitionClassification,
+    notificationClassification,
+  }
+}
+
 function normalizeDisplayedOrderNumber(value: string) {
   return value
     .trim()
@@ -133,6 +165,111 @@ function CloseIcon() {
 
 function SearchIcon() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" /><path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+}
+
+function OrderStatusResultDialog({
+  fallbackFocusRef,
+  onClose,
+  restoreFocusRef,
+  snapshot,
+}: {
+  fallbackFocusRef: RefObject<HTMLElement | null>
+  onClose: () => void
+  restoreFocusRef: RefObject<HTMLElement | null>
+  snapshot: TransitionResultDialogSnapshot
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const titleId = 'pos-order-status-result-title'
+  const descriptionId = 'pos-order-status-result-description'
+  const successfulNotification = snapshot.kind === 'success'
+  const title = successfulNotification
+    ? snapshot.nextStatus === 'ready' ? 'تم نقل الطلب إلى جاهز' : 'تم تسليم الطلب'
+    : 'تم تحديث حالة الطلب'
+  const description = successfulNotification
+    ? snapshot.nextStatus === 'ready'
+      ? 'تم تحديث حالة الطلب وإرسال رسالة واتساب للعميل بنجاح.'
+      : 'تم تسجيل تسليم الطلب وإرسال رسالة واتساب للعميل بنجاح.'
+    : snapshot.notificationClassification === 'PHONE_UNAVAILABLE'
+      ? 'تم تحديث الحالة، ولا يوجد رقم جوال صالح لإرسال إشعار واتساب.'
+      : 'تم تحديث الحالة، لكن تعذر إرسال رسالة واتساب للعميل.'
+
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const previousFocus = restoreFocusRef.current
+    const fallbackFocus = fallbackFocusRef.current
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
+    const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus())
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return
+
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+      ))
+      if (focusable.length === 0) {
+        event.preventDefault()
+        dialogRef.current.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable.at(-1)!
+      if (!dialogRef.current.contains(document.activeElement)) {
+        event.preventDefault()
+        ;(event.shiftKey ? last : first).focus()
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+      const safeTarget = previousFocus?.isConnected ? previousFocus : fallbackFocus
+      safeTarget?.focus()
+    }
+  }, [fallbackFocusRef, onClose, restoreFocusRef])
+
+  return <div className={styles.resultDialogBackdrop} data-order-status-result-layer>
+    <div
+      ref={dialogRef}
+      className={styles.resultDialog}
+      data-result-kind={snapshot.kind}
+      data-transition-classification={snapshot.transitionClassification}
+      data-notification-classification={snapshot.notificationClassification}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      tabIndex={-1}
+    >
+      <span className={styles.resultDialogIcon} aria-hidden="true">
+        {successfulNotification
+          ? <svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          : <svg viewBox="0 0 24 24" fill="none"><path d="M12 7v6m0 4h.01" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>}
+      </span>
+      <div className={styles.resultDialogCopy}>
+        <h2 id={titleId}>{title}</h2>
+        <p id={descriptionId}>{description}</p>
+        <p className={styles.resultDialogOrder}>الطلب: <b dir="ltr">{snapshot.publicOrderNumber}</b></p>
+      </div>
+      <button ref={closeButtonRef} type="button" className={styles.resultDialogButton} onClick={onClose}>تم</button>
+    </div>
+  </div>
 }
 
 function isPhoneLayout() {
@@ -224,6 +361,7 @@ export default function PosOrderStatusPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [mutationFeedback, setMutationFeedback] = useState<MutationFeedback | null>(null)
+  const [resultDialog, setResultDialog] = useState<TransitionResultDialogSnapshot | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -231,7 +369,9 @@ export default function PosOrderStatusPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [orderDetailsById, setOrderDetailsById] = useState<Record<string, OrderDetailsCacheEntry>>({})
   const listRef = useRef<HTMLDivElement>(null)
+  const pageHeadingRef = useRef<HTMLHeadingElement>(null)
   const selectedRowRef = useRef<HTMLButtonElement>(null)
+  const transitionTriggerRef = useRef<HTMLElement | null>(null)
   const orderDetailsCacheRef = useRef<Record<string, OrderDetailsCacheEntry>>({})
   const orderDetailsInFlightRef = useRef(new Map<string, AbortController>())
 
@@ -400,10 +540,15 @@ export default function PosOrderStatusPage() {
     setSelectedId((current) => phoneLayout && current === orderId ? null : orderId)
   }
 
+  const closeResultDialog = useCallback(() => setResultDialog(null), [])
+
   const advance = async (order: OrderRecord) => {
     const nextStatus = STATUS_TRANSITIONS[order.status]
     if (!nextStatus || updatingId || !access.tenantId || !access.branchId) return
     if (nextStatus !== 'ready' && nextStatus !== 'closed') return
+    transitionTriggerRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
     setUpdatingId(order.id)
     setMutationFeedback(null)
     try {
@@ -423,6 +568,9 @@ export default function PosOrderStatusPage() {
         return
       }
 
+      const dialogSnapshot = createTransitionResultDialogSnapshot(result, order, nextStatus)
+      if (dialogSnapshot) setResultDialog(dialogSnapshot)
+      setMutationFeedback(dialogSnapshot ? null : getOrderStatusSuccessFeedback(result, nextStatus))
       setOrders((current) => current
         .map((item) => item.id === order.id ? { ...item, status: nextStatus } : item)
         .filter((item) => STATUS_TRANSITIONS[item.status]))
@@ -433,7 +581,6 @@ export default function PosOrderStatusPage() {
           order: { ...cached.order, status: nextStatus },
         })
       }
-      setMutationFeedback(getOrderStatusSuccessFeedback(result, nextStatus))
       await loadOrders(1)
       if (nextStatus === 'ready') await loadOrderDetails(order.id, true)
     } catch {
@@ -450,7 +597,7 @@ export default function PosOrderStatusPage() {
 
   return <div className={`pos-invoice-history pos-order-status-workflow ${styles.orderStatusPage}`} data-order-status-page dir="rtl"><main>
     <header className="pos-status-header" data-order-status-header>
-      <div className="pos-history-heading"><span><WorkflowIcon /></span><div><h1>حالة الطلبات</h1><p>عرض ومتابعة الطلبات الحالية وتحديث حالتها</p></div></div>
+      <div className="pos-history-heading"><span><WorkflowIcon /></span><div><h1 ref={pageHeadingRef} tabIndex={-1}>حالة الطلبات</h1><p>عرض ومتابعة الطلبات الحالية وتحديث حالتها</p></div></div>
       <div className="pos-status-header-actions">
         <span className="afex-pos-desktop-theme-control"><PosThemeToggle /></span>
         <button type="button" onClick={() => void loadOrders()} disabled={loading}><RefreshIcon /><span>{loading ? 'جارٍ التحديث...' : 'تحديث'}</span></button>
@@ -510,5 +657,7 @@ export default function PosOrderStatusPage() {
 
       {selectedOrder ? <OrderDetailsPanel order={orderDetailsById[selectedOrder.id]?.order ?? selectedOrder} details={orderDetailsById[selectedOrder.id]} nextStatus={selectedNextStatus} updatingId={updatingId} onRetryDetails={(orderId) => void loadOrderDetails(orderId, true)} onAdvance={(selected) => void advance(selected)} /> : <aside className={`pos-status-details is-empty ${styles.desktopDetails}`} data-order-status-details aria-live="polite"><SearchIcon /><h2>لا توجد فاتورة مطابقة</h2><p>امسح البحث لعرض الطلبات المتاحة.</p></aside>}
     </section> : null}
-  </main></div>
+  </main>
+  {resultDialog ? <OrderStatusResultDialog snapshot={resultDialog} onClose={closeResultDialog} restoreFocusRef={transitionTriggerRef} fallbackFocusRef={pageHeadingRef} /> : null}
+  </div>
 }

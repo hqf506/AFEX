@@ -6,6 +6,140 @@
   min-width: 0;
 }
 
+.resultDialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: grid;
+  box-sizing: border-box;
+  place-items: center;
+  overflow: hidden;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  background: rgb(25 16 8 / 58%);
+  backdrop-filter: blur(3px);
+}
+
+.resultDialog {
+  display: grid;
+  width: min(430px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 46%, var(--afex-pos-border));
+  border-radius: 22px;
+  outline: none;
+  background: var(--afex-pos-panel);
+  color: var(--afex-pos-text);
+  box-shadow: 0 28px 80px rgb(35 20 6 / 28%);
+  text-align: center;
+}
+
+.resultDialog[data-result-kind='warning'] {
+  border-color: color-mix(in srgb, #b97922 62%, var(--afex-pos-border));
+}
+
+.resultDialogIcon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-self: center;
+  place-items: center;
+  border: 2px solid var(--afex-pos-emerald);
+  border-radius: 50%;
+  color: var(--afex-pos-emerald);
+  background: color-mix(in srgb, var(--afex-pos-emerald) 9%, var(--afex-pos-panel));
+}
+
+.resultDialog[data-result-kind='warning'] .resultDialogIcon {
+  border-color: #b97922;
+  color: #b97922;
+  background: color-mix(in srgb, #b97922 10%, var(--afex-pos-panel));
+}
+
+.resultDialogIcon svg {
+  width: 31px;
+  height: 31px;
+}
+
+.resultDialogCopy {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.resultDialogCopy h2,
+.resultDialogCopy p {
+  margin: 0;
+}
+
+.resultDialogCopy h2 {
+  font-size: clamp(20px, 2.4vw, 25px);
+  font-weight: 950;
+  line-height: 1.35;
+}
+
+.resultDialogCopy > p {
+  color: var(--afex-pos-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.resultDialogCopy .resultDialogOrder {
+  margin-top: 3px;
+  color: var(--afex-pos-text);
+  font-size: 15px;
+}
+
+.resultDialogOrder b {
+  color: var(--afex-pos-emerald);
+  font-weight: 950;
+  unicode-bidi: isolate;
+}
+
+.resultDialogButton {
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 76%, #3a210c);
+  border-radius: 13px;
+  background: var(--afex-pos-emerald-strong);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.resultDialogButton:hover {
+  filter: brightness(1.06);
+}
+
+.resultDialogButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--afex-pos-emerald) 42%, #fff);
+  outline-offset: 3px;
+}
+
+.resultDialogButton:active {
+  transform: translateY(1px);
+  filter: brightness(.9);
+}
+
+@media (max-width: 767.98px) {
+  .resultDialog {
+    width: min(380px, calc(100vw - 32px));
+    padding: 21px;
+    border-radius: 19px;
+  }
+}
+
 .orderStatusPage .historyList {
   display: grid;
   min-width: 0;
@@ -276,6 +410,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .resultDialogButton {
+    transition: none;
+  }
+
+  .resultDialogButton:active {
+    transform: none;
+  }
+
   .orderStatusPage .mobileOrderRow {
     transition: none;
   }
