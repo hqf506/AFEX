@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "conflicts": [
+    {
+      "code": "ACTOR_LEASE_EXPIRED_OR_REVOKED",
+      "appliesTo": ["all commands"],
+      "detectAt": "sync preflight/server authority",
+      "automaticAction": "BLOCK",
+      "userAction": "reauthenticate primary and POS actor",
+      "serverWins": true,
+      "dataLossPolicy": "retain encrypted command"
+    },
+    {
+      "code": "TENANT_BRANCH_NAMESPACE_MISMATCH",
+      "appliesTo": ["all datasets", "all commands"],
+      "detectAt": "unlock and every server request",
+      "automaticAction": "LOCK_AND_QUARANTINE",
+      "userAction": "switch to matching authorized context or purge scoped namespace",
+      "serverWins": true,
+      "dataLossPolicy": "never move records across namespace"
+    },
+    {
+      "code": "CATALOG_ITEM_DISABLED_OR_DELETED",
+      "appliesTo": ["order.create"],
+      "detectAt": "server canonicalization",
+      "automaticAction": "CONFLICT",
+      "userAction": "remove/replace item and create new command",
+      "serverWins": true,
+      "dataLossPolicy": "preserve original command and draft"
+    },
+    {
+      "code": "PRICE_CHANGED",
+      "appliesTo": ["order.create"],
+      "detectAt": "server compares catalog/branch price version",
+      "automaticAction": "CONFLICT_NO_AUTO_REPRICE",
+      "userAction": "review updated totals and explicitly confirm a replacement command",
+      "serverWins": true,
+      "dataLossPolicy": "retain original quoted snapshot"
+    },
+    {
+      "code": "VAT_OR_DISCOUNT_CHANGED",
+      "appliesTo": ["order.create"],
+      "detectAt": "server financial rules",
+      "automaticAction": "CONFLICT_NO_AUTO_RECALCULATION",
+      "userAction": "review and confirm replacement command",
+      "serverWins": true,
+      "dataLossPolicy": "retain original calculation evidence"
+    },
+    {
+      "code": "INSUFFICIENT_STOCK",
+      "appliesTo": ["order.create"],
+      "detectAt": "server atomic inventory validation",
+      "automaticAction": "CONFLICT",
+      "userAction": "adjust quantities/items",
+      "serverWins": true,
+      "dataLossPolicy": "no local decrement is authoritative"
+    },
+    {
+      "code": "CUSTOMER_PHONE_IDENTITY_CONFLICT",
+      "appliesTo": ["customer.create", "order.create"],
+      "detectAt": "server normalized identity lookup/RPC",
+      "automaticAction": "CONFLICT",
+      "userAction": "select canonical customer or authorized merge workflow",
+      "serverWins": true,
+      "dataLossPolicy": "retain entered values but do not duplicate customer"
+    },
+    {
+      "code": "CUSTOMER_UPDATED",
+      "appliesTo": ["customer.update"],
+      "detectAt": "base-version compare-and-set",
+      "automaticAction": "BLOCK_FIELD_MERGE",
+      "userAction": "review field-level differences",
+      "serverWins": false,
+      "dataLossPolicy": "never last-write-wins PII silently"
+    },
+    {
+      "code": "ORDER_STATUS_STALE",
+      "appliesTo": ["order.status.transition"],
+      "detectAt": "server compare-and-set",
+      "automaticAction": "CONFLICT_OR_IDEMPOTENT_SUCCESS",
+      "userAction": "none if exact target already applied; otherwise refresh/review",
+      "serverWins": true,
+      "dataLossPolicy": "retain command receipt and authoritative history"
+    },
+    {
+      "code": "ORDER_STATUS_TRANSITION_INVALID",
+      "appliesTo": ["order.status.transition"],
+      "detectAt": "server legal transition graph",
+      "automaticAction": "FAILED_FINAL",
+      "userAction": "refresh order state",
+      "serverWins": true,
+      "dataLossPolicy": "preserve evidence"
+    },
+    {
+      "code": "IDEMPOTENCY_FINGERPRINT_CONFLICT",
+      "appliesTo": ["all business commands"],
+      "detectAt": "server command acquisition",
+      "automaticAction": "BLOCK_SECURITY_EVENT",
+      "userAction": "support review; never mutate payload under same key",
+      "serverWins": true,
+      "dataLossPolicy": "retain both local payload hash and server classification"
+    },
+    {
+      "code": "UNKNOWN_SERVER_RESULT",
+      "appliesTo": ["all business commands"],
+      "detectAt": "timeout/disconnect after dispatch",
+      "automaticAction": "PENDING_REPLAY_QUERY",
+      "userAction": "none until server replay lookup completes",
+      "serverWins": true,
+      "dataLossPolicy": "never duplicate or claim failure/success"
+    },
+    {
+      "code": "OFFICIAL_NUMBER_UNAVAILABLE",
+      "appliesTo": ["order.create"],
+      "detectAt": "offline creation",
+      "automaticAction": "USE_LOCAL_REFERENCE_ONLY",
+      "userAction": "wait for sync",
+      "serverWins": true,
+      "dataLossPolicy": "never print local reference as tax invoice number"
+    },
+    {
+      "code": "EXTERNAL_EFFECT_AMBIGUOUS",
+      "appliesTo": ["notification.whatsapp", "provider payments"],
+      "detectAt": "server outbox/provider receipt",
+      "automaticAction": "MANUAL_HOLD_OR_PROVIDER_RECONCILIATION",
+      "userAction": "support workflow only",
+      "serverWins": true,
+      "dataLossPolicy": "device never retries provider call directly"
+    },
+    {
+      "code": "LOCAL_SCHEMA_OR_INTEGRITY_FAILURE",
+      "appliesTo": ["all local stores"],
+      "detectAt": "open/migration/decrypt",
+      "automaticAction": "LOCK_AND_SAFE_RECOVERY",
+      "userAction": "online restore; support export of encrypted diagnostics if approved",
+      "serverWins": true,
+      "dataLossPolicy": "never delete pending commands automatically"
+    },
+    {
+      "code": "QUOTA_EXHAUSTED",
+      "appliesTo": ["all local stores"],
+      "detectAt": "storage estimate/write failure",
+      "automaticAction": "EVICT_SAFE_READ_CACHE_THEN_BLOCK_NEW_COMMANDS",
+      "userAction": "sync/purge authorized namespace",
+      "serverWins": false,
+      "dataLossPolicy": "outbox and unresolved receipts are non-evictable"
+    }
+  ]
+}
+

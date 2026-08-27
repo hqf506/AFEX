@@ -1,6 +1,7 @@
 import type { InvoiceLineItem } from '@/lib/invoices/items'
 import type { PosPaymentMethod } from '@/lib/invoices/payment-method'
 import type { ActivePosEmployee } from '@/lib/pos-employee-session'
+import { OFFLINE_CAPABILITIES } from '@/lib/offline/phase1'
 
 export const POS_OFFLINE_DRAFTS_STORAGE_KEY = 'leather_fix_pos_offline_drafts'
 export const POS_OFFLINE_DRAFTS_UPDATED_EVENT =
@@ -192,6 +193,9 @@ export function readPosOfflineInvoiceDrafts() {
 export function savePosOfflineInvoiceDraft(
   input: SavePosOfflineInvoiceDraftInput
 ) {
+  if (!OFFLINE_CAPABILITIES.businessCommandDispatch) {
+    throw new Error('OFFLINE_COMMAND_DISPATCH_DISABLED')
+  }
   if (typeof window === 'undefined') {
     throw new Error('Offline drafts can only be saved in the browser')
   }
@@ -297,6 +301,9 @@ async function sendOfflineDraft(draft: PosOfflineInvoiceDraft) {
 }
 
 export async function syncNextPosOfflineDraft() {
+  if (!OFFLINE_CAPABILITIES.businessCommandDispatch) {
+    return { synced: false, reason: 'disabled' as const }
+  }
   if (typeof window === 'undefined') {
     return { synced: false, reason: 'server' as const }
   }
@@ -334,6 +341,9 @@ export async function syncNextPosOfflineDraft() {
 }
 
 export async function syncPosOfflineDrafts() {
+  if (!OFFLINE_CAPABILITIES.businessCommandDispatch) {
+    return
+  }
   if (typeof window === 'undefined') {
     return
   }

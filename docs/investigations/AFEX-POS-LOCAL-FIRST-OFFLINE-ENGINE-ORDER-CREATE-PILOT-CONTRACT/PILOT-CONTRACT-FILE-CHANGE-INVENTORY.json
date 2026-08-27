@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 4,
+  "baselineHead": "37331390ec00bee507f88701365bfebb944db675",
+  "sourceAndTestChanges": [
+    {"path":"lib/authorization-context.ts","classification":"SERVER_AUTHORIZATION_CONTEXT_EXTENSION","bytes":11437,"sha256":"d24a19be239160aab034c26e42d53ce5e05f983e77aac4566b2d3830e99af269","reason":"preserve the exact verified POS actor-session identity in a shadow-only server authorization context"},
+    {"path":"lib/server/offline/trusted-actor-provenance.ts","classification":"SERVER_ONLY_TRUSTED_UPLOADER_CONTEXT","bytes":2325,"sha256":"22a91eecf27f160162bcbdd88e1618be92e2adaaf0e42670727ffae2327d3bcd","reason":"construct a non-serializable uploader context only from verified Auth and POS actor authorities"},
+    {"path":"lib/offline/core-v2-offline-authority-bridge.ts","classification":"ISOLATED_CORE_V2_OFFLINE_BRIDGE","bytes":121295,"sha256":"e1f0bdca9d98d6e0a30f0257a305116eaf01869d1a81504335ee45a136886ca5","reason":"freeze exact trust layers, origin-authority v2, order.create-only pilot, complete Core payload mapping, payment, inventory, total resolver and receipt contracts"},
+    {"path":"tests/pos-offline-core-v2-authority-bridge.test.mjs","classification":"FOCUSED_REGRESSION_TEST","bytes":68375,"sha256":"2385d8b538fb3e7d2109f2edc3726fe087933f04eb1544df3a7615ed7629dee4","reason":"prove complete mapping, exact fifteen-field origin, payments, inventory, resolver isolation, authority-first receipts and Shadow boundaries"},
+    {"path":"tests/pos-offline-order-create-sql-final-correction.test.mjs","classification":"FOCUSED_STATIC_SQL_CONTRACT_TEST","bytes":14305,"sha256":"2c51c14a9900354e7d08e76291623630138356d16bc37cfab886ab51ba3ca4f3","reason":"prove installer, whole-file waves, resolver, inventory, payment, mapping, composite scope, ACL, signatures, disablement and parser limitation"},
+    {"path":"tests/pos-offline-trusted-actor-provenance.test.mjs","classification":"FOCUSED_SERVER_PROVENANCE_TEST","bytes":7450,"sha256":"4dbfd3c4367bc93b354e218e2fbdfeab4bda2232e7fb36ede57ac78370c7f4dc","reason":"prove actor-session preservation, non-serialization, account/bootstrap/employee correspondence, frozen expiry policy and split inactive SQL authority"},
+    {"path":"tests/pos-offline-account-bootstrap-provisioning.test.mjs","classification":"FOCUSED_ACCOUNT_BOOTSTRAP_AND_PROVISIONING_TEST","bytes":14298,"sha256":"4999baebb2db017f8f0dc38f0a45fd8cbc78e2d1cb999c1766a7046afb60eac0","reason":"prove Online-first bootstrap, PIN-only employee selection, logout/restart/recovery, exact verifier parameters and all four provisioning waves"},
+    {"path":"scripts/check-core-v2-order-integration.mjs","classification":"STALE_REGRESSION_CONTRACT_CORRECTION","bytes":4570,"sha256":"c71bd347bff3377ca0c7daa4561097374b4e273733e4c2c73e1d500acce78338","reason":"verify the existing classified customer failure path instead of a superseded literal message"}
+  ],
+  "realignedSqlAuthorityArtifacts": [
+    "SQL-AUTHORITY-EXACT-MISSING-SIGNATURES.json",
+    "SQL-AUTHORITY-BLOCKER-REGISTER.json",
+    "SQL-AUTHORITY-NEW-OBJECT-IDENTITY-MATRIX.json",
+    "SQL-AUTHORITY-DEPENDENCY-GRAPH.json",
+    "SQL-AUTHORITY-TEST-MATRIX.json",
+    "SQL-AUTHORITY-FINAL-DECISION.md",
+    "SQL-AUTHORITY-MANIFEST.sha256"
+  ],
+  "newPilotEvidenceArtifactCount": 13,
+  "applicationBusinessCallersChanged": 0,
+  "coreV2BusinessEngineChanged": 0,
+  "inactiveReviewSqlFilesUpdated": 25,
+  "sqlExecuted": 0,
+  "packageOrLockFilesChanged": 0,
+  "relatedPilotAndProvenanceEvidenceUpdated": true,
+  "r8nFilesModified": 0,
+  "r8nPathsOpened": 0,
+  "r8nReadOnlyScopeLeakDuringValidation": false
+}

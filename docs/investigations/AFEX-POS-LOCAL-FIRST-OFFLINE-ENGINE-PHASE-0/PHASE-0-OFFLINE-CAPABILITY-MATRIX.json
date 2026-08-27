@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "status": "PROPOSED_PENDING_HUMAN_APPROVAL",
+  "pilotDefaults": {
+    "allowedPaymentMethods": ["cash"],
+    "prohibitedPaymentMethods": ["mada", "visa", "card", "cod", "refund", "standalone_capture"],
+    "maxOrderAmountSar": 500,
+    "maxUnsyncedValuePerDeviceSar": 2000,
+    "maxPendingOrders": 10,
+    "maxDisconnectedBusinessDurationMinutes": 120,
+    "commandTypes": ["order.create"]
+  },
+  "cashVersusCardRisk": {
+    "cash": "Physical cash can be collected without a provider acknowledgement, but price, inventory, employee authority and official invoice still require server reconciliation.",
+    "madaOrCard": "The POS application cannot assume that an offline terminal/provider payment succeeded. Card/Mada remains blocked until a separately reviewed provider-proof and idempotent settlement contract exists."
+  },
+  "capabilities": [
+    {
+      "capability": "encrypted_sale_draft",
+      "current": "plaintext localStorage",
+      "phase": 1,
+      "offlineDecision": "ALLOW_AFTER_PHASE_1",
+      "requires": ["namespace lock", "encryption", "schema/integrity", "scoped purge"],
+      "businessDispatch": false
+    },
+    {
+      "capability": "catalog_categories_settings_read",
+      "current": "online API plus memory cache",
+      "phase": 2,
+      "offlineDecision": "ALLOW_READ_AFTER_POS_UNLOCK",
+      "requires": ["complete signed snapshot", "freshness label"],
+      "businessDispatch": false
+    },
+    {
+      "capability": "product_images_read",
+      "current": "network image URL",
+      "phase": 2,
+      "offlineDecision": "ALLOW_APPROVED_MEDIA_CACHE",
+      "requires": ["type/size validation", "LRU quota", "reference version"],
+      "businessDispatch": false
+    },
+    {
+      "capability": "customer_search_profile_read",
+      "current": "online tenant-scoped API",
+      "phase": 2,
+      "offlineDecision": "ALLOW_BOUNDED_ENCRYPTED_READ",
+      "requires": ["privacy retention approval", "POS unlock", "stale label"],
+      "businessDispatch": false
+    },
+    {
+      "capability": "orders_invoices_history_read",
+      "current": "online branch-scoped API",
+      "phase": 2,
+      "offlineDecision": "ALLOW_BOUNDED_CONFIRMED_READ",
+      "requires": ["server time anchor", "48-hour policy", "as-of label"],
+      "businessDispatch": false
+    },
+    {
+      "capability": "command_outbox_shadow",
+      "current": "plaintext invoice draft retry loop",
+      "phase": 3,
+      "offlineDecision": "ALLOW_ZERO_DISPATCH_SHADOW_ONLY",
+      "requires": ["immutable records", "local lease", "state/evidence UI"],
+      "businessDispatch": false
+    },
+    {
+      "capability": "order_create",
+      "current": "online legacy/Core V2 path",
+      "phase": 4,
+      "offlineDecision": "LIMITED_PILOT_AFTER_ALL_CORE_GATES",
+      "requires": ["effective actor authority", "offline lease", "Core receipt", "server conflicts", "effect outbox", "approved limits"],
+      "businessDispatch": true
+    },
+    {
+      "capability": "customer_create",
+      "current": "online identity RPC",
+      "phase": 6,
+      "offlineDecision": "PROHIBITED_FIRST_PILOT",
+      "requires": ["typed command ledger", "duplicate-phone conflict policy"],
+      "businessDispatch": true
+    },
+    {
+      "capability": "customer_update",
+      "current": "no approved offline contract",
+      "phase": 6,
+      "offlineDecision": "PROHIBITED_FIRST_PILOT",
+      "requires": ["versioned compare-and-set", "field conflict review"],
+      "businessDispatch": true
+    },
+    {
+      "capability": "order_status_transition",
+      "current": "online compare-and-set API",
+      "phase": 6,
+      "offlineDecision": "PROHIBITED_FIRST_PILOT",
+      "requires": ["typed command ledger", "expected status/version", "notification outbox"],
+      "businessDispatch": true
+    },
+    {
+      "capability": "standalone_payment_capture_refund",
+      "current": "not an approved offline command",
+      "phase": null,
+      "offlineDecision": "BLOCKED",
+      "requires": ["separate finance/provider authority review"],
+      "businessDispatch": true
+    },
+    {
+      "capability": "direct_inventory_write",
+      "current": "server order execution effect",
+      "phase": null,
+      "offlineDecision": "BLOCKED_ALWAYS_FROM_DEVICE",
+      "requires": ["remain inside atomic server business command"],
+      "businessDispatch": true
+    },
+    {
+      "capability": "whatsapp_device_replay",
+      "current": "server follow-up",
+      "phase": null,
+      "offlineDecision": "BLOCKED_ALWAYS_FROM_DEVICE",
+      "requires": ["server-owned unique effect outbox"],
+      "businessDispatch": true
+    },
+    {
+      "capability": "confirmed_receipt_manual_print",
+      "current": "success page",
+      "phase": 2,
+      "offlineDecision": "ALLOW_EXPLICIT_USER_PRINT_ONLY",
+      "requires": ["previously confirmed server receipt", "manual action", "print count evidence"],
+      "businessDispatch": false
+    }
+  ]
+}
+

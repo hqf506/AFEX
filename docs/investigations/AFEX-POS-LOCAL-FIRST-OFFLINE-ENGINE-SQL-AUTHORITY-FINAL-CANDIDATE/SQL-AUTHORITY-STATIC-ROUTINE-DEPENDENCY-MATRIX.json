@@ -1,0 +1,1559 @@
+{
+  "schemaVersion": 2,
+  "classification": "STATIC_BODY_DEPENDENCY_EVIDENCE_GATE",
+  "productionCatalogSource": {
+    "path": "../AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PROMPT-10-FINAL-PRODUCTION-ATTESTATION/PROMPT-10-SECURITY-DEFINER-MATRIX.json",
+    "sha256": "92beb5d9abd8a64d932bb58717b2467134b348e54dc9788e0aeecd30a87671f5",
+    "functionCount": 36
+  },
+  "repositorySourceBoundary": {
+    "included": [
+      "supabase/migrations",
+      "database-reconciliation/core-v2",
+      "database-reconciliation/baseline",
+      "database-reconciliation/evidence/R6"
+    ],
+    "excluded": [
+      "runtime-integration/R8N-*",
+      "historical investigation reports as body sources"
+    ],
+    "matching": "Prompt 10 body MD5 and body length after recorded line-ending normalization only"
+  },
+  "method": {
+    "catalogBinding": "Exact Prompt 10 schema/name/identity arguments/owner/language OID/prosecdef/proconfig/ACL/body MD5",
+    "bodyBinding": "Repository function body must match Prompt 10 MD5",
+    "referenceExtraction": "Lexical extraction from the exact matched body after removing literals/comments and excluding comparison, row-lock and conflict-update grammar; pg_depend is partial evidence only",
+    "gate": "Any dynamic SQL, unqualified relation, unresolved project function, caller gap, or independent-review gap blocks mutation"
+  },
+  "summary": {
+    "functions": 36,
+    "exactRepositoryBodyMatches": 36,
+    "executionAuthorized": false,
+    "runtimeTestsExecuted": 0
+  },
+  "functions": [
+    {
+      "id": "FN-001",
+      "catalogIdentity": {
+        "schema": "afex_pos_authority",
+        "name": "enforce_actor_session_transition",
+        "identityArguments": "",
+        "owner": "afex_pos_session_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_pos_session_owner=X/afex_pos_session_owner}",
+        "bodyMd5": "e764bf3bb3c416c41d4cd399201a2ded",
+        "bodyLength": 1169,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260814233000_pos_actor_sessions.sql",
+        "line": 342,
+        "fileSha256": "c04fbef3d7741c91899fd857356744303cfc55dbf8f51307a7260a3f5d7bcfbc",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-002",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "acquire_atomic_order_command_result_v1",
+        "identityArguments": "p_authenticated_actor_id uuid, p_tenant_id uuid, p_branch_id uuid, p_idempotency_key text, p_correlation_reference text, p_canonical_payload text, p_fingerprint_projection text, p_retain_until timestamp with time zone",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,service_role=X/afex_function_owner}",
+        "bodyMd5": "4c6e42a751da26facfc29f948304aa5f",
+        "bodyLength": 4717,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260814190000_core_v2_system_scope_authorization.sql",
+        "line": 39,
+        "fileSha256": "7ac762b0c4a9eeb850255496098facb8de4dfd796ea0e5fe640ea839eb3f30ea",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.branches",
+          "public.profiles"
+        ],
+        "qualifiedFunctions": [
+          "afex_core_private.acquire_atomic_order_command_internal_v1",
+          "pg_catalog.jsonb_build_object"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_VERSIONED_HARDEN",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-003",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "acquire_atomic_order_command_v1",
+        "identityArguments": "p_authenticated_actor_id uuid, p_tenant_id uuid, p_branch_id uuid, p_idempotency_key text, p_correlation_reference text, p_canonical_payload text, p_fingerprint_projection text, p_retain_until timestamp with time zone",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,afex_core_runtime=X/afex_function_owner}",
+        "bodyMd5": "d8976cbe707d77cda239a026b6fea86d",
+        "bodyLength": 1037,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2179,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "pg_auth_members",
+          "pg_roles"
+        ],
+        "qualifiedFunctions": [
+          "afex_core_private.acquire_atomic_order_command_internal_v1"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [
+          "pg_auth_members",
+          "pg_roles"
+        ],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_VERSIONED_HARDEN",
+      "dependencyClosureStatus": "BLOCKED_UNQUALIFIED_REFERENCE_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-004",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "adjust_inventory_stock",
+        "identityArguments": "p_tenant_id uuid, p_branch_id uuid, p_catalog_item_id uuid, p_quantity_delta numeric, p_movement_type text, p_notes text, p_created_by uuid",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=public"
+        ],
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "5e513579a99d61e367ac12cfe08a6cf2",
+        "bodyLength": 1521,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 46,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.branches",
+          "public.catalog_items",
+          "public.inventory_stock"
+        ],
+        "qualifiedFunctions": [
+          "public.inventory_movements",
+          "public.inventory_stock"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "SERVER_ONLY_BLOCKED",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-005",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "authorize_atomic_order_retry_v1",
+        "identityArguments": "p uuid, prior uuid, digest bytea",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,afex_reconciliation_authority=X/afex_function_owner}",
+        "bodyMd5": "4a6c4e7e3fc021e15b9ecdf1bbc27e25",
+        "bodyLength": 1147,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2405,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.atomic_order_business_links",
+          "public.atomic_order_commands"
+        ],
+        "qualifiedFunctions": [
+          "afex_core_private.atomic_order_evidence_digest_v1",
+          "public.atomic_order_audit",
+          "public.atomic_order_retry_authorizations"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-006",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "canonicalize_atomic_order_json_v1",
+        "identityArguments": "p_value jsonb",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": false,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner}",
+        "bodyMd5": "f085167dec7d2a1ea195ccf6adb47a4e",
+        "bodyLength": 3043,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/core-v2/P2D/P2D.20-TRUSTED-ATOMIC-ACQUISITION.sql",
+        "line": 525,
+        "fileSha256": "c1ad850b56ce7707b018640a70c00094763209a62b62a88cdf1ed0edf2320a99",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [],
+        "qualifiedFunctions": [
+          "pg_catalog.ascii",
+          "pg_catalog.char_length",
+          "pg_catalog.convert_to",
+          "pg_catalog.jsonb_array_elements",
+          "pg_catalog.jsonb_each",
+          "pg_catalog.jsonb_typeof",
+          "pg_catalog.lpad",
+          "pg_catalog.string_agg",
+          "pg_catalog.substr",
+          "pg_catalog.to_hex",
+          "pg_catalog.to_jsonb",
+          "pg_catalog.upper",
+          "public.canonicalize_atomic_order_json_v1"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-007",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "claim_atomic_order_command_v1",
+        "identityArguments": "p uuid",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,service_role=X/afex_function_owner}",
+        "bodyMd5": "2d171721b095cb829c5e54160158b550",
+        "bodyLength": 1640,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2357,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.atomic_order_commands"
+        ],
+        "qualifiedFunctions": [
+          "public.atomic_order_audit",
+          "public.atomic_order_claims"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_VERSIONED_HARDEN",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-008",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "cleanup_pos_actor_sessions_v1",
+        "identityArguments": "p_batch_size integer",
+        "owner": "afex_pos_session_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_pos_session_owner=X/afex_pos_session_owner,afex_pos_session_maintenance=X/afex_pos_session_owner}",
+        "bodyMd5": "1c1b96088b24a14c115412dca7e65ffb",
+        "bodyLength": 1579,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260814233000_pos_actor_sessions.sql",
+        "line": 758,
+        "fileSha256": "c04fbef3d7741c91899fd857356744303cfc55dbf8f51307a7260a3f5d7bcfbc",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "afex_pos_authority.actor_sessions",
+          "afex_pos_authority.auth_session_locks"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [
+          "candidates",
+          "lock_candidates"
+        ],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-009",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "create_invoice_with_items",
+        "identityArguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items json",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=public"
+        ],
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "9f4b6c7bd79e1894d1a7ab538d16d909",
+        "bodyLength": 223,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 257,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [],
+        "qualifiedFunctions": [
+          "public.create_invoice_with_items_safe"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "RETIRE_AFTER_CORE_PARITY",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-010",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "create_invoice_with_items",
+        "identityArguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items jsonb",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=public"
+        ],
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "f87afb139b8f765370f39c8de857f38a",
+        "bodyLength": 216,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 283,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [],
+        "qualifiedFunctions": [
+          "public.create_invoice_with_items_safe"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "RETIRE_AFTER_CORE_PARITY",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-011",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "create_invoice_with_items",
+        "identityArguments": "p_invoice jsonb, p_items jsonb",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": false,
+        "proconfig": null,
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "da9ddd1d8c5eeee362af98d57c68c890",
+        "bodyLength": 1332,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 180,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "catalog_items"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [
+          "catalog_items"
+        ],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "RETIRE_AFTER_CORE_PARITY",
+      "dependencyClosureStatus": "BLOCKED_UNQUALIFIED_REFERENCE_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-012",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "create_invoice_with_items_safe",
+        "identityArguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items jsonb, p_client_idempotency_key text, p_created_by_employee_id uuid, p_tenant_id uuid, p_branch_id uuid",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=public"
+        ],
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "ca0798a2731f161c4aab62d33a27870d",
+        "bodyLength": 7856,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 309,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.branches",
+          "public.catalog_items",
+          "public.customers",
+          "public.orders",
+          "public.profiles"
+        ],
+        "qualifiedFunctions": [
+          "auth.uid",
+          "public.customers",
+          "public.invoice_items",
+          "public.invoices",
+          "public.orders",
+          "public.resolve_default_tenant_id",
+          "public.resolve_insert_branch_id"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [
+          "normalized_items",
+          "validated_items"
+        ],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "RETIRE_AFTER_CORE_PARITY",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-013",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "deduct_inventory_on_invoice_item_insert",
+        "identityArguments": "",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": null,
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "ec5390c40a16a1568f16f6d2f8989eea",
+        "bodyLength": 1977,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 1085,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.catalog_items",
+          "public.inventory_stock",
+          "public.invoices"
+        ],
+        "qualifiedFunctions": [
+          "public.inventory_movements"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "TRIGGER_ONLY_HARDEN",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-014",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "ensure_inventory_stock_for_catalog_item",
+        "identityArguments": "p_catalog_item_id uuid, p_tenant_id uuid",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": null,
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "962b5610438d0db8bdf0250cfaa0a93e",
+        "bodyLength": 563,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 1231,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.branches"
+        ],
+        "qualifiedFunctions": [
+          "public.inventory_stock"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "TRIGGER_ONLY_HARDEN",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-015",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "execute_atomic_order_command_v1",
+        "identityArguments": "p uuid, t uuid",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,service_role=X/afex_function_owner}",
+        "bodyMd5": "04e177a29a4882ac4205a1b267d0f00b",
+        "bodyLength": 3791,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2408,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.atomic_order_claims",
+          "public.atomic_order_commands",
+          "public.atomic_order_retry_authorizations"
+        ],
+        "qualifiedFunctions": [
+          "afex_core_private.persist_atomic_order_business_v1",
+          "afex_core_private.valid_atomic_order_success_snapshot_v1",
+          "public.atomic_order_audit",
+          "public.atomic_order_diagnostics"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_VERSIONED_HARDEN",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-016",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "get_branch_inventory",
+        "identityArguments": "p_branch_id uuid, p_tenant_id uuid",
+        "owner": "postgres",
+        "languageOid": "14",
+        "securityDefiner": true,
+        "proconfig": null,
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "53e84f24f2809d418f0357a2d739f7bf",
+        "bodyLength": 690,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 1309,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.catalog_items",
+          "public.inventory_stock"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "SERVER_ONLY_BLOCKED",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-017",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "get_developer_support_notifications",
+        "identityArguments": "p_provider_user_id uuid, p_limit integer",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog, public"
+        ],
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "4a7348a7fe5e2e2806e79d6515dad4a8",
+        "bodyLength": 3001,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 1341,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.support_developer_notification_reads"
+        ],
+        "qualifiedFunctions": [
+          "public.get_eligible_developer_support_notification_events"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [
+          "annotated_events",
+          "eligible_events",
+          "limited_events"
+        ],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "OUTSIDE_OFFLINE_SCOPE_KEEP",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-018",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "get_eligible_developer_support_notification_events",
+        "identityArguments": "p_provider_user_id uuid, p_through timestamp with time zone",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog, public"
+        ],
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "5e130066340633fa0147b662eec92b59",
+        "bodyLength": 2668,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 1511,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.platform_admins",
+          "public.support_messages",
+          "public.support_tickets",
+          "public.tenants"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "OUTSIDE_OFFLINE_SCOPE_KEEP",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-019",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "hash_pos_pin",
+        "identityArguments": "raw_pin text",
+        "owner": "postgres",
+        "languageOid": "14",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=public, extensions"
+        ],
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "911a365fb2b6847f09f20e0b2b711d57",
+        "bodyLength": 55,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 2495,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [],
+        "qualifiedFunctions": [
+          "extensions.gen_salt"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "INTERNAL_CREDENTIAL_BOUNDARY_BLOCKED",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-020",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "inspect_atomic_order_reconciliation_v1",
+        "identityArguments": "p uuid",
+        "owner": "afex_function_owner",
+        "languageOid": "14",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,service_role=X/afex_function_owner}",
+        "bodyMd5": "859f2b532b653ec8f101a32fbb48ec67",
+        "bodyLength": 663,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2403,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.atomic_order_business_links",
+          "public.atomic_order_commands"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-021",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "issue_pos_actor_session_v1",
+        "identityArguments": "p_token_hash text, p_authenticated_session_id uuid, p_authenticated_subject_id uuid, p_raw_pin text, p_requested_branch_id uuid",
+        "owner": "afex_pos_session_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_pos_session_owner=X/afex_pos_session_owner,service_role=X/afex_pos_session_owner}",
+        "bodyMd5": "d9e531fa3e16bd69282bf7f2a22a3b64",
+        "bodyLength": 4031,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260814233000_pos_actor_sessions.sql",
+        "line": 394,
+        "fileSha256": "c04fbef3d7741c91899fd857356744303cfc55dbf8f51307a7260a3f5d7bcfbc",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "afex_pos_authority.actor_sessions",
+          "afex_pos_authority.auth_session_locks",
+          "public.branches",
+          "public.pos_profiles",
+          "public.profiles"
+        ],
+        "qualifiedFunctions": [
+          "extensions.digest",
+          "public.verify_pos_pin_for_actor"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-022",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "mark_all_developer_support_notifications_read",
+        "identityArguments": "p_provider_user_id uuid",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog, public"
+        ],
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "dfb232bc5561b8ffe4efc87f7a0cae50",
+        "bodyLength": 792,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 2544,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [],
+        "qualifiedFunctions": [
+          "public.get_eligible_developer_support_notification_events",
+          "public.support_developer_notification_reads"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "OUTSIDE_OFFLINE_SCOPE_KEEP",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-023",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "mark_atomic_order_reconciliation_required_v1",
+        "identityArguments": "p uuid, prior uuid, digest bytea",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,afex_reconciliation_authority=X/afex_function_owner}",
+        "bodyMd5": "9f15b105e8464e707f658ae7099e614d",
+        "bodyLength": 1030,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2402,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.atomic_order_claims",
+          "public.atomic_order_commands"
+        ],
+        "qualifiedFunctions": [
+          "afex_core_private.atomic_order_evidence_digest_v1",
+          "afex_core_private.transition_atomic_order_v1"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-024",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "mark_developer_support_notification_read",
+        "identityArguments": "p_provider_user_id uuid, p_event_type text, p_event_id uuid",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog, public"
+        ],
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "b3eb8a36878165bb4b083c33a9a2f305",
+        "bodyLength": 895,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 2610,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [],
+        "qualifiedFunctions": [
+          "public.get_eligible_developer_support_notification_events",
+          "public.support_developer_notification_reads"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "OUTSIDE_OFFLINE_SCOPE_KEEP",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-025",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "next_branch_monthly_order_number",
+        "identityArguments": "p_tenant_id uuid, p_branch_id uuid, p_created_at timestamp with time zone",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=public"
+        ],
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "59a1cf607a7b70059270d0c009a425f2",
+        "bodyLength": 2509,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 2680,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.order_number_sequences",
+          "public.orders"
+        ],
+        "qualifiedFunctions": [
+          "public.ensure_branch_order_number_prefix",
+          "public.order_number_sequences"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "CORE_INTERNAL_HARDEN_BLOCKED",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-026",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "place_atomic_order_manual_hold_v1",
+        "identityArguments": "p uuid, digest bytea",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,afex_reconciliation_authority=X/afex_function_owner}",
+        "bodyMd5": "1eaca7d8a7883da116db12fae826782a",
+        "bodyLength": 304,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2404,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [],
+        "qualifiedFunctions": [
+          "afex_core_private.transition_atomic_order_v1"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-027",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "pos_actor_session_state_v1",
+        "identityArguments": "p_authenticated_session_id uuid, p_authenticated_subject_id uuid",
+        "owner": "afex_pos_session_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_pos_session_owner=X/afex_pos_session_owner,service_role=X/afex_pos_session_owner}",
+        "bodyMd5": "52918d9f9d809b4381cc3db1ae095771",
+        "bodyLength": 1461,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260814233000_pos_actor_sessions.sql",
+        "line": 623,
+        "fileSha256": "c04fbef3d7741c91899fd857356744303cfc55dbf8f51307a7260a3f5d7bcfbc",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "afex_pos_authority.actor_sessions",
+          "afex_pos_authority.auth_session_locks"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-028",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "replay_atomic_order_command_v1",
+        "identityArguments": "p uuid",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,service_role=X/afex_function_owner}",
+        "bodyMd5": "d08e7a9db3c8495bfc400332c0d60d76",
+        "bodyLength": 1178,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2358,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.atomic_order_commands"
+        ],
+        "qualifiedFunctions": [
+          "afex_core_private.valid_atomic_order_success_snapshot_v1"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_VERSIONED_HARDEN",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-029",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "resolve_atomic_order_reconciliation_hold_v1",
+        "identityArguments": "p uuid, prior uuid, digest bytea, succeeded boolean",
+        "owner": "afex_function_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_function_owner=X/afex_function_owner,afex_reconciliation_authority=X/afex_function_owner}",
+        "bodyMd5": "55b70056160fb2f353689112827f71a1",
+        "bodyLength": 1166,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+        "line": 2406,
+        "fileSha256": "86994013023005c93c48ec4637ee27d30531d9e6110425eda16dd192cb6ca89c",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.atomic_order_business_links",
+          "public.atomic_order_commands"
+        ],
+        "qualifiedFunctions": [
+          "afex_core_private.atomic_order_evidence_digest_v1",
+          "afex_core_private.transition_atomic_order_v1"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-030",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "restore_inventory_for_cancelled_invoice",
+        "identityArguments": "p_invoice_id uuid, p_tenant_id uuid",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=public"
+        ],
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "79826b9083c749893af1e5aabe6dc021",
+        "bodyLength": 3949,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 2919,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.branch_catalog_items",
+          "public.catalog_items",
+          "public.inventory_movements",
+          "public.inventory_stock",
+          "public.invoice_items",
+          "public.invoices"
+        ],
+        "qualifiedFunctions": [
+          "public.inventory_movements",
+          "public.inventory_stock"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "REPLACE_WITH_CORE_BLOCKED",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-031",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "revoke_pos_actor_session_v1",
+        "identityArguments": "p_token_hash text, p_authenticated_session_id uuid, p_authenticated_subject_id uuid, p_reason text",
+        "owner": "afex_pos_session_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_pos_session_owner=X/afex_pos_session_owner,service_role=X/afex_pos_session_owner}",
+        "bodyMd5": "3c0e0b35b952db7a1197435999fd803d",
+        "bodyLength": 926,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260814233000_pos_actor_sessions.sql",
+        "line": 677,
+        "fileSha256": "c04fbef3d7741c91899fd857356744303cfc55dbf8f51307a7260a3f5d7bcfbc",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "afex_pos_authority.actor_sessions"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-032",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "revoke_pos_actor_sessions_for_actor_v1",
+        "identityArguments": "p_administrator_subject_id uuid, p_administrator_session_id uuid, p_actor_id uuid, p_reason text",
+        "owner": "afex_pos_session_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_pos_session_owner=X/afex_pos_session_owner,service_role=X/afex_pos_session_owner}",
+        "bodyMd5": "e40e0b51cb92d93139c9fc08ae6d3040",
+        "bodyLength": 1330,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260814233000_pos_actor_sessions.sql",
+        "line": 710,
+        "fileSha256": "c04fbef3d7741c91899fd857356744303cfc55dbf8f51307a7260a3f5d7bcfbc",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "afex_pos_authority.actor_sessions",
+          "public.pos_profiles",
+          "public.profiles"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-033",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "set_pos_pin",
+        "identityArguments": "raw_pin text, user_id uuid",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=public, extensions"
+        ],
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "e44beb88975eea57e6d0c8e9aead7119",
+        "bodyLength": 244,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 3255,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.profiles"
+        ],
+        "qualifiedFunctions": [
+          "extensions.crypt",
+          "extensions.gen_salt"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "SERVER_ONLY_CREDENTIAL_BOUNDARY_BLOCKED",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-034",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "update_inventory_low_stock_threshold",
+        "identityArguments": "p_tenant_id uuid, p_branch_id uuid, p_catalog_item_id uuid, p_low_stock_threshold numeric",
+        "owner": "postgres",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": null,
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodyMd5": "b86fcb6b83c3ce161884692b29b89fb3",
+        "bodyLength": 1456,
+        "publicExecute": true
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 3347,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.branches",
+          "public.catalog_items",
+          "public.inventory_stock"
+        ],
+        "qualifiedFunctions": [],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "SERVER_ONLY_BLOCKED",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-035",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "validate_pos_actor_session_v1",
+        "identityArguments": "p_token_hash text, p_authenticated_session_id uuid, p_authenticated_subject_id uuid",
+        "owner": "afex_pos_session_owner",
+        "languageOid": "13619",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{afex_pos_session_owner=X/afex_pos_session_owner,service_role=X/afex_pos_session_owner}",
+        "bodyMd5": "937b0e2fc60891ff30968186bd95423f",
+        "bodyLength": 3300,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "supabase/migrations/20260814233000_pos_actor_sessions.sql",
+        "line": 513,
+        "fileSha256": "c04fbef3d7741c91899fd857356744303cfc55dbf8f51307a7260a3f5d7bcfbc",
+        "bodyNormalization": "CRLF_TO_LF",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "afex_pos_authority.actor_sessions",
+          "public.branches",
+          "public.pos_profiles",
+          "public.profiles"
+        ],
+        "qualifiedFunctions": [
+          "extensions.digest"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "KEEP_AS_IS",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    },
+    {
+      "id": "FN-036",
+      "catalogIdentity": {
+        "schema": "public",
+        "name": "verify_pos_pin_for_actor",
+        "identityArguments": "p_raw_pin text, p_actor_user_id uuid, p_requested_branch_id uuid",
+        "owner": "postgres",
+        "languageOid": "14",
+        "securityDefiner": true,
+        "proconfig": [
+          "search_path=pg_catalog"
+        ],
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,afex_pos_session_owner=X/postgres}",
+        "bodyMd5": "5bd568f554fa3a55d95fcaaeaf153d58",
+        "bodyLength": 1868,
+        "publicExecute": false
+      },
+      "repositoryBodyEvidence": {
+        "path": "database-reconciliation/baseline/production-baseline.sql",
+        "line": 3426,
+        "fileSha256": "dbd6991774a0a43c56c481805ae965989629fd45adae7ae8e286a84f0ba62c63",
+        "bodyNormalization": "NONE",
+        "exactBodyMd5Match": true,
+        "exactBodyLengthMatch": true
+      },
+      "staticReferences": {
+        "relations": [
+          "public.branches",
+          "public.pos_profiles",
+          "public.profiles"
+        ],
+        "qualifiedFunctions": [
+          "extensions.crypt"
+        ],
+        "knownUnqualifiedProjectFunctions": [],
+        "cteAliases": [
+          "actor_scope",
+          "validated_scope"
+        ],
+        "unqualifiedRelationTokens": [],
+        "dynamicSqlDetected": false
+      },
+      "priorDisposition": "INTERNAL_PIN_VERIFY_BLOCKED",
+      "dependencyClosureStatus": "EXACT_BODY_MATCH_STATIC_REFERENCES_EXTRACTED_REVIEW_REQUIRED",
+      "changeAuthorization": "NO_BLOCKED_WITH_EXACT_FINITE_LIST"
+    }
+  ]
+}

@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { PosThemeToggle } from '@/components/pos-theme-toggle'
-import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
+import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
-import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
+import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
 import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
-import { clearActivePosEmployee, endPosActorSessionAndRequireReauthentication, markPosLoggedOut, readActivePosEmployee } from '@/lib/pos-employee-session'
+import { readActivePosEmployee } from '@/lib/pos-employee-session'
 
 function SettingsIcon({ name }: { name: 'sale' | 'orders' | 'invoice' | 'switch' | 'exit' }) {
   const paths = { sale: 'M4 5h16v14H4z M8 9h8 M8 13h5', orders: 'M6 4h12v16H6z M9 8h6 M9 12h6 M9 16h4', invoice: 'M7 3h10v18l-2-1.5L13 21l-2-1.5L9 21l-2-1.5z M10 8h4 M10 12h4', switch: 'M7 7h11l-3-3 M18 7l-3 3 M17 17H6l3 3 M6 17l3-3', exit: 'M10 5H5v14h5 M14 8l4 4-4 4 M18 12H9' } as const
@@ -17,29 +17,20 @@ function SettingsIcon({ name }: { name: 'sale' | 'orders' | 'invoice' | 'switch'
 
 export default function PosSettingsPage() {
   const router = useRouter()
-  const [loggingOut, setLoggingOut] = useState(false)
   const [employee, setEmployee] = useState<ReturnType<typeof readActivePosEmployee>>(null)
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [logoutIntent, setLogoutIntent] = useState<'logout' | 'switch'>('logout')
+  const [hasActiveSale, setHasActiveSale] = useState(false)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setEmployee(readActivePosEmployee()), 0)
     return () => window.clearTimeout(timer)
   }, [])
 
-  const handleLogout = async () => {
-    const hasActiveSale = Boolean(localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY) || localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY))
-    const confirmationMessage = hasActiveSale ? 'لديك عملية بيع غير مكتملة. هل تريد تسجيل الخروج وتركها محفوظة؟' : 'هل تريد تسجيل الخروج من نقطة البيع؟'
-    if (!window.confirm(confirmationMessage)) return
-    try {
-      setLoggingOut(true)
-      clearAllInvoiceCatalogCache()
-      await endPosActorSessionAndRequireReauthentication()
-      sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
-      markPosLoggedOut()
-      router.push('/pos/login')
-    } finally {
-      clearActivePosEmployee()
-      setLoggingOut(false)
-    }
+  const openLogout = (intent: 'logout' | 'switch') => {
+    setLogoutIntent(intent)
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.localStorage))
+    setLogoutOpen(true)
   }
 
   return <div className="pos-settings-page" dir="rtl"><main className="pos-settings-panel">
@@ -54,8 +45,19 @@ export default function PosSettingsPage() {
       <Link href="/pos/offline-drafts"><SettingsIcon name="invoice" /><span><b>المسودات غير المتصلة</b><small>إدارة المسودات المحفوظة</small></span><i aria-hidden="true">←</i></Link>
     </nav></section>
     <section className="pos-settings-section is-danger" aria-labelledby="pos-settings-session-actions-title"><div className="pos-settings-section-heading"><div><h2 id="pos-settings-session-actions-title">إدارة الجلسة</h2><p>هذه الإجراءات تنهي صلاحية موظف POS الحالية.</p></div></div><div className="pos-settings-danger-actions">
-      <button type="button" onClick={() => void handleLogout()} disabled={loggingOut}><SettingsIcon name="switch" /><span>{loggingOut ? 'جارٍ إنهاء الجلسة...' : 'تبديل الموظف'}</span></button>
-      <button type="button" onClick={() => void handleLogout()} disabled={loggingOut}><SettingsIcon name="exit" /><span>{loggingOut ? 'جارٍ تسجيل الخروج...' : 'إنهاء وضع POS'}</span></button>
+      <button type="button" onClick={() => openLogout('switch')}><SettingsIcon name="switch" /><span>تبديل الموظف</span></button>
+      <button type="button" onClick={() => openLogout('logout')}><SettingsIcon name="exit" /><span>إنهاء وضع POS</span></button>
     </div></section>
-  </main></div>
+  </main><PosLogoutRetentionDialog
+    open={logoutOpen}
+    intent={logoutIntent}
+    hasActiveSale={hasActiveSale}
+    onCancel={() => setLogoutOpen(false)}
+    onComplete={({ route }) => {
+      clearAllInvoiceCatalogCache()
+      sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
+      setLogoutOpen(false)
+      router.push(route)
+    }}
+  /></div>
 }

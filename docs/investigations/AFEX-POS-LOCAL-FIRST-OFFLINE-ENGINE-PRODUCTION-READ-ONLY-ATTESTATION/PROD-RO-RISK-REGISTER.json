@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "risks": [
+    {"id":"PROD-RO-R01","severity":"CRITICAL","finding":"Broad PUBLIC authenticated RLS policies OR with tenant-scoped policies on customer/order/invoice domains","impact":"direct authenticated Data API tenant isolation can be defeated","requiredAction":"separate emergency security review and independently reviewed migration before Offline rollout"},
+    {"id":"PROD-RO-R02","severity":"CRITICAL","finding":"Legacy SECURITY DEFINER functions are executable by anon/authenticated according to advisor and catalog ACLs","impact":"privileged mutation surface includes inventory, invoices, PIN, and cancellation","requiredAction":"hostile-path body review and least-privilege execute ACL correction"},
+    {"id":"PROD-RO-R03","severity":"HIGH","finding":"Core command authority binds Primary Auth profile, not actual POS employee or device","impact":"offline attribution/revocation cannot be enforced at replay","requiredAction":"Core authority bridge with immutable generations"},
+    {"id":"PROD-RO-R04","severity":"HIGH","finding":"No Server Review Container","impact":"payment-attested real conflicts cannot be retained/resolved under approved contract","requiredAction":"separately reviewed state model and management authority"},
+    {"id":"PROD-RO-R05","severity":"HIGH","finding":"No durable external-effect ledger","impact":"runtime/provider ambiguity can duplicate WhatsApp or notification effects","requiredAction":"transactional effect intent plus claimed dispatcher"},
+    {"id":"PROD-RO-R06","severity":"HIGH","finding":"Payment vocabulary differs across Offline model, route, Core, and invoice constraint","impact":"methods can be rejected or semantically conflated","requiredAction":"human-approved canonical mapping and schema/Core review"},
+    {"id":"PROD-RO-R07","severity":"HIGH","finding":"Cancellation function is drifted between Production and repository","impact":"response contract and exact inventory restoration parity are uncertain","requiredAction":"resolve authority from Production/repository evidence before migration"},
+    {"id":"PROD-RO-R08","severity":"HIGH","finding":"inventory_stock has no nonnegative database constraint and manual adjustment surface is broad","impact":"legacy path may create negative authoritative stock despite Core checks","requiredAction":"review function body, ACL, constraint, and all callers"},
+    {"id":"PROD-RO-R09","severity":"MEDIUM","finding":"invoice reads show disproportionately high sequential scans","impact":"receipt/review workload could amplify latency","requiredAction":"bounded query/index review without premature index creation"},
+    {"id":"PROD-RO-R10","severity":"MEDIUM","finding":"best-effort audit is outside business transactions","impact":"business success can lack corresponding application audit","requiredAction":"retain Core audit and design transactional outbox/audit projection"},
+    {"id":"PROD-RO-R11","severity":"MEDIUM","finding":"one-device assumption does not cover online sales/admin adjustments","impact":"local stock frontier can be stale","requiredAction":"server recomputation and conflict review"},
+    {"id":"PROD-RO-R12","severity":"MEDIUM","finding":"advisor reports 140 performance findings","impact":"policy evaluation and missing/duplicate indexes can grow costly","requiredAction":"triage against workload before any change"}
+  ]
+}

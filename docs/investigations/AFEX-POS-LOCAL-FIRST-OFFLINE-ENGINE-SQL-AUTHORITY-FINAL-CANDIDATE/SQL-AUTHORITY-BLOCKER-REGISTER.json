@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 9,
+  "packageDecision": "FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN_APPLICATION_INTEGRATED_ACTIVATION_NOT_EXECUTED",
+  "closed": [
+    {"id":"C-01","blocker":"installer evidence previously named the wrong principal","closure":"CURRENT_USER and SESSION_USER are frozen as postgres on database postgres / PostgreSQL 170006"},
+    {"id":"C-02","blocker":"ambiguous trust classification","closure":"server JWT verification, server-resolved POS session and database immutable-row revalidation are distinct layers"},
+    {"id":"C-03","blocker":"partial batch resolver","closure":"one typed output per server ordinal, maximum 1000, duplicate caller positions rejected and failures isolated"},
+    {"id":"C-04","blocker":"inventory ambiguity","closure":"exact ordered item set, quantities, snapshot/frontier and commitments"},
+    {"id":"C-05","blocker":"partial Offline/Core mapping","closure":"complete canonical payload, fingerprint, line economics, payment, inventory and idempotency binding"},
+    {"id":"C-06","blocker":"payment validator incomplete","closure":"eight methods, exact schema, total/order/idempotency binding, unverified provider states and sensitive-field denial"},
+    {"id":"C-07","blocker":"single-column scope joins","closure":"composite FKs cover all authority generations and Core context/command"},
+    {"id":"C-08","blocker":"consolidated executable waves","closure":"independent whole-file waves frozen"},
+    {"id":"C-09","blocker":"forward changes lacked disposition","closure":"every FWD identifier maps once to an honest disposition"},
+    {"id":"C-10","blocker":"receipt before authority","closure":"fresh authority resolution precedes binding and receipt reads"},
+    {"id":"C-11","blocker":"weak static claims","closure":"semantic tests added and parser limitation disclosed"},
+    {"id":"C-12","blocker":"focused negative coverage missing","closure":"payment, inventory, resolver, scope, waves, ACL, disablement and receipt-order tests added"},
+    {"id":"C-13","blocker":"Offline authority could be read as starting without account authentication","closure":"bootstrap requires the existing verified Online Auth session and active POS actor session; logged-out Offline start is impossible"},
+    {"id":"C-14","blocker":"employee PIN was incorrectly classified as a persistent DEK unwrap factor","closure":"structured PBKDF2 verifier is employee selection only; device storage encryption is independently bound"},
+    {"id":"C-15","blocker":"logout restart and recovery semantics were incomplete","closure":"explicit logout disables PIN/order/switch, retains pending work encrypted and inaccessible, permits same-account Online recovery only; restart without logout requires PIN but not Internet"},
+    {"id":"C-16","blocker":"trusted device employee inventory and bootstrap provisioning writers were missing","closure":"four independent whole-file provisioning waves with exact versioned writers and reads are present"},
+    {"id":"C-17","blocker":"employee allowlist could admit more than the Pilot","closure":"relation constraint and permission writer require exactly ARRAY['order.create']::text[] and active roster capacity is 25"},
+    {"id":"C-18","blocker":"provisioning and acquisition reachability were conflated","closure":"separate NOLOGIN runtime roles have mutually exclusive exact function grants and zero direct relation privileges"},
+    {"id":"C-19","blocker":"provisioning disablement and attestation were incomplete","closure":"all 15 provisioning signatures are attested, revoked first, and removed only after evidence-safe shutdown"},
+    {"id":"C-20","blocker":"human-approved authority behavior lacked focused regression coverage","closure":"account bootstrap PIN selection logout recovery verifier capacity allowlist writers ACL and caller-isolation tests added"},
+    {"id":"C-21","blocker":"mixed-owner DDL could not run from the proven postgres SQL Editor session","closure":"Wave 01 is split; every owner wave creates a transaction-bounded SET-true membership GRANTED BY CURRENT_USER, uses SET LOCAL ROLE, resets, then revokes the exact membership before commit"},
+    {"id":"C-22","blocker":"auth helper required an unproven auth-schema owner path","closure":"the sole postgres-owned helper is private in afex_offline_authority, reads only auth.sessions id/user_id, and changes no auth owner or ACL"},
+    {"id":"C-23","blocker":"service transport was conflated with foundation installation","closure":"twelve bounded service-role facades plus one private context helper and exact emergency revoke are frozen in final 90/90Z files excluded from the Foundation DAG"}
+  ],
+  "remainingFiniteReviewBlockers": [],
+  "executionBlockers": ["final human Activation SQL/security review","manual Activation execution approval","controlled isolated Pilot qualification"],
+  "preserved": {
+    "currentOnlineBehavior":"UNCHANGED",
+    "coreV2SoleAuthority":true,
+    "sensitiveFlagsFalse":12,
+    "shadowCommandsBlocked":7,
+    "disabledPosIntegrationImports":1,
+    "adminDashboardOfflineImports":0,
+    "activationExecutionAuthorized":false,
+    "constructionSqlExecuted":0
+  }
+}

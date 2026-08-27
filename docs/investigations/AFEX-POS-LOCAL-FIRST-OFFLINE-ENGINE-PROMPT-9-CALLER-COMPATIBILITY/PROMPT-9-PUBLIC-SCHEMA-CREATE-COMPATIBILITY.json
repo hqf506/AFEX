@@ -1,0 +1,216 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceClass": "STATIC_REPOSITORY_EVIDENCE_ONLY",
+  "rule": "No REVOKE CREATE ON SCHEMA public is recommended or authorized from repository evidence alone.",
+  "dependencies": [
+    {
+      "id": "PC-001",
+      "roleOrWorkflow": "postgres",
+      "classification": "PROVEN_REQUIRED",
+      "repositoryEvidence": [
+        "historical migrations create/alter public objects",
+        "extension creation appears in migrations"
+      ],
+      "runtimeRequirement": "current Production ongoing need unproven",
+      "sourcePaths": [
+        "supabase/migrations"
+      ],
+      "blockers": [
+        "fresh Production ACL and operator workflow evidence"
+      ]
+    },
+    {
+      "id": "PC-002",
+      "roleOrWorkflow": "afex_core_owner",
+      "classification": "PROVEN_REQUIRED",
+      "repositoryEvidence": [
+        "Core migration temporarily grants CREATE on public and revokes it after object creation"
+      ],
+      "runtimeRequirement": "not proven after migration completes",
+      "sourcePaths": [
+        "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"
+      ],
+      "blockers": [
+        "current Production ACL attestation"
+      ]
+    },
+    {
+      "id": "PC-003",
+      "roleOrWorkflow": "afex_pos_session_owner",
+      "classification": "PROVEN_REQUIRED",
+      "repositoryEvidence": [
+        "POS actor-session migration temporarily grants CREATE on public and revokes it"
+      ],
+      "runtimeRequirement": "not proven after migration completes",
+      "sourcePaths": [
+        "supabase/migrations"
+      ],
+      "blockers": [
+        "current Production ACL attestation"
+      ]
+    },
+    {
+      "id": "PC-004",
+      "roleOrWorkflow": "afex_function_owner",
+      "classification": "PROVEN_REQUIRED",
+      "repositoryEvidence": [
+        "customer identity migration temporarily requires public object-creation authority"
+      ],
+      "runtimeRequirement": "not proven after migration completes",
+      "sourcePaths": [
+        "supabase/migrations/20260813130000_customer_phone_identity_registry.sql"
+      ],
+      "blockers": [
+        "current Production ACL attestation"
+      ]
+    },
+    {
+      "id": "PC-005",
+      "roleOrWorkflow": "service_role",
+      "classification": "POSSIBLE_EXTERNAL_CALLER",
+      "repositoryEvidence": [
+        "application service-role code performs DML/RPC, not repository DDL"
+      ],
+      "runtimeRequirement": "Supabase/platform/external workflows cannot be excluded",
+      "sourcePaths": [
+        "lib/supabase/admin.ts",
+        "app/api"
+      ],
+      "blockers": [
+        "Production ACL and external caller inventory"
+      ]
+    },
+    {
+      "id": "PC-006",
+      "roleOrWorkflow": "anon",
+      "classification": "BLOCKED_PENDING_PRODUCTION_EVIDENCE",
+      "repositoryEvidence": [
+        "no repository application DDL caller found"
+      ],
+      "runtimeRequirement": "absence of repository caller is not proof of unused privilege",
+      "sourcePaths": [
+        "lib/supabase/client.ts"
+      ],
+      "blockers": [
+        "Production ACL reachability"
+      ]
+    },
+    {
+      "id": "PC-007",
+      "roleOrWorkflow": "authenticated",
+      "classification": "BLOCKED_PENDING_PRODUCTION_EVIDENCE",
+      "repositoryEvidence": [
+        "no repository application DDL caller found"
+      ],
+      "runtimeRequirement": "absence of repository caller is not proof of unused privilege",
+      "sourcePaths": [
+        "lib/supabase/client.ts",
+        "lib/supabase/server.ts"
+      ],
+      "blockers": [
+        "Production ACL reachability"
+      ]
+    },
+    {
+      "id": "PC-008",
+      "roleOrWorkflow": "Supabase platform operations",
+      "classification": "POSSIBLE_EXTERNAL_CALLER",
+      "repositoryEvidence": [
+        "not represented as an application caller"
+      ],
+      "runtimeRequirement": "platform migrations/bootstrap may operate outside repository runtime",
+      "sourcePaths": [
+        "supabase/config.toml",
+        "supabase/migrations"
+      ],
+      "blockers": [
+        "authoritative platform documentation/Production attestation"
+      ]
+    },
+    {
+      "id": "PC-009",
+      "roleOrWorkflow": "extensions",
+      "classification": "PROVEN_REQUIRED",
+      "repositoryEvidence": [
+        "migrations contain CREATE EXTENSION and extension schema usage"
+      ],
+      "runtimeRequirement": "installation/upgrade authority may be operator-specific",
+      "sourcePaths": [
+        "supabase/migrations"
+      ],
+      "blockers": [
+        "installed extension ownership and upgrade workflow evidence"
+      ]
+    },
+    {
+      "id": "PC-010",
+      "roleOrWorkflow": "migration operator",
+      "classification": "PROVEN_REQUIRED",
+      "repositoryEvidence": [
+        "repository contains object-creating migrations"
+      ],
+      "runtimeRequirement": "exact principal not declared in repository",
+      "sourcePaths": [
+        "supabase/migrations"
+      ],
+      "blockers": [
+        "deployment pipeline principal identity"
+      ]
+    },
+    {
+      "id": "PC-011",
+      "roleOrWorkflow": "maintenance/application administration",
+      "classification": "POSSIBLE_EXTERNAL_CALLER",
+      "repositoryEvidence": [
+        "admin application performs DML/RPC but no DDL path found"
+      ],
+      "runtimeRequirement": "manual maintenance outside repository cannot be excluded",
+      "sourcePaths": [
+        "app/admin",
+        "scripts"
+      ],
+      "blockers": [
+        "operator runbook and Production session evidence"
+      ]
+    },
+    {
+      "id": "PC-012",
+      "roleOrWorkflow": "CI/CD and deployment automation",
+      "classification": "UNPROVEN",
+      "repositoryEvidence": [
+        "no .github workflow found and package scripts do not prove Supabase migration principal"
+      ],
+      "runtimeRequirement": "external pipeline may exist",
+      "sourcePaths": [
+        "package.json"
+      ],
+      "blockers": [
+        "external CI/CD configuration"
+      ]
+    },
+    {
+      "id": "PC-013",
+      "roleOrWorkflow": "local development/test harnesses",
+      "classification": "POSSIBLE_EXTERNAL_CALLER",
+      "repositoryEvidence": [
+        "migrations and operational scripts exist; no live DB execution performed"
+      ],
+      "runtimeRequirement": "local migration tools may need temporary CREATE",
+      "sourcePaths": [
+        "supabase",
+        "scripts",
+        "tests"
+      ],
+      "blockers": [
+        "approved local harness principal contract"
+      ]
+    }
+  ],
+  "blockers": [
+    "Repository absence never establishes PROVEN_NOT_REQUIRED for an external/platform role.",
+    "Fresh read-only Production ACL/default-privilege evidence is required before any revocation.",
+    "Independent SQL review and rollback drill remain required."
+  ]
+}
+
+

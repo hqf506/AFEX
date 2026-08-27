@@ -1,0 +1,14 @@
+{
+  "localStates": ["pending", "syncing", "synced", "failed", "conflict", "blocked"],
+  "rules": [
+    {"condition":"full-scope acquisition and current trusted authority verified completed stable receipt","state":"synced","receiptVerified":true},
+    {"condition":"full-scope acquisition and current trusted authority verified stable rejected receipt","state":"failed","receiptVerified":true},
+    {"condition":"payload or idempotency conflict","state":"conflict","receiptVerified":false},
+    {"condition":"authority or policy block","state":"blocked","receiptVerified":false},
+    {"condition":"schema or attestation rejection","state":"failed","receiptVerified":false},
+    {"condition":"abort timeout unknown response or HTTP 2xx without receipt","state":"pending","retryable":true,"receiptVerified":false},
+    {"condition":"qualified but not executed","state":"pending","retryable":true,"receiptVerified":false}
+  ],
+  "commandRetention": "every mapping returns retained=true",
+  "networkSuccessIsReceipt": false
+}

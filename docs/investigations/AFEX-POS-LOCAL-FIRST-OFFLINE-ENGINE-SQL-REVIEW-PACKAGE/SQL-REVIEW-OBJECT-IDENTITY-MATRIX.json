@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "packageDate": "2026-08-26",
+  "executionStatus": "NOT_AUTHORIZED",
+  "repository": {
+    "root": "C:/Users/NSC-LUA/Desktop/leather-fix-erp-pos-responsive",
+    "branch": "codex/pos-responsive-redesign",
+    "head": "37331390ec00bee507f88701365bfebb944db675",
+    "upstreamAhead": 0,
+    "upstreamBehind": 0,
+    "stagedPathCount": 0,
+    "trackedApplicationDiffGitObjectId": "f2cc98137dc505b495da608ec5ba38d3c0293670"
+  },
+  "trustedEvidence": [
+    {"name":"Original investigation manifest","sha256":"c0bde8133a1b7e849c92e80061d03c2adab709000da6d6d334e80d13d9cdbde1","verified":true},
+    {"name":"Phase 0 manifest","sha256":"85e498f3ee3da9e8772113a474b8aa14d684009002326ac48607dead1377f9d5","verified":true},
+    {"name":"Phase 1 manifest","sha256":"34599e8acc1c1776ddd662af24594e26b98d6cef35c17aee56b16c26c81cea4a","verified":true},
+    {"name":"Phase 2 manifest","sha256":"39fe697cfbc0b8aedf480d2c195426e29786c9f0724520aeeaee58eac2e80c52","verified":true},
+    {"name":"Phase 3 manifest","sha256":"a44d30d44315b89a12743e5a7a21075431829255a5da4270b1a65ee12ccba6cf","verified":true},
+    {"name":"Phase 4 manifest","sha256":"1b4f9c0cfd7a3d734dda1b776800073eac3e0630416c0a8e2f381fdb8f475f6b","verified":true},
+    {"name":"Production read-only attestation manifest","sha256":"156c5039982267874011aa13df7a403f867eaacfd9b93637541842ab134a14a6","verified":true},
+    {"name":"Security authority investigation manifest","sha256":"4c9cd44115bbff46adaeae1dc2914021fbf37c705e9f1d214db4c7e171b419f1","verified":true},
+    {"name":"Authority correction design manifest","sha256":"535152c74f9a06f2e536de80e8872c48a6e95c02c0bf782ed205f0c165f4d7b1","verified":true}
+  ],
+  "roles": {
+    "preserveEvidenceProvenExisting": [
+      "afex_core_owner",
+      "afex_function_owner",
+      "afex_pos_session_owner",
+      "afex_core_runtime",
+      "afex_pos_session_maintenance",
+      "afex_reconciliation_authority"
+    ],
+    "existingRoleAttributeContract": {
+      "requiredFalseFromApprovedEvidence": ["rolcanlogin","rolsuper","rolbypassrls","rolcreatedb","rolcreaterole","rolreplication"],
+      "rolinherit": "INFORMATIONAL_NOT_ASSERTED_WITHOUT_ADDITIONAL_EVIDENCE",
+      "mutationAllowed": false
+    },
+    "candidateNoLoginNoInherit": [
+      "afex_identity_owner",
+      "afex_business_owner",
+      "afex_inventory_owner",
+      "afex_audit_owner",
+      "afex_offline_authority_owner",
+      "afex_review_owner",
+      "afex_effect_owner",
+      "afex_offline_enrollment_runtime",
+      "afex_offline_acquisition_runtime",
+      "afex_business_review_runtime",
+      "afex_effect_dispatcher",
+      "afex_inventory_admin_runtime"
+    ],
+    "proposedRoleAttributeContract": {
+      "requiredFalse": ["rolcanlogin","rolsuper","rolinherit","rolcreatedb","rolcreaterole","rolreplication","rolbypassrls"],
+      "unexpectedExistingMembership": "FAIL_CLOSED"
+    },
+    "forbiddenMembershipSubjects": ["PUBLIC","anon","authenticated","service_role"],
+    "forbiddenMembershipTargets": "any afex_* owner or runtime role"
+  },
+  "schemas": [
+    {"identity":"public","currentOwner":"pg_database_owner","disposition":"PRESERVE_ACL_UNTIL_PROMPT_9_CALLER_COMPATIBILITY"},
+    {"identity":"afex_core_private","currentOwner":"afex_function_owner","disposition":"PRESERVE_IDENTITY_NO_MOVE"},
+    {"identity":"afex_pos_authority","currentOwner":"afex_pos_session_owner","disposition":"PRESERVE_IDENTITY_NO_MOVE"},
+    {"identity":"afex_offline_authority","candidateOwner":"afex_offline_authority_owner","disposition":"CREATE_NEW_PRIVATE"},
+    {"identity":"afex_review_private","candidateOwner":"afex_review_owner","disposition":"CREATE_NEW_PRIVATE"},
+    {"identity":"afex_effect_private","candidateOwner":"afex_effect_owner","disposition":"CREATE_NEW_PRIVATE"}
+  ],
+  "frozenCurrentRelations": {
+    "identityAndAuthority": ["auth.users","auth.sessions","public.profiles","public.pos_profiles","public.tenants","public.branches","afex_pos_authority.actor_sessions","afex_pos_authority.auth_session_locks"],
+    "business": ["public.customers","public.catalog_items","public.branch_catalog_items","public.orders","public.invoices","public.invoice_items","public.order_status_logs","public.order_number_sequences","public.vat_settings","public.audit_logs","public.branch_whatsapp_configs"],
+    "inventory": ["public.inventory_stock","public.inventory_movements","public.inventory_movements_view"],
+    "customerIdentity": ["public.customer_phone_identities","public.customer_phone_identity_members"],
+    "coreV2": ["public.atomic_authorization_contexts","public.atomic_order_commands","public.atomic_order_command_payloads","public.atomic_order_claims","public.atomic_order_retry_authorizations","public.atomic_order_business_links","public.atomic_order_line_links","public.atomic_order_audit","public.atomic_order_diagnostics"],
+    "numberingSequences": ["public.invoice_number_seq","public.order_number_seq"]
+  },
+  "candidateRelations": [
+    {"identity":"afex_offline_authority.offline_devices","owner":"afex_offline_authority_owner","sqlFile":"05-OFFLINE-DEVICE-AND-EMPLOYEE-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"branch_id plus tenant_id composite target"},
+    {"identity":"afex_offline_authority.offline_device_events","owner":"afex_offline_authority_owner","sqlFile":"05-OFFLINE-DEVICE-AND-EMPLOYEE-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"blocked device composite identity"},
+    {"identity":"afex_offline_authority.offline_employee_authorities","owner":"afex_offline_authority_owner","sqlFile":"05-OFFLINE-DEVICE-AND-EMPLOYEE-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"immutable employee/device/subject/scope/generation composite identity"},
+    {"identity":"afex_offline_authority.offline_key_envelopes","owner":"afex_offline_authority_owner","sqlFile":"06-PERSISTENT-UNWRAP-METADATA.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"full employee-authority composite foreign key"},
+    {"identity":"afex_core_private.offline_command_bindings","owner":"afex_core_owner","sqlFile":"07-CORE-V2-ACTOR-DEVICE-BRIDGE.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"Core command scope plus employee-authority composite closure"},
+    {"identity":"afex_review_private.atomic_business_reviews","owner":"afex_review_owner","sqlFile":"08-REVIEW-PAYMENT-INVENTORY-EFFECT-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"Core command scope and trusted review CAS writer"},
+    {"identity":"afex_review_private.atomic_business_review_events","owner":"afex_review_owner","sqlFile":"08-REVIEW-PAYMENT-INVENTORY-EFFECT-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"serialized review version and scope derivation"},
+    {"identity":"afex_core_private.atomic_payment_attestations","owner":"afex_core_owner","sqlFile":"08-REVIEW-PAYMENT-INVENTORY-EFFECT-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"Core scope plus employee/provider writer separation"},
+    {"identity":"afex_core_private.branch_inventory_snapshot_headers","owner":"afex_inventory_owner","sqlFile":"08-REVIEW-PAYMENT-INVENTORY-EFFECT-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"branch_id plus tenant_id composite target"},
+    {"identity":"afex_core_private.branch_inventory_snapshot_items","owner":"afex_inventory_owner","sqlFile":"08-REVIEW-PAYMENT-INVENTORY-EFFECT-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"snapshot_id plus tenant_id plus branch_id composite header key"},
+    {"identity":"afex_effect_private.atomic_effect_ledger","owner":"afex_effect_owner","sqlFile":"08-REVIEW-PAYMENT-INVENTORY-EFFECT-AUTHORITY.sql","status":"BLOCKED_INSUFFICIENT_EVIDENCE","missingAuthority":"Core command scope plus complete claim/result state machine"}
+  ],
+  "compositeAuthorityIdentities": {
+    "provenPolicyLevelOnly": [
+      {
+        "identity":"external effect semantic identity",
+        "columns":["serverCommandId","effectType","effectVersion"],
+        "status":"APPROVED_CONTRACT_BUT_DATABASE_RELATION_BLOCKED"
+      }
+    ],
+    "provenDatabaseForeignKeyTargetsForCorrectedRelations": [],
+    "missing": [
+      {"id":"CA-001","identity":"branch authority","requiredColumns":["branch_id","tenant_id"],"missing":"exact relation, column order/types, validated unique key, owner and lifecycle"},
+      {"id":"CA-002","identity":"employee authority","requiredColumns":["id","device_id","employee_id","primary_auth_subject_id","tenant_id","branch_id","device_authority_generation","credential_generation","pin_generation","permission_generation","employee_revocation_generation","package_generation","key_envelope_generation","namespace_generation"],"missing":"exact immutable unique key, types, order and lifecycle"},
+      {"id":"CA-003","identity":"Core command scope","requiredColumns":["command_id","tenant_id","branch_id"],"missing":"exact Core relation columns, order, unique key, owner and lifecycle; actor/device linkage may require additional frozen columns"},
+      {"id":"CA-004","identity":"snapshot header scope","requiredColumns":["snapshot_id","tenant_id","branch_id"],"missing":"exact unique parent key plus CA-001 branch authority"},
+      {"id":"CA-005","identity":"review version transition","requiredColumns":["review_id","expected_review_version","resulting_review_version"],"missing":"trusted serialized compare-and-set writer and scope derivation"},
+      {"id":"CA-006","identity":"payment writer separation","requiredColumns":["employee_writer","provider_writer","attestation_state","provider_state"],"missing":"exact roles, functions, grants and transition state machine"},
+      {"id":"CA-007","identity":"effect transition authority","requiredColumns":["server_command_id","effect_type","effect_version","state","claim_version"],"missing":"exact claim/complete/fail routines, provider idempotency and atomic Core intent insertion"}
+    ]
+  },
+  "frozenFunctionIdentities": [
+    {"signature":"public.acquire_atomic_order_command_result_v1(uuid,uuid,uuid,text,text,text,text,timestamp with time zone)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"eac41a8e26ae11c57f3a9771ee36cd12","disposition":"KEEP_AND_HARDEN"},
+    {"signature":"public.acquire_atomic_order_command_v1(uuid,uuid,uuid,text,text,text,text,timestamp with time zone)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"4b6889b340a663a36bd79418d8234539","disposition":"KEEP_AND_HARDEN"},
+    {"signature":"public.claim_atomic_order_command_v1(uuid)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"93d52df465ac66c81f2bacf02de69f00","disposition":"KEEP_AND_HARDEN"},
+    {"signature":"public.execute_atomic_order_command_v1(uuid,uuid)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"65a8aac3e93d42f2c364e7f28f2f204e","disposition":"KEEP_AND_HARDEN"},
+    {"signature":"public.replay_atomic_order_command_v1(uuid)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"0e50333d30f089d1515111262662de94","disposition":"KEEP_AND_HARDEN"},
+    {"signature":"public.inspect_atomic_order_reconciliation_v1(uuid)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"f9636c62781dc5cb2487d9447c66ac7d","disposition":"KEEP_AND_HARDEN"},
+    {"signature":"public.place_atomic_order_manual_hold_v1(uuid,bytea)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"a673b22b36eb2c88b67a44b2c7297138","disposition":"KEEP_BOUNDED"},
+    {"signature":"public.authorize_atomic_order_retry_v1(uuid,uuid,bytea)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"517397cc440bfb4e4c897cffd69308e6","disposition":"KEEP_BOUNDED"},
+    {"signature":"public.resolve_atomic_order_reconciliation_hold_v1(uuid,uuid,bytea,boolean)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"a50335b2179a18ea7c78fd5bc06fab13","disposition":"KEEP_BOUNDED"},
+    {"signature":"public.mark_atomic_order_reconciliation_required_v1(uuid,uuid,bytea)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"7789bee22be40ac332b7fa0d58e064d7","disposition":"KEEP_BOUNDED"},
+    {"signature":"public.issue_pos_actor_session_v1(text,uuid,uuid,text,uuid)","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"cdb42250fa86b95eeca2a5ad93f61b21","disposition":"KEEP_AS_IS"},
+    {"signature":"public.validate_pos_actor_session_v1(text,uuid,uuid)","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"c8dfaa0ab5908d3db2e1bef5c21ead06","disposition":"KEEP_AS_IS"},
+    {"signature":"public.revoke_pos_actor_session_v1(text,uuid,uuid,text)","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"5eee43d08268025e902551e7ae0fdd78","disposition":"KEEP_AS_IS"},
+    {"signature":"public.revoke_pos_actor_sessions_for_actor_v1(uuid,uuid,uuid,text)","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"3c6bfdb387f50a8a4aa173c1ae60dcda","disposition":"KEEP_AS_IS"},
+    {"signature":"public.pos_actor_session_state_v1(uuid,uuid)","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"758e0ac046882fd70f478ae5e1e677e0","disposition":"KEEP_AS_IS"},
+    {"signature":"public.cleanup_pos_actor_sessions_v1(integer)","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"92793bb07e7933385f96c6c5ee175977","disposition":"KEEP_AS_IS"},
+    {"signature":"public.lookup_customer_phone_identity_v1(uuid,text,uuid)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog, public","bodyMd5":"01a8f15adebe41129c4d423a9da531c2","disposition":"RETAIN_NARROW_AUTHENTICATED_RPC"},
+    {"signature":"public.create_customer_with_phone_identity_v1(uuid,uuid,text,text,text,text)","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog, public","bodyMd5":"d1efb1a835c0fed820c355c5e4366359","disposition":"RETAIN_SERVER_ONLY"},
+    {"signature":"public.verify_pos_pin_for_actor(text,uuid,uuid)","owner":"postgres","securityDefiner":true,"searchPath":"pg_catalog","bodyMd5":"8ea4f576c828d8eec29d0683538bb793","disposition":"RETAIN_INTERNAL"},
+    {"signature":"public.create_invoice_with_items_safe(text,text,text,text,numeric,numeric,text,jsonb,text,uuid,uuid,uuid)","owner":"postgres","securityDefiner":true,"searchPath":"public","bodyMd5":"f62e3582f536265f1b686014f8ab5fdf","disposition":"RETIRE_AFTER_COMPATIBILITY"},
+    {"signature":"public.adjust_inventory_stock(uuid,uuid,uuid,numeric,text,text,uuid)","owner":"postgres","securityDefiner":true,"searchPath":"public","bodyMd5":"1f84f704084935f26352488a7ffae105","disposition":"REPLACE_SERVER_ONLY"},
+    {"signature":"public.restore_inventory_for_cancelled_invoice(uuid,uuid)","owner":"postgres","securityDefiner":true,"searchPath":"public","bodyMd5":"71ca89c7e85e976071f4ae8a3aae96c8","disposition":"RETIRE_AFTER_CORE_CANCELLATION"},
+    {"signature":"public.next_branch_monthly_order_number(uuid,uuid,timestamp with time zone)","owner":"postgres","securityDefiner":true,"searchPath":"public","bodyMd5":"89cddfc7d84aa928ef80b3cc2add6cef","disposition":"RETAIN_CORE_INTERNAL"},
+    {"signature":"public.set_pos_pin(text,uuid)","owner":"postgres","securityDefiner":true,"searchPath":"public, extensions","bodyMd5":null,"disposition":"RETAIN_SERVER_ONLY_AND_VERSION","evidence":"SIGNATURE_OWNER_PATH_NO_FROZEN_MD5"},
+    {"signature":"public.hash_pos_pin(text)","owner":"postgres","securityDefiner":true,"searchPath":"public, extensions","bodyMd5":null,"disposition":"RETIRE_DIRECT_REACHABILITY","evidence":"SIGNATURE_OWNER_PATH_NO_FROZEN_MD5"},
+    {"signature":"public.current_profile_tenant_id()","owner":"postgres","securityDefiner":true,"searchPath":"pg_catalog, public","bodyMd5":null,"disposition":"RETAIN_AND_HARDEN","evidence":"SIGNATURE_OWNER_PATH_NO_FROZEN_MD5"},
+    {"signature":"public.deduct_inventory_on_invoice_item_insert()","owner":"postgres","securityDefiner":true,"searchPath":"DEFAULT","bodyMd5":null,"disposition":"RETAIN_TRIGGER_ONLY_AND_HARDEN","evidence":"SIGNATURE_OWNER_NO_FROZEN_MD5"}
+  ],
+  "legacyInvoiceOverloadsFromApprovedDesign": [
+    "public.create_invoice_with_items_safe(text,text,text,text,numeric,numeric,text,jsonb,text,uuid,uuid,uuid)",
+    "public.create_invoice_with_items(text,text,text,text,numeric,numeric,text,json)",
+    "public.create_invoice_with_items(text,text,text,text,numeric,numeric,text,jsonb)",
+    "public.create_invoice_with_items(jsonb,jsonb)"
+  ],
+  "knownCriticalPolicyNames": {
+    "customers": ["authenticated can view customers","authenticated can insert customers","authenticated can update customers","customers_select_same_tenant","customers_insert_same_tenant","customers_update_same_tenant"],
+    "orders": ["authenticated can view orders","authenticated can insert orders","authenticated can update orders","orders_select_same_tenant","orders_insert_same_tenant","orders_update_same_tenant"],
+    "invoices": ["authenticated can view invoices","authenticated can insert invoices","authenticated can update invoices","invoices_select_same_tenant","invoices_insert_same_tenant","invoices_update_same_tenant"],
+    "invoice_items": ["authenticated can view invoice_items","authenticated can insert invoice_items","authenticated can update invoice_items","invoice_items_select_same_tenant","invoice_items_insert_same_tenant","invoice_items_update_same_tenant"],
+    "order_status_logs": ["authenticated can view status logs","authenticated can insert status logs"],
+    "profiles": ["profiles_select_admin_override","profiles_select_own","profiles_select_same_tenant","profiles_select_self","profiles_update_own","profiles_update_self"],
+    "pos_profiles": ["pos_profiles_select_same_tenant_system_user","pos_session_owner_pos_profiles_read","pos_session_owner_pos_profiles_row_lock","pos_session_owner_pos_profiles_write_guard"]
+  },
+  "blockedIdentityItems": [
+    {"id":"BI-001","area":"Prompt 9 compatibility","missing":"caller-by-caller deployed trusted replacement and response parity","blocks":["02","03","04"]},
+    {"id":"BI-002","area":"Profile server gateway","missing":"exact privileged database gateway identity and current caller conversion","blocks":["02"]},
+    {"id":"BI-003","area":"Complete policy catalog","missing":"fresh exhaustive policy identities and expressions for all affected relations","blocks":["03"]},
+    {"id":"BI-004","area":"Retained read helpers","missing":"exact active-branch helper and hardened tenant-helper body hash; VAT current-row semantic reconciliation","blocks":["03"]},
+    {"id":"BI-005","area":"Routine dependencies","missing":"fresh overload/call/trigger dependency closure and body hashes for partially captured routines","blocks":["04"]},
+    {"id":"BI-006","area":"Branch authority","missing":"CA-001 exact branch/tenant composite identity","blocks":["05","08","10"]},
+    {"id":"BI-007","area":"Employee authority","missing":"CA-002 exact employee/device/subject/scope/generation composite identity","blocks":["05","06","07","10"]},
+    {"id":"BI-008","area":"Core versioned acquisition","missing":"CA-003 exact command/scope composite identity plus body/receipt integration contract","blocks":["07","08","09","10"]},
+    {"id":"BI-009","area":"Core cancellation","missing":"versioned command constraint/body/status/payment/stock/effect integration","blocks":["09","10"]},
+    {"id":"BI-010","area":"Legacy invariants","missing":"fresh duplicate counts and exact constraint/index identity on hot tables","blocks":["10"]},
+    {"id":"BI-011","area":"Snapshot scope","missing":"CA-004 snapshot/header composite closure and CA-001 branch authority","blocks":["08","10"]},
+    {"id":"BI-012","area":"Review transitions","missing":"CA-005 serialized compare-and-set writer and command scope","blocks":["08","10"]},
+    {"id":"BI-013","area":"Payment authority","missing":"CA-006 employee/provider writer separation and command scope","blocks":["08","10"]},
+    {"id":"BI-014","area":"External effects","missing":"CA-007 complete state machine, worker and atomic insertion authority","blocks":["08","10"]},
+    {"id":"BI-015","area":"Public schema compatibility","missing":"caller-by-caller proof before any current CREATE privilege revocation","blocks":["01","02"]},
+    {"id":"BI-016","area":"Existing role attributes","missing":"rolinherit remains informational unless exact existing-role evidence is approved","blocks":["existing-role NOINHERIT assertion"]},
+    {"id":"BI-017","area":"New authority indexes","missing":"corrected executable relation shapes and composite keys before index identity","blocks":["10"]}
+  ]
+}

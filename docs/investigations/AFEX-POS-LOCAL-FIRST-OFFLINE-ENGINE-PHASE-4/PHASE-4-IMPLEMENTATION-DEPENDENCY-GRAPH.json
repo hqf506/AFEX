@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 3,
+  "selectedMode": "MODE_A_MANAGED_PWA_CONTINUOUS_OFFLINE",
+  "nodes": [
+    {"id":"AUTH","name":"Verified Online establishment-account login","status":"existing_required"},
+    {"id":"DEVICE","name":"Trusted managed-device provisioning","status":"inactive_review_sql_complete"},
+    {"id":"ENCRYPT","name":"Device-bound local encryption client representation","status":"later_disabled_client_contract"},
+    {"id":"EMPLOYEE","name":"Structured employee PIN selector roster","status":"inactive_review_sql_complete"},
+    {"id":"INVENTORY","name":"Immutable inventory snapshot publisher","status":"inactive_review_sql_complete"},
+    {"id":"BOOTSTRAP","name":"Account tenant branch device employee inventory bootstrap","status":"inactive_review_sql_complete"},
+    {"id":"RESTART","name":"Offline restart and employee reselection","status":"runtime_disabled"},
+    {"id":"LOGOUT","name":"Explicit logout lock and same-account recovery","status":"contract_complete_runtime_disabled"},
+    {"id":"OUTBOX","name":"Durable Offline command pipeline","status":"disabled"},
+    {"id":"CORE","name":"Core V2 acquisition and receipt bridge","status":"inactive_review_candidate"},
+    {"id":"QUAL","name":"Independent security and isolated qualification","status":"not_started"},
+    {"id":"PILOT","name":"Single-branch order.create Pilot","status":"blocked"},
+    {"id":"PH5","name":"Phase 5","status":"blocked"}
+  ],
+  "edges": [
+    {"from":"AUTH","to":"DEVICE"},
+    {"from":"DEVICE","to":"ENCRYPT"},
+    {"from":"DEVICE","to":"EMPLOYEE"},
+    {"from":"DEVICE","to":"INVENTORY"},
+    {"from":"ENCRYPT","to":"BOOTSTRAP"},
+    {"from":"EMPLOYEE","to":"BOOTSTRAP"},
+    {"from":"INVENTORY","to":"BOOTSTRAP"},
+    {"from":"BOOTSTRAP","to":"RESTART"},
+    {"from":"BOOTSTRAP","to":"LOGOUT"},
+    {"from":"BOOTSTRAP","to":"OUTBOX"},
+    {"from":"OUTBOX","to":"CORE"},
+    {"from":"CORE","to":"QUAL"},
+    {"from":"QUAL","to":"PILOT"},
+    {"from":"PILOT","to":"PH5","condition":"separate human authorization"}
+  ],
+  "mandatoryLinearAuthorityPath": [
+    "verified Online establishment login",
+    "account tenant branch authority",
+    "managed device authority",
+    "device-bound encrypted storage",
+    "pre-enrolled employee PIN selection",
+    "immutable account and employee command binding",
+    "fresh Online synchronization validation",
+    "Core V2 order.create acquisition and stable receipt"
+  ],
+  "forbiddenShortcuts": [
+    "Offline bootstrap from logged-out state",
+    "PIN authenticates establishment account or Supabase",
+    "PIN creates tenant branch or device authority",
+    "PIN derives wraps or unwraps a business-data DEK",
+    "PIN restores access after explicit account logout",
+    "pending commands are deleted or rebound at logout or replay",
+    "a broader allowed command array merely contains order.create",
+    "browser PUBLIC anon authenticated or service_role executes private provisioning SQL",
+    "enable dispatch replay interception providers or sensitive flags before independent review"
+  ],
+  "businessIntegrationEnabled": false,
+  "phase5Authorized": false
+}

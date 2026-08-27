@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "status": "PROPOSED_PENDING_HUMAN_AND_SEPARATE_CORE_DB_REVIEW",
+  "classificationDefinitions": {
+    "EXISTING_VERIFIED": "Verified by repository code/migration inspection at the approved HEAD; runtime qualification remains a later gate.",
+    "PARTIALLY_EXISTING": "Some required contract exists but does not close the offline requirement.",
+    "MISSING": "No complete contract was identified in the approved repository inspection."
+  },
+  "prerequisites": [
+    {
+      "id": "CORE-01",
+      "requirement": "typed versioned POS offline command envelope",
+      "classification": "PARTIALLY_EXISTING",
+      "evidence": ["lib/server/core-v2/contracts.ts", "lib/server/core-v2/atomic-order.ts"],
+      "gap": "order.create canonical shape exists; device/offline envelope, lease and batch protocol do not",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-02",
+      "requirement": "canonical immutable payload and fingerprint",
+      "classification": "EXISTING_VERIFIED",
+      "evidence": ["lib/server/core-v2/atomic-order.ts", "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "gap": "must be bound to the versioned offline envelope and tested against local canonicalization",
+      "requires": ["CORE_APPLICATION_INTEGRATION", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-03",
+      "requirement": "stable command ID/idempotency key",
+      "classification": "EXISTING_VERIFIED",
+      "evidence": ["lib/pos-checkout-identity.ts", "lib/pos-offline-draft.ts", "app/api/orders/route.ts"],
+      "gap": "current session/localStorage records are not the durable Phase 3 outbox",
+      "requires": ["CORE_APPLICATION_INTEGRATION"]
+    },
+    {
+      "id": "CORE-04",
+      "requirement": "trusted primary subject and effective POS actor recorded separately",
+      "classification": "PARTIALLY_EXISTING",
+      "evidence": ["lib/authorization-context.ts", "app/api/orders/route.ts:1313", "app/api/orders/route.ts:1525"],
+      "gap": "Core acquisition currently receives primary auth.user.id while employee attribution is separate",
+      "requires": ["CORE_APPLICATION_INTEGRATION", "LIKELY_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-05",
+      "requirement": "device/offline lease authority",
+      "classification": "MISSING",
+      "evidence": ["lib/pos-actor-session-server.ts"],
+      "gap": "current HttpOnly actor session is online and no signed device-bound offline lease exists",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "LIKELY_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-06",
+      "requirement": "tenant/branch/capability/expiry/revocation validation",
+      "classification": "PARTIALLY_EXISTING",
+      "evidence": ["lib/authorization-context.ts", "supabase/migrations/20260814233000_pos_actor_sessions.sql"],
+      "gap": "online actor validation exists; offline device, expiry and revocation-epoch validation do not",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "LIKELY_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-07",
+      "requirement": "durable terminal receipt lookup after ambiguous timeout",
+      "classification": "PARTIALLY_EXISTING",
+      "evidence": ["public.replay_atomic_order_command_v1 in Core V2 migration", "lib/server/core-v2/atomic-order.ts"],
+      "gap": "Core replay exists; device-safe typed receipt/batch API and retention contract are absent",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-08",
+      "requirement": "command/receipt retention exceeds maximum offline duration plus margin",
+      "classification": "PARTIALLY_EXISTING",
+      "evidence": ["lib/server/core-v2/atomic-order.ts:318"],
+      "gap": "current acquisition retain-until is 24 hours; policy/cleanup must cover approved delay and reconciliation margin",
+      "requires": ["LIKELY_SQL_MIGRATION_DB_AUTHORITY", "CORE_APPLICATION_INTEGRATION", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-09",
+      "requirement": "database-owned official order/invoice numbering",
+      "classification": "EXISTING_VERIFIED",
+      "evidence": ["supabase/migrations/20260516_branch_monthly_order_invoice_numbers.sql"],
+      "gap": "offline UI must use local references and never preallocate official numbers",
+      "requires": ["CORE_APPLICATION_INTEGRATION"]
+    },
+    {
+      "id": "CORE-10",
+      "requirement": "atomic price/VAT/discount/inventory validation",
+      "classification": "EXISTING_VERIFIED",
+      "evidence": ["lib/server/core-v2/atomic-order.ts", "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "gap": "must return approved structured conflict projections and receive runtime qualification",
+      "requires": ["CORE_APPLICATION_INTEGRATION", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-11",
+      "requirement": "structured business conflicts",
+      "classification": "PARTIALLY_EXISTING",
+      "evidence": ["lib/server/core-v2/atomic-order.ts", "app/api/orders/route.ts"],
+      "gap": "some errors/reconciliation states exist; full Phase 0 price/VAT/discount/inventory/customer policy is not a stable device contract",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "POSSIBLE_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-12",
+      "requirement": "durable server-owned external-effect outbox",
+      "classification": "MISSING",
+      "evidence": ["app/api/orders/route.ts", "lib/server/orders/order-status-whatsapp.ts"],
+      "gap": "cost/audit/WhatsApp follow-ups are not uniformly represented as one durable idempotent command-linked effect ledger",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "LIKELY_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-13",
+      "requirement": "unique effect identity for audit/cost/notification",
+      "classification": "MISSING",
+      "evidence": ["lib/audit-log.ts", "app/api/orders/route.ts", "app/api/pos/orders/[id]/status/route.ts"],
+      "gap": "no unified unique business-event/effect identity contract",
+      "requires": ["CORE_APPLICATION_INTEGRATION", "LIKELY_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-14",
+      "requirement": "least privilege, RLS and reviewed function ownership",
+      "classification": "PARTIALLY_EXISTING",
+      "evidence": ["supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql", "supabase/migrations/20260814233000_pos_actor_sessions.sql"],
+      "gap": "current objects are hardened; every new lease/outbox/API object requires separate grants/RLS/function ownership review",
+      "requires": ["LIKELY_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-15",
+      "requirement": "reconciliation/manual-hold evidence",
+      "classification": "EXISTING_VERIFIED",
+      "evidence": ["supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "gap": "device receipt/UI and operational runbook integration remain",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-16",
+      "requirement": "operational monitoring and cleanup policy",
+      "classification": "PARTIALLY_EXISTING",
+      "evidence": ["Core V2 audit/diagnostic/reconciliation objects", "POS actor cleanup function"],
+      "gap": "offline lease, device commands, external effects, retention and purge metrics/cleanup are not complete",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "LIKELY_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    },
+    {
+      "id": "CORE-17",
+      "requirement": "version compatibility and cleanup for delayed offline clients",
+      "classification": "MISSING",
+      "evidence": ["approved investigation package"],
+      "gap": "no frozen minimum supported command versions/cleanup horizon for offline devices",
+      "requires": ["API", "CORE_APPLICATION_INTEGRATION", "POSSIBLE_SQL_MIGRATION_DB_AUTHORITY", "HUMAN_REVIEW"]
+    }
+  ],
+  "pilotGate": "All prerequisites must be EXISTING_VERIFIED or closed by separately approved implementation/runtime evidence before offline order.create dispatch is enabled."
+}
+

@@ -1,0 +1,49 @@
+{
+  "deterministic": true,
+  "bounded": true,
+  "maximumBatchSize": 1000,
+  "authorityResolutionCallsPerBatch": 1,
+  "schemaCompatibilityIncludes": [
+    "exact command payload parser",
+    "command aggregate binding",
+    "order item and monetary reconciliation",
+    "frontier item-set binding",
+    "payment-attestation identity binding"
+  ],
+  "authorityResolutionValidation": {
+    "exactRuntimeParser": true,
+    "countAndPositionalCorrespondence": true,
+    "malformedCandidateIsolation": true,
+    "malformedOutcome": "CORE_V2_OFFLINE_AUTHORITY_UNAVAILABLE"
+  },
+  "stableReceiptRule": "full acquisition scope and current trusted server authority must pass before a terminal receipt is returned",
+  "orderedStages": [
+    "schema_compatibility",
+    "canonical_payload_hash",
+    "idempotency_identity",
+    "dependency_readiness",
+    "tenant_branch_binding",
+    "pos_employee_binding",
+    "device_generation_binding",
+    "revocation_state",
+    "command_type_authority",
+    "inventory_frontier",
+    "payment_attestation",
+    "conflict_classification",
+    "core_v2_availability"
+  ],
+  "outcomes": [
+    "qualified",
+    "blocked",
+    "conflict",
+    "rejected",
+    "already_processed",
+    "temporarily_unavailable"
+  ],
+  "shortCircuitPolicy": "fail closed at the first non-passing stage; later stages are not falsely marked checked",
+  "qualifiedMeaning": "contract checks passed in a trusted test resolver; no mutation was authorized or executed",
+  "productionDefault": {
+    "outcome": "blocked",
+    "code": "CORE_V2_OFFLINE_AUTHORITY_UNAVAILABLE"
+  }
+}

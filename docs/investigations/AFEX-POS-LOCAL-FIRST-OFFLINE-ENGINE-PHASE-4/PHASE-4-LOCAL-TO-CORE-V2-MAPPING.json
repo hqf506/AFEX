@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "mappingStatus": "DESIGN_ONLY_NOT_RUNTIME_ENABLED",
+  "guarantee": "at_least_once_delivery_with_idempotent_exactly_once_server_effect_when_all_core_prerequisites_hold",
+  "identityMapping": [
+    {
+      "local": "localCommandId",
+      "server": "offline_binding.local_command_id",
+      "rule": "Client-generated immutable UUID unique inside the registered device namespace; never reused."
+    },
+    {
+      "local": "idempotencyKey",
+      "server": "atomic_order_commands.idempotency_key_hash",
+      "rule": "Stable opaque key survives reload/restart/retry; server hashes/canonicalizes according to the existing Core contract and enforces tenant/branch/type uniqueness."
+    },
+    {
+      "local": "commandType",
+      "server": "atomic_order_commands.command_type",
+      "rule": "Allowlisted by event-governed employee authority and server acquisition. Initial pilot candidate is order.create only."
+    },
+    {
+      "local": "payloadHash",
+      "server": "atomic_order_command_payloads.payload_fingerprint",
+      "rule": "Hash of canonical semantic payload; same key with different hash is a terminal fingerprint conflict."
+    },
+    {
+      "local": "envelopeProjectionHash",
+      "server": "offline_binding.envelope_projection_hash",
+      "rule": "Binds actor, device, branch, authority generations, sequence, dependencies, aggregate, causation, correlation, amount, currency, payment method and payload hash without persisting client encryption material."
+    },
+    {
+      "local": "actorReference",
+      "server": "authorization_context.pos_employee_actor_id",
+      "rule": "Immutable POS employee who performed the action; separate from primary authenticated account. Replay substitution is forbidden."
+    },
+    {
+      "local": "actorAuthorityId",
+      "server": "offline_employee_authority.id",
+      "rule": "Server-issued event-governed authority package identity present at seal time and revalidated at acquisition; synchronization age is not an authorization input."
+    },
+    {
+      "local": "deviceReference",
+      "server": "offline_devices.id",
+      "rule": "Registered active device bound to the same tenant and branch."
+    },
+    {
+      "local": "localSequence",
+      "server": "offline_binding.local_sequence",
+      "rule": "Strictly increasing per device/branch authority generation; uniqueness enforced server-side."
+    },
+    {
+      "local": "dependencies",
+      "server": "offline_binding.dependencies",
+      "rule": "Immutable references validated to the same device/branch graph; rejected dependency blocks descendants."
+    },
+    {
+      "local": "aggregateReference",
+      "server": "offline_binding.local_aggregate_id",
+      "rule": "Stable local order reference; maps to official order/invoice IDs only through a server receipt."
+    },
+    {
+      "local": "causationId",
+      "server": "offline_binding.causation_id",
+      "rule": "Points to the preceding immutable local/server event without authorizing it."
+    },
+    {
+      "local": "correlationId",
+      "server": "offline_binding.correlation_id",
+      "rule": "Non-sensitive diagnostic identifier; never contains PII."
+    },
+    {
+      "local": null,
+      "server": "atomic_order_commands.id",
+      "rule": "Server command ID assigned at acquisition and returned in every replay receipt."
+    },
+    {
+      "local": null,
+      "server": "atomic_order_commands.response_snapshot",
+      "rule": "Canonical terminal result/receipt, including official IDs and reconciliation frontier; identical replay returns the stored snapshot."
+    }
+  ],
+  "phase3SubcommandDisposition": {
+    "payment.employee_attestation": "Fold into the immutable order.create payload and server receipt for the first pilot; do not execute independently.",
+    "customer.create": "Resolve/create inside the same Core transaction where current authority safely supports it; local customer intent remains input evidence, not a separate committed business effect.",
+    "order.status.change": "Separate future command type after order.create pilot and transition authority review.",
+    "audit.event.append": "Server-derived exactly-once effect; never client-authoritative.",
+    "print.request": "Local provisional print is a UI action; official print eligibility is receipt-derived, not a replayed business command."
+  },
+  "requiredServerValidations": [
+    "primary account session",
+    "tenant and branch",
+    "POS employee state and permissions",
+    "actor session and authority generation",
+    "registered active device",
+    "event-governed read/command allowlists and authority generations",
+    "command type allowlist",
+    "local sequence and dependency closure",
+    "idempotency key and canonical payload fingerprint",
+    "catalog/VAT/customer/inventory authoritative state"
+  ],
+  "missingPrerequisites": [
+    "Offline device, key-envelope, and employee authority objects",
+    "Core authorization context fields for POS employee, device, and Offline authority generations",
+    "Atomic employee attribution inside execution",
+    "All eight payment representation support",
+    "Versioned stock snapshot and inclusion frontier",
+    "Atomic external-effect ledger",
+    "Production read-only attestation of current Core objects, owners, grants, RLS, and function definitions"
+  ]
+}

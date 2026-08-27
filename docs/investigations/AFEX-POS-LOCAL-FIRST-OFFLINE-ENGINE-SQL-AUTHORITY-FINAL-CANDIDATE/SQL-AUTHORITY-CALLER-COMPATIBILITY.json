@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 3,
+  "packageDecision": "FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN_APPLICATION_INTEGRATED_BEHIND_DISABLED_FLAGS_ACTIVATION_NOT_EXECUTED",
+  "sources": {
+    "prompt9Manifest":"2a3a6517581c6ce0c1c735f2ecc9ca7789aaf5d5e195fc3a6d5d072c332b62e6",
+    "prompt10CompatibilitySha256":"4545a96656cf424b989721e4a00efcd738b88a1baef626ffd659722ef530a75b",
+    "applicationCompatibilityManifest":"cb68473b6879c661b4a611f87322a1e383a7c6da4466e54a986ede6f74490084"
+  },
+  "callerInventoryRecords":437,
+  "paths": [
+    {"surface":"profile presentation","legacyCaller":"direct user-bound profile reads","replacement":"exact trusted shared profile route/provider","available":true,"enabled":false,"runtimeQualified":false,"revokeGate":"BLOCKED"},
+    {"surface":"inventory history","legacyCaller":"browser consumption of historical route contract","replacement":"app/api/admin/inventory-movements/v2/route.ts","available":true,"enabled":false,"runtimeQualified":false,"revokeGate":"BLOCKED"},
+    {"surface":"customer phone lookup/create","legacyCaller":"trusted server RPC/route","replacement":"existing trusted boundary retained","available":true,"runtimeQualified":false,"revokeGate":"BLOCKED_RESPONSE_DENIAL_TESTS"},
+    {"surface":"order create","legacyCaller":"legacy invoice function fallback","replacement":"bounded trusted-server transport to Core V2 acquisition only","available":true,"enabled":false,"runtimeQualified":false,"revokeGate":"FINAL_MANUAL_ACTIVATION_AND_ISOLATED_QUALIFICATION_REQUIRED"},
+    {"surface":"POS actor session","legacyCaller":"trusted POS routes","replacement":"existing narrow POS functions retained","available":true,"runtimeQualified":true,"revokeGate":"KEEP_EXACT_CURRENT_GRANTS"},
+    {"surface":"trusted Offline provisioning/bootstrap","legacyCaller":"none","replacement":"15 inactive device employee-selector inventory and verified-account bootstrap functions through a dedicated NOLOGIN role","available":true,"enabled":false,"runtimeQualified":false,"revokeGate":"SEPARATE_TRUSTED_SERVER_ACTIVATION_AND_DATABASE_QUALIFICATION_REQUIRED"},
+    {"surface":"Offline authority resolver","legacyCaller":"none","replacement":"corrected server-only bridge plus inactive four-function acquisition SQL surface","available":true,"enabled":false,"runtimeQualified":false,"revokeGate":"SEPARATE_ACTIVATION_AND_DATABASE_QUALIFICATION_REQUIRED"},
+    {"surface":"cancellation/refund/stock restoration","legacyCaller":"legacy restore/admin paths","replacement":"versioned Core transaction","available":false,"runtimeQualified":false,"revokeGate":"BLOCKED_CORE_V2_CHANGE_REQUIRED"},
+    {"surface":"external effects","legacyCaller":"best-effort post-Core paths","replacement":"durable atomic effect intent and dedicated worker","available":false,"runtimeQualified":false,"revokeGate":"BLOCKED_SQL_AND_CORE_REQUIRED"}
+  ],
+  "compatibilityRule":"Provisioning and acquisition remain unavailable to business callers until exact trusted-server identity, database qualification, response compatibility and hostile tests are separately approved; the wave stops at the first unqualified caller.",
+  "externalCallers":"Supabase platform, CI, maintenance and external operators remain unproven.",
+  "currentRevocationAuthorized":false,
+  "businessCallerImports": 1,
+  "businessCallerImport":"hooks/use-invoice-checkout.ts -> disabled POS pilot disposition",
+  "trustedServerTransport":"app/api/pos/offline-pilot/route.ts",
+  "adminDashboardOfflineImports":0,
+  "provisioningRuntimeRole":"afex_offline_provisioning_runtime",
+  "acquisitionRuntimeRole":"afex_offline_acquisition_runtime",
+  "sqlExecutionAuthorized": false,
+  "pilotAuthorized": false,
+  "phase5Authorized": false
+}

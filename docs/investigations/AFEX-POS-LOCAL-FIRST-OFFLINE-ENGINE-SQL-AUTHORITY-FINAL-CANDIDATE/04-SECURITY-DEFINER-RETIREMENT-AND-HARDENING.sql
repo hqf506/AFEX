@@ -1,0 +1,20 @@
+-- REVIEW ONLY — POST-ACTIVATION CLOSURE — NOT AUTHORIZED FOR EXECUTION
+-- classification: BLOCKED_WITH_EXACT_FINITE_LIST / ACTIVATION_GATED
+-- active mutating SQL statements: 0
+--
+-- Prompt 10 binds 36/36 current routine identities and bodies. Static review found only:
+-- * FN-003 public.acquire_atomic_order_command_v1(...): unqualified pg_auth_members and
+--   pg_roles, which must become pg_catalog.pg_auth_members/pg_catalog.pg_roles in the
+--   approved versioned Core replacement.
+-- * FN-011 public.create_invoice_with_items(jsonb,jsonb): unqualified catalog_items,
+--   which is retired after Core parity rather than kept as a second creation authority.
+--
+-- Every retained privileged function must live in a compatible private schema where
+-- possible, be owned by the exact NOLOGIN owner, use SECURITY DEFINER only where required,
+-- SET search_path = pg_catalog, fully qualify every relation/function, revoke EXECUTE from
+-- PUBLIC/anon/authenticated and grant only exact signatures. Trigger helpers remain
+-- trigger-only. No user-controlled dynamic SQL is permitted.
+--
+-- Exact replacement bodies cannot be emitted before MS-001..MS-013 freeze the versioned
+-- Core signatures; otherwise hardening FN-003 would invent part of the missing Core layer.
+

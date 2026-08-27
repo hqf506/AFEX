@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "contractVersion": "core-v2-offline-order-create.v2",
+  "commandType": "order.create",
+  "exactRequiredFields": ["localCommandId","idempotencyKey","commandType","commandContractVersion","schemaVersion","primaryAuthenticatedUserId","tenantId","branchId","actualPosEmployeeId","deviceId","deviceGeneration","employeeEnrollmentGeneration","commandGeneration","aggregateType","aggregateId","localAggregateReference","localCreatedAt","payload","payloadCanonicalHash","authorityBindingCanonicalHash","dependencyReferences","paymentAttestation","inventoryFrontierReference","keyEnvelopeId","keyEnvelopeVersion","originAuthorityReference","clientApplicationVersion"],
+  "originAuthorityReference": {
+    "version":"afex-offline-origin-authority.v2",
+    "exactRequiredFields":["actualPosEmployeeId","bootstrapGeneration","bootstrapId","branchId","commandGeneration","deviceGeneration","deviceId","employeeEnrollmentGeneration","enrollmentId","keyEnvelopeId","keyEnvelopeVersion","namespaceGeneration","originAuthorityVersion","primaryAuthenticatedSubjectId","tenantId"],
+    "secretFields":0,
+    "substitution":"REJECT",
+    "pinAuthority":"EMPLOYEE_SELECTION_ONLY",
+    "accountAuthority":"PRIOR_VERIFIED_ONLINE_BOOTSTRAP"
+  },
+  "authorityBindingCanonicalHashIncludes": ["commandContractVersion","commandType","schemaVersion","localCommandId","idempotencyKey","primaryAuthenticatedUserId","actualPosEmployeeId","tenantId","branchId","deviceId","deviceGeneration","employeeEnrollmentGeneration","commandGeneration","keyEnvelopeId","keyEnvelopeVersion","aggregateType","aggregateId","localAggregateReference","payloadCanonicalHash","paymentAttestation","inventoryFrontierReference","originAuthorityReference"],
+  "authorityBindingCanonicalization": {"version":"afex-authority-binding-canonical-json.v2","exactFieldCount":22,"allFieldsRequired":true,"unknownOmittedOrAdditionalFields":"REJECT","objectKeyOrdering":"recursive ascending ASCII field-name order","stringNormalization":"Unicode NFC before RFC 8259 JSON escaping","numericRepresentation":"finite JSON numbers; negative zero normalized to zero; binding numbers are safe integers","encoding":"UTF-8","digest":"SHA-256 lowercase hexadecimal","databaseMustRecompute":true,"opaqueCallerHashSufficient":false},
+  "trustedSyncUploader": {"source":"server-only verified context","serializedInEnvelope":false,"browserConstructible":false,"originalExpiredSessionRequiredAtReplay":false,"freshUploaderRequiredAtReplay":true,"sameAccountRecoveryOnly":true},
+  "mutationAuthorized": false
+}

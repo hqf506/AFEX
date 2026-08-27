@@ -1,0 +1,42 @@
+{
+  "database": "afex-pos-local-v1",
+  "schemaVersion": 1,
+  "minimumReadableVersion": 1,
+  "schemaGeneration": "g1",
+  "stores": [
+    { "name": "meta", "keyPath": "id", "purpose": "schema, device coordination identity and short transaction leases", "sensitivePayload": false },
+    { "name": "keyEnvelopes", "keyPath": "id", "indexes": ["namespaceId"], "purpose": "versioned wrapped-key metadata", "sensitivePayload": true },
+    { "name": "drafts", "keyPath": "id", "indexes": ["namespaceId"], "purpose": "encrypted future draft/recovery records", "sensitivePayload": true },
+    { "name": "quarantine", "keyPath": "id", "indexes": ["namespaceId"], "purpose": "encrypted ambiguous or corrupt evidence", "sensitivePayload": true },
+    { "name": "purgeTombstones", "keyPath": "id", "indexes": ["namespaceId"], "purpose": "restart-safe exact-namespace purge state", "sensitivePayload": false }
+  ],
+  "activeCommandOrOutboxStore": false,
+  "persistentBusinessDataIngestionEnabled": false,
+  "upgrade": {
+    "transactional": true,
+    "requiredStoresValidatedAfterOpen": true,
+    "unsupportedOrCorruptSchemaFailsClosed": true,
+    "onlinePosFallback": true
+  },
+  "quota": {
+    "warningRatio": 0.7,
+    "hardStopRatio": 0.9,
+    "activeDraftQuarantineOrTombstoneEviction": false,
+    "futureMediaPolicy": { "maximumImages": 1000, "maximumBytes": 262144000 }
+  },
+  "authorityLeasePolicy": {
+    "readLeaseAbsoluteMilliseconds": 86400000,
+    "futureBusinessCommandLeaseAbsoluteMilliseconds": 7200000,
+    "futureBusinessCommandDispatchEnabled": false
+  },
+  "restartRecovery": {
+    "coldInitializationAuthorityFree": true,
+    "coldInitializationDeletesData": false,
+    "authorizedGate": "post-POS-actor-issuance/pre-employee-presentation",
+    "selection": "exact namespace index only",
+    "tombstoneBindingVerifiedAfterLease": true,
+    "concurrentTabsIdempotent": true,
+    "otherScopesUntouched": true,
+    "plaintextUnlockEnabled": false
+  }
+}

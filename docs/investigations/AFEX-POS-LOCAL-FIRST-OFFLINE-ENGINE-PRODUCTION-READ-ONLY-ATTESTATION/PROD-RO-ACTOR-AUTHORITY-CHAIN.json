@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "chain": [
+    {
+      "from": "Primary Auth session",
+      "to": "profile and tenant",
+      "classification": "PROVEN",
+      "productionEvidence": ["auth.sessions", "auth.users", "public.profiles"],
+      "repositoryConsumer": "lib/authorization-context.ts"
+    },
+    {
+      "from": "profile and tenant",
+      "to": "active branch",
+      "classification": "PROVEN",
+      "productionEvidence": ["public.profiles.branch_id", "public.branches.tenant_id", "public.pos_profiles.branch_id"],
+      "repositoryConsumer": "lib/authorization-context.ts"
+    },
+    {
+      "from": "Primary Auth plus branch",
+      "to": "PIN-selected POS employee",
+      "classification": "PROVEN",
+      "productionEvidence": ["public.verify_pos_pin_for_actor", "public.issue_pos_actor_session_v1", "afex_pos_authority.actor_sessions"],
+      "repositoryConsumer": "lib/pos-actor-session-server.ts"
+    },
+    {
+      "from": "POS actor session",
+      "to": "online order command authority",
+      "classification": "PARTIAL",
+      "productionEvidence": ["public.acquire_atomic_order_command_result_v1 validates authenticated_actor_id against public.profiles", "atomic_authorization_contexts has optional employee_source_id but no POS session or device binding"],
+      "repositoryConsumer": "app/api/orders/route.ts:796-808 derives trusted POS employee, but app/api/orders/route.ts:1311-1321 passes auth.user.id as Core actor"
+    },
+    {
+      "from": "server business command",
+      "to": "order and invoice creator",
+      "classification": "PARTIAL",
+      "productionEvidence": ["orders.created_by references profiles", "orders.created_by_employee_id is optional", "invoices.created_by references profiles"],
+      "repositoryConsumer": "app/api/orders/route.ts:1519-1594 performs best-effort employee attribution after Core persistence"
+    },
+    {
+      "from": "order or status mutation",
+      "to": "audit actor",
+      "classification": "PARTIAL",
+      "productionEvidence": ["public.atomic_order_audit.actor_id stores Primary Auth actor", "public.audit_logs.actor_user_id exists"],
+      "repositoryConsumer": "order creation defaults writeAuditLog actor to auth.user.id; POS status route explicitly supplies posEmployee.id"
+    },
+    {
+      "from": "registered device",
+      "to": "command authority",
+      "classification": "ABSENT",
+      "productionEvidence": ["zero device columns across atomic_order objects", "no comparable device authority relation found"],
+      "repositoryConsumer": "Phase 4 device contract is design evidence only"
+    },
+    {
+      "from": "employee revocation or PIN rotation",
+      "to": "durable replay authorization",
+      "classification": "ABSENT",
+      "productionEvidence": ["validate_pos_actor_session_v1 revalidates online requests", "replay_atomic_order_command_v1 is keyed by command id and does not bind POS actor session generation"],
+      "repositoryConsumer": "online requireApiAuth revalidates POS authority before route execution; no offline replay bridge exists"
+    }
+  ],
+  "clientSuppliedEmployeeIdentifier": {
+    "classification": "PARTIAL",
+    "finding": "The route rejects a client employee id that conflicts with an active trusted POS actor. If no active POS actor is present, a supplied identifier may be resolved server-side to a same-tenant profile or pos_profile and used for attribution. Core authority still uses the Primary Auth user.",
+    "offlineSafety": "UNSAFE_AS_COMMAND_AUTHORITY"
+  },
+  "overall": "PARTIAL_ONLINE_CHAIN_WITHOUT_DEVICE_OR_REPLAY_EMPLOYEE_BINDING"
+}

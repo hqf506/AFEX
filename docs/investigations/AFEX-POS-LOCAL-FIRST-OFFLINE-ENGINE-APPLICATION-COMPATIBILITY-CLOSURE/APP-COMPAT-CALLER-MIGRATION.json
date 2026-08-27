@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "migrationDefault": "DISABLED",
+  "migratedPresentationConsumers": [
+    {
+      "path": "app/page.tsx",
+      "fieldUse": ["full_name"],
+      "authorityUseRetained": ["role"],
+      "status": "READY_BEHIND_DISABLED_FLAG"
+    },
+    {
+      "path": "components/admin-shell-layout.tsx",
+      "fieldUse": ["full_name", "username"],
+      "authorityUseRetained": ["role", "tenant_id", "branch_id", "scope_type"],
+      "status": "READY_BEHIND_DISABLED_FLAG"
+    }
+  ],
+  "sharedProvider": "components/profile-presentation-provider.tsx",
+  "presentationScope": ["primaryProfileId", "tenantId", "primaryBranchId", "posEmployeeId", "posEmployeeBranchId", "posSessionGeneration"],
+  "posSessionObservation": "trusted event lifecycle; no polling",
+  "remainingCallerClasses": [
+    {
+      "paths": ["components/auth-state-provider.tsx", "lib/auth.ts", "hooks/use-page-access.ts"],
+      "reason": "internal active/role/tenant/branch/scope authority; presentation data cannot replace it",
+      "status": "PRESERVED_BLOCKED"
+    },
+    {
+      "paths": ["app/pos/login/page.tsx", "app/pos/employee-pin/page.tsx", "components/pos-shell-layout.tsx"],
+      "reason": "POS login, actor, PIN and namespace authority",
+      "status": "PRESERVED_BLOCKED"
+    },
+    {
+      "paths": ["app/admin/receipts/page.tsx", "app/admin/reports/**", "app/admin/inventory/**"],
+      "reason": "tenant/branch/role authority and operational attribution",
+      "status": "PRESERVED_BLOCKED"
+    },
+    {
+      "paths": ["app/api/**", "server components and server actions"],
+      "reason": "trusted server business/authorization callers are not presentation consumers",
+      "status": "NOT_A_MIGRATION_TARGET"
+    }
+  ],
+  "removedAccessPaths": 0,
+  "duplicatePerPageProfileFetchesIntroduced": 0
+}

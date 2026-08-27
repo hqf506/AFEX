@@ -1,0 +1,275 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceClass": "STATIC_SOURCE_COMPATIBILITY",
+  "replacements": [
+    {
+      "id": "RESP-001",
+      "name": "profile presentation",
+      "currentRequest": "browser auth session; no explicit body",
+      "targetRequest": "trusted GET; organization session cookie",
+      "currentResponse": [
+        "id/email/role/is_active/tenant_id/tenant_name/branch_id/scope_type across client model"
+      ],
+      "targetResponse": [
+        "username",
+        "full_name",
+        "contact_email",
+        "phone",
+        "tenant_name",
+        "branch_name",
+        "ui_capabilities"
+      ],
+      "nullability": "presentation strings/capabilities must be frozen; no silent internal IDs",
+      "httpStatus": "target not implemented",
+      "databaseErrorMapping": "target must distinguish unauthenticated/forbidden/server failure without database detail",
+      "arabicUserMessages": "not frozen",
+      "retries": "no explicit fetch contract",
+      "loadingState": "AuthState lifecycle currently owns browser loading",
+      "cacheBehavior": "browser auth state",
+      "pagination": "none",
+      "sorting": "none",
+      "cancellation": "component unmount must not publish stale state",
+      "raceHandling": "auth generation required",
+      "authorizationDenial": "fail closed",
+      "tenantBranchMismatch": "server must reject",
+      "emptyState": "unauthenticated or incomplete profile fail closed",
+      "sourcePaths": [
+        "lib/auth.ts",
+        "components/auth-state-provider.tsx",
+        "lib/authorization-context.ts",
+        "app/api/account/route.ts"
+      ],
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "exact route absent",
+        "consumer migration absent"
+      ]
+    },
+    {
+      "id": "RESP-002",
+      "name": "inventory history",
+      "currentRequest": {
+        "page": "default 1",
+        "limit": "default 10 max 50",
+        "branchId": "optional trusted validation",
+        "fromTo": "optional date strings",
+        "search": "UI-specific"
+      },
+      "targetRequest": {
+        "pageSize": "default 10 max 50",
+        "windowUtc": "default 30 max 366 days",
+        "cursor": [
+          "created_at",
+          "id"
+        ],
+        "branch": "trusted server authority"
+      },
+      "currentResponse": "movement rows plus enrichment and pagination",
+      "targetResponse": "explicit frozen row schema and deterministic cursor",
+      "nullability": "current UI aliases can silently become null",
+      "httpStatus": [
+        "403",
+        "500",
+        "success"
+      ],
+      "databaseErrorMapping": "general route failures; target mapping not frozen",
+      "arabicUserMessages": "consumer-dependent",
+      "retries": "safe GET only",
+      "loadingState": "loading plus request sequence",
+      "cacheBehavior": "page/filter state",
+      "pagination": "current offset; target composite cursor",
+      "sorting": "current created_at only; target created_at,id",
+      "cancellation": "no AbortController observed",
+      "raceHandling": "request sequence suppresses stale commits",
+      "authorizationDenial": "403",
+      "tenantBranchMismatch": "403",
+      "emptyState": "empty rows",
+      "sourcePaths": [
+        "app/api/admin/inventory-movements/route.ts",
+        "app/admin/inventory/movements/page.tsx"
+      ],
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "UTC window",
+        "id tie-breaker",
+        "cursor",
+        "schema tests"
+      ]
+    },
+    {
+      "id": "RESP-003",
+      "name": "customer phone lookup",
+      "currentRequest": {
+        "phone": "normalized client and server",
+        "tenantBranch": "not accepted as trusted browser authority"
+      },
+      "targetRequest": "preserve trusted route boundary",
+      "currentResponse": "bounded customer results/profile",
+      "targetResponse": "preserve existing component contract",
+      "nullability": "optional contact fields may be null",
+      "httpStatus": [
+        "200",
+        "400",
+        "403",
+        "500"
+      ],
+      "databaseErrorMapping": "safe classified route responses",
+      "arabicUserMessages": "safe lookup failure/empty states",
+      "retries": "safe GET only",
+      "loadingState": "explicit loading",
+      "cacheBehavior": "bounded TTL cache",
+      "pagination": "bounded search results",
+      "sorting": "route-defined",
+      "cancellation": "AbortController present",
+      "raceHandling": "request identity present",
+      "authorizationDenial": "403",
+      "tenantBranchMismatch": "server filter/rejection",
+      "emptyState": "empty results",
+      "sourcePaths": [
+        "components/invoice-customer-step.tsx",
+        "app/api/customers/route.ts",
+        "lib/customers.ts"
+      ],
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "runtime contract test before ACL change"
+      ]
+    },
+    {
+      "id": "RESP-004",
+      "name": "customer creation",
+      "currentRequest": [
+        "name",
+        "phone",
+        "email|null",
+        "notes|null",
+        "branchId subject to server authority"
+      ],
+      "targetRequest": "preserve trusted server route",
+      "currentResponse": "created normalized customer",
+      "targetResponse": "preserve selection-compatible shape",
+      "nullability": "optional empty values normalized",
+      "httpStatus": {
+        "validation": 400,
+        "authorization": 403,
+        "duplicate": 409,
+        "persistence": 500,
+        "success": 200
+      },
+      "databaseErrorMapping": "safe classification plus correlation ID without sensitive payload",
+      "arabicUserMessages": "validation/conflict/persistence messages",
+      "retries": "no blind retry",
+      "loadingState": "saving flag",
+      "cacheBehavior": "invalidate/update relevant customer cache after valid success",
+      "pagination": "none",
+      "sorting": "none",
+      "cancellation": "not after accepted mutation",
+      "raceHandling": "duplicate-submit guard",
+      "authorizationDenial": "403",
+      "tenantBranchMismatch": "server forces/rejects branch",
+      "emptyState": "not applicable",
+      "sourcePaths": [
+        "components/pos-add-customer-modal.tsx",
+        "app/api/customers/route.ts"
+      ],
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "Offline create remains blocked"
+      ]
+    },
+    {
+      "id": "RESP-005",
+      "name": "Core order command",
+      "currentRequest": [
+        "tenant",
+        "branch",
+        "primary actor",
+        "idempotency key",
+        "payload fingerprint",
+        "four-method Core payment union",
+        "selected customer/items"
+      ],
+      "targetRequest": [
+        "all current fields",
+        "actual employee",
+        "device",
+        "all authority generations",
+        "local command ID/sequence",
+        "payment attestation",
+        "inventory frontier"
+      ],
+      "currentResponse": "Core receipt/replay result consumed by order route",
+      "targetResponse": "preserve receipt fields while adding versioned authority evidence",
+      "nullability": "current device metadata is null; target authority fields fail closed",
+      "httpStatus": "route-specific Core/legacy mapping",
+      "databaseErrorMapping": "acquire/claim/execute/replay classifications",
+      "arabicUserMessages": "checkout UI expects stable safe errors",
+      "retries": "only Core-governed idempotent acquire/replay",
+      "loadingState": "checkout submission",
+      "cacheBehavior": "command ledger and replay receipt",
+      "pagination": "none",
+      "sorting": "line ordering must remain canonical",
+      "cancellation": "client cancellation cannot imply business cancellation",
+      "raceHandling": "claim and payload fingerprint",
+      "authorizationDenial": "trusted route fail closed",
+      "tenantBranchMismatch": "trusted route/Core rejection",
+      "emptyState": "not applicable",
+      "sourcePaths": [
+        "app/api/orders/route.ts",
+        "lib/server/core-v2/atomic-order.ts"
+      ],
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "Core versioning",
+        "receipt parity",
+        "eight payment methods"
+      ]
+    },
+    {
+      "id": "RESP-006",
+      "name": "customer update Server Action",
+      "currentRequest": [
+        "customer ID",
+        "editable fields",
+        "optional record_version"
+      ],
+      "targetRequest": "preserve trusted Server Action or dedicated trusted route",
+      "currentResponse": "redirect flags",
+      "targetResponse": "freeze CAS conflict and validation semantics",
+      "nullability": "optional fields",
+      "httpStatus": "redirect rather than JSON",
+      "databaseErrorMapping": "bounded redirect flags",
+      "arabicUserMessages": "page maps flags",
+      "retries": "manual retry only",
+      "loadingState": "form submission",
+      "cacheBehavior": "server page refresh/redirect",
+      "pagination": "none",
+      "sorting": "none",
+      "cancellation": "not after accepted mutation",
+      "raceHandling": "optional record_version compare-and-set",
+      "authorizationDenial": "fail closed redirect",
+      "tenantBranchMismatch": "tenant filter",
+      "emptyState": "customer not found",
+      "sourcePaths": [
+        "app/admin/customers/page.tsx"
+      ],
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "negative authorization tests before policy removal"
+      ]
+    }
+  ],
+  "silentRegressionRisks": [
+    "Replacing AuthState with the seven-field serializer without moving access decisions server-side.",
+    "Dropping inventory response aliases before freezing the consumer schema.",
+    "Changing offset pagination without resetting cache keys and stale-request guards.",
+    "Treating service-role route filters as optional because RLS exists.",
+    "Mapping cod/on_delivery or transfer/bank_transfer without an explicit versioned compatibility decision.",
+    "Changing Core replay receipt shape while migrating actor/device authority."
+  ],
+  "blockers": [
+    "No proposed replacement is deployed or runtime-qualified by Prompt 9."
+  ]
+}
+
+

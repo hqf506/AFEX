@@ -12,7 +12,6 @@ import { formatPosGregorianDate, formatPosTime } from '@/lib/pos/date-format'
 import {
   hasPosLoggedOut,
   clearActivePosEmployee,
-  endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   writeActivePosEmployee,
   clearPosLoggedOut,
@@ -22,6 +21,9 @@ import { getCurrentPosDeviceLabel } from '@/lib/pos/device-label'
 import { getPinIndicatorState } from '@/lib/pos/pin-indicators'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
+import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
+import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
+import { completePosPinOfflineRecoveryGate } from '@/lib/offline/phase1'
 
 const PIN_LENGTH = 4
 const PIN_LOCK_ATTEMPTS = 3
@@ -117,6 +119,8 @@ export default function PosEmployeePinPage() {
   const [failedAttempts, setFailedAttempts] = useState(0)
   const [locked, setLocked] = useState(false)
   const [shakeCard, setShakeCard] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [hasActiveSale, setHasActiveSale] = useState(false)
   const [now, setNow] = useState(() => new Date())
 
   const allowed = Boolean(
@@ -299,9 +303,11 @@ export default function PosEmployeePinPage() {
           throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
         }
 
-        clearAllInvoiceCatalogCache()
-        writeActivePosEmployee(result.employee as ActivePosEmployee)
-        clearPosLoggedOut()
+        await completePosPinOfflineRecoveryGate(() => {
+          clearAllInvoiceCatalogCache()
+          writeActivePosEmployee(result.employee as ActivePosEmployee)
+          clearPosLoggedOut()
+        })
         setFailedAttempts(0)
         router.replace('/pos')
       } catch (verificationError) {
@@ -395,10 +401,9 @@ export default function PosEmployeePinPage() {
     setPin('')
   }
 
-  const handleLogout = async () => {
-    clearAllInvoiceCatalogCache()
-    await endPosActorSessionAndRequireReauthentication()
-    router.replace('/pos/login')
+  const handleLogout = () => {
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.localStorage))
+    setLogoutOpen(true)
   }
 
   if (authState.loading) {
@@ -617,6 +622,16 @@ export default function PosEmployeePinPage() {
           </div>
         </section>
       </div>
+      <PosLogoutRetentionDialog
+        open={logoutOpen}
+        hasActiveSale={hasActiveSale}
+        onCancel={() => setLogoutOpen(false)}
+        onComplete={({ route }) => {
+          clearAllInvoiceCatalogCache()
+          setLogoutOpen(false)
+          router.replace(route)
+        }}
+      />
     </main>
   )
 }

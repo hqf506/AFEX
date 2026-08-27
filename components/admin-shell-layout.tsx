@@ -14,6 +14,7 @@ import {
 } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
+import { useProfilePresentation } from '@/components/profile-presentation-provider'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
 import { usePageAccess } from '@/hooks/use-page-access'
 import { canAccessAdminPath } from '@/lib/permissions'
@@ -451,6 +452,7 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
   const mobileNavigationRef = useRef<HTMLElement | null>(null)
 
   const authState = useAuthState()
+  const presentationState = useProfilePresentation()
   const access = usePageAccess([], logoutOverlayVisible ? pathname : '/')
   const {
     loading: authLoading,
@@ -539,11 +541,13 @@ export function AdminShellLayout({ children, isProvider }: AdminShellLayoutProps
   )
 
   const profile = authState.profile
-  const profileFullName = profile?.full_name?.trim() || ''
+  const profileFullName =
+    presentationState.data?.full_name?.trim() || profile?.full_name?.trim() || ''
   const profileUsername =
-    profile && 'username' in profile && typeof profile.username === 'string'
+    presentationState.data?.username?.trim() ||
+    (profile && 'username' in profile && typeof profile.username === 'string'
       ? profile.username.trim()
-      : ''
+      : '')
   const firstName = profileFullName
     ? profileFullName.split(/\s+/)[0]
     : profileUsername || 'مستخدم'

@@ -5,11 +5,10 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import {
-  endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
-import { PosConfirmationDialog } from './pos-confirmation-dialog'
+import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
 import { PosNavigationItem } from './pos-shell-primitives'
 import { PosSessionIdentityCard } from './pos-session-identity-card'
 import { PosThemeToggle } from '@/components/pos-theme-toggle'
@@ -44,7 +43,8 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
   const [employee, setEmployee] = useState<ActivePosEmployee | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [ending, setEnding] = useState(false)
+  const [logoutIntent, setLogoutIntent] = useState<'logout' | 'switch'>('logout')
+  const [hasActiveSale, setHasActiveSale] = useState(false)
   const [saleHomeConfirmOpen, setSaleHomeConfirmOpen] = useState(false)
   const [mobileSubrouteNavigationEnabled, setMobileSubrouteNavigationEnabled] = useState(false)
   const { settings } = useSystemSettings(true)
@@ -77,17 +77,12 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
         ? { title: 'تم إنشاء الفاتورة', back: '/pos' }
         : { title: 'اختيار المنتجات', back: '/pos/sale/customer' }
 
-  const endSession = useCallback(async () => {
-    try {
-      setEnding(true)
-      await endPosActorSessionAndRequireReauthentication()
-      setEmployee(null)
-      router.replace('/pos/login')
-    } finally {
-      setEnding(false)
-      setConfirmOpen(false)
-    }
-  }, [router])
+  const openLogoutDialog = useCallback((intent: 'logout' | 'switch') => {
+    setLogoutIntent(intent)
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.localStorage))
+    setDrawerOpen(false)
+    setConfirmOpen(true)
+  }, [])
 
   const returnToPosHome = useCallback(() => {
     if (hasPersistedInvoiceSaleDraft(window.localStorage)) {
@@ -128,8 +123,8 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
       </nav>
       <p className="afex-pos-nav-label">الجلسة</p>
       <div className="afex-pos-session-actions">
-        <button type="button" className="afex-pos-nav-item" onClick={() => setConfirmOpen(true)}><span className="afex-pos-nav-icon"><Icon name="switch" /></span><span>تبديل الموظف</span></button>
-        <button type="button" className="afex-pos-nav-item" onClick={() => setConfirmOpen(true)}><span className="afex-pos-nav-icon"><Icon name="exit" /></span><span>إنهاء وضع POS</span></button>
+        <button type="button" className="afex-pos-nav-item" onClick={() => openLogoutDialog('switch')}><span className="afex-pos-nav-icon"><Icon name="switch" /></span><span>تبديل الموظف</span></button>
+        <button type="button" className="afex-pos-nav-item" onClick={() => openLogoutDialog('logout')}><span className="afex-pos-nav-icon"><Icon name="exit" /></span><span>إنهاء وضع POS</span></button>
       </div>
       <div className="afex-pos-permission-note"><strong>صلاحيات موظف POS</strong><span>روابط الإدارة مخفية</span></div>
     </>
@@ -165,7 +160,17 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
         <div className="afex-pos-route-content">{children}</div>
       </div>
       {isPosHome ? <PosMobileBottomNavigation /> : null}
-      <PosConfirmationDialog open={confirmOpen} loading={ending} onCancel={() => setConfirmOpen(false)} onConfirm={endSession} />
+      <PosLogoutRetentionDialog
+        open={confirmOpen}
+        intent={logoutIntent}
+        hasActiveSale={hasActiveSale}
+        onCancel={() => setConfirmOpen(false)}
+        onComplete={({ route }) => {
+          setEmployee(null)
+          setConfirmOpen(false)
+          router.replace(route)
+        }}
+      />
       <PosSaleHomeConfirmationDialog open={saleHomeConfirmOpen} onCancel={() => setSaleHomeConfirmOpen(false)} onConfirm={() => router.replace('/pos')} />
     </div>
   )

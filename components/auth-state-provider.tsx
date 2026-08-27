@@ -20,6 +20,10 @@ import {
 } from '@/lib/auth'
 import { resetProtectedResourceUnauthorized } from '@/lib/client-resource-cache'
 import { supabase } from '@/lib/supabase/client'
+import {
+  clearActiveOfflineNamespace,
+  lockOfflineRuntime,
+} from '@/lib/offline/phase1'
 
 type SharedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -214,6 +218,8 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   const setUnauthenticatedState = useCallback((nextError: string | null = null) => {
+    lockOfflineRuntime('primary-auth-unavailable')
+    clearActiveOfflineNamespace()
     profileRef.current = null
     clearCurrentUserProfileCache()
     statusRef.current = 'unauthenticated'
@@ -245,6 +251,17 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        const previousProfile = profileRef.current
+        if (
+          !nextProfile ||
+          !previousProfile ||
+          previousProfile.id !== nextProfile.id ||
+          previousProfile.tenant_id !== nextProfile.tenant_id ||
+          previousProfile.branch_id !== nextProfile.branch_id
+        ) {
+          lockOfflineRuntime('primary-scope-change')
+          clearActiveOfflineNamespace()
+        }
         profileRef.current = nextProfile
         lockRetryCountRef.current = 0
         primeCurrentUserProfileCache(nextProfile)
@@ -379,6 +396,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           cachedProfileEntry &&
           cachedProfileEntry.userId === session.user.id
         ) {
+          lockOfflineRuntime('primary-auth-only')
           profileRef.current = cachedProfileEntry.profile
           primeCurrentUserProfileCache(cachedProfileEntry.profile)
           statusRef.current = 'authenticated'

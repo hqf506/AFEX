@@ -7,6 +7,8 @@ import { FeatureDisabledState } from '@/components/feature-disabled-state'
 import { PosTabletFrame } from '@/components/pos-tablet-frame'
 import { PosResponsiveShell } from '@/components/pos-shell/pos-responsive-shell'
 import { PosPreparingScreen } from '@/components/pos-preparing-screen'
+import { PosOfflineShellRegistration } from '@/components/pos-offline-shell-registration'
+import { PosOfflineSyncStatus } from '@/components/pos-offline-sync-status'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { canAccessPos } from '@/lib/permissions'
 import {
@@ -14,6 +16,11 @@ import {
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
 import { syncPosOfflineDrafts } from '@/lib/pos-offline-draft'
+import {
+  initializeOfflinePhase1Runtime,
+  lockOfflineRuntime,
+  OFFLINE_CAPABILITIES,
+} from '@/lib/offline/phase1'
 
 type PosShellLayoutProps = {
   children: React.ReactNode
@@ -67,6 +74,7 @@ function PosShellViewport({
 
   return (
     <div className="pos-shell-viewport h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden">
+      <PosOfflineShellRegistration />
       <div className="pos-shell-inner h-full min-h-0 w-full overflow-hidden px-0 py-0">
         {isLoginPage ? <PosTabletFrame isLoginPage>{children}</PosTabletFrame> : children}
       </div>
@@ -79,6 +87,15 @@ export function PosShellLayout({ children }: PosShellLayoutProps) {
   const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
   const isPosEmployeePinPage =
     pathname?.startsWith('/pos/employee-pin') ?? false
+
+  useEffect(() => {
+    void initializeOfflinePhase1Runtime()
+    if (isPosLoginPage || isPosEmployeePinPage) {
+      lockOfflineRuntime(
+        isPosLoginPage ? 'primary-login-page' : 'primary-auth-only'
+      )
+    }
+  }, [isPosEmployeePinPage, isPosLoginPage])
 
   if (isPosLoginPage) {
     return <PosShellViewport isLoginPage>{children}</PosShellViewport>
@@ -152,6 +169,7 @@ function ProtectedPosShellLayout({
 
   useEffect(() => {
     if (
+      !OFFLINE_CAPABILITIES.businessCommandDispatch ||
       !requireEmployee ||
       authState.loading ||
       authState.error ||
@@ -316,6 +334,7 @@ function ProtectedPosShellLayout({
   return (
     <PosShellViewport>
       <PosResponsiveShell>{children}</PosResponsiveShell>
+      <PosOfflineSyncStatus />
     </PosShellViewport>
   )
 }

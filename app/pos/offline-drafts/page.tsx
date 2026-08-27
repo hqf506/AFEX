@@ -11,6 +11,7 @@ import {
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
+import { OFFLINE_CAPABILITIES } from '@/lib/offline/phase1'
 
 type CreateOrderResponse = {
   success?: boolean
@@ -79,6 +80,11 @@ export default function PosOfflineDraftsPage() {
   }
 
   const handleRetryDraft = async (draft: PosOfflineInvoiceDraft) => {
+    if (!OFFLINE_CAPABILITIES.businessCommandDispatch) {
+      setErrorMessage('إرسال المسودات غير مفعّل في هذه المرحلة.')
+      setMessage('')
+      return
+    }
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       setErrorMessage('لا يوجد اتصال')
       setMessage('')
@@ -310,10 +316,18 @@ export default function PosOfflineDraftsPage() {
                       <button
                         type="button"
                         onClick={() => handleRetryDraft(draft)}
-                        disabled={syncing || Boolean(syncingDraftId)}
+                        disabled={
+                          !OFFLINE_CAPABILITIES.businessCommandDispatch ||
+                          syncing ||
+                          Boolean(syncingDraftId)
+                        }
                         className="pos-draft-send"
                       >
-                        {syncing ? 'جارٍ إرسال المسودة...' : 'إرسال الآن'}
+                        {syncing
+                          ? 'جارٍ إرسال المسودة...'
+                          : OFFLINE_CAPABILITIES.businessCommandDispatch
+                            ? 'إرسال الآن'
+                            : 'الإرسال غير مفعّل'}
                       </button>
                     </div>
                   </article>

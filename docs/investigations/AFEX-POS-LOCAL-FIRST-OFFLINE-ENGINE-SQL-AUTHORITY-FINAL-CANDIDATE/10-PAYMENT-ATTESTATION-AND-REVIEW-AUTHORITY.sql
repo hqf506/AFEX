@@ -1,0 +1,18 @@
+-- REVIEW ONLY — NOT AUTHORIZED FOR EXECUTION
+-- classification: BLOCKED_WITH_EXACT_FINITE_LIST
+-- active mutating SQL statements: 0
+--
+-- Accepted relation identities:
+--   afex_review_private.atomic_payment_attestations
+--   afex_review_private.atomic_business_reviews
+--   afex_review_private.atomic_business_review_events
+--
+-- Payment methods remain exactly: mada, cash, visa, cod, card, bank_transfer, transfer,
+-- on_delivery. Employee evidence starts employee_attested/unverified and can never claim
+-- provider, bank, card authorization or refund completion. Review uses one row plus unique
+-- (review_id,resulting_version) immutable events and expected-version CAS.
+--
+-- The employee writer must be part of MS-005. The provider writer and vocabulary are
+-- MS-013. The review container cannot resolve a command whose Core writer/result contract
+-- is absent, so it remains non-executable rather than becoming an alternate business path.
+

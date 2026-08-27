@@ -1,0 +1,4153 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceClass": "STATIC_SOURCE_PROOF_WITH_EXPLICIT_INFERENCE_BOUNDARIES",
+  "nodes": [
+    {
+      "id": "N-BROWSER",
+      "type": "runtime",
+      "label": "Browser UI",
+      "evidenceStatus": "STATICALLY_IDENTIFIED"
+    },
+    {
+      "id": "N-SERVER-COOKIE",
+      "type": "runtime",
+      "label": "Next.js server cookie client",
+      "evidenceStatus": "STATICALLY_IDENTIFIED"
+    },
+    {
+      "id": "N-SERVER-SERVICE",
+      "type": "runtime",
+      "label": "Next.js trusted route/service-role client",
+      "evidenceStatus": "STATICALLY_IDENTIFIED"
+    },
+    {
+      "id": "N-CORE",
+      "type": "runtime",
+      "label": "Core V2 server library",
+      "evidenceStatus": "STATICALLY_IDENTIFIED"
+    },
+    {
+      "id": "N-DB",
+      "type": "boundary",
+      "label": "Supabase/PostgreSQL objects",
+      "evidenceStatus": "NO_RUNTIME_CONNECTION_PERFORMED"
+    }
+  ],
+  "clientConstruction": [
+    {
+      "id": "CLIENT-001",
+      "path": "lib/supabase/client.ts",
+      "classification": "BROWSER_ANON_RLS",
+      "authority": "browser session; database grants and RLS enforce row access",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "CLIENT-002",
+      "path": "lib/supabase/server.ts",
+      "classification": "SERVER_COOKIE_ANON_RLS",
+      "authority": "organization auth cookie; database grants and RLS remain active",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "CLIENT-003",
+      "path": "lib/supabase/admin.ts",
+      "classification": "SERVER_SERVICE_ROLE",
+      "authority": "bypasses RLS; each caller must establish explicit trusted authorization and tenant/branch scope",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    }
+  ],
+  "flowEdges": [
+    {
+      "id": "FLOW-0001",
+      "sourcePath": "app/admin/customers/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "customers",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0289",
+        "CALL-0290"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0002",
+      "sourcePath": "app/admin/customers/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "customers",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0291"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0003",
+      "sourcePath": "app/admin/customers/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "invoices",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0288"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0004",
+      "sourcePath": "app/admin/customers/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0287"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0005",
+      "sourcePath": "app/admin/customers/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0001"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0006",
+      "sourcePath": "app/admin/inventory/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "adjust_inventory_stock",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0286"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0007",
+      "sourcePath": "app/admin/inventory/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "update_inventory_low_stock_threshold",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0285"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0008",
+      "sourcePath": "app/admin/layout.tsx",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "platform_admins",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0283"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0009",
+      "sourcePath": "app/admin/layout.tsx",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0284"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0010",
+      "sourcePath": "app/admin/orders/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "audit_logs",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0281",
+        "CALL-0282"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0011",
+      "sourcePath": "app/admin/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0280"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0012",
+      "sourcePath": "app/admin/receipts/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0271"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0013",
+      "sourcePath": "app/admin/receipts/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0270",
+        "CALL-0274",
+        "CALL-0277",
+        "CALL-0278",
+        "CALL-0279"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0014",
+      "sourcePath": "app/admin/receipts/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0272",
+        "CALL-0275"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0015",
+      "sourcePath": "app/admin/receipts/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0273",
+        "CALL-0276"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0016",
+      "sourcePath": "app/admin/reports/sales-by-customer/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0269"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0017",
+      "sourcePath": "app/admin/reports/sales-by-customer/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0292"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0018",
+      "sourcePath": "app/api/account/email-change/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0294"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0019",
+      "sourcePath": "app/api/account/email-change/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0295",
+        "CALL-0319"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0020",
+      "sourcePath": "app/api/account/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0309",
+        "CALL-0315"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0021",
+      "sourcePath": "app/api/account/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0311"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0022",
+      "sourcePath": "app/api/account/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0317",
+        "CALL-0318"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0023",
+      "sourcePath": "app/api/account/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0313",
+        "CALL-0314"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0024",
+      "sourcePath": "app/api/account/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0310",
+        "CALL-0316"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0025",
+      "sourcePath": "app/api/account/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0312"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0026",
+      "sourcePath": "app/api/admin/announcements/[id]/generate-links/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcement_manual_customers",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0308"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0027",
+      "sourcePath": "app/api/admin/announcements/[id]/generate-links/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcement_recipients",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0304",
+        "CALL-0305"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0028",
+      "sourcePath": "app/api/admin/announcements/[id]/generate-links/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcements",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0307"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0029",
+      "sourcePath": "app/api/admin/announcements/[id]/generate-links/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcements",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0303"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0030",
+      "sourcePath": "app/api/admin/announcements/[id]/generate-links/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "customers",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0306"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0031",
+      "sourcePath": "app/api/admin/announcements/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcement_recipients",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0301"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0032",
+      "sourcePath": "app/api/admin/announcements/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcements",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0302"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0033",
+      "sourcePath": "app/api/admin/announcements/[id]/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcement_manual_customers",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0300"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0034",
+      "sourcePath": "app/api/admin/announcements/[id]/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcement_recipients",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0298"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0035",
+      "sourcePath": "app/api/admin/announcements/[id]/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcements",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0296"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0036",
+      "sourcePath": "app/api/admin/announcements/[id]/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcements",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0268"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0037",
+      "sourcePath": "app/api/admin/announcements/[id]/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "customers",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0299"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0038",
+      "sourcePath": "app/api/admin/announcements/[id]/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0297"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0039",
+      "sourcePath": "app/api/admin/announcements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcement_manual_customers",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0236"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0040",
+      "sourcePath": "app/api/admin/announcements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcements",
+      "operation": "DELETE",
+      "callerIds": [
+        "CALL-0235"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0041",
+      "sourcePath": "app/api/admin/announcements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcements",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0237"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0042",
+      "sourcePath": "app/api/admin/announcements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "announcements",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0265"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0043",
+      "sourcePath": "app/api/admin/announcements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0267"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0044",
+      "sourcePath": "app/api/admin/announcements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "customers",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0266"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0045",
+      "sourcePath": "app/api/admin/announcements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:ANNOUNCEMENT_IMAGE_BUCKET",
+      "operation": "STORAGE_GET_PUBLIC_URL",
+      "callerIds": [
+        "CALL-0430"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0046",
+      "sourcePath": "app/api/admin/announcements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:ANNOUNCEMENT_IMAGE_BUCKET",
+      "operation": "STORAGE_UPLOAD",
+      "callerIds": [
+        "CALL-0429"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0047",
+      "sourcePath": "app/api/admin/audit-logs/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "audit_logs",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0234"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0048",
+      "sourcePath": "app/api/admin/branch-catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branch_catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0230",
+        "CALL-0232"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0049",
+      "sourcePath": "app/api/admin/branch-catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branch_catalog_items",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0238"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0050",
+      "sourcePath": "app/api/admin/branch-catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0233"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0051",
+      "sourcePath": "app/api/admin/branch-catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0229"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0052",
+      "sourcePath": "app/api/admin/branch-catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0231"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0053",
+      "sourcePath": "app/api/admin/branch-catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0228"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0054",
+      "sourcePath": "app/api/admin/branch-whatsapp-config/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branch_whatsapp_configs",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0223",
+        "CALL-0224"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0055",
+      "sourcePath": "app/api/admin/branch-whatsapp-config/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branch_whatsapp_configs",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0227"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0056",
+      "sourcePath": "app/api/admin/branch-whatsapp-config/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0225"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0057",
+      "sourcePath": "app/api/admin/branches/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0220",
+        "CALL-0221"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0058",
+      "sourcePath": "app/api/admin/branches/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0218",
+        "CALL-0222"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0059",
+      "sourcePath": "app/api/admin/branches/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0216",
+        "CALL-0217",
+        "CALL-0226",
+        "CALL-0239",
+        "CALL-0240"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0060",
+      "sourcePath": "app/api/admin/branches/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "ensure_branch_order_number_prefix",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0219"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0061",
+      "sourcePath": "app/api/admin/catalog/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branch_catalog_items",
+      "operation": "DELETE",
+      "callerIds": [
+        "CALL-0260"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0062",
+      "sourcePath": "app/api/admin/catalog/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "DELETE",
+      "callerIds": [
+        "CALL-0259",
+        "CALL-0261"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0063",
+      "sourcePath": "app/api/admin/catalog/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0264"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0064",
+      "sourcePath": "app/api/admin/catalog/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0262",
+        "CALL-0263"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0065",
+      "sourcePath": "app/api/admin/catalog/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "ensure_inventory_stock_for_catalog_item",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0241"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0066",
+      "sourcePath": "app/api/admin/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0252",
+        "CALL-0253",
+        "CALL-0254"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0067",
+      "sourcePath": "app/api/admin/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0256",
+        "CALL-0257"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0068",
+      "sourcePath": "app/api/admin/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0255"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0069",
+      "sourcePath": "app/api/admin/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "ensure_inventory_stock_for_catalog_item",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0258"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0070",
+      "sourcePath": "app/api/admin/catalog/upload-image/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0251"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0071",
+      "sourcePath": "app/api/admin/catalog/upload-image/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0250"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0072",
+      "sourcePath": "app/api/admin/catalog/upload-image/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:CATALOG_IMAGE_BUCKET",
+      "operation": "STORAGE_GET_PUBLIC_URL",
+      "callerIds": [
+        "CALL-0432"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0073",
+      "sourcePath": "app/api/admin/catalog/upload-image/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:CATALOG_IMAGE_BUCKET",
+      "operation": "STORAGE_UPLOAD",
+      "callerIds": [
+        "CALL-0431"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0074",
+      "sourcePath": "app/api/admin/categories/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_categories",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0245",
+        "CALL-0246"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0075",
+      "sourcePath": "app/api/admin/categories/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_categories",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0248"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0076",
+      "sourcePath": "app/api/admin/categories/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_categories",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0244",
+        "CALL-0247",
+        "CALL-0293"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0077",
+      "sourcePath": "app/api/admin/categories/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0249"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0078",
+      "sourcePath": "app/api/admin/categories/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0242",
+        "CALL-0243"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0079",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0322"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0080",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "hash_pos_pin",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0389",
+        "CALL-0396"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0081",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0395",
+        "CALL-0397"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0082",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0321"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0083",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0387"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0084",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "DELETE",
+      "callerIds": [
+        "CALL-0386",
+        "CALL-0392"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0085",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0394"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0086",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0320",
+        "CALL-0398",
+        "CALL-0399"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0087",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0393"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0088",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0388",
+        "CALL-0390"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0089",
+      "sourcePath": "app/api/admin/create-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "set_pos_pin",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0391"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0090",
+      "sourcePath": "app/api/admin/delete-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "DELETE",
+      "callerIds": [
+        "CALL-0383",
+        "CALL-0384"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0091",
+      "sourcePath": "app/api/admin/delete-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "DELETE",
+      "callerIds": [
+        "CALL-0382",
+        "CALL-0385"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0092",
+      "sourcePath": "app/api/admin/discounts/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0381"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0093",
+      "sourcePath": "app/api/admin/discounts/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "discounts",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0377",
+        "CALL-0378"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0094",
+      "sourcePath": "app/api/admin/discounts/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "discounts",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0380"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0095",
+      "sourcePath": "app/api/admin/discounts/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "discounts",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0379",
+        "CALL-0400",
+        "CALL-0402",
+        "CALL-0403",
+        "CALL-0427"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0096",
+      "sourcePath": "app/api/admin/inventory-movements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0424"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0097",
+      "sourcePath": "app/api/admin/inventory-movements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0425"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0098",
+      "sourcePath": "app/api/admin/inventory-movements/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "inventory_movements_view",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0426"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0099",
+      "sourcePath": "app/api/admin/inventory/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0423"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0100",
+      "sourcePath": "app/api/admin/inventory/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "get_branch_inventory",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0422"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0101",
+      "sourcePath": "app/api/admin/list-users/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0420"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0102",
+      "sourcePath": "app/api/admin/list-users/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0419",
+        "CALL-0421"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0103",
+      "sourcePath": "app/api/admin/orders/[id]/status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0418"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0104",
+      "sourcePath": "app/api/admin/orders/[id]/status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "orders",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0417"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0105",
+      "sourcePath": "app/api/admin/receipts/[id]/cancel/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "invoice_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0413"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0106",
+      "sourcePath": "app/api/admin/receipts/[id]/cancel/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "invoices",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0414",
+        "CALL-0416"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0107",
+      "sourcePath": "app/api/admin/receipts/[id]/cancel/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "invoices",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0411"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0108",
+      "sourcePath": "app/api/admin/receipts/[id]/cancel/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0415"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0109",
+      "sourcePath": "app/api/admin/receipts/[id]/cancel/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "restore_inventory_for_cancelled_invoice",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0410",
+        "CALL-0412"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0110",
+      "sourcePath": "app/api/admin/reports/sales-performance/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0404",
+        "CALL-0407"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0111",
+      "sourcePath": "app/api/admin/reports/sales-performance/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0376",
+        "CALL-0405",
+        "CALL-0406",
+        "CALL-0408"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0112",
+      "sourcePath": "app/api/admin/reports/sales-performance/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0375"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0113",
+      "sourcePath": "app/api/admin/reports/sales-performance/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0401"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0114",
+      "sourcePath": "app/api/admin/reports/sales-performance/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0409"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0115",
+      "sourcePath": "app/api/admin/reports/summary/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0345"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0116",
+      "sourcePath": "app/api/admin/reports/summary/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0344",
+        "CALL-0347"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0117",
+      "sourcePath": "app/api/admin/reports/summary/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0343"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0118",
+      "sourcePath": "app/api/admin/reset-user-password/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0342"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0119",
+      "sourcePath": "app/api/admin/reset-user-pos-pin/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "hash_pos_pin",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0336",
+        "CALL-0338"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0120",
+      "sourcePath": "app/api/admin/reset-user-pos-pin/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0337"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0121",
+      "sourcePath": "app/api/admin/reset-user-pos-pin/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0340",
+        "CALL-0341"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0122",
+      "sourcePath": "app/api/admin/reset-user-pos-pin/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0335"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0123",
+      "sourcePath": "app/api/admin/reset-user-pos-pin/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0339"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0124",
+      "sourcePath": "app/api/admin/system-settings/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0330",
+        "CALL-0331"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0125",
+      "sourcePath": "app/api/admin/system-settings/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0332"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0126",
+      "sourcePath": "app/api/admin/system-settings/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0325",
+        "CALL-0326",
+        "CALL-0327"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0127",
+      "sourcePath": "app/api/admin/system-settings/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0334"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0128",
+      "sourcePath": "app/api/admin/system-settings/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0333"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0129",
+      "sourcePath": "app/api/admin/system-settings/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "vat_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0328",
+        "CALL-0329"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0130",
+      "sourcePath": "app/api/admin/system-settings/upload-logo/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:CATALOG_IMAGE_BUCKET",
+      "operation": "STORAGE_GET_PUBLIC_URL",
+      "callerIds": [
+        "CALL-0434"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0131",
+      "sourcePath": "app/api/admin/system-settings/upload-logo/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:CATALOG_IMAGE_BUCKET",
+      "operation": "STORAGE_UPLOAD",
+      "callerIds": [
+        "CALL-0433"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0132",
+      "sourcePath": "app/api/admin/toggle-branch-status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0323",
+        "CALL-0324"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0133",
+      "sourcePath": "app/api/admin/toggle-user-status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0348",
+        "CALL-0373"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0134",
+      "sourcePath": "app/api/admin/toggle-user-status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0346",
+        "CALL-0349"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0135",
+      "sourcePath": "app/api/admin/update-pos-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0371"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0136",
+      "sourcePath": "app/api/admin/update-pos-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "hash_pos_pin",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0372"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0137",
+      "sourcePath": "app/api/admin/update-pos-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0357",
+        "CALL-0359",
+        "CALL-0363",
+        "CALL-0369"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0138",
+      "sourcePath": "app/api/admin/update-pos-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0351",
+        "CALL-0352"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0139",
+      "sourcePath": "app/api/admin/update-pos-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0353",
+        "CALL-0354",
+        "CALL-0360",
+        "CALL-0366",
+        "CALL-0367"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0140",
+      "sourcePath": "app/api/admin/update-pos-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0356",
+        "CALL-0358",
+        "CALL-0362",
+        "CALL-0364",
+        "CALL-0368",
+        "CALL-0370"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0141",
+      "sourcePath": "app/api/admin/update-pos-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0361",
+        "CALL-0365"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0142",
+      "sourcePath": "app/api/admin/update-pos-user/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPSERT",
+      "callerIds": [
+        "CALL-0355"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0143",
+      "sourcePath": "app/api/admin/update-user-branch/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0106",
+        "CALL-0214"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0144",
+      "sourcePath": "app/api/admin/update-user-branch/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0213",
+        "CALL-0215"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0145",
+      "sourcePath": "app/api/admin/update-user-branch/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0077",
+        "CALL-0350"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0146",
+      "sourcePath": "app/api/admin/update-user-role/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0074",
+        "CALL-0075"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0147",
+      "sourcePath": "app/api/admin/update-user-role/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0073",
+        "CALL-0076"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0148",
+      "sourcePath": "app/api/admin/vat/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0072"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0149",
+      "sourcePath": "app/api/admin/vat/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "vat_settings",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0067",
+        "CALL-0068",
+        "CALL-0069"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0150",
+      "sourcePath": "app/api/admin/vat/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "vat_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0070",
+        "CALL-0071"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0151",
+      "sourcePath": "app/api/auth/check-username/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0059",
+        "CALL-0060",
+        "CALL-0061",
+        "CALL-0062",
+        "CALL-0063",
+        "CALL-0066"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0152",
+      "sourcePath": "app/api/auth/check-username/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0064",
+        "CALL-0065"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0153",
+      "sourcePath": "app/api/auth/login/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0056",
+        "CALL-0057",
+        "CALL-0058"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0154",
+      "sourcePath": "app/api/customers/[customerId]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "customers",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0055"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0155",
+      "sourcePath": "app/api/customers/[customerId]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "invoices",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0078"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0156",
+      "sourcePath": "app/api/customers/[customerId]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0080"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0157",
+      "sourcePath": "app/api/customers/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "create_customer_with_phone_identity_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0102"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0158",
+      "sourcePath": "app/api/customers/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "customers",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0081",
+        "CALL-0101",
+        "CALL-0104",
+        "CALL-0105"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0159",
+      "sourcePath": "app/api/customers/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "invoices",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0103"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0160",
+      "sourcePath": "app/api/developer/tenants/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0096"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0161",
+      "sourcePath": "app/api/developer/tenants/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0097",
+        "CALL-0098",
+        "CALL-0099"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0162",
+      "sourcePath": "app/api/developer/tenants/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0095"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0163",
+      "sourcePath": "app/api/developer/tenants/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0100"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0164",
+      "sourcePath": "app/api/developer/users/status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "audit_logs",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0087"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0165",
+      "sourcePath": "app/api/developer/users/status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "platform_admins",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0090",
+        "CALL-0092",
+        "CALL-0093"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0166",
+      "sourcePath": "app/api/developer/users/status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "platform_admins",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0085"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0167",
+      "sourcePath": "app/api/developer/users/status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0088",
+        "CALL-0089",
+        "CALL-0091"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0168",
+      "sourcePath": "app/api/developer/users/status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0086",
+        "CALL-0094"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0169",
+      "sourcePath": "app/api/invoice/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branch_catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0052",
+        "CALL-0054"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0170",
+      "sourcePath": "app/api/invoice/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0084"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0171",
+      "sourcePath": "app/api/invoice/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_categories",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0083"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0172",
+      "sourcePath": "app/api/invoice/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0082"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0173",
+      "sourcePath": "app/api/invoice/catalog/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "inventory_stock",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0053"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0174",
+      "sourcePath": "app/api/invoices/digital-settings/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0051"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0175",
+      "sourcePath": "app/api/invoices/pdf/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0022",
+        "CALL-0023"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0176",
+      "sourcePath": "app/api/invoices/thermal-settings/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0021"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0177",
+      "sourcePath": "app/api/onboarding/create-tenant/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "create_tenant_with_owner",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0017"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0178",
+      "sourcePath": "app/api/onboarding/create-tenant/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0018",
+        "CALL-0019",
+        "CALL-0020"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0179",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branch_catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0010"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0180",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0004"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0181",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0013"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0182",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0011"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0183",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE_OR_INJECTED_ADMIN",
+      "databaseObject": "create_invoice_with_items_safe",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0428"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0184",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "inventory_movements",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0007"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0185",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "invoice_items",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0008"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0186",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "INJECTED_CLIENT_UNPROVEN",
+      "databaseObject": "invoices",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0002",
+        "CALL-0003"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0187",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0006",
+        "CALL-0015",
+        "CALL-0016",
+        "CALL-0027",
+        "CALL-0048",
+        "CALL-0049",
+        "CALL-0050"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0188",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "orders",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0009"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0189",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0024"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0190",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "INJECTED_CLIENT_UNPROVEN",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0026"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0191",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "INJECTED_CLIENT_UNPROVEN",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0012",
+        "CALL-0025"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0192",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0014"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0193",
+      "sourcePath": "app/api/orders/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0005"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0194",
+      "sourcePath": "app/api/pos/identify-employee-by-pin/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "DELETE",
+      "callerIds": [
+        "CALL-0047"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0195",
+      "sourcePath": "app/api/pos/identify-employee-by-pin/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "verify_pos_pin_for_actor",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0046"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0196",
+      "sourcePath": "app/api/pos/identify-employee-by-pin/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "verify_pos_pin",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0045"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0197",
+      "sourcePath": "app/api/pos/orders/[id]/status/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "orders",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0043",
+        "CALL-0044"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0198",
+      "sourcePath": "app/api/pos/runtime/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0042"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0199",
+      "sourcePath": "app/api/pos/runtime/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "discounts",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0041"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0200",
+      "sourcePath": "app/api/pos/runtime/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "vat_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0040"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0201",
+      "sourcePath": "app/api/provider/support/notifications/read-all/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "mark_all_developer_support_notifications_read",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0039"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0202",
+      "sourcePath": "app/api/provider/support/notifications/read/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "mark_developer_support_notification_read",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0038"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0203",
+      "sourcePath": "app/api/provider/support/notifications/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "get_developer_support_notifications",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0037"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0204",
+      "sourcePath": "app/api/provider/support/summary/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0035",
+        "CALL-0036"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0205",
+      "sourcePath": "app/api/provider/support/tickets/[id]/notes/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_messages",
+      "operation": "DELETE",
+      "callerIds": [
+        "CALL-0031"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0206",
+      "sourcePath": "app/api/provider/support/tickets/[id]/notes/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_messages",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0033"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0207",
+      "sourcePath": "app/api/provider/support/tickets/[id]/notes/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_ticket_events",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0032"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0208",
+      "sourcePath": "app/api/provider/support/tickets/[id]/notes/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0034"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0209",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0028"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0210",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0079"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0211",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_attachments",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0184"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0212",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_messages",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0107",
+        "CALL-0186"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0213",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_ticket_events",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0181"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0214",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_ticket_events",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0108"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0215",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0182"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0216",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0030"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0217",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0180",
+        "CALL-0183"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0218",
+      "sourcePath": "app/api/provider/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0029"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0219",
+      "sourcePath": "app/api/provider/support/tickets/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "get_provider_support_operational_dashboard",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0179"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0220",
+      "sourcePath": "app/api/provider/support/tickets/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0178"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0221",
+      "sourcePath": "app/api/support/attachments/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:attachment.storage_bucket",
+      "operation": "STORAGE_CREATE_SIGNED_URL",
+      "callerIds": [
+        "CALL-0435"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0222",
+      "sourcePath": "app/api/support/attachments/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_attachments",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0177"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0223",
+      "sourcePath": "app/api/support/attachments/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0176"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0224",
+      "sourcePath": "app/api/support/tickets/[id]/attachments/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:SUPPORT_ATTACHMENT_BUCKET",
+      "operation": "STORAGE_REMOVE",
+      "callerIds": [
+        "CALL-0437"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0225",
+      "sourcePath": "app/api/support/tickets/[id]/attachments/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "storage:SUPPORT_ATTACHMENT_BUCKET",
+      "operation": "STORAGE_UPLOAD",
+      "callerIds": [
+        "CALL-0436"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0226",
+      "sourcePath": "app/api/support/tickets/[id]/attachments/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_attachments",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0172"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0227",
+      "sourcePath": "app/api/support/tickets/[id]/attachments/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_messages",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0173",
+        "CALL-0174"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0228",
+      "sourcePath": "app/api/support/tickets/[id]/attachments/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0175"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0229",
+      "sourcePath": "app/api/support/tickets/[id]/messages/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_messages",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0170"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0230",
+      "sourcePath": "app/api/support/tickets/[id]/messages/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_ticket_events",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0168"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0231",
+      "sourcePath": "app/api/support/tickets/[id]/messages/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0169",
+        "CALL-0171"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0232",
+      "sourcePath": "app/api/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_attachments",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0164"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0233",
+      "sourcePath": "app/api/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_messages",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0166"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0234",
+      "sourcePath": "app/api/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_ticket_events",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0165"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0235",
+      "sourcePath": "app/api/support/tickets/[id]/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0167"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0236",
+      "sourcePath": "app/api/support/tickets/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0185"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0237",
+      "sourcePath": "app/api/support/tickets/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "create_support_ticket_atomic",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0188"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0238",
+      "sourcePath": "app/api/support/tickets/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0163",
+        "CALL-0187",
+        "CALL-0212"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0239",
+      "sourcePath": "app/api/support/tickets/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0162"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0240",
+      "sourcePath": "app/api/whatsapp/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0208"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0241",
+      "sourcePath": "app/api/whatsapp/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0210"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0242",
+      "sourcePath": "app/api/whatsapp/send/route.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0209",
+        "CALL-0211"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0243",
+      "sourcePath": "app/developer/audit/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "audit_logs",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0207"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0244",
+      "sourcePath": "app/developer/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "platform_admins",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0200"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0245",
+      "sourcePath": "app/developer/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0203",
+        "CALL-0204",
+        "CALL-0205"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0246",
+      "sourcePath": "app/developer/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0201",
+        "CALL-0202"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0247",
+      "sourcePath": "app/developer/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0206"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0248",
+      "sourcePath": "app/developer/tenants/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0199"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0249",
+      "sourcePath": "app/developer/users/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0190"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0250",
+      "sourcePath": "app/developer/users/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0192",
+        "CALL-0194",
+        "CALL-0195",
+        "CALL-0196",
+        "CALL-0197",
+        "CALL-0198"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0251",
+      "sourcePath": "app/developer/users/page.tsx",
+      "runtimeClassification": "SERVER_COMPONENT_OR_INLINE_SERVER_ACTION",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0191",
+        "CALL-0193"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0252",
+      "sourcePath": "app/page.tsx",
+      "runtimeClassification": "BROWSER",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0189"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0253",
+      "sourcePath": "app/provider/layout.tsx",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "platform_admins",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0161"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0254",
+      "sourcePath": "lib/audit-log.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "audit_logs",
+      "operation": "INSERT",
+      "callerIds": [
+        "CALL-0160"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0255",
+      "sourcePath": "lib/auth.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0158",
+        "CALL-0159"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0256",
+      "sourcePath": "lib/auth.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "BROWSER_ANON_RLS",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0130"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0257",
+      "sourcePath": "lib/authorization-context.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0127"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0258",
+      "sourcePath": "lib/authorization-context.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_COOKIE_ANON_RLS",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0128",
+        "CALL-0129"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0259",
+      "sourcePath": "lib/developer/server.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "platform_admins",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0126"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0260",
+      "sourcePath": "lib/feature-guards.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0125"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0261",
+      "sourcePath": "lib/idempotency/service.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0123"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0262",
+      "sourcePath": "lib/idempotency/service.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "resolve_idempotency_command",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0124"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0263",
+      "sourcePath": "lib/invoices/create-cost-snapshot.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "catalog_items",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0131"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0264",
+      "sourcePath": "lib/invoices/create-cost-snapshot.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "invoice_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0121"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0265",
+      "sourcePath": "lib/invoices/create-cost-snapshot.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "invoice_items",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0120"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0266",
+      "sourcePath": "lib/invoices/create-cost-snapshot.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "UNPROVEN",
+      "databaseObject": "invoices",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0122"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0267",
+      "sourcePath": "lib/pos-actor-session-server.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "issue_pos_actor_session_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0118"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0268",
+      "sourcePath": "lib/pos-actor-session-server.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_actor_session_state_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0116"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0269",
+      "sourcePath": "lib/pos-actor-session-server.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "revoke_pos_actor_session_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0115"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0270",
+      "sourcePath": "lib/pos-actor-session-server.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "validate_pos_actor_session_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0117"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0271",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE_OR_INJECTED_ADMIN",
+      "databaseObject": "acquire_atomic_order_command_result_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0137"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0272",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_INJECTED_ADMIN_CLIENT",
+      "databaseObject": "branch_catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0109"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0273",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_INJECTED_ADMIN_CLIENT",
+      "databaseObject": "catalog_items",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0110"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0274",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE_OR_INJECTED_ADMIN",
+      "databaseObject": "claim_atomic_order_command_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0136"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0275",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_INJECTED_ADMIN_CLIENT",
+      "databaseObject": "create_customer_with_phone_identity_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0112"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0276",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_INJECTED_ADMIN_CLIENT",
+      "databaseObject": "customers",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0113"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0277",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE_OR_INJECTED_ADMIN",
+      "databaseObject": "execute_atomic_order_command_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0135"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0278",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_INJECTED_ADMIN_CLIENT",
+      "databaseObject": "lookup_customer_phone_identity_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0111",
+        "CALL-0114"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0279",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE_OR_INJECTED_ADMIN",
+      "databaseObject": "replay_atomic_order_command_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0374"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0280",
+      "sourcePath": "lib/server/core-v2/atomic-order.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_INJECTED_ADMIN_CLIENT",
+      "databaseObject": "vat_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0119"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0281",
+      "sourcePath": "lib/server/orders/order-status-history.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "audit_logs",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0132"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0282",
+      "sourcePath": "lib/server/orders/order-status-history.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "pos_profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0134"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0283",
+      "sourcePath": "lib/server/orders/order-status-history.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0133"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0284",
+      "sourcePath": "lib/server/orders/order-status-whatsapp.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branches",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0155"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0285",
+      "sourcePath": "lib/server/orders/order-status-whatsapp.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "orders",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0157"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0286",
+      "sourcePath": "lib/server/orders/order-status-whatsapp.ts",
+      "runtimeClassification": "SERVER",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0156"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0287",
+      "sourcePath": "lib/support/email.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "platform_admins",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0154"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0288",
+      "sourcePath": "lib/support/email.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "profiles",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0148"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0289",
+      "sourcePath": "lib/support/email.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_messages",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0149",
+        "CALL-0152"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0290",
+      "sourcePath": "lib/support/email.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0150",
+        "CALL-0153"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0291",
+      "sourcePath": "lib/support/email.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "tenants",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0151"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0292",
+      "sourcePath": "lib/support/provider-agents.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "platform_admins",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0147"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0293",
+      "sourcePath": "lib/support/server.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "platform_admins",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0145",
+        "CALL-0146"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0294",
+      "sourcePath": "lib/whatsapp/config.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "branch_whatsapp_configs",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0144"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0295",
+      "sourcePath": "lib/whatsapp/config.ts",
+      "runtimeClassification": "SHARED_RUNTIME_REQUIRES_CALLER_CONTEXT",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "system_settings",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0143"
+      ],
+      "liveCaller": true,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0296",
+      "sourcePath": "scripts/check-core-v2-contracts.mjs",
+      "runtimeClassification": "OPERATIONAL_STATIC_TOOL_NOT_LIVE",
+      "clientAuthorityClass": "INJECTED_CLIENT_UNPROVEN",
+      "databaseObject": "acquire_atomic_order_command_v1",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0141"
+      ],
+      "liveCaller": false,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0297",
+      "sourcePath": "scripts/check-core-v2-contracts.mjs",
+      "runtimeClassification": "OPERATIONAL_STATIC_TOOL_NOT_LIVE",
+      "clientAuthorityClass": "INJECTED_CLIENT_UNPROVEN",
+      "databaseObject": "atomic_order_commands",
+      "operation": "SELECT",
+      "callerIds": [
+        "CALL-0142"
+      ],
+      "liveCaller": false,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0298",
+      "sourcePath": "scripts/check-provider-support.mjs",
+      "runtimeClassification": "OPERATIONAL_STATIC_TOOL_NOT_LIVE",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "get_provider_support_operational_dashboard",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0140"
+      ],
+      "liveCaller": false,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0299",
+      "sourcePath": "scripts/check-support-center.mjs",
+      "runtimeClassification": "OPERATIONAL_STATIC_TOOL_NOT_LIVE",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "support_tickets",
+      "operation": "UPDATE",
+      "callerIds": [
+        "CALL-0139"
+      ],
+      "liveCaller": false,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "FLOW-0300",
+      "sourcePath": "scripts/check-support-operational.mjs",
+      "runtimeClassification": "OPERATIONAL_STATIC_TOOL_NOT_LIVE",
+      "clientAuthorityClass": "SERVER_SERVICE_ROLE",
+      "databaseObject": "get_provider_support_operational_dashboard",
+      "operation": "RPC",
+      "callerIds": [
+        "CALL-0138"
+      ],
+      "liveCaller": false,
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    }
+  ],
+  "criticalFlows": [
+    {
+      "id": "CRITICAL-FLOW-PROFILE",
+      "path": [
+        "components/auth-state-provider.tsx",
+        "lib/auth.ts",
+        "lib/supabase/client.ts",
+        "profiles/tenants"
+      ],
+      "current": "direct browser reads",
+      "target": "one trusted Next.js route returning exactly seven presentation fields",
+      "status": "BLOCKED_REPOSITORY_GAP"
+    },
+    {
+      "id": "CRITICAL-FLOW-INVENTORY",
+      "path": [
+        "app/admin/inventory/movements/page.tsx",
+        "app/api/admin/inventory-movements/route.ts",
+        "lib/supabase/admin.ts",
+        "inventory_movements_view"
+      ],
+      "current": "trusted route exists but contract incomplete",
+      "target": "default30/max366 UTC, page10/max50, created_at DESC,id DESC",
+      "status": "BLOCKED_REPOSITORY_GAP"
+    },
+    {
+      "id": "CRITICAL-FLOW-CUSTOMER",
+      "path": [
+        "components/invoice-customer-step.tsx",
+        "app/api/customers/route.ts",
+        "customer identity RPCs/customers"
+      ],
+      "current": "trusted lookup/create route with stale-request protection",
+      "target": "preserve server-only creation and normalized identity authority",
+      "status": "COMPATIBILITY_PROVEN_WITH_OFFLINE_OPERATIONS_BLOCKED"
+    },
+    {
+      "id": "CRITICAL-FLOW-CORE",
+      "path": [
+        "app/api/orders/route.ts",
+        "lib/server/core-v2/atomic-order.ts",
+        "Core V2 RPCs"
+      ],
+      "current": "primary auth/tenant/branch/idempotency binding; POS employee patched after Core",
+      "target": "atomic immutable actual employee/device/generations/local frontier binding",
+      "status": "BLOCKED_CORE_V2_CHANGE_REQUIRED"
+    }
+  ],
+  "blockers": [
+    "Static evidence cannot prove Production ACL, RLS reachability, object ownership, or external callers.",
+    "Target profile route with exact seven fields is not implemented.",
+    "Inventory history route lacks the complete 30/366-day and created_at,id ordering contract.",
+    "Core V2 does not bind the complete offline device/employee generation authority."
+  ]
+}
+

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "pilotCommandAllowlist": ["order.create"],
+  "shadowCommands": [
+    "customer.create",
+    "customer.update",
+    "payment.employee_attestation",
+    "order.status.change",
+    "audit.event.append",
+    "order.cancel",
+    "order.refund"
+  ],
+  "surfaces": ["POS"],
+  "excludedSurfaces": ["Admin", "Dashboard"],
+  "maximumClaimBatch": 1000,
+  "foundationStatus": "FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN",
+  "activationStatus": "ACTIVATION_EXECUTED_AND_ATTESTED_BY_HUMAN_FLAGS_FALSE",
+  "providerActions": 0,
+  "externalEffects": 0,
+  "constructionExecutions": {
+    "sql": 0,
+    "database": 0,
+    "network": 0,
+    "production": 0,
+    "business": 0
+  }
+}

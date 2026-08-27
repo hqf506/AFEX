@@ -26,6 +26,7 @@ import {
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { INVOICE_SALE_CHECKOUT_STORAGE_KEY, parseStoredInvoiceSaleCheckoutDraft, serializeInvoiceSaleCheckoutDraft } from '@/lib/invoices/sale-navigation'
+import { resolveOfflineOrderCreatePilotCheckout } from '@/lib/offline/order-create-pilot-pos-integration'
 
 export type CheckoutDiscountOption = {
   id: string
@@ -329,6 +330,24 @@ export function useInvoiceCheckout({
     }
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const pilotDisposition = resolveOfflineOrderCreatePilotCheckout({
+        paymentMethod: safePaymentMethod,
+        itemCount: validItems.length,
+        branchId,
+        actualPosEmployeeId: activePosEmployee?.id ?? null,
+      })
+
+      if (pilotDisposition.handled) {
+        setLoading(false)
+        setErrorMessage(
+          pilotDisposition.classification ===
+            'OFFLINE_ORDER_CREATE_PILOT_AUTHORITY_LOCKED'
+            ? 'إنشاء الطلب دون اتصال غير مفعّل بعد على هذا الجهاز.'
+            : 'تعذر التحقق من سلطة الطلب دون اتصال.'
+        )
+        return
+      }
+
       try {
         savePosOfflineInvoiceDraft({
           clientIdempotencyKey,

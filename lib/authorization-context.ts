@@ -20,7 +20,12 @@ import {
   isPosActorRestrictionRequired,
   POS_ACTOR_COOKIE,
   resolvePosActorSession,
+  type EffectivePosActor,
 } from '@/lib/pos-actor-session-server'
+import {
+  createShadowTrustedSyncUploaderContext,
+  type TrustedSyncUploaderContext,
+} from '@/lib/server/offline/trusted-actor-provenance'
 
 export type AuthorizationCapability =
   | 'admin:full'
@@ -71,6 +76,8 @@ export type AuthorizationContext = {
   branchAccess: AuthorizationBranchAccess
   activeBranchId: string | null
   posEmployee: VerifiedPosEmployee | null
+  posActorSession: EffectivePosActor | null
+  trustedOfflineSyncContext: TrustedSyncUploaderContext | null
   can: (capability: AuthorizationCapability) => boolean
   canAccessBranch: (branchId: string | null | undefined) => boolean
   verifyPosEmployee: (
@@ -367,6 +374,13 @@ export async function requireAuthorizationContext(
               tenantId: effectivePosActor.tenantId,
               source: 'pos_profile',
             }
+          : null,
+        posActorSession: effectivePosActor,
+        trustedOfflineSyncContext: effectivePosActor
+          ? createShadowTrustedSyncUploaderContext({
+              verifiedAuth,
+              effectivePosActor,
+            })
           : null,
         can: (capability) => capabilities.has(capability),
         canAccessBranch,

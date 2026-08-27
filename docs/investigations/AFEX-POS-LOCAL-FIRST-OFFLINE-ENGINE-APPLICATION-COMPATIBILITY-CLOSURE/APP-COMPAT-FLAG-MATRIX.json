@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "flags": [
+    {"name":"profilePresentationRoute","source":"server constant","default":true,"authorityGrant":false,"reason":"authenticated exact allowlist route available for controlled testing"},
+    {"name":"profileCallerMigration","source":"NEXT_PUBLIC_AFEX_PROFILE_PRESENTATION_MIGRATION","default":false,"authorityGrant":false},
+    {"name":"inventoryHistoryV2","source":"AFEX_INVENTORY_HISTORY_CONTRACT_V2","default":false,"authorityGrant":false,"route":"/api/admin/inventory-movements/v2","legacyRouteAffected":false},
+    {"name":"syncStatusUi","source":"NEXT_PUBLIC_AFEX_OFFLINE_SYNC_STATUS_UI","default":false,"authorityGrant":false},
+    {"name":"localInventoryBusinessEnforcement","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"sensitiveCacheIngestion","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"persistentUnwrap","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"productionOutboxPersistence","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"dispatch","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"replay","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"offlineOrderInterception","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"offlineOrderCreate","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"paymentProviderAction","source":"hard-disabled","default":false,"authorityGrant":false},
+    {"name":"externalEffects","source":"hard-disabled","default":false,"authorityGrant":false}
+  ],
+  "publicFlagAuthorityPolicy": "A public client flag never grants server, tenant, branch, POS actor, database, or business authority."
+}

@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
+import { useProfilePresentation } from '@/components/profile-presentation-provider'
 import { isFullAdmin } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername } from '@/lib/usernames'
@@ -181,6 +182,7 @@ function getAdminEntryPath(role: string | null | undefined) {
 export default function LandingPage() {
   const router = useRouter()
   const authState = useAuthState()
+  const presentationState = useProfilePresentation()
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [loginUsername, setLoginUsername] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -204,7 +206,10 @@ export default function LandingPage() {
     return () => controller.abort()
   }, [authState.status])
 
-  const profileName = authState.profile?.full_name?.trim() || ''
+  const profileName =
+    presentationState.data?.full_name?.trim() ||
+    authState.profile?.full_name?.trim() ||
+    ''
   const profileRole = authState.profile?.role || ''
   const adminEntryPath = getAdminEntryPath(profileRole)
   const displayFirstName = localFirstName || (profileName ? getFirstName(profileName) : '')

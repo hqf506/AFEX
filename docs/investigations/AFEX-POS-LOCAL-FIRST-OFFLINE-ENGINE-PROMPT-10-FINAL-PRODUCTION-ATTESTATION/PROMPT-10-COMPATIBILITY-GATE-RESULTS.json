@@ -1,0 +1,324 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceQueries": [
+    "P10-Q003",
+    "P10-Q005",
+    "P10-Q006",
+    "P10-Q007R",
+    "P10-Q009",
+    "P10-Q010",
+    "P10-Q011"
+  ],
+  "allowedStatuses": [
+    "PROVEN",
+    "PARTIALLY_PROVEN",
+    "BLOCKED_APPLICATION_REPLACEMENT_REQUIRED",
+    "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+    "BLOCKED_SQL_DESIGN_REQUIRED",
+    "BLOCKED_EXTERNAL_OPERATIONAL_EVIDENCE_REQUIRED",
+    "BLOCKED_RUNTIME_QUALIFICATION_REQUIRED"
+  ],
+  "gates": [
+    {
+      "id": "CG-01",
+      "requirement": "Every current direct browser read/write proposed for removal is inventoried.",
+      "prompt9Status": "STATICALLY_PROVEN",
+      "productionEvidence": "437-record static caller inventory plus current ACL reachability",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": "runtime/external dynamic caller trace",
+      "finalPrompt10Status": "PARTIALLY_PROVEN",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "runtime/external dynamic caller trace"
+      ]
+    },
+    {
+      "id": "CG-02",
+      "requirement": "Every affected caller has a deployed and tested trusted replacement.",
+      "prompt9Status": "BLOCKED_REPOSITORY_GAP",
+      "productionEvidence": "Production ACL exposure is exact",
+      "remainingApplicationBlocker": "trusted replacements are not implemented/deployed/tested",
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_APPLICATION_REPLACEMENT_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "trusted replacements are not implemented/deployed/tested"
+      ]
+    },
+    {
+      "id": "CG-03",
+      "requirement": "Profile presentation uses exact seven fields.",
+      "prompt9Status": "BLOCKED_REPOSITORY_GAP",
+      "productionEvidence": "profiles columns and broad browser SELECT are proven",
+      "remainingApplicationBlocker": "exact trusted seven-field route is absent",
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_APPLICATION_REPLACEMENT_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "exact trusted seven-field route is absent"
+      ]
+    },
+    {
+      "id": "CG-04",
+      "requirement": "Profile lookup no longer uses user-bound client.",
+      "prompt9Status": "BLOCKED_REPOSITORY_GAP",
+      "productionEvidence": "direct browser reachability is proven",
+      "remainingApplicationBlocker": "caller migration is absent",
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_APPLICATION_REPLACEMENT_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "caller migration is absent"
+      ]
+    },
+    {
+      "id": "CG-05",
+      "requirement": "Inventory history browser uses only trusted route.",
+      "prompt9Status": "COMPATIBILITY_PROVEN",
+      "productionEvidence": "static route-only caller proof plus current view/table ACL",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": "authenticated runtime route trace",
+      "finalPrompt10Status": "BLOCKED_RUNTIME_QUALIFICATION_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "authenticated runtime route trace"
+      ]
+    },
+    {
+      "id": "CG-06",
+      "requirement": "Inventory route full pagination/window/order contract.",
+      "prompt9Status": "BLOCKED_REPOSITORY_GAP",
+      "productionEvidence": "current indexes support tenant/branch/time reads",
+      "remainingApplicationBlocker": "30/366 UTC window, id tie-break cursor and versioned response contract",
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_APPLICATION_REPLACEMENT_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "30/366 UTC window, id tie-break cursor and versioned response contract"
+      ]
+    },
+    {
+      "id": "CG-07",
+      "requirement": "Customer/history/status callers remain compatible.",
+      "prompt9Status": "BLOCKED_REPOSITORY_GAP",
+      "productionEvidence": "current functions/tables/policies and static response map are exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": "runtime response regression and denial tests",
+      "finalPrompt10Status": "BLOCKED_RUNTIME_QUALIFICATION_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "runtime response regression and denial tests"
+      ]
+    },
+    {
+      "id": "CG-08",
+      "requirement": "No page depends on removed access.",
+      "prompt9Status": "BLOCKED_REPOSITORY_GAP",
+      "productionEvidence": "static scan and Production reachability inventory are complete",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": "deployed denial proof",
+      "finalPrompt10Status": "BLOCKED_RUNTIME_QUALIFICATION_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "deployed denial proof"
+      ]
+    },
+    {
+      "id": "CG-09",
+      "requirement": "All response shapes verified.",
+      "prompt9Status": "BLOCKED_REPOSITORY_GAP",
+      "productionEvidence": "static response-shape matrix exists",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": "contract snapshots/runtime tests",
+      "finalPrompt10Status": "BLOCKED_RUNTIME_QUALIFICATION_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "contract snapshots/runtime tests"
+      ]
+    },
+    {
+      "id": "CG-10",
+      "requirement": "Rollback never restores broad privilege.",
+      "prompt9Status": "BLOCKED_INDEPENDENT_SQL_REVIEW_REQUIRED",
+      "productionEvidence": "current broad ACL/default ACL baseline is exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": "approved rollback plus drill",
+      "finalPrompt10Status": "BLOCKED_RUNTIME_QUALIFICATION_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "approved rollback plus drill"
+      ]
+    },
+    {
+      "id": "CG-11",
+      "requirement": "Exact branch/tenant identity.",
+      "prompt9Status": "BLOCKED_AUTHORITY_IDENTITY_REQUIRED",
+      "productionEvidence": "13 rows; zero null/orphan/duplicate pairs; columns exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": "ordered composite unique target absent",
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_SQL_DESIGN_REQUIRED",
+      "evidenceStatus": "SAFE_AGGREGATE_PROOF",
+      "blockers": [
+        "ordered composite unique target absent"
+      ]
+    },
+    {
+      "id": "CG-12",
+      "requirement": "Immutable employee authority identity.",
+      "prompt9Status": "BLOCKED_AUTHORITY_IDENTITY_REQUIRED",
+      "productionEvidence": "Online actor session and POS employee chain exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": "device and all approved generation authority absent",
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_SQL_DESIGN_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "device and all approved generation authority absent"
+      ]
+    },
+    {
+      "id": "CG-13",
+      "requirement": "Core command scope identity.",
+      "prompt9Status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "productionEvidence": "Core command/idempotency/receipt authority exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": "actual employee/device/generations not atomically bound",
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "actual employee/device/generations not atomically bound"
+      ]
+    },
+    {
+      "id": "CG-14",
+      "requirement": "Snapshot scope identity.",
+      "prompt9Status": "BLOCKED_AUTHORITY_IDENTITY_REQUIRED",
+      "productionEvidence": "current stock/movement authority exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": "snapshot/frontier authority absent",
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_SQL_DESIGN_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "snapshot/frontier authority absent"
+      ]
+    },
+    {
+      "id": "CG-15",
+      "requirement": "Serialized review CAS.",
+      "prompt9Status": "BLOCKED_AUTHORITY_IDENTITY_REQUIRED",
+      "productionEvidence": "current Core reconciliation role/functions exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": "review version/event CAS relation absent",
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_SQL_DESIGN_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "review version/event CAS relation absent"
+      ]
+    },
+    {
+      "id": "CG-16",
+      "requirement": "Payment writer separation.",
+      "prompt9Status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "productionEvidence": "current six-value check and aggregate vocabulary exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": "eight-method Core/state/writer separation absent",
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "eight-method Core/state/writer separation absent"
+      ]
+    },
+    {
+      "id": "CG-17",
+      "requirement": "Effect authority.",
+      "prompt9Status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "productionEvidence": "configuration/read-state objects exact",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": "atomic intent/claim/receipt ledger and Core insertion absent",
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": null,
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "atomic intent/claim/receipt ledger and Core insertion absent"
+      ]
+    },
+    {
+      "id": "CG-18",
+      "requirement": "Public CREATE caller-by-caller decision.",
+      "prompt9Status": "BLOCKED_PRODUCTION_EVIDENCE_REQUIRED",
+      "productionEvidence": "current effective CREATE is exact for attested roles",
+      "remainingApplicationBlocker": null,
+      "remainingCoreBlocker": null,
+      "remainingSqlBlocker": null,
+      "operationalOrExternalBlocker": "external platform/CI/maintenance caller use remains unproven",
+      "runtimeBlocker": null,
+      "finalPrompt10Status": "BLOCKED_EXTERNAL_OPERATIONAL_EVIDENCE_REQUIRED",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "external platform/CI/maintenance caller use remains unproven"
+      ]
+    }
+  ],
+  "summary": {
+    "proven": 0,
+    "partiallyProven": 1,
+    "applicationBlocked": 4,
+    "coreBlocked": 3,
+    "sqlBlocked": 4,
+    "externalBlocked": 1,
+    "runtimeBlocked": 5
+  },
+  "blockers": [
+    "No complete gate newly reaches PROVEN.",
+    "No SQL execution gate is satisfied."
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "version": "afex-offline-origin-authority.v2",
+  "exactFieldCount": 15,
+  "exactFields": ["actualPosEmployeeId","bootstrapGeneration","bootstrapId","branchId","commandGeneration","deviceGeneration","deviceId","employeeEnrollmentGeneration","enrollmentId","keyEnvelopeId","keyEnvelopeVersion","namespaceGeneration","originAuthorityVersion","primaryAuthenticatedSubjectId","tenantId"],
+  "canonicalBinding": {"version":"afex-authority-binding-canonical-json.v2","totalFieldCount":22,"originIncluded":true,"databaseRecomputationRequired":true},
+  "trustedRows": [
+    {
+      "reference":"bootstrapId + primaryAuthenticatedSubjectId + tenantId + branchId + deviceId + bootstrapGeneration",
+      "relation":"afex_offline_authority.offline_account_bootstrap_authorities",
+      "authority":"verified Online establishment account bootstrap; status must be active; current generation may advance only through same-account Online recovery",
+      "logout":"logged_out disables PIN, Offline order creation and employee switching; PIN cannot reactivate",
+      "recovery":"same primary account + tenant + branch + device after a fresh Online Auth and POS actor validation only"
+    },
+    {
+      "reference":"deviceId + tenantId + branchId + deviceGeneration",
+      "relation":"afex_offline_authority.offline_devices",
+      "authority":"managed device status and generations; employee PIN cannot establish or change it"
+    },
+    {
+      "reference":"enrollmentId + actualPosEmployeeId + employeeEnrollmentGeneration + commandGeneration",
+      "relation":"afex_offline_authority.offline_employee_authorities",
+      "authority":"pre-enrolled employee selector under the existing account/device bootstrap",
+      "pinVerifier":"PBKDF2-HMAC-SHA256/600000/32-byte unique salt/32-byte verifier; selection only; never a DEK or account credential",
+      "allowlist":["order.create"]
+    },
+    {
+      "reference":"keyEnvelopeId + keyEnvelopeVersion + primaryAuthenticatedSubjectId + deviceId + namespaceGeneration",
+      "relation":"afex_offline_authority.offline_key_envelopes",
+      "authority":"managed-device storage envelope independent of employee/PIN",
+      "forbiddenBindings":["actual_pos_employee_id","pin_verifier","pin_derived_dek"]
+    }
+  ],
+  "forbiddenFields": ["plaintext PIN","DEK","private key","provider token","service-role key","raw access token","reusable POS actor token"],
+  "substitutionPolicy": "FAIL_CLOSED",
+  "originalAuthSessionExpiryIsSoleInvalidator": false,
+  "explicitLogoutInvalidatesLocalUse": true,
+  "activation": false
+}

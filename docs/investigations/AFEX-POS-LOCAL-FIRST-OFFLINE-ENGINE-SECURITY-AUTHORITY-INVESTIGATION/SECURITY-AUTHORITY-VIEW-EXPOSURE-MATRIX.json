@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "views": [
+    {"view":"public.inventory_movements_view","owner":"postgres","securityInvoker":true,"definitionSource":"database-reconciliation/evidence/R6/production-public-schema-raw.sql:3957 and repository inventory migrations","baseRelations":["inventory_movements","catalog_items","profiles","pos_profiles","invoices","invoice_items"],"exposure":"Caller permissions/RLS apply; no definer-view bypass.","offlineUse":"Read snapshot only after server-issued package and field minimization.","confidence":"PROVEN"}
+  ],
+  "noAdditionalRelevantViewFound":"No other view used by the enumerated POS Offline authority flows was identified in the approved targeted inventory.",
+  "storageExposure": {"classification":"UNKNOWN_FOR_OFFLINE","finding":"Storage schema metadata was captured, but bucket/object policies and signed-URL lifetime were not proven as an Offline authorization boundary. Assets must be treated as separately authorized/cacheable content, not as employee authority."},
+  "requiredFutureEvidence":["current view owner/options/grants","underlying relation RLS reachability per caller","storage bucket/object policies and URL/cache contract"]
+}

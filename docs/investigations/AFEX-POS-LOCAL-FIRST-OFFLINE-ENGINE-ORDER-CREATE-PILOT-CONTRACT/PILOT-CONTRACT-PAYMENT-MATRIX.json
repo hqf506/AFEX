@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 3,
+  "contract":"order.create.paymentAttestation",
+  "exactRequiredFieldCount":24,
+  "methods":["mada","cash","visa","cod","card","bank_transfer","transfer","on_delivery"],
+  "distinctMethodCount":8,
+  "bindings":["orderCreateLocalCommandId","orderCreateIdempotencyKeyHash","attestationCommandId","orderAggregateReference","primaryAuthenticatedUserId","tenantId","branchId","actualPosEmployeeId","deviceId","deviceGeneration","employeeEnrollmentGeneration","commandGeneration"],
+  "invariants":["amount equals canonical order total","currency equals SAR","providerStatus equals unverified","providerConfirmation equals not_claimed","providerSettlement equals not_claimed","bankSettlement equals not_claimed","cardAuthorization equals not_claimed","refundCompletion equals not_claimed","paymentProviderActionRequested equals false","employeeAttestedExternalStep equals true"],
+  "exactSchema":true,
+  "unknownFields":"REJECT",
+  "sensitiveFields":"REJECT_BY_EXACT_SCHEMA_AND_PAYLOAD_SECRET_SCAN",
+  "employeeAttestationIsProviderConfirmation":false,
+  "providerInvocation":false
+}

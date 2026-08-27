@@ -33,10 +33,10 @@ import {
 } from '@/lib/orders/normalize'
 import { formatCurrency } from '@/lib/orders/format'
 import {
-  endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
+import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
 import {
   getPosOfflineDraftSyncState,
   POS_OFFLINE_DRAFTS_SYNC_EVENT,
@@ -53,6 +53,7 @@ import {
   type CreatedPosCustomer,
 } from '@/components/pos-add-customer-modal'
 import { PosPreparingScreen } from '@/components/pos-preparing-screen'
+import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
@@ -487,6 +488,8 @@ export default function PosPage() {
   const [selectedMobileOrderId, setSelectedMobileOrderId] = useState<string | null>(null)
   const [activePosEmployee, setActivePosEmployee] =
     useState<ActivePosEmployee | null>(null)
+  const [switchEmployeeOpen, setSwitchEmployeeOpen] = useState(false)
+  const [hasActiveSale, setHasActiveSale] = useState(false)
   const [currentNow, setCurrentNow] = useState(() => new Date())
   const [offlineDraftSyncState, setOfflineDraftSyncState] =
     useState<PosOfflineDraftSyncState>({
@@ -770,11 +773,9 @@ export default function PosPage() {
     isPosLoginPage,
   ])
 
-  const handleSwitchEmployee = async () => {
-    clearAllInvoiceCatalogCache()
-    await endPosActorSessionAndRequireReauthentication()
-    setActivePosEmployee(null)
-    router.push('/pos/login')
+  const handleSwitchEmployee = () => {
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.localStorage))
+    setSwitchEmployeeOpen(true)
   }
 
   const handleStartSale = () => {
@@ -1562,6 +1563,18 @@ export default function PosPage() {
       </div>
       )}
       </section>
+      <PosLogoutRetentionDialog
+        open={switchEmployeeOpen}
+        intent="switch"
+        hasActiveSale={hasActiveSale}
+        onCancel={() => setSwitchEmployeeOpen(false)}
+        onComplete={({ route }) => {
+          clearAllInvoiceCatalogCache()
+          setActivePosEmployee(null)
+          setSwitchEmployeeOpen(false)
+          router.push(route)
+        }}
+      />
     </main>
   )
 }

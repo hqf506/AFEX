@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "decision": "VERSIONED_ADDITIVE_COMPANION",
+  "baseRelation": "public.atomic_authorization_contexts",
+  "baseMutation": false,
+  "companionRelation": "afex_offline_authority.offline_command_bindings",
+  "provenanceVersion": "afex-atomic-authorization-provenance.v2",
+  "cardinality": "one authorization_context_id and one server_command_id per companion row",
+  "bindings": [
+    "current uploader authenticated account",
+    "current Auth session reference",
+    "current POS actor-session reference",
+    "origin primary authenticated account",
+    "origin verified account bootstrap ID and generation",
+    "tenant and branch",
+    "origin actual POS employee and enrollment ID",
+    "origin device",
+    "device, bootstrap, enrollment, command, key-envelope and namespace generations",
+    "key-envelope identity/version",
+    "command type/version and local/server command identities",
+    "hashed idempotency key",
+    "payload canonical hash",
+    "authority-binding canonical hash"
+  ],
+  "immutable": true,
+  "historicalContextsMutated": false,
+  "stableReplayWithoutCompanion": "REJECT_UNBOUND_EXISTING_COMMAND_CONFLICT",
+  "coreV2SoleOrderInvoiceAuthority": true,
+  "employeePinAuthority":"SELECTION_ONLY_NOT_STORED_IN_BINDING",
+  "activation": false
+}

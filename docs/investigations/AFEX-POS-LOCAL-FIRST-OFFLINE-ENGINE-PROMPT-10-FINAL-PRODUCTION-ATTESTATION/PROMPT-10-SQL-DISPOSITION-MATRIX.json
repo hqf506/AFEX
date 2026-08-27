@@ -1,0 +1,288 @@
+{
+  "schemaVersion": "1.0.0",
+  "prompt8Manifest": "ea950deece0dfc98632a34113e6b2b4915eb5065bbf1920b8a3f8fa9bdc70724",
+  "prompt8FilesModified": false,
+  "functionAuthoritySourceQuery": "P10-Q007R",
+  "sqlAuthorized": false,
+  "sqlExecuted": false,
+  "files": [
+    {
+      "id": "SQL-00",
+      "file": "00-READ-ONLY-PREFLIGHT.sql",
+      "objectIdentity": "catalog/role/policy/function/constraint identities",
+      "evidenceObtained": "Fresh Production catalog was captured",
+      "remainingEvidence": "Prompt 10 evidence must be regenerated into any future preflight",
+      "exactDependency": "fresh attestation identity",
+      "lockRisk": "catalog-only; no DDL lock",
+      "performanceRisk": "low",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "Prompt 10 evidence must be regenerated into any future preflight",
+        "fresh attestation identity"
+      ]
+    },
+    {
+      "id": "SQL-01",
+      "file": "01-ROLE-AND-SCHEMA-FOUNDATION.sql",
+      "objectIdentity": "roles, public/private authority schemas",
+      "evidenceObtained": "Current AFEX roles and public CREATE grantees are exact",
+      "remainingEvidence": "Offline/device/payment/effect roles and private schemas remain design-dependent",
+      "exactDependency": "role topology and external operator workflows",
+      "lockRisk": "role/schema DDL locks",
+      "performanceRisk": "high",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "Offline/device/payment/effect roles and private schemas remain design-dependent",
+        "role topology and external operator workflows"
+      ]
+    },
+    {
+      "id": "SQL-02",
+      "file": "02-LEGACY-ACL-AND-DEFAULT-PRIVILEGE-CLOSURE.sql",
+      "objectIdentity": "legacy tables/functions/default ACLs",
+      "evidenceObtained": "Broad current ACL/default ACL reachability is exact",
+      "remainingEvidence": "trusted replacements and external callers remain open",
+      "exactDependency": "application replacement and rollback",
+      "lockRisk": "privilege DDL locks",
+      "performanceRisk": "high",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "trusted replacements and external callers remain open",
+        "application replacement and rollback"
+      ]
+    },
+    {
+      "id": "SQL-03",
+      "file": "03-RLS-REPLACEMENT.sql",
+      "objectIdentity": "99 relevant current policies",
+      "evidenceObtained": "Exact policy expressions and RLS flags captured",
+      "remainingEvidence": "hostile behavior/performance unqualified",
+      "exactDependency": "runtime denial matrix",
+      "lockRisk": "policy DDL locks",
+      "performanceRisk": "high",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "hostile behavior/performance unqualified",
+        "runtime denial matrix"
+      ]
+    },
+    {
+      "id": "SQL-04",
+      "file": "04-SECURITY-DEFINER-RETIREMENT-AND-HARDENING.sql",
+      "objectIdentity": "36 relevant functions; 34 SECURITY DEFINER",
+      "evidenceObtained": "P10-Q007R captured 36 signatures/owners/properties/body MD5/ACL records with 36/36 identity and security-property parity to historical P10-Q007",
+      "remainingEvidence": "external callers and body dependency closure remain",
+      "exactDependency": "caller replacement and independent review",
+      "lockRisk": "function replacement locks",
+      "performanceRisk": "high",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "external callers and body dependency closure remain",
+        "caller replacement and independent review"
+      ]
+    },
+    {
+      "id": "SQL-05",
+      "file": "05-OFFLINE-DEVICE-AND-EMPLOYEE-AUTHORITY.sql",
+      "objectIdentity": "new Offline authority",
+      "evidenceObtained": "Current Online employee/session identity captured",
+      "remainingEvidence": "device/generations absent; CA-001 composite target absent",
+      "exactDependency": "CA-001/002 and managed-device contract",
+      "lockRisk": "new relation/constraint locks",
+      "performanceRisk": "critical",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "device/generations absent; CA-001 composite target absent",
+        "CA-001/002 and managed-device contract"
+      ]
+    },
+    {
+      "id": "SQL-06",
+      "file": "06-PERSISTENT-UNWRAP-METADATA.sql",
+      "objectIdentity": "new key-envelope metadata",
+      "evidenceObtained": "No reusable Production object found",
+      "remainingEvidence": "CA-002 lifecycle and crypto review absent",
+      "exactDependency": "device/employee authority",
+      "lockRisk": "new relation/index locks",
+      "performanceRisk": "critical",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "CA-002 lifecycle and crypto review absent",
+        "device/employee authority"
+      ]
+    },
+    {
+      "id": "SQL-07",
+      "file": "07-CORE-V2-ACTOR-DEVICE-BRIDGE.sql",
+      "objectIdentity": "Core command bridge",
+      "evidenceObtained": "Current Core command/receipt exact",
+      "remainingEvidence": "actual employee/device/generations and receipt version absent",
+      "exactDependency": "versioned Core V2 change",
+      "lockRisk": "function/table DDL locks",
+      "performanceRisk": "critical",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "actual employee/device/generations and receipt version absent",
+        "versioned Core V2 change"
+      ]
+    },
+    {
+      "id": "SQL-08",
+      "file": "08-REVIEW-PAYMENT-INVENTORY-EFFECT-AUTHORITY.sql",
+      "objectIdentity": "new review/payment/snapshot/effect authority",
+      "evidenceObtained": "Current stock/payment/reconciliation/config evidence captured",
+      "remainingEvidence": "CA-004–007 target objects/writers absent",
+      "exactDependency": "Core contracts and exact designs",
+      "lockRisk": "new relation/index/constraint locks",
+      "performanceRisk": "critical",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "CA-004–007 target objects/writers absent",
+        "Core contracts and exact designs"
+      ]
+    },
+    {
+      "id": "SQL-09",
+      "file": "09-CANCELLATION-AND-REFUND-AUTHORITY.sql",
+      "objectIdentity": "cancellation/refund/stock/effects",
+      "evidenceObtained": "Legacy restoration and current payment states captured",
+      "remainingEvidence": "atomic cancellation/payment/effect receipt absent",
+      "exactDependency": "Core cancellation contract",
+      "lockRisk": "Core/trigger/function locks",
+      "performanceRisk": "critical",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "atomic cancellation/payment/effect receipt absent",
+        "Core cancellation contract"
+      ]
+    },
+    {
+      "id": "SQL-10",
+      "file": "10-INDEXES-CONSTRAINTS-AND-INVARIANTS.sql",
+      "objectIdentity": "future keys/indexes",
+      "evidenceObtained": "Current 206 constraints/113 indexes and safe branch counts captured",
+      "remainingEvidence": "final target shapes and runtime plans absent",
+      "exactDependency": "regenerated target DDL and performance review",
+      "lockRisk": "validation scans and index build locks",
+      "performanceRisk": "high",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "final target shapes and runtime plans absent",
+        "regenerated target DDL and performance review"
+      ]
+    },
+    {
+      "id": "SQL-11",
+      "file": "11-POST-CHANGE-READ-ONLY-ATTESTATION.sql",
+      "objectIdentity": "post-change catalog",
+      "evidenceObtained": "Prompt 10 demonstrates safe read-only pattern",
+      "remainingEvidence": "no approved change exists to attest",
+      "exactDependency": "prior independent SQL approval/execution",
+      "lockRisk": "none when read-only",
+      "performanceRisk": "low",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "no approved change exists to attest",
+        "prior independent SQL approval/execution"
+      ]
+    },
+    {
+      "id": "SQL-12",
+      "file": "12-SAFE-ROLLBACK-AND-DISABLEMENT.sql",
+      "objectIdentity": "future disablement/rollback",
+      "evidenceObtained": "Current baseline ACL/object identities captured",
+      "remainingEvidence": "deployment/versioned rollback drill absent",
+      "exactDependency": "approved implementation and drill",
+      "lockRisk": "rollback DDL locks",
+      "performanceRisk": "critical",
+      "rollbackDependency": "state-preserving disablement and exact baseline restoration; never restore broad privileges",
+      "existingDraftStructurallyValid": "DESIGN_INTENT_ONLY",
+      "requiresRegeneration": true,
+      "independentSqlReviewRequired": true,
+      "executionProhibited": true,
+      "finalDisposition": "NOT_EXECUTABLE",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": [
+        "deployment/versioned rollback drill absent",
+        "approved implementation and drill"
+      ]
+    }
+  ],
+  "blockers": [
+    "All 13 files remain prohibited.",
+    "Production evidence invalidates any assumption that current roles/ACLs/policies or authority targets can be inferred from migrations alone.",
+    "No Prompt 8 file was patched."
+  ]
+}

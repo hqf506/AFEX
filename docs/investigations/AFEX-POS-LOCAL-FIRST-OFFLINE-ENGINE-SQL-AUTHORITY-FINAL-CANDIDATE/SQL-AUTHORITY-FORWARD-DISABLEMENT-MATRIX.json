@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 5,
+  "packageDecision": "COMPLETE_OWNER_AWARE_FORWARD_DISABLEMENT_AND_EMPTY_CLEANUP_MAP",
+  "mappingRule": "Every inclusive identifier range expands to one entry per FWD identifier; no identifier may occur in two ranges.",
+  "allowedDispositions": [
+    "emergency feature shutdown",
+    "privilege removal",
+    "reversible DDL",
+    "conditional empty-object cleanup",
+    "retained security/business evidence",
+    "irreversible business effect"
+  ],
+  "groups": [
+    {"sourceFile":"01A-PRIVATE-ROLES-AND-SCHEMA-FOUNDATION.sql","first":"FWD-01A-001","last":"FWD-01A-005","disposition":"conditional empty-object cleanup","disablement":"Roles remain NOLOGIN identities; schema and default privileges are removed only by 15A after all package objects prove empty."},
+    {"sourceFile":"01B-PUBLIC-COMPOSITE-SCOPE-CONSTRAINTS.sql","first":"FWD-01B-001","last":"FWD-01B-006","disposition":"reversible DDL","disablement":"Postgres-owned composite constraints and REFERENCES grants are removed only after dependent Offline relations are removed."},
+    {"sourceFile":"01C-CORE-COMPOSITE-SCOPE-CONSTRAINTS.sql","first":"FWD-01C-001","last":"FWD-01C-004","disposition":"reversible DDL","disablement":"Core-owner constraints and REFERENCES grants are reversed under bounded afex_core_owner authority after dependent Offline relations are removed."},
+    {"sourceFile":"04A-TRUSTED-AUTH-SESSION-BRIDGE.sql","first":"FWD-04A-001","last":"FWD-04A-004","disposition":"privilege removal","disablement":"15 revokes exact helper EXECUTE; 15A drops the exact postgres-owned private signature after all dependent functions are removed; temporary schema CREATE is restored in-file."},
+    {"sourceFile":"04B-POS-ACTOR-AUTHORITY-POLICY-BRIDGE.sql","first":"FWD-04B-001","last":"FWD-04B-005","disposition":"privilege removal","disablement":"15 removes exact actor_sessions policies and column grants under afex_pos_session_owner without ownership transfer."},
+    {"sourceFile":"04C-POSTGRES-OWNED-SUPPORT-POLICIES.sql","first":"FWD-04C-001","last":"FWD-04C-011","disposition":"privilege removal","disablement":"15 removes exact postgres-owned support policies and column grants; no Auth object is changed."},
+
+    {"sourceFile":"05-OFFLINE-DEVICE-AUTHORITY.sql","first":"FWD-05-001","last":"FWD-05-004","disposition":"conditional empty-object cleanup","disablement":"Device authority and event relations are removed with RESTRICT only when the complete evidence-row count is zero; otherwise retained as security evidence."},
+    {"sourceFile":"05-OFFLINE-DEVICE-AUTHORITY.sql","first":"FWD-05-005","last":"FWD-05-011","disposition":"reversible DDL","disablement":"RLS and owner/function-reader policies are relation-bound and disappear only with approved empty relation cleanup."},
+    {"sourceFile":"05-OFFLINE-DEVICE-AUTHORITY.sql","first":"FWD-05-012","last":"FWD-05-013","disposition":"privilege removal","disablement":"Browser/runtime table reachability is already revoked; function-owner SELECT exists solely behind SECURITY DEFINER validation."},
+    {"sourceFile":"05A-TRUSTED-DEVICE-LIFECYCLE-WRITERS.sql","first":"FWD-05A-001","last":"FWD-05A-009","disposition":"privilege removal","disablement":"Revoke provisioning EXECUTE first; retain device/event rows and remove bounded support policies only after all dependent writers are disabled."},
+
+    {"sourceFile":"06-OFFLINE-EMPLOYEE-ENROLLMENT-AUTHORITY.sql","first":"FWD-06-001","last":"FWD-06-004","disposition":"conditional empty-object cleanup","disablement":"Enrollment authority and events are retained when non-empty and otherwise removed with RESTRICT."},
+    {"sourceFile":"06-OFFLINE-EMPLOYEE-ENROLLMENT-AUTHORITY.sql","first":"FWD-06-005","last":"FWD-06-011","disposition":"reversible DDL","disablement":"RLS and policies are removed only through guarded relation cleanup."},
+    {"sourceFile":"06-OFFLINE-EMPLOYEE-ENROLLMENT-AUTHORITY.sql","first":"FWD-06-012","last":"FWD-06-013","disposition":"privilege removal","disablement":"No browser or acquisition-runtime table grant survives forward installation."},
+    {"sourceFile":"06A-TRUSTED-EMPLOYEE-PIN-SELECTION-WRITERS.sql","first":"FWD-06A-001","last":"FWD-06A-008","disposition":"privilege removal","disablement":"Revoke provisioning EXECUTE first; retain enrollment and audit evidence; remove bounded support reads only after dependent bootstrap is disabled."},
+
+    {"sourceFile":"07-PERSISTENT-UNWRAP-METADATA.sql","first":"FWD-07-001","last":"FWD-07-003","disposition":"conditional empty-object cleanup","disablement":"Key-envelope metadata and its deferred exact-scope FK are retained when non-empty; the reverse FK is removed only inside zero-row cleanup."},
+    {"sourceFile":"07-PERSISTENT-UNWRAP-METADATA.sql","first":"FWD-07-004","last":"FWD-07-007","disposition":"reversible DDL","disablement":"RLS and policies are relation-bound and removed only with empty cleanup."},
+    {"sourceFile":"07-PERSISTENT-UNWRAP-METADATA.sql","first":"FWD-07-008","last":"FWD-07-009","disposition":"privilege removal","disablement":"No browser or acquisition-runtime direct table reachability is granted."},
+
+    {"sourceFile":"09-INVENTORY-SNAPSHOT-AND-FRONTIER-AUTHORITY.sql","first":"FWD-09-001","last":"FWD-09-004","disposition":"conditional empty-object cleanup","disablement":"Snapshot headers/items are retained as business evidence when non-empty and removed with RESTRICT only at zero rows."},
+    {"sourceFile":"09-INVENTORY-SNAPSHOT-AND-FRONTIER-AUTHORITY.sql","first":"FWD-09-005","last":"FWD-09-012","disposition":"reversible DDL","disablement":"RLS and policies disappear only with guarded empty relation cleanup."},
+    {"sourceFile":"09-INVENTORY-SNAPSHOT-AND-FRONTIER-AUTHORITY.sql","first":"FWD-09-013","last":"FWD-09-014","disposition":"privilege removal","disablement":"Snapshots remain unreadable to browser and acquisition runtime roles."},
+    {"sourceFile":"09A-TRUSTED-INVENTORY-SNAPSHOT-PUBLISHER.sql","first":"FWD-09A-001","last":"FWD-09A-003","disposition":"privilege removal","disablement":"Revoke publisher EXECUTE first; immutable snapshots remain retained evidence and inventory_stock remains unmodified."},
+
+    {"sourceFile":"10A-TRUSTED-OFFLINE-BOOTSTRAP-AUTHORITY.sql","first":"FWD-10A-001","last":"FWD-10A-004","disposition":"retained security/business evidence","disablement":"Bootstrap, roster and logout/recovery events are retained when non-empty; relations are removed only through proven zero-row reverse-DAG cleanup."},
+    {"sourceFile":"10A-TRUSTED-OFFLINE-BOOTSTRAP-AUTHORITY.sql","first":"FWD-10A-005","last":"FWD-10A-009","disposition":"privilege removal","disablement":"Revoke provisioning EXECUTE first; functions may then be dropped by exact signature without deleting pending work."},
+
+    {"sourceFile":"13-INDEXES-CONSTRAINTS-AND-INVARIANTS.sql","first":"FWD-13-001","last":"FWD-13-019","disposition":"reversible DDL","disablement":"Indexes, triggers and guard functions are removed only as part of exact reverse-DAG empty-object cleanup; immutable evidence guards are retained with evidence."},
+
+    {"sourceFile":"08A-OFFLINE-COMMAND-BINDING-RELATION.sql","first":"FWD-08A-001","last":"FWD-08A-001","disposition":"conditional empty-object cleanup","disablement":"Binding rows are retained security evidence; relation removal is permitted only when empty."},
+    {"sourceFile":"08A-OFFLINE-COMMAND-BINDING-RELATION.sql","first":"FWD-08A-002","last":"FWD-08A-011","disposition":"reversible DDL","disablement":"Owner, RLS, policies, immutable trigger and guard are relation-bound and removed only by the guarded reverse DAG."},
+    {"sourceFile":"08A-OFFLINE-COMMAND-BINDING-RELATION.sql","first":"FWD-08A-012","last":"FWD-08A-014","disposition":"privilege removal","disablement":"PUBLIC, browser, service and direct acquisition-runtime table privileges are removed or remain absent."},
+
+    {"sourceFile":"08B-PROVENANCE-PAYMENT-INVENTORY-VALIDATORS.sql","first":"FWD-08B-001","last":"FWD-08B-006","disposition":"reversible DDL","disablement":"Safe-cast, exact-key and canonicalization helpers are dropped by exact signature with RESTRICT after callers."},
+    {"sourceFile":"08B-PROVENANCE-PAYMENT-INVENTORY-VALIDATORS.sql","first":"FWD-08B-010","last":"FWD-08B-013","disposition":"reversible DDL","disablement":"Provenance, payment, inventory and semantic validators are dropped by exact signature with RESTRICT."},
+
+    {"sourceFile":"08C-TOTAL-RESOLVER-AND-INVENTORY-READER.sql","first":"FWD-08C-001","last":"FWD-08C-003","disposition":"reversible DDL","disablement":"Runtime grants are first revoked, then one-claim, batch and inventory reader surfaces are dropped by exact signature."},
+    {"sourceFile":"08D-ATOMIC-ORDER-CREATE-ACQUISITION.sql","first":"FWD-08D-001","last":"FWD-08D-001","disposition":"emergency feature shutdown","disablement":"Exact acquisition EXECUTE is revoked first; function is then dropped with RESTRICT."},
+    {"sourceFile":"11-IDEMPOTENCY-RECEIPT-AND-EFFECT-LEDGERS.sql","first":"FWD-11-001","last":"FWD-11-001","disposition":"emergency feature shutdown","disablement":"Exact receipt EXECUTE is revoked first; function is then dropped with RESTRICT. Existing Core receipts and bindings are retained evidence."}
+  ],
+  "disablementFile": "15-SAFE-DISABLEMENT-AND-ROLLBACK.sql",
+  "emptyCleanupFile": "15A-EMPTY-OBJECT-OWNER-AWARE-CLEANUP.sql",
+  "activationFile": "90-FINAL-MANUAL-PILOT-ACTIVATION.sql",
+  "activationRevokeFile": "90Z-FINAL-EMERGENCY-PILOT-DEACTIVATION.sql",
+  "activationStatus": "NOT_EXECUTED_REQUIRES_FINAL_HUMAN_APPROVAL",
+  "runtimeGrantDisablementIds": ["DIS-001","DIS-002"],
+  "functionRemovalDisposition": "15A exact owner-aware drops after zero-row proof",
+  "supportPrivilegeRemovalDisposition": "15 exact owner-aware policy/ACL revocation",
+  "conditionalCleanupDisposition": "15A refuses any nonzero evidence",
+  "retainedEvidence": [
+    "offline_command_bindings",
+    "offline_device_events",
+    "offline_employee_authority_events",
+    "offline_key_envelopes",
+    "branch_inventory_snapshot_headers",
+    "branch_inventory_snapshot_items"
+    ,"offline_account_bootstrap_authorities"
+    ,"offline_bootstrap_employee_roster"
+    ,"offline_account_bootstrap_events"
+  ],
+  "irreversibleBusinessEffects": 0,
+  "cascadeUsed": false,
+  "sensitiveFlagsRemainFalse": 12,
+  "activationExecutionAuthorized": false,
+  "constructionSqlExecuted": 0
+}

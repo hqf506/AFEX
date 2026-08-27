@@ -1,0 +1,258 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceClass": "STATIC_DEPENDENCY_AND_LOCK_ANALYSIS",
+  "nodes": [
+    {
+      "id": "DEP-001",
+      "name": "organization authentication/profile authority",
+      "type": "authority",
+      "status": "CURRENT"
+    },
+    {
+      "id": "DEP-002",
+      "name": "trusted profile presentation route",
+      "type": "application",
+      "status": "MISSING"
+    },
+    {
+      "id": "DEP-003",
+      "name": "trusted inventory history route",
+      "type": "application",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "DEP-004",
+      "name": "customer phone identity",
+      "type": "database",
+      "status": "CURRENT"
+    },
+    {
+      "id": "DEP-005",
+      "name": "POS actor session",
+      "type": "database/application",
+      "status": "CURRENT_ONLINE_ONLY"
+    },
+    {
+      "id": "DEP-006",
+      "name": "offline device/employee authority",
+      "type": "database",
+      "status": "MISSING"
+    },
+    {
+      "id": "DEP-007",
+      "name": "Core command scope",
+      "type": "core",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "DEP-008",
+      "name": "inventory snapshot frontier",
+      "type": "database/core",
+      "status": "MISSING"
+    },
+    {
+      "id": "DEP-009",
+      "name": "review CAS",
+      "type": "database",
+      "status": "MISSING"
+    },
+    {
+      "id": "DEP-010",
+      "name": "payment writer separation",
+      "type": "database/core",
+      "status": "MISSING"
+    },
+    {
+      "id": "DEP-011",
+      "name": "effect ledger",
+      "type": "database/core/worker",
+      "status": "MISSING"
+    },
+    {
+      "id": "DEP-012",
+      "name": "Prompt 8 privilege/policy closure",
+      "type": "sql-review",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "DEP-013",
+      "name": "independent SQL review/rollback drill",
+      "type": "human-gate",
+      "status": "BLOCKED"
+    }
+  ],
+  "edges": [
+    {
+      "id": "EDGE-001",
+      "from": "DEP-001",
+      "to": "DEP-002",
+      "relation": "server derives presentation and capabilities",
+      "evidenceStatus": "STATIC_INFERENCE"
+    },
+    {
+      "id": "EDGE-002",
+      "from": "DEP-001",
+      "to": "DEP-003",
+      "relation": "tenant/branch filter authority",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "EDGE-003",
+      "from": "DEP-004",
+      "to": "DEP-007",
+      "relation": "Core resolves/creates selected customer",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "EDGE-004",
+      "from": "DEP-005",
+      "to": "DEP-007",
+      "relation": "route validates POS actor but Core binds primary actor",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "id": "EDGE-005",
+      "from": "DEP-006",
+      "to": "DEP-007",
+      "relation": "future immutable offline authority bridge",
+      "evidenceStatus": "APPROVED_DESIGN_ONLY"
+    },
+    {
+      "id": "EDGE-006",
+      "from": "DEP-008",
+      "to": "DEP-007",
+      "relation": "offline inventory frontier input",
+      "evidenceStatus": "APPROVED_DESIGN_ONLY"
+    },
+    {
+      "id": "EDGE-007",
+      "from": "DEP-007",
+      "to": "DEP-009",
+      "relation": "review scope/version command binding",
+      "evidenceStatus": "APPROVED_DESIGN_ONLY"
+    },
+    {
+      "id": "EDGE-008",
+      "from": "DEP-007",
+      "to": "DEP-010",
+      "relation": "atomic payment attestation",
+      "evidenceStatus": "APPROVED_DESIGN_ONLY"
+    },
+    {
+      "id": "EDGE-009",
+      "from": "DEP-007",
+      "to": "DEP-011",
+      "relation": "atomic effect intent",
+      "evidenceStatus": "APPROVED_DESIGN_ONLY"
+    },
+    {
+      "id": "EDGE-010",
+      "from": "DEP-002",
+      "to": "DEP-012",
+      "relation": "browser profile privilege can close only after migration",
+      "evidenceStatus": "STATIC_INFERENCE"
+    },
+    {
+      "id": "EDGE-011",
+      "from": "DEP-003",
+      "to": "DEP-012",
+      "relation": "history privilege can close only after full route contract",
+      "evidenceStatus": "STATIC_INFERENCE"
+    },
+    {
+      "id": "EDGE-012",
+      "from": "DEP-006",
+      "to": "DEP-012",
+      "relation": "new authority SQL depends on exact identities",
+      "evidenceStatus": "STATIC_INFERENCE"
+    },
+    {
+      "id": "EDGE-013",
+      "from": "DEP-007",
+      "to": "DEP-012",
+      "relation": "Core bridge SQL depends on versioned Core source change",
+      "evidenceStatus": "STATIC_INFERENCE"
+    },
+    {
+      "id": "EDGE-014",
+      "from": "DEP-012",
+      "to": "DEP-013",
+      "relation": "package must receive independent review and rollback qualification",
+      "evidenceStatus": "PROMPT8_CONTRACT"
+    }
+  ],
+  "lockOrderObservations": [
+    {
+      "id": "LOCK-001",
+      "flow": "customer creation",
+      "observedOrder": [
+        "tenant+normalized-phone advisory lock",
+        "identity/customer rows"
+      ],
+      "risk": "duplicate race bounded if every writer uses function",
+      "classification": "STATIC_ESTIMATE",
+      "sourcePaths": [
+        "supabase/migrations/20260813130000_customer_phone_identity_registry.sql"
+      ]
+    },
+    {
+      "id": "LOCK-002",
+      "flow": "Core execution",
+      "observedOrder": [
+        "command/context/payload",
+        "catalog/branch catalog",
+        "inventory rows",
+        "business rows/links/audit"
+      ],
+      "risk": "future authority/snapshot/effect locks must be inserted in one globally documented order",
+      "classification": "STATIC_ESTIMATE",
+      "sourcePaths": [
+        "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"
+      ]
+    },
+    {
+      "id": "LOCK-003",
+      "flow": "review CAS",
+      "observedOrder": [],
+      "risk": "target order not implemented; command scope then review row then event is required design",
+      "classification": "REQUIRES_RUNTIME_TEST",
+      "sourcePaths": [
+        "Prompt 7/8 design"
+      ]
+    },
+    {
+      "id": "LOCK-004",
+      "flow": "effect claim batch",
+      "observedOrder": [],
+      "risk": "lease semantics and batch ordering unproven",
+      "classification": "REQUIRES_RUNTIME_TEST",
+      "sourcePaths": [
+        "Prompt 7/8 design"
+      ]
+    },
+    {
+      "id": "LOCK-005",
+      "flow": "device/employee enrollment",
+      "observedOrder": [],
+      "risk": "one-device-per-branch and 25-employee limit can contend; authority row/version order unproven",
+      "classification": "REQUIRES_RUNTIME_TEST",
+      "sourcePaths": [
+        "Phase 4 design"
+      ]
+    }
+  ],
+  "rollbackDependencies": [
+    "Trusted application replacements must remain deployable without restoring broad ACL.",
+    "Core receipt/replay must remain compatible across the authority bridge.",
+    "Rollback cannot weaken zero-cross-tenant or writer-separation invariants.",
+    "Prompt 8 rollback requires an independent drill after exact objects exist."
+  ],
+  "blockers": [
+    "CA-001 through CA-007",
+    "deployed replacements",
+    "Production read-only identity",
+    "independent SQL review"
+  ]
+}
+
+

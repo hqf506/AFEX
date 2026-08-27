@@ -1,0 +1,74 @@
+{
+  "phase": "AFEX POS LOCAL-FIRST OFFLINE ENGINE PHASE 2",
+  "authorityClassification": "B",
+  "productionEnablement": false,
+  "database": {
+    "name": "afex-pos-local-v1",
+    "databaseVersion": 2,
+    "envelopeVersion": 1,
+    "schemaGeneration": "g1"
+  },
+  "manifestFields": [
+    "namespaceId",
+    "datasetId",
+    "datasetSchemaVersion",
+    "snapshotVersion",
+    "status",
+    "sourceContractVersion",
+    "confirmedAtServer",
+    "freshnessMs",
+    "expectedPageCount",
+    "expectedRecordCount",
+    "expectedClosureHash",
+    "pageClosures",
+    "writerId",
+    "writerLeaseExpiresAt"
+  ],
+  "recordBindings": [
+    "exact namespace",
+    "dataset store",
+    "dataset schema version from manifest",
+    "snapshot version",
+    "record key",
+    "AES-GCM envelope and AAD"
+  ],
+  "limits": {
+    "maximumSnapshotPageSize": 200,
+    "maximumReadPageSize": 200,
+    "writerLeaseMs": 30000,
+    "completeVersionsRetained": 2,
+    "quotaWarningRatio": 0.7,
+    "quotaHardStopRatio": 0.9
+  },
+  "retention": {
+    "catalog": { "maximumRecords": 10000, "maximumAgeDays": 30 },
+    "runtimeSettings": { "completeVersions": 2, "financialStaleHours": 2 },
+    "mediaRefs": { "maximumRecords": 1000, "maximumBytes": 262144000 },
+    "customerIndex": { "maximumRecords": 10000, "maximumAgeDays": 7 },
+    "customerProfiles": { "maximumRecords": 200, "maximumAgeHours": 48 },
+    "activeOrders": { "maximumRecords": 500 },
+    "recentOrders": { "maximumRecords": 1000, "serverWindowHours": 48 },
+    "invoices": { "maximumRecords": 500, "maximumAgeHours": 48 },
+    "events": { "maximumRecords": 5000, "requiresRetainedParent": true }
+  },
+  "stores": [
+    "datasetManifests",
+    "catalog",
+    "customers",
+    "orders",
+    "invoices",
+    "events",
+    "runtimeSettings",
+    "mediaRefs"
+  ],
+  "enabledDatasets": [],
+  "disabledReason": "PERSISTENT_UNWRAP_AUTHORITY_REQUIRED",
+  "atomicity": {
+    "partialSnapshotsVisible": false,
+    "completionRequiresPageClosure": true,
+    "completionRequiresRecordCount": true,
+    "completionRequiresClosureHash": true,
+    "absenceFromPartialPageDeletesLocalRecord": false
+  },
+  "businessMutationDispatch": false
+}

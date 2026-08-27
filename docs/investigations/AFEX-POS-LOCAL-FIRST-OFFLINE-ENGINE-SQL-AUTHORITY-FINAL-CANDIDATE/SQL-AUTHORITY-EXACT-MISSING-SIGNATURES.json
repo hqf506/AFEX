@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 8,
+  "decision": "ORDER_CREATE_AND_ACCOUNT_BOOTSTRAP_PROVISIONING_SIGNATURES_CLOSED_BY_INACTIVE_WHOLE_FILE_REVIEW_SQL",
+  "authorityVersion": "afex-database-provenance.v3",
+  "contractVersion": "core-v2-offline-order-create.v2",
+  "authorityBindingCanonicalization": "afex-authority-binding-canonical-json.v2",
+  "authorityBindingFieldCount": 22,
+  "originAuthorityVersion": "afex-offline-origin-authority.v2",
+  "originAuthorityFieldCount": 15,
+  "finiteContracts": [
+    {"id":"MS-001","boundary":"Offline-aware order.create atomic acquisition/writer","status":"CLOSED_IN_INACTIVE_REVIEW_SQL","signatureId":"DBSIG-ORDER-ACQUIRE-001","files":["08D"]},
+    {"id":"MS-009","boundary":"versioned additive Core authorization provenance companion","status":"CLOSED_IN_INACTIVE_REVIEW_SQL","object":"afex_offline_authority.offline_command_bindings","files":["08A"]},
+    {"id":"MS-010","boundary":"bounded total resolver and exact-set inventory frontier reader","status":"CLOSED_IN_INACTIVE_REVIEW_SQL","signatureIds":["DBSIG-RESOLVE-001","DBSIG-INVENTORY-001"],"files":["05","06","07","09","13","08A","08B","08C"]},
+    {"id":"MS-011","boundary":"stable receipt after fresh uploader and complete origin validation","status":"CLOSED_IN_INACTIVE_REVIEW_SQL","signatureId":"DBSIG-RECEIPT-001","files":["08B","08C","11"]},
+    {"id":"MS-014","boundary":"managed-device register activate replace transition and current read","status":"CLOSED_IN_INACTIVE_REVIEW_SQL","files":["05A"]},
+    {"id":"MS-015","boundary":"employee enrollment structured PIN selector replacement permission transition and current read","status":"CLOSED_IN_INACTIVE_REVIEW_SQL","files":["06","06A","13"]},
+    {"id":"MS-016","boundary":"immutable exact-set inventory snapshot publication and replay","status":"CLOSED_IN_INACTIVE_REVIEW_SQL","files":["09A"]},
+    {"id":"MS-017","boundary":"verified Online account bootstrap explicit logout same-account recovery revocation and current read","status":"CLOSED_IN_INACTIVE_REVIEW_SQL","files":["04A","10A"]}
+  ],
+  "deferredOutsideInitialPilot": [
+    {"id":"MS-002","commandType":"order.status.change","status":"SHADOW_MODE_DISPATCH_FORBIDDEN"},
+    {"id":"MS-003","commandType":"customer.create","status":"SHADOW_MODE_DISPATCH_FORBIDDEN"},
+    {"id":"MS-004","commandType":"customer.update","status":"SHADOW_MODE_DISPATCH_FORBIDDEN"},
+    {"id":"MS-005","commandType":"payment.employee_attestation","status":"SHADOW_MODE_DISPATCH_FORBIDDEN","note":"embedded order.create payment attestation remains supported"},
+    {"id":"MS-006","commandType":"audit.event.append","status":"SHADOW_MODE_DISPATCH_FORBIDDEN"},
+    {"id":"MS-007","commandType":"order.cancel","status":"SHADOW_MODE_DISPATCH_FORBIDDEN"},
+    {"id":"MS-008","commandType":"payment.refund","status":"SHADOW_MODE_DISPATCH_FORBIDDEN"},
+    {"id":"MS-013","boundary":"provider reconciliation","status":"DEFERRED_PROVIDER_UNVERIFIED"}
+  ],
+  "notRequiredInitialPilot": [{"id":"MS-012","boundary":"external effects","status":"DISABLED_NOT_CREATED"}],
+  "finiteBlockersRemaining": 0,
+  "pilotRequiredContractCount": 8,
+  "pilotRequiredContractImplementedCount": 8,
+  "inactiveForwardSqlFiles": ["01","04A","05","06","07","09","13","05A","06A","09A","10A","08A","08B","08C","08D","11"],
+  "readOnlyAttestationFiles": ["00","14"],
+  "disablementFiles": ["15"],
+  "executionAuthorized": false,
+  "sqlExecuted": 0
+}

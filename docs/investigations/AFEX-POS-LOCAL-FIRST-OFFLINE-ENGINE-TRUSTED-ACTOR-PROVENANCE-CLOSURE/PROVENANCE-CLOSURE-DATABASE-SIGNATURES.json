@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 4,
+  "authorityVersion":"afex-database-provenance.v3",
+  "trustedServerParameters":["p_sync_authenticated_subject_id uuid","p_sync_authenticated_session_id uuid","p_sync_pos_actor_session_id uuid"],
+  "contracts":[
+    {"id":"DB-ACQUIRE","identity":"afex_offline_authority.acquire_offline_order_create_v2(uuid,uuid,uuid,text,text,integer,uuid,text,uuid,uuid,uuid,uuid,uuid,bigint,bigint,bigint,uuid,bigint,text,uuid,text,text,jsonb,jsonb,jsonb,text,jsonb,text,text,text,timestamptz,timestamptz,text)","wave":"W4B"},
+    {"id":"DB-RESOLVER","identity":"afex_offline_authority.resolve_offline_order_create_authority_batch_v2(uuid,uuid,uuid,jsonb)","wave":"W4A","maximumClaims":1000},
+    {"id":"DB-RECEIPT","identity":"afex_offline_authority.lookup_offline_order_create_receipts_v2(uuid,uuid,uuid,jsonb)","wave":"W4C","freshAuthorityBeforeRead":true},
+    {"id":"DB-FRONTIER","identity":"afex_offline_authority.read_branch_inventory_frontier_v2(uuid,uuid,uuid,jsonb,uuid[])","wave":"W4A","maximumItems":200}
+  ],
+  "databaseRevalidation":["Auth session ID","active profile","POS actor session","verified account bootstrap and generation","tenant","branch","employee","device and device generation","employee enrollment ID and command generation","key envelope version and namespace generation","inventory snapshot/frontier","Core context and command scope"],
+  "provisioning":{"runtimeRole":"afex_offline_provisioning_runtime","contractCount":15,"waves":["05A","06A","09A","10A"],"activation":false},
+  "jwtSignatureVerification":"requireVerifiedAuthContext on trusted server, not database session lookup",
+  "forbiddenDirectExecute":["PUBLIC","anon","authenticated","service_role"],
+  "searchPath":"pg_catalog",
+  "sqlExecuted":0
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "databaseConstraintAccepts": ["cash", "card", "transfer", "mada", "visa", "on_delivery"],
+  "coreV2OnlineRouteAccepts": ["cash", "mada", "visa", "cod"],
+  "requiredOfflineModel": ["mada", "cash", "visa", "cod", "card", "bank_transfer", "transfer", "on_delivery"],
+  "mapping": [
+    {"input":"mada","database":"mada","status":"NATIVE"},
+    {"input":"cash","database":"cash","status":"NATIVE"},
+    {"input":"visa","database":"visa","status":"NATIVE"},
+    {"input":"cod","database":"on_delivery","status":"CANONICAL_ALIAS"},
+    {"input":"card","database":"card","status":"DATABASE_NATIVE_BUT_CURRENT_CORE_ROUTE_REJECTS"},
+    {"input":"bank_transfer","database":null,"status":"CURRENT_DATABASE_CONSTRAINT_REJECTS"},
+    {"input":"transfer","database":"transfer","status":"DATABASE_NATIVE_BUT_CURRENT_CORE_ROUTE_REJECTS"},
+    {"input":"on_delivery","database":"on_delivery","status":"DATABASE_NATIVE_BUT_CURRENT_CORE_ROUTE_EXPECTS_COD_ALIAS"}
+  ],
+  "observedAggregateCounts": {
+    "card": 148,
+    "cash": 59,
+    "mada": 57,
+    "on_delivery": 7,
+    "transfer": 9,
+    "visa": 4
+  },
+  "attestation": {
+    "existingSafeLocation": null,
+    "invoicePaymentStatusRisk": "paid/pending describes persisted invoice state and must not be reinterpreted as proof of external provider confirmation",
+    "providerInvocationInsideCore": false,
+    "replayProviderInvocationInsideCore": false,
+    "required": "separate immutable employee payment attestation bound to device, employee, command, method, amount, and timestamp"
+  },
+  "decision": "SEPARATELY_REVIEWED_SCHEMA_AND_CORE_MAPPING_REQUIRED"
+}

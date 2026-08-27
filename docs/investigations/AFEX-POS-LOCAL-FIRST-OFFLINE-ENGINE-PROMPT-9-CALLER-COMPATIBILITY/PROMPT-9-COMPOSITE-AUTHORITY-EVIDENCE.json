@@ -1,0 +1,380 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceClass": "STATIC_AND_HISTORICAL_EVIDENCE_WITH_UNPROVEN_IDENTITIES_FAIL_CLOSED",
+  "authorities": [
+    {
+      "id": "CA-001",
+      "name": "Branch/tenant identity",
+      "requiredIdentity": [
+        "branch_id",
+        "tenant_id"
+      ],
+      "status": "BLOCKED_AUTHORITY_IDENTITY_REQUIRED",
+      "currentEvidence": {
+        "relation": "public.branches",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "nullable": false,
+            "identity": "primary key"
+          },
+          {
+            "name": "tenant_id",
+            "type": "uuid",
+            "nullable": "migration does not add NOT NULL"
+          }
+        ],
+        "orderedCompositeUnique": "NOT_FOUND_IN_REPOSITORY_MIGRATIONS",
+        "owner": "fresh owner attestation required",
+        "rls": "historical matrix only",
+        "lifecycle": "tenant column added and backfilled after initial relation creation"
+      },
+      "structuralRisk": "id alone is unique, but no exact ordered composite target proves tenant pairing; tenant_id may be structurally nullable from repository DDL.",
+      "sourceEvidence": [
+        {
+          "path": "supabase/migrations/20260403_multi_branch_phase1.sql",
+          "lines": "branches primary key",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        },
+        {
+          "path": "supabase/migrations/20260505_propagate_tenant_id_for_new_records.sql",
+          "lines": "tenant_id add/backfill",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        }
+      ],
+      "staticVsInference": "Absence of a matching migration declaration is static proof; current Production constraint state is unproven.",
+      "blockers": [
+        "fresh Production read-only constraint/column/owner/RLS identity",
+        "independent SQL review"
+      ]
+    },
+    {
+      "id": "CA-002",
+      "name": "Employee authority identity",
+      "requiredIdentity": [
+        "authority_id",
+        "device_id",
+        "employee_id",
+        "primary_auth_subject_id",
+        "tenant_id",
+        "branch_id",
+        "device_authority_generation",
+        "credential_generation",
+        "pin_generation",
+        "permission_generation",
+        "employee_revocation_generation",
+        "package_generation",
+        "key_envelope_generation",
+        "namespace_generation"
+      ],
+      "status": "BLOCKED_AUTHORITY_IDENTITY_REQUIRED",
+      "currentSources": [
+        "auth.users organization subject",
+        "public.profiles tenant/branch/role",
+        "public.pos_profiles employee/PIN state",
+        "afex_pos_authority.actor_sessions online actor session"
+      ],
+      "missingObjects": [
+        "offline device authority",
+        "immutable employee authority row",
+        "all acquisition generation columns",
+        "composite unique/foreign-key lifecycle"
+      ],
+      "sourceEvidence": [
+        {
+          "path": "lib/pos-actor-session-server.ts",
+          "lines": "online actor session wrappers",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        },
+        {
+          "path": "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PHASE-4",
+          "lines": "approved design",
+          "evidenceStatus": "APPROVED_DESIGN_ONLY"
+        }
+      ],
+      "staticVsInference": "Current sources are proven separately; their composition into one immutable Offline identity does not exist.",
+      "blockers": [
+        "new authority object design remains SQL-blocked",
+        "CA-001",
+        "Core bridge"
+      ]
+    },
+    {
+      "id": "CA-003",
+      "name": "Core command scope",
+      "requiredIdentity": [
+        "command_id",
+        "tenant_id",
+        "branch_id",
+        "authorization_context_id",
+        "actual_employee_id",
+        "device_id",
+        "all_generation_fields"
+      ],
+      "status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "currentEvidence": {
+        "command": "atomic_order_commands",
+        "scope": [
+          "tenant_id",
+          "branch_id",
+          "primary actor via authorization context"
+        ],
+        "idempotency": "command key and payload fingerprint",
+        "actualEmployee": "best-effort post-Core patch",
+        "device": "absent",
+        "generations": "absent"
+      },
+      "sourceEvidence": [
+        {
+          "path": "lib/server/core-v2/atomic-order.ts",
+          "lines": "Core workflow",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        },
+        {
+          "path": "app/api/orders/route.ts",
+          "lines": "Core caller and post-write employee patch",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        },
+        {
+          "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+          "lines": "function body/locks",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        }
+      ],
+      "staticVsInference": "Current binding is source-proven; exact target composite unique identity and receipt evolution are unproven.",
+      "blockers": [
+        "versioned Core V2 input/receipt design",
+        "exact current Production command constraints",
+        "dependent receipt/replay compatibility"
+      ]
+    },
+    {
+      "id": "CA-004",
+      "name": "Inventory snapshot scope",
+      "requiredIdentity": [
+        "snapshot_id",
+        "tenant_id",
+        "branch_id"
+      ],
+      "status": "BLOCKED_AUTHORITY_IDENTITY_REQUIRED",
+      "alternatives": [
+        {
+          "id": "CA004-A",
+          "model": "store tenant_id and branch_id on every item with composite FK to header",
+          "integrity": "strong row-local proof",
+          "hashing": "scope included per item",
+          "queryPerformance": "fewer header joins; wider indexes",
+          "purge": "direct scope delete possible",
+          "cacheExport": "self-describing rows",
+          "reconciliation": "simpler row validation",
+          "indexSize": "larger"
+        },
+        {
+          "id": "CA004-B",
+          "model": "derive scope only from immutable header",
+          "integrity": "requires every consumer to join header and no detached item path",
+          "hashing": "header hash must bind all items",
+          "queryPerformance": "mandatory joins",
+          "purge": "header-first/join",
+          "cacheExport": "must always carry header",
+          "reconciliation": "more join-dependent",
+          "indexSize": "smaller"
+        }
+      ],
+      "selectedModel": "UNSELECTED_PENDING_HUMAN_AND_SQL_REVIEW",
+      "sourceEvidence": [
+        {
+          "path": "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PHASE-4",
+          "lines": "snapshot design",
+          "evidenceStatus": "APPROVED_DESIGN_ONLY"
+        }
+      ],
+      "staticVsInference": "Comparison is static design analysis; no database object exists.",
+      "blockers": [
+        "CA-001",
+        "exact hash/export/purge contract",
+        "independent SQL review"
+      ]
+    },
+    {
+      "id": "CA-005",
+      "name": "Review compare-and-set authority",
+      "requiredIdentity": [
+        "review_id",
+        "command_scope",
+        "expected_version",
+        "resulting_version",
+        "unique_version_event"
+      ],
+      "status": "BLOCKED_AUTHORITY_IDENTITY_REQUIRED",
+      "requiredWriter": {
+        "role": "bounded trusted review runtime",
+        "function": "single serialized CAS writer",
+        "lockOrder": [
+          "command scope",
+          "review row",
+          "version event"
+        ],
+        "rules": [
+          "expected version must match",
+          "resulting version exactly +1",
+          "event unique by review and resulting version",
+          "retry returns same result or explicit conflict"
+        ]
+      },
+      "currentEvidence": "No current relation/function implements this target.",
+      "sourceEvidence": [
+        {
+          "path": "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-AUTHORITY-CORRECTION-DESIGN",
+          "lines": "approved design",
+          "evidenceStatus": "APPROVED_DESIGN_ONLY"
+        }
+      ],
+      "staticVsInference": "Target semantics are approved design only.",
+      "blockers": [
+        "CA-003",
+        "exact role/function/grants",
+        "concurrency tests"
+      ]
+    },
+    {
+      "id": "CA-006",
+      "name": "Payment writer separation",
+      "requiredIdentity": [
+        "employee_writer",
+        "provider_writer",
+        "attestation_state",
+        "provider_state"
+      ],
+      "status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "forcedEmployeeTransition": {
+        "attestation_state": "employee_attested",
+        "provider_state": "unverified"
+      },
+      "providerTransition": "separate trusted reconciliation writer; employee/browser cannot set provider truth",
+      "methods": [
+        {
+          "method": "mada",
+          "current": "Core+DB accepted",
+          "target": "employee attestation; provider unverified"
+        },
+        {
+          "method": "cash",
+          "current": "Core+DB accepted",
+          "target": "employee attestation; no provider charge"
+        },
+        {
+          "method": "visa",
+          "current": "Core+DB accepted",
+          "target": "employee attestation; provider unverified"
+        },
+        {
+          "method": "cod",
+          "current": "Core maps to on_delivery",
+          "target": "freeze canonical mapping"
+        },
+        {
+          "method": "card",
+          "current": "DB accepted; Core union rejects",
+          "target": "schema/Core compatibility change"
+        },
+        {
+          "method": "bank_transfer",
+          "current": "not proven DB/Core accepted",
+          "target": "schema/Core compatibility change"
+        },
+        {
+          "method": "transfer",
+          "current": "DB accepted; Core union rejects",
+          "target": "schema/Core compatibility change"
+        },
+        {
+          "method": "on_delivery",
+          "current": "DB accepted; Core direct union rejects",
+          "target": "freeze canonical mapping"
+        }
+      ],
+      "sourceEvidence": [
+        {
+          "path": "lib/server/core-v2/atomic-order.ts",
+          "lines": "payment union and payload",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        },
+        {
+          "path": "app/api/orders/route.ts",
+          "lines": "request validation",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        },
+        {
+          "path": "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PRODUCTION-READ-ONLY-ATTESTATION/PROD-RO-PAYMENT-METHOD-ASSESSMENT.json",
+          "lines": "approved inherited matrix",
+          "evidenceStatus": "HISTORICAL_PRODUCTION_EVIDENCE"
+        }
+      ],
+      "staticVsInference": "Current method divergence is proven; target writer authority is absent.",
+      "blockers": [
+        "Core input/state change",
+        "new database authority",
+        "provider reconciliation contract",
+        "eight-method tests"
+      ]
+    },
+    {
+      "id": "CA-007",
+      "name": "Effect authority",
+      "requiredIdentity": [
+        "server_command_id",
+        "effect_type",
+        "effect_version"
+      ],
+      "status": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "requiredState": [
+        "intent",
+        "claim with lease/version",
+        "completion",
+        "retry",
+        "ambiguous result",
+        "terminal failure",
+        "suppression"
+      ],
+      "requiredSemantics": [
+        "intent inserted atomically with Core business commit",
+        "provider idempotency key derived from semantic identity",
+        "claim/complete/fail compare-and-set",
+        "bounded lease recovery",
+        "WhatsApp/print/notification replay protection"
+      ],
+      "currentEvidence": {
+        "application": "external actions occur after Core",
+        "atomicLedger": "absent",
+        "workerAuthority": "absent",
+        "providerIdempotency": "not uniformly proven"
+      },
+      "sourceEvidence": [
+        {
+          "path": "app/api/orders/route.ts",
+          "lines": "post-Core scheduling/effects",
+          "evidenceStatus": "STATIC_SOURCE_PROOF"
+        },
+        {
+          "path": "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PHASE-4",
+          "lines": "effect design",
+          "evidenceStatus": "APPROVED_DESIGN_ONLY"
+        }
+      ],
+      "staticVsInference": "Absence from Core/app path is static proof; target lifecycle is design only.",
+      "blockers": [
+        "CA-003",
+        "versioned Core insertion",
+        "worker role/function",
+        "provider-specific ambiguity tests"
+      ]
+    }
+  ],
+  "blockers": [
+    "No CA identity is authorized for SQL implementation or execution by Prompt 9."
+  ]
+}
+
+

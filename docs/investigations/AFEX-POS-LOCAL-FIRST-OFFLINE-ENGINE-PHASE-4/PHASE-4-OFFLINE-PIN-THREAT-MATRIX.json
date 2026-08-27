@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 2,
+  "scope": "offline-account-bootstrap-employee-pin-selection-and-device-encryption",
+  "implemented": false,
+  "pinSpace": 10000,
+  "selectedMode": "MODE_A_MANAGED_PWA_CONTINUOUS_OFFLINE",
+  "timeExpiryPolicy": "NO_TIME_BASED_OFFLINE_AUTHORITY_EXPIRY",
+  "connectivityPolicy": "OPPORTUNISTIC_NOT_MANDATORY",
+  "revocationDiscovery": "ON_TRUSTED_RECONNECT_OR_AUTHORIZED_LOCAL_LOCK",
+  "residualRiskAcceptance": "HUMAN_APPROVED",
+  "modeAConclusion": "human_approved_with_managed_device_and_long_outage_residual_risk",
+  "modeBStatus": "optional_future_hardening_not_a_prerequisite",
+  "rejectedModes": ["mode_c", "mode_d"],
+  "authorityLifetime": {
+    "timeBasedCutoff": false,
+    "lastSyncAgeCanDisable": false,
+    "periodicConnectivityRequired": false,
+    "eventDrivenInvalidationRequired": true
+  },
+  "enforcementDomains": {
+    "cryptographic": ["verified-online-account-bootstrap", "device-bound-encryption", "server-signature", "device-signature", "record-and-command-aad", "structured-pin-selector-verifier"],
+    "applicationPolicy": ["attempt-counters", "delay", "background-lock", "clock-high-water", "employee-cap", "plaintext-lifetime"],
+    "managedDeviceOrOs": ["dedicated-os-account", "full-disk-encryption", "screen-lock", "kiosk-browser", "restricted-devtools-profile-and-software"],
+    "notAvailableInNormalPwa": ["universal-hardware-key-custody", "tamper-proof-counter", "trusted-clock", "platform-attestation", "reliable-screen-capture-prevention"]
+  },
+  "threats": [
+    {
+      "id": "PIN-T01",
+      "threat": "Offline exhaustive search of a four-digit PIN",
+      "appliesTo": ["mode_a", "mode_b"],
+      "severity": "critical",
+      "cryptographicControls": ["unique-256-bit-salt", "600000-iteration-pbkdf2-hmac-sha256", "32-byte-derived-selector-verifier", "device-bound-business-data-encryption-independent-of-pin"],
+      "policyControls": ["five-attempt-employee-lock", "ten-attempt-device-lock", "bounded-increasing-delay", "online-manager-unlock", "managed-device-controls"],
+      "residualRisk": "A same-origin or privileged attacker able to use the device key can try the complete 10000-value space; KDF cost does not make the PIN high entropy.",
+      "failClosed": "counter-or-selector-verifier-integrity-failure-locks-employee-selection"
+    },
+    {
+      "id": "PIN-T02",
+      "threat": "JavaScript-only attempt-limit bypass",
+      "appliesTo": ["mode_a"],
+      "severity": "critical",
+      "cryptographicControls": ["structured-selector-verifier-bound-to-account-device-employee-and-generations"],
+      "policyControls": ["authenticated-persistent-counter", "hash-chain", "managed-browser", "restricted-devtools"],
+      "residualRisk": "Browser-local counters are not tamper-proof against a privileged attacker.",
+      "failClosed": "missing-rolled-back-or-corrupt-counter-locks-device"
+    },
+    {
+      "id": "PIN-T03",
+      "threat": "Compromised same-origin code invokes non-extractable CryptoKeys",
+      "appliesTo": ["mode_a", "mode_b"],
+      "severity": "critical",
+      "cryptographicControls": ["server-signed-claims", "canonical-aad", "device-signature", "event-governed-bindings"],
+      "policyControls": ["csp", "supply-chain-control", "extension-blocking", "managed-updates"],
+      "residualRisk": "extractable=false prevents export but not use; a compromised running origin remains outside Mode A and may remain inside the native app process threat boundary.",
+      "failClosed": "signature-binding-or-generation-mismatch-locks"
+    },
+    {
+      "id": "PIN-T04",
+      "threat": "Copied or roaming browser profile",
+      "appliesTo": ["mode_a"],
+      "severity": "high",
+      "cryptographicControls": ["non-extractable-device-private-key", "device-generation-binding"],
+      "policyControls": ["disable-profile-roaming", "disable-profile-backup", "full-disk-encryption", "dedicated-os-account"],
+      "residualRisk": "Whether a copied profile contains a usable key handle is browser/OS dependent and cannot be claimed impossible.",
+      "failClosed": "unusable-or-missing-device-key-requires-online-replacement"
+    },
+    {
+      "id": "PIN-T05",
+      "threat": "Lost or stolen device while unlocked",
+      "appliesTo": ["mode_a", "mode_b"],
+      "severity": "critical",
+      "cryptographicControls": ["in-memory-key-destruction-on-lock", "exact-device-employee-branch-bindings"],
+      "policyControls": ["os-auto-lock", "kiosk-mode", "physical-loss-procedure", "remote-revocation-on-reconnect"],
+      "residualRisk": "Remote revocation cannot be observed during a complete outage; exposure may continue indefinitely until trusted reconnect or authorized local lock, which is human accepted for Mode A.",
+      "failClosed": "reconnect-revalidation-precedes-sync; explicit-logout-never-allows-offline-pin-restore"
+    },
+    {
+      "id": "PIN-T06",
+      "threat": "Primary Auth persistence is mistaken for employee authority",
+      "appliesTo": ["mode_a", "mode_b", "mode_c", "online_only"],
+      "severity": "critical",
+      "cryptographicControls": ["verified-account-bootstrap", "device-bound-encryption", "employee-selector-verifier-binding"],
+      "policyControls": ["offline-runtime-starts-locked", "no-actor-inference"],
+      "residualRisk": "None in the designed supported path; current implementation has no offline unlock authority.",
+      "failClosed": "primary-auth-only-keeps-runtime-locked"
+    },
+    {
+      "id": "PIN-T07",
+      "threat": "Employee or device revoked while offline",
+      "appliesTo": ["mode_a", "mode_b", "mode_c"],
+      "severity": "high",
+      "cryptographicControls": ["signed-revocation-generation", "immutable-command-attribution", "exact-authority-bindings"],
+      "policyControls": ["first-trusted-reconnect-revalidation", "authorized-local-lock", "managed-device-loss-procedure"],
+      "residualRisk": "Offline operation may continue for an arbitrarily long complete outage because no time-based cutoff or periodic connectivity requirement exists; this risk is human approved.",
+      "failClosed": "generation-mismatch-locks-and-quarantines-pending-commands"
+    },
+    {
+      "id": "PIN-T08",
+      "threat": "System clock manipulation bypasses operational attempt delays or corrupts audit ordering",
+      "appliesTo": ["mode_a", "mode_b", "mode_c"],
+      "severity": "high",
+      "cryptographicControls": ["authenticated-counter-state", "signed-audit-identities"],
+      "policyControls": ["monotonic-elapsed-time-for-current-process-delays", "clock-anomaly-attention-state"],
+      "residualRisk": "A privileged attacker can manipulate browser storage and wall clock in Mode A. Clock data never grants or terminates Offline authority, but operational rate limits remain application-policy controls.",
+      "failClosed": "counter-integrity-failure-locks-while-clock-age-alone-never-blocks"
+    },
+    {
+      "id": "PIN-T09",
+      "threat": "Storage clearing resets lockout",
+      "appliesTo": ["mode_a"],
+      "severity": "high",
+      "cryptographicControls": ["credential-and-device-key-colocation", "authenticated-counter-state"],
+      "policyControls": ["managed-origin-storage", "online-reactivation-after-clear"],
+      "residualRisk": "Privileged deletion causes denial of service but cannot produce an unlocked credential through the supported application.",
+      "failClosed": "missing-key-or-counter-requires-online-reactivation"
+    },
+    {
+      "id": "PIN-T10",
+      "threat": "Command is rebound to the employee active at replay time",
+      "appliesTo": ["mode_a", "mode_b", "mode_c"],
+      "severity": "critical",
+      "cryptographicControls": ["employee-enrollment-id-in-command-aad", "immutable-command-envelope-hash", "server-acquisition-revalidation"],
+      "policyControls": ["switch-locks-old-namespace", "quarantine-on-authority-conflict"],
+      "residualRisk": "Core V2 actor binding is currently a separate open implementation gap.",
+      "failClosed": "actor-or-generation-mismatch-is-terminal-conflict"
+    },
+    {
+      "id": "PIN-T11",
+      "threat": "Credential package copied to another branch or device",
+      "appliesTo": ["mode_a", "mode_b", "mode_c"],
+      "severity": "critical",
+      "cryptographicControls": ["device-bound-storage-envelope", "tenant-branch-device-aad", "server-and-device-signatures", "selector-verifier-scope-binding"],
+      "policyControls": ["one-active-offline-device-per-branch"],
+      "residualRisk": "A complete compromise of the original running device remains outside Mode A.",
+      "failClosed": "binding-or-private-key-mismatch-locks"
+    },
+    {
+      "id": "PIN-T12",
+      "threat": "Employee permissions changed after offline issuance",
+      "appliesTo": ["mode_a", "mode_b", "mode_c"],
+      "severity": "high",
+      "cryptographicControls": ["signed-permission-version", "explicit-command-allowlist", "immutable-actor-device-branch-binding"],
+      "policyControls": ["trusted-reconnect-before-sync-or-acquisition", "server-acquisition-revalidation"],
+      "residualRisk": "Previously signed permissions may remain locally usable throughout a long outage until trusted reconnect discovers the change; this is human approved.",
+      "failClosed": "version-mismatch-locks-and-quarantines"
+    },
+    {
+      "id": "PIN-T13",
+      "threat": "An unsafe PIN representation or PIN-derived DEK is introduced",
+      "appliesTo": ["mode_a", "mode_b", "mode_c"],
+      "severity": "critical",
+      "cryptographicControls": ["structured-salted-selector-verifier-only", "pin-never-enters-dek-hierarchy", "device-bound-business-data-encryption"],
+      "policyControls": ["secret-scan", "evidence-redaction"],
+      "residualRisk": "The structured four-digit PIN selector verifier remains brute-forceable if copied; it therefore selects an employee but does not protect the encrypted business-data key.",
+      "failClosed": "no-plaintext-unsalted-reversible-or-dek-derived-fallback"
+    },
+    {
+      "id": "PIN-T14",
+      "threat": "Native security capability is assumed but not platform enforced",
+      "appliesTo": ["mode_b"],
+      "severity": "high",
+      "cryptographicControls": ["hardware-attestation-when-available", "non-exportable-platform-key"],
+      "policyControls": ["per-os-device-capability-attestation", "unsupported-device-denial"],
+      "residualRisk": "Biometric, secure counter, hardware backing, backup exclusion, and screen protection vary by platform and must be independently attested.",
+      "failClosed": "missing-required-attestation-disables-offline-switching"
+    },
+    {
+      "id": "PIN-T15",
+      "threat": "Historical repository plaintext-display PIN field is treated as an Offline source",
+      "appliesTo": ["mode_a", "mode_b", "mode_c"],
+      "severity": "critical",
+      "cryptographicControls": ["offline-package-never-contains-plaintext-pin-or-server-verifier"],
+      "policyControls": ["source-review", "secret-scan", "separate-sql-security-decision"],
+      "residualRisk": "Repository schema text is not proof of Production state; any actual plaintext PIN storage remains a separate security concern and is not inherited as Offline authority.",
+      "failClosed": "any-plaintext-pin-or-server-verifier-input-rejects-package"
+    },
+    {
+      "id": "PIN-T16",
+      "threat": "Local unlock is misrepresented as authority issuance or permission expansion",
+      "appliesTo": ["mode_a", "mode_b", "mode_c"],
+      "severity": "critical",
+      "cryptographicControls": ["server-signed-generations-and-exact-order-create-allowlist", "package-hash-binding", "account-bootstrap-binding"],
+      "policyControls": ["local-pin-cannot-expand-permissions", "trusted-reconnect-revalidation"],
+      "residualRisk": "A privileged Mode A attacker can invoke usable same-origin keys and bypass application attempt policy, but cannot create a valid issuer signature or alter immutable bindings.",
+      "failClosed": "signature-generation-permission-or-binding-mismatch-locks"
+    },
+    {
+      "id": "PIN-T17",
+      "threat": "A non-enrolled or stale employee is inferred from Primary Auth or cached presentation",
+      "appliesTo": ["mode_a", "mode_b", "mode_c", "online_only"],
+      "severity": "critical",
+      "cryptographicControls": ["employee-enrollment-id-and-generation-binding", "active-account-bootstrap-binding"],
+      "policyControls": ["offline-roster-is-pre-enrolled-only", "sessionstorage-is-presentation-only"],
+      "residualRisk": "Employees not enrolled before outage cannot work Offline; this is an availability limitation, not a reason to infer identity.",
+      "failClosed": "no-matching-package-keeps-pos-locked"
+    }
+  ]
+}

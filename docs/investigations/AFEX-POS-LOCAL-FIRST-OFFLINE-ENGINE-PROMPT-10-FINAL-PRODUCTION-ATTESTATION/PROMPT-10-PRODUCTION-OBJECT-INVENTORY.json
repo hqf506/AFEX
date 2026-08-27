@@ -1,0 +1,5828 @@
+{
+  "schemaVersion": "1.0.0",
+  "package": "Prompt 10 final Production attestation",
+  "generatedAt": "2026-08-26T09:36:00Z",
+  "sourceQueries": [
+    "P10-Q004",
+    "P10-Q005"
+  ],
+  "rawBusinessRowsReturned": 0,
+  "catalogCounts": {
+    "columns": 444,
+    "constraints": 206,
+    "indexes": 113,
+    "triggers": 14,
+    "curatedObjects": 31
+  },
+  "absentAuthorityConcepts": {
+    "offlineDeviceRelations": [],
+    "inventorySnapshotOrFrontierRelations": [],
+    "serializedReviewCasRelations": [],
+    "paymentAuthorityRelations": [],
+    "atomicEffectLedgerRelations": [],
+    "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+    "blockers": [
+      "Name-based absence is supported by the bounded catalog inventory; future SQL review must still validate the final object names and dependency design."
+    ]
+  },
+  "objects": [
+    {
+      "id": "OBJ-001",
+      "identity": "afex_pos_authority.actor_sessions",
+      "schema": "afex_pos_authority",
+      "name": "actor_sessions",
+      "owner": "afex_pos_session_owner",
+      "columns": [
+        {
+          "name": "session_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "token_hash",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "authenticated_subject_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_role",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_version",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "credential_fingerprint",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "authenticated_session_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "session_version",
+          "type": "bigint",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "1"
+        },
+        {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "clock_timestamp()"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "revocation_reason",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "actor_sessions_credential_fingerprint_format",
+          "type": "c",
+          "definition": "CHECK (credential_fingerprint ~ '^afex-pos-pin-v1:[0-9a-f]{64}$'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_lifetime_bounded",
+          "type": "c",
+          "definition": "CHECK (expires_at > issued_at AND expires_at <= (issued_at + '08:00:00'::interval))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (session_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_revocation_pair",
+          "type": "c",
+          "definition": "CHECK ((revoked_at IS NULL) = (revocation_reason IS NULL))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_revocation_reason_closed",
+          "type": "c",
+          "definition": "CHECK (revocation_reason IS NULL OR (revocation_reason = ANY (ARRAY['LOGOUT'::text, 'LOCKED'::text, 'ACTOR_DISABLED'::text, 'ACTOR_DELETED'::text, 'PIN_CHANGED'::text, 'ROLE_CHANGED'::text, 'BRANCH_CHANGED'::text, 'TENANT_CHANGED'::text, 'AUTH_LOGOUT'::text, 'EXPIRED'::text, 'ADMIN_REAUTH'::text, 'SUPERSEDED'::text, 'SECURITY_RESET'::text, 'SUBJECT_DISABLED'::text, 'SUBJECT_DELETED'::text, 'SUBJECT_TENANT_CHANGED'::text, 'SUBJECT_ROLE_CHANGED'::text])))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_revocation_time",
+          "type": "c",
+          "definition": "CHECK (revoked_at IS NULL OR revoked_at >= issued_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_role_closed",
+          "type": "c",
+          "definition": "CHECK (actor_role = ANY (ARRAY['admin'::text, 'manager'::text, 'employee'::text, 'cashier'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_session_version_positive",
+          "type": "c",
+          "definition": "CHECK (session_version > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_token_hash_format",
+          "type": "c",
+          "definition": "CHECK (token_hash ~ '^[0-9a-f]{64}$'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "actor_sessions_token_hash_key",
+          "type": "u",
+          "definition": "UNIQUE (token_hash)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "actor_sessions_actor_active_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX actor_sessions_actor_active_idx ON afex_pos_authority.actor_sessions USING btree (actor_id, expires_at) WHERE (revoked_at IS NULL)"
+        },
+        {
+          "name": "actor_sessions_auth_session_active_uidx",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX actor_sessions_auth_session_active_uidx ON afex_pos_authority.actor_sessions USING btree (authenticated_subject_id, authenticated_session_id) WHERE (revoked_at IS NULL)"
+        },
+        {
+          "name": "actor_sessions_expiry_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX actor_sessions_expiry_idx ON afex_pos_authority.actor_sessions USING btree (expires_at) WHERE (revoked_at IS NULL)"
+        },
+        {
+          "name": "actor_sessions_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX actor_sessions_pkey ON afex_pos_authority.actor_sessions USING btree (session_id)"
+        },
+        {
+          "name": "actor_sessions_revoked_retention_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX actor_sessions_revoked_retention_idx ON afex_pos_authority.actor_sessions USING btree (revoked_at) WHERE (revoked_at IS NOT NULL)"
+        },
+        {
+          "name": "actor_sessions_subject_active_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX actor_sessions_subject_active_idx ON afex_pos_authority.actor_sessions USING btree (authenticated_subject_id, expires_at) WHERE (revoked_at IS NULL)"
+        },
+        {
+          "name": "actor_sessions_token_hash_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX actor_sessions_token_hash_key ON afex_pos_authority.actor_sessions USING btree (token_hash)"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "actor_sessions_transition_guard",
+          "enabled": "O",
+          "function": "afex_pos_authority.enforce_actor_session_transition",
+          "definition": "CREATE TRIGGER actor_sessions_transition_guard BEFORE UPDATE ON afex_pos_authority.actor_sessions FOR EACH ROW EXECUTE FUNCTION afex_pos_authority.enforce_actor_session_transition()"
+        }
+      ],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-002",
+      "identity": "afex_pos_authority.auth_session_locks",
+      "schema": "afex_pos_authority",
+      "name": "auth_session_locks",
+      "owner": "afex_pos_session_owner",
+      "columns": [
+        {
+          "name": "authenticated_subject_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "authenticated_session_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "clock_timestamp()"
+        },
+        {
+          "name": "authority_issued_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "auth_session_locks_issuance_time",
+          "type": "c",
+          "definition": "CHECK (authority_issued_at IS NULL OR authority_issued_at >= created_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "auth_session_locks_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (authenticated_subject_id, authenticated_session_id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "auth_session_locks_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX auth_session_locks_pkey ON afex_pos_authority.auth_session_locks USING btree (authenticated_subject_id, authenticated_session_id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-003",
+      "identity": "public.profiles",
+      "schema": "public",
+      "name": "profiles",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "full_name",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "role",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "'worker'::text"
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "true"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "username",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "contact_email",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "pos_pin_hash",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "profiles_admin_employee_email_rule_chk",
+          "type": "c",
+          "definition": "CHECK ((role = ANY (ARRAY['admin'::text, 'employee'::text, 'manager'::text, 'owner'::text])) AND contact_email IS NOT NULL AND length(TRIM(BOTH FROM contact_email)) > 0 OR role = 'cashier'::text AND (contact_email IS NULL OR length(TRIM(BOTH FROM contact_email)) = 0))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "profiles_admin_employee_require_email_chk",
+          "type": "c",
+          "definition": "CHECK ((role = ANY (ARRAY['admin'::text, 'employee'::text, 'manager'::text, 'owner'::text])) AND contact_email IS NOT NULL AND length(TRIM(BOTH FROM contact_email)) > 0 OR role = 'cashier'::text AND contact_email IS NULL OR (role <> ALL (ARRAY['admin'::text, 'employee'::text, 'manager'::text, 'owner'::text, 'cashier'::text])))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "profiles_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "profiles_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "auth.users"
+        },
+        {
+          "name": "profiles_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "profiles_role_allowed_chk",
+          "type": "c",
+          "definition": "CHECK (role = ANY (ARRAY['admin'::text, 'employee'::text, 'cashier'::text, 'manager'::text, 'owner'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "profiles_role_check",
+          "type": "c",
+          "definition": "CHECK (role = ANY (ARRAY['admin'::text, 'employee'::text, 'cashier'::text]))",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_profiles_branch_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_profiles_branch_id ON public.profiles USING btree (branch_id)"
+        },
+        {
+          "name": "profiles_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)"
+        },
+        {
+          "name": "profiles_username_unique_idx",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX profiles_username_unique_idx ON public.profiles USING btree (username)"
+        },
+        {
+          "name": "profiles_username_unique_lower_idx",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX profiles_username_unique_lower_idx ON public.profiles USING btree (lower(username)) WHERE ((username IS NOT NULL) AND (TRIM(BOTH FROM username) <> ''::text))"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "set_profiles_updated_at",
+          "enabled": "O",
+          "function": "public.set_updated_at",
+          "definition": "CREATE TRIGGER set_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-004",
+      "identity": "public.pos_profiles",
+      "schema": "public",
+      "name": "pos_profiles",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "username",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "full_name",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "role",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "'cashier'::text"
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "true"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "created_by_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by_username",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "pos_pin_hash",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "pos_profiles_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "pos_profiles_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.profiles"
+        },
+        {
+          "name": "pos_profiles_full_name_not_empty",
+          "type": "c",
+          "definition": "CHECK (length(TRIM(BOTH FROM full_name)) > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "pos_profiles_pin_hash_required",
+          "type": "c",
+          "definition": "CHECK (pos_pin_hash IS NOT NULL AND length(TRIM(BOTH FROM pos_pin_hash)) > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "pos_profiles_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "pos_profiles_tenant_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.tenants"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_pos_profiles_branch_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_pos_profiles_branch_id ON public.pos_profiles USING btree (branch_id)"
+        },
+        {
+          "name": "idx_pos_profiles_tenant_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_pos_profiles_tenant_id ON public.pos_profiles USING btree (tenant_id)"
+        },
+        {
+          "name": "idx_pos_profiles_tenant_username",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX idx_pos_profiles_tenant_username ON public.pos_profiles USING btree (tenant_id, lower(username))"
+        },
+        {
+          "name": "pos_profiles_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX pos_profiles_pkey ON public.pos_profiles USING btree (id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-005",
+      "identity": "public.tenants",
+      "schema": "public",
+      "name": "tenants",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "tenants_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "tenants_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX tenants_pkey ON public.tenants USING btree (id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-006",
+      "identity": "public.branches",
+      "schema": "public",
+      "name": "branches",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "true"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "map_url",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "display_store_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "display_branch_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "order_number_prefix",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "deleted_by",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "branches_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "branches_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX branches_pkey ON public.branches USING btree (id)"
+        },
+        {
+          "name": "branches_tenant_code_unique",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX branches_tenant_code_unique ON public.branches USING btree (tenant_id, code)"
+        },
+        {
+          "name": "idx_branches_tenant_deleted_at",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_branches_tenant_deleted_at ON public.branches USING btree (tenant_id, deleted_at)"
+        },
+        {
+          "name": "idx_branches_tenant_order_number_prefix",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX idx_branches_tenant_order_number_prefix ON public.branches USING btree (tenant_id, order_number_prefix) WHERE (order_number_prefix IS NOT NULL)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-007",
+      "identity": "public.customers",
+      "schema": "public",
+      "name": "customers",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "address",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "city",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "district",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "postal_code",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "country",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tax_number",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "normalized_phone",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "display_phone",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "phone_identity_state",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "customers_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "customers_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id)",
+          "validated": true,
+          "referencedObject": "public.profiles"
+        },
+        {
+          "name": "customers_phone_identity_state_check",
+          "type": "c",
+          "definition": "CHECK (phone_identity_state = ANY (ARRAY['RESOLVED'::text, 'AMBIGUOUS_LEGACY_COLLISION'::text, 'INVALID_QUARANTINED'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "customers_phone_key",
+          "type": "u",
+          "definition": "UNIQUE (phone)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "customers_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "sync_customer_phone_identity_v1",
+          "type": "t",
+          "definition": "TRIGGER DEFERRABLE INITIALLY DEFERRED",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "customers_phone_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX customers_phone_key ON public.customers USING btree (phone)"
+        },
+        {
+          "name": "customers_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX customers_pkey ON public.customers USING btree (id)"
+        },
+        {
+          "name": "customers_tenant_normalized_phone_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX customers_tenant_normalized_phone_idx ON public.customers USING btree (tenant_id, normalized_phone, id) WHERE (normalized_phone IS NOT NULL)"
+        },
+        {
+          "name": "idx_customers_branch_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_customers_branch_id ON public.customers USING btree (branch_id)"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "prepare_customer_phone_identity_v1",
+          "enabled": "O",
+          "function": "public.prepare_customer_phone_identity_v1",
+          "definition": "CREATE TRIGGER prepare_customer_phone_identity_v1 BEFORE INSERT OR UPDATE OF phone, display_phone, tenant_id ON customers FOR EACH ROW EXECUTE FUNCTION prepare_customer_phone_identity_v1()"
+        },
+        {
+          "name": "set_customers_updated_at",
+          "enabled": "O",
+          "function": "public.set_updated_at",
+          "definition": "CREATE TRIGGER set_customers_updated_at BEFORE UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        },
+        {
+          "name": "sync_customer_phone_identity_v1",
+          "enabled": "O",
+          "function": "public.sync_customer_phone_identity_v1",
+          "definition": "CREATE CONSTRAINT TRIGGER sync_customer_phone_identity_v1 AFTER INSERT OR DELETE OR UPDATE OF normalized_phone, tenant_id ON customers DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION sync_customer_phone_identity_v1()"
+        },
+        {
+          "name": "trg_set_customers_branch_id",
+          "enabled": "O",
+          "function": "public.set_customers_branch_id",
+          "definition": "CREATE TRIGGER trg_set_customers_branch_id BEFORE INSERT ON customers FOR EACH ROW EXECUTE FUNCTION set_customers_branch_id()"
+        }
+      ],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-008",
+      "identity": "public.customer_phone_identities",
+      "schema": "public",
+      "name": "customer_phone_identities",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "normalized_phone",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "resolution_status",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "canonical_customer_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "member_count",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "customer_phone_identities_canonical_customer_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (canonical_customer_id) REFERENCES customers(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.customers"
+        },
+        {
+          "name": "customer_phone_identities_member_count_check",
+          "type": "c",
+          "definition": "CHECK (member_count > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "customer_phone_identities_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (tenant_id, normalized_phone)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "customer_phone_identities_resolution_check",
+          "type": "c",
+          "definition": "CHECK (resolution_status = 'RESOLVED'::text AND member_count = 1 AND canonical_customer_id IS NOT NULL OR resolution_status = 'AMBIGUOUS'::text AND member_count > 1 AND canonical_customer_id IS NULL)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "customer_phone_identities_resolution_status_check",
+          "type": "c",
+          "definition": "CHECK (resolution_status = ANY (ARRAY['RESOLVED'::text, 'AMBIGUOUS'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "customer_phone_identities_tenant_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.tenants"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "customer_phone_identities_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX customer_phone_identities_pkey ON public.customer_phone_identities USING btree (tenant_id, normalized_phone)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-009",
+      "identity": "public.customer_phone_identity_members",
+      "schema": "public",
+      "name": "customer_phone_identity_members",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "normalized_phone",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "customer_phone_identity_members_customer_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.customers"
+        },
+        {
+          "name": "customer_phone_identity_members_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (tenant_id, normalized_phone, customer_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "customer_phone_identity_members_tenant_id_normalized_phone_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (tenant_id, normalized_phone) REFERENCES customer_phone_identities(tenant_id, normalized_phone) ON UPDATE RESTRICT ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+          "validated": true,
+          "referencedObject": "public.customer_phone_identities"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "customer_phone_identity_members_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX customer_phone_identity_members_pkey ON public.customer_phone_identity_members USING btree (tenant_id, normalized_phone, customer_id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-010",
+      "identity": "public.catalog_items",
+      "schema": "public",
+      "name": "catalog_items",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "item_type",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "default_price",
+          "type": "numeric",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "image_url",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "true"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "cost_price",
+          "type": "numeric",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "pos_display_mode",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "'style'::text"
+        },
+        {
+          "name": "pos_color",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "pos_shape",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "deleted_at",
+          "type": "timestamp without time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "track_inventory",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "false"
+        },
+        {
+          "name": "inventory_enabled_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "is_composite",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "false"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "catalog_items_code_key",
+          "type": "u",
+          "definition": "UNIQUE (code)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "catalog_items_item_type_check",
+          "type": "c",
+          "definition": "CHECK (item_type = ANY (ARRAY['product'::text, 'service'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "catalog_items_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "unique_code",
+          "type": "u",
+          "definition": "UNIQUE (code)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "catalog_items_code_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX catalog_items_code_key ON public.catalog_items USING btree (code)"
+        },
+        {
+          "name": "catalog_items_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX catalog_items_pkey ON public.catalog_items USING btree (id)"
+        },
+        {
+          "name": "idx_catalog_items_category",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_catalog_items_category ON public.catalog_items USING btree (category)"
+        },
+        {
+          "name": "idx_catalog_items_code",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_catalog_items_code ON public.catalog_items USING btree (code)"
+        },
+        {
+          "name": "idx_catalog_items_is_active",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_catalog_items_is_active ON public.catalog_items USING btree (is_active)"
+        },
+        {
+          "name": "idx_catalog_items_item_type",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_catalog_items_item_type ON public.catalog_items USING btree (item_type)"
+        },
+        {
+          "name": "unique_code",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX unique_code ON public.catalog_items USING btree (code)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-011",
+      "identity": "public.branch_catalog_items",
+      "schema": "public",
+      "name": "branch_catalog_items",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "catalog_item_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "price",
+          "type": "numeric",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "true"
+        },
+        {
+          "name": "display_order",
+          "type": "integer",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "branch_catalog_items_branch_id_catalog_item_id_key",
+          "type": "u",
+          "definition": "UNIQUE (branch_id, catalog_item_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "branch_catalog_items_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "branch_catalog_items_catalog_item_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (catalog_item_id) REFERENCES catalog_items(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.catalog_items"
+        },
+        {
+          "name": "branch_catalog_items_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "branch_catalog_items_branch_id_catalog_item_id_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX branch_catalog_items_branch_id_catalog_item_id_key ON public.branch_catalog_items USING btree (branch_id, catalog_item_id)"
+        },
+        {
+          "name": "branch_catalog_items_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX branch_catalog_items_pkey ON public.branch_catalog_items USING btree (id)"
+        },
+        {
+          "name": "idx_branch_catalog_items_branch",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_branch_catalog_items_branch ON public.branch_catalog_items USING btree (branch_id)"
+        },
+        {
+          "name": "idx_branch_catalog_items_branch_active_order",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_branch_catalog_items_branch_active_order ON public.branch_catalog_items USING btree (branch_id, is_active, display_order)"
+        },
+        {
+          "name": "idx_branch_catalog_items_branch_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_branch_catalog_items_branch_id ON public.branch_catalog_items USING btree (branch_id)"
+        },
+        {
+          "name": "idx_branch_catalog_items_catalog_item_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_branch_catalog_items_catalog_item_id ON public.branch_catalog_items USING btree (catalog_item_id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-012",
+      "identity": "public.inventory_stock",
+      "schema": "public",
+      "name": "inventory_stock",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "catalog_item_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "quantity_on_hand",
+          "type": "numeric",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "low_stock_threshold",
+          "type": "numeric",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "inventory_stock_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "inventory_stock_catalog_item_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (catalog_item_id) REFERENCES catalog_items(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.catalog_items"
+        },
+        {
+          "name": "inventory_stock_low_stock_threshold_check",
+          "type": "c",
+          "definition": "CHECK (low_stock_threshold >= 0::numeric)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "inventory_stock_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "inventory_stock_tenant_id_branch_id_catalog_item_id_key",
+          "type": "u",
+          "definition": "UNIQUE (tenant_id, branch_id, catalog_item_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "inventory_stock_tenant_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.tenants"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "inventory_stock_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX inventory_stock_pkey ON public.inventory_stock USING btree (id)"
+        },
+        {
+          "name": "inventory_stock_tenant_branch_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX inventory_stock_tenant_branch_idx ON public.inventory_stock USING btree (tenant_id, branch_id)"
+        },
+        {
+          "name": "inventory_stock_tenant_branch_item_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX inventory_stock_tenant_branch_item_idx ON public.inventory_stock USING btree (tenant_id, branch_id, catalog_item_id)"
+        },
+        {
+          "name": "inventory_stock_tenant_id_branch_id_catalog_item_id_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX inventory_stock_tenant_id_branch_id_catalog_item_id_key ON public.inventory_stock USING btree (tenant_id, branch_id, catalog_item_id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-013",
+      "identity": "public.inventory_movements",
+      "schema": "public",
+      "name": "inventory_movements",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "catalog_item_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "movement_type",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "quantity_delta",
+          "type": "numeric",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "source_type",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "source_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "inventory_movements_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "inventory_movements_catalog_item_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (catalog_item_id) REFERENCES catalog_items(id) ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.catalog_items"
+        },
+        {
+          "name": "inventory_movements_movement_type_check",
+          "type": "c",
+          "definition": "CHECK (movement_type = ANY (ARRAY['purchase_receive'::text, 'manual_adjustment'::text, 'sale'::text, 'sale_void'::text, 'transfer_in'::text, 'transfer_out'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "inventory_movements_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "inventory_movements_tenant_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.tenants"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "inventory_movements_catalog_item_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX inventory_movements_catalog_item_idx ON public.inventory_movements USING btree (catalog_item_id)"
+        },
+        {
+          "name": "inventory_movements_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX inventory_movements_pkey ON public.inventory_movements USING btree (id)"
+        },
+        {
+          "name": "inventory_movements_tenant_branch_created_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX inventory_movements_tenant_branch_created_idx ON public.inventory_movements USING btree (tenant_id, branch_id, created_at DESC)"
+        },
+        {
+          "name": "inventory_movements_tenant_branch_item_created_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX inventory_movements_tenant_branch_item_created_idx ON public.inventory_movements USING btree (tenant_id, branch_id, catalog_item_id, created_at DESC)"
+        },
+        {
+          "name": "inventory_movements_tenant_created_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX inventory_movements_tenant_created_idx ON public.inventory_movements USING btree (tenant_id, created_at DESC)"
+        },
+        {
+          "name": "inventory_movements_tenant_source_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX inventory_movements_tenant_source_idx ON public.inventory_movements USING btree (tenant_id, source_type, source_id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-014",
+      "identity": "public.inventory_movements_view",
+      "schema": "public",
+      "name": "inventory_movements_view",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "catalog_item_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "movement_type",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "quantity_delta",
+          "type": "numeric",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "source_type",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "source_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "item_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "resolved_invoice_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "resolved_employee_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "resolved_employee_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_type",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_position_label",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_role_label",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [],
+      "indexes": [],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-015",
+      "identity": "public.orders",
+      "schema": "public",
+      "name": "orders",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "order_number",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "generate_order_number()"
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "'new'::text"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "due_date",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "client_idempotency_key",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by_employee_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "order_sequence_month",
+          "type": "date",
+          "notNull": false,
+          "identity": null,
+          "generated": "s",
+          "defaultExpression": "(((created_at AT TIME ZONE 'UTC'::text))::date - ((EXTRACT(day FROM (created_at AT TIME ZONE 'UTC'::text)))::integer - 1))"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "orders_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "orders_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id)",
+          "validated": true,
+          "referencedObject": "public.profiles"
+        },
+        {
+          "name": "orders_customer_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.customers"
+        },
+        {
+          "name": "orders_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "orders_status_check",
+          "type": "c",
+          "definition": "CHECK (status = ANY (ARRAY['in_progress'::text, 'ready'::text, 'closed'::text]))",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_orders_branch_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_orders_branch_id ON public.orders USING btree (branch_id)"
+        },
+        {
+          "name": "idx_orders_tenant_branch_month_order_number_unique",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX idx_orders_tenant_branch_month_order_number_unique ON public.orders USING btree (tenant_id, branch_id, order_sequence_month, order_number) WHERE ((tenant_id IS NOT NULL) AND (branch_id IS NOT NULL) AND (order_number IS NOT NULL))"
+        },
+        {
+          "name": "orders_idempotency_key_unique",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX orders_idempotency_key_unique ON public.orders USING btree (client_idempotency_key) WHERE (client_idempotency_key IS NOT NULL)"
+        },
+        {
+          "name": "orders_monthly_order_number_unique",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX orders_monthly_order_number_unique ON public.orders USING btree (tenant_id, branch_id, order_sequence_month, order_number) WHERE (order_number IS NOT NULL)"
+        },
+        {
+          "name": "orders_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "set_orders_updated_at",
+          "enabled": "O",
+          "function": "public.set_updated_at",
+          "definition": "CREATE TRIGGER set_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        },
+        {
+          "name": "trg_set_orders_branch_id",
+          "enabled": "O",
+          "function": "public.set_orders_branch_id",
+          "definition": "CREATE TRIGGER trg_set_orders_branch_id BEFORE INSERT ON orders FOR EACH ROW EXECUTE FUNCTION set_orders_branch_id()"
+        },
+        {
+          "name": "trg_zzzz_set_order_number_branch_monthly",
+          "enabled": "O",
+          "function": "public.set_order_number_branch_monthly",
+          "definition": "CREATE TRIGGER trg_zzzz_set_order_number_branch_monthly BEFORE INSERT ON orders FOR EACH ROW EXECUTE FUNCTION set_order_number_branch_monthly()"
+        }
+      ],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-016",
+      "identity": "public.invoices",
+      "schema": "public",
+      "name": "invoices",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "invoice_number",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "generate_invoice_number()"
+        },
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "payment_method",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "payment_status",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "'paid'::text"
+        },
+        {
+          "name": "subtotal",
+          "type": "numeric(10,2)",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "discount",
+          "type": "numeric(10,2)",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "tax",
+          "type": "numeric(10,2)",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "total",
+          "type": "numeric(10,2)",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "cash_received",
+          "type": "numeric",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "remaining_from_customer",
+          "type": "numeric",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "cash_change",
+          "type": "numeric",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "invoice_sequence_month",
+          "type": "date",
+          "notNull": false,
+          "identity": null,
+          "generated": "s",
+          "defaultExpression": "(((created_at AT TIME ZONE 'UTC'::text))::date - ((EXTRACT(day FROM (created_at AT TIME ZONE 'UTC'::text)))::integer - 1))"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "invoices_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "invoices_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id)",
+          "validated": true,
+          "referencedObject": "public.profiles"
+        },
+        {
+          "name": "invoices_customer_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.customers"
+        },
+        {
+          "name": "invoices_order_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.orders"
+        },
+        {
+          "name": "invoices_payment_method_check",
+          "type": "c",
+          "definition": "CHECK (payment_method = ANY (ARRAY['cash'::text, 'card'::text, 'transfer'::text, 'mada'::text, 'visa'::text, 'on_delivery'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "invoices_payment_status_check",
+          "type": "c",
+          "definition": "CHECK (payment_status = ANY (ARRAY['pending'::text, 'paid'::text, 'failed'::text, 'refunded'::text, 'cancelled'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "invoices_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_invoices_branch_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_invoices_branch_id ON public.invoices USING btree (branch_id)"
+        },
+        {
+          "name": "idx_invoices_tenant_branch_month_invoice_number_unique",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX idx_invoices_tenant_branch_month_invoice_number_unique ON public.invoices USING btree (tenant_id, branch_id, invoice_sequence_month, invoice_number) WHERE ((tenant_id IS NOT NULL) AND (branch_id IS NOT NULL) AND (invoice_number IS NOT NULL))"
+        },
+        {
+          "name": "invoices_monthly_invoice_number_unique",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX invoices_monthly_invoice_number_unique ON public.invoices USING btree (tenant_id, branch_id, invoice_sequence_month, invoice_number) WHERE (invoice_number IS NOT NULL)"
+        },
+        {
+          "name": "invoices_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX invoices_pkey ON public.invoices USING btree (id)"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "set_invoices_updated_at",
+          "enabled": "O",
+          "function": "public.set_updated_at",
+          "definition": "CREATE TRIGGER set_invoices_updated_at BEFORE UPDATE ON invoices FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        },
+        {
+          "name": "trg_set_invoices_branch_id",
+          "enabled": "O",
+          "function": "public.set_invoices_branch_id",
+          "definition": "CREATE TRIGGER trg_set_invoices_branch_id BEFORE INSERT ON invoices FOR EACH ROW EXECUTE FUNCTION set_invoices_branch_id()"
+        },
+        {
+          "name": "trg_zzzz_set_invoice_number_from_order",
+          "enabled": "O",
+          "function": "public.set_invoice_number_from_order",
+          "definition": "CREATE TRIGGER trg_zzzz_set_invoice_number_from_order BEFORE INSERT ON invoices FOR EACH ROW EXECUTE FUNCTION set_invoice_number_from_order()"
+        }
+      ],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-017",
+      "identity": "public.invoice_items",
+      "schema": "public",
+      "name": "invoice_items",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "item_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "item_name_snapshot",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "item_type_snapshot",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "quantity",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "unit_price",
+          "type": "numeric(10,2)",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "line_total",
+          "type": "numeric(10,2)",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "item_category_snapshot",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "cost_price",
+          "type": "numeric",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "invoice_items_invoice_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.invoices"
+        },
+        {
+          "name": "invoice_items_item_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (item_id) REFERENCES catalog_items(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.catalog_items"
+        },
+        {
+          "name": "invoice_items_item_type_snapshot_check",
+          "type": "c",
+          "definition": "CHECK (item_type_snapshot = ANY (ARRAY['product'::text, 'service'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "invoice_items_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "invoice_items_quantity_check",
+          "type": "c",
+          "definition": "CHECK (quantity > 0)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_invoice_items_item_id",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_invoice_items_item_id ON public.invoice_items USING btree (item_id)"
+        },
+        {
+          "name": "invoice_items_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX invoice_items_pkey ON public.invoice_items USING btree (id)"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_deduct_inventory_on_invoice_item_insert",
+          "enabled": "O",
+          "function": "public.deduct_inventory_on_invoice_item_insert",
+          "definition": "CREATE TRIGGER trg_deduct_inventory_on_invoice_item_insert AFTER INSERT ON invoice_items FOR EACH ROW EXECUTE FUNCTION deduct_inventory_on_invoice_item_insert()"
+        }
+      ],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-018",
+      "identity": "public.order_status_logs",
+      "schema": "public",
+      "name": "order_status_logs",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "from_status",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "to_status",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "changed_by",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "order_status_logs_changed_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (changed_by) REFERENCES profiles(id)",
+          "validated": true,
+          "referencedObject": "public.profiles"
+        },
+        {
+          "name": "order_status_logs_order_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.orders"
+        },
+        {
+          "name": "order_status_logs_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "order_status_logs_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX order_status_logs_pkey ON public.order_status_logs USING btree (id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-019",
+      "identity": "public.audit_logs",
+      "schema": "public",
+      "name": "audit_logs",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_user_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "entity_type",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "entity_id",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "metadata",
+          "type": "jsonb",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "'{}'::jsonb"
+        },
+        {
+          "name": "ip_address",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "user_agent",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "audit_logs_actor_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (actor_user_id) REFERENCES profiles(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.profiles"
+        },
+        {
+          "name": "audit_logs_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "audit_logs_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "audit_logs_tenant_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL",
+          "validated": true,
+          "referencedObject": "public.tenants"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "audit_logs_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX audit_logs_pkey ON public.audit_logs USING btree (id)"
+        },
+        {
+          "name": "idx_audit_logs_actor_created",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_audit_logs_actor_created ON public.audit_logs USING btree (actor_user_id, created_at DESC)"
+        },
+        {
+          "name": "idx_audit_logs_entity",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_audit_logs_entity ON public.audit_logs USING btree (entity_type, entity_id)"
+        },
+        {
+          "name": "idx_audit_logs_tenant_created",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX idx_audit_logs_tenant_created ON public.audit_logs USING btree (tenant_id, created_at DESC)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-020",
+      "identity": "public.vat_settings",
+      "schema": "public",
+      "name": "vat_settings",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "'VAT'::text"
+        },
+        {
+          "name": "rate",
+          "type": "numeric",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "15"
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "false"
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "vat_settings_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "vat_settings_branch_id_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX vat_settings_branch_id_idx ON public.vat_settings USING btree (branch_id)"
+        },
+        {
+          "name": "vat_settings_is_active_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX vat_settings_is_active_idx ON public.vat_settings USING btree (is_active)"
+        },
+        {
+          "name": "vat_settings_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX vat_settings_pkey ON public.vat_settings USING btree (id)"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "set_vat_updated_at",
+          "enabled": "O",
+          "function": "public.set_vat_updated_at",
+          "definition": "CREATE TRIGGER set_vat_updated_at BEFORE UPDATE ON vat_settings FOR EACH ROW EXECUTE FUNCTION set_vat_updated_at()"
+        }
+      ],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-021",
+      "identity": "public.branch_whatsapp_configs",
+      "schema": "public",
+      "name": "branch_whatsapp_configs",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "provider",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "phone_number",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "instance_id",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "token",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "api_url",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "false"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "branch_whatsapp_configs_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "branch_whatsapp_configs_branch_id_key",
+          "type": "u",
+          "definition": "UNIQUE (branch_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "branch_whatsapp_configs_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "branch_whatsapp_configs_provider_check",
+          "type": "c",
+          "definition": "CHECK (provider = ANY (ARRAY['ultramsg'::text, 'meta'::text]))",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "branch_whatsapp_configs_branch_id_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX branch_whatsapp_configs_branch_id_key ON public.branch_whatsapp_configs USING btree (branch_id)"
+        },
+        {
+          "name": "branch_whatsapp_configs_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX branch_whatsapp_configs_pkey ON public.branch_whatsapp_configs USING btree (id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-022",
+      "identity": "public.atomic_authorization_contexts",
+      "schema": "public",
+      "name": "atomic_authorization_contexts",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "context_version",
+          "type": "smallint",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "authenticated_actor_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "role_snapshot",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "capability_version",
+          "type": "bigint",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "employee_source",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "employee_source_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "command_type",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "idempotency_key_hash",
+          "type": "bytea",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "request_fingerprint",
+          "type": "bytea",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "fingerprint_version",
+          "type": "smallint",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "reference_hash",
+          "type": "bytea",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "correlation_reference",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "revocation_code",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "consumed_command_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "consumption_kind",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by_identity",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_authorization_contexts_actor_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (authenticated_actor_id) REFERENCES profiles(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.profiles"
+        },
+        {
+          "name": "atomic_authorization_contexts_branch_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "atomic_authorization_contexts_capability_version_check",
+          "type": "c",
+          "definition": "CHECK (capability_version > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_command_type_check",
+          "type": "c",
+          "definition": "CHECK (command_type = 'order.create'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_consumed_command_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (consumed_command_id) REFERENCES atomic_order_commands(id) ON UPDATE RESTRICT ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+          "validated": true,
+          "referencedObject": "public.atomic_order_commands"
+        },
+        {
+          "name": "atomic_authorization_contexts_consumption_check",
+          "type": "c",
+          "definition": "CHECK (consumed_at IS NULL AND consumed_command_id IS NULL AND consumption_kind IS NULL OR consumed_at IS NOT NULL AND consumed_at >= issued_at AND consumed_command_id IS NOT NULL AND (consumption_kind = ANY (ARRAY['execution'::text, 'replay'::text])))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_context_version_check",
+          "type": "c",
+          "definition": "CHECK (context_version > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_correlation_reference_check",
+          "type": "c",
+          "definition": "CHECK (char_length(correlation_reference) >= 1 AND char_length(correlation_reference) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_created_by_identity_check",
+          "type": "c",
+          "definition": "CHECK (char_length(created_by_identity) >= 1 AND char_length(created_by_identity) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_employee_identity_check",
+          "type": "c",
+          "definition": "CHECK (employee_source = 'none'::text AND employee_source_id IS NULL OR (employee_source = ANY (ARRAY['profile'::text, 'pos_profile'::text])) AND employee_source_id IS NOT NULL)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_employee_source_check",
+          "type": "c",
+          "definition": "CHECK (employee_source = ANY (ARRAY['profile'::text, 'pos_profile'::text, 'none'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_fingerprint_version_check",
+          "type": "c",
+          "definition": "CHECK (fingerprint_version > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_idempotency_hash_check",
+          "type": "c",
+          "definition": "CHECK (octet_length(idempotency_key_hash) = 32)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_reference_hash_check",
+          "type": "c",
+          "definition": "CHECK (octet_length(reference_hash) = 32)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_reference_hash_key",
+          "type": "u",
+          "definition": "UNIQUE (reference_hash)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_request_fingerprint_check",
+          "type": "c",
+          "definition": "CHECK (octet_length(request_fingerprint) = 32)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_revocation_check",
+          "type": "c",
+          "definition": "CHECK (revoked_at IS NULL AND revocation_code IS NULL OR revoked_at IS NOT NULL AND revoked_at >= issued_at AND char_length(revocation_code) >= 1 AND char_length(revocation_code) <= 64)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_role_snapshot_check",
+          "type": "c",
+          "definition": "CHECK (role_snapshot = ANY (ARRAY['admin'::text, 'manager'::text, 'employee'::text, 'cashier'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_tenant_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.tenants"
+        },
+        {
+          "name": "atomic_authorization_contexts_terminal_state_check",
+          "type": "c",
+          "definition": "CHECK (NOT (revoked_at IS NOT NULL AND consumed_at IS NOT NULL))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_authorization_contexts_ttl_check",
+          "type": "c",
+          "definition": "CHECK (expires_at = (issued_at + '00:02:00'::interval))",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_authorization_contexts_actor_scope_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_authorization_contexts_actor_scope_idx ON public.atomic_authorization_contexts USING btree (authenticated_actor_id, tenant_id, branch_id, issued_at DESC)"
+        },
+        {
+          "name": "atomic_authorization_contexts_consumed_command_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_authorization_contexts_consumed_command_idx ON public.atomic_authorization_contexts USING btree (consumed_command_id) WHERE (consumed_command_id IS NOT NULL)"
+        },
+        {
+          "name": "atomic_authorization_contexts_employee_identity_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_authorization_contexts_employee_identity_idx ON public.atomic_authorization_contexts USING btree (tenant_id, branch_id, employee_source, employee_source_id) WHERE (employee_source_id IS NOT NULL)"
+        },
+        {
+          "name": "atomic_authorization_contexts_execution_command_uidx",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_authorization_contexts_execution_command_uidx ON public.atomic_authorization_contexts USING btree (consumed_command_id) WHERE (consumption_kind = 'execution'::text)"
+        },
+        {
+          "name": "atomic_authorization_contexts_expiry_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_authorization_contexts_expiry_idx ON public.atomic_authorization_contexts USING btree (expires_at, id) WHERE ((consumed_at IS NULL) AND (revoked_at IS NULL))"
+        },
+        {
+          "name": "atomic_authorization_contexts_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_authorization_contexts_pkey ON public.atomic_authorization_contexts USING btree (id)"
+        },
+        {
+          "name": "atomic_authorization_contexts_reference_hash_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_authorization_contexts_reference_hash_key ON public.atomic_authorization_contexts USING btree (reference_hash)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-023",
+      "identity": "public.atomic_order_commands",
+      "schema": "public",
+      "name": "atomic_order_commands",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "command_version",
+          "type": "smallint",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "command_type",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "idempotency_key_hash",
+          "type": "bytea",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "request_fingerprint",
+          "type": "bytea",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "fingerprint_version",
+          "type": "smallint",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "authorization_context_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "authenticated_actor_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "correlation_reference",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "engine_version",
+          "type": "smallint",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "execution_status",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "lease_owner",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "lease_expires_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "attempt_count",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "order_number",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "response_version",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "response_snapshot",
+          "type": "jsonb",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "error_code",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "error_detail",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "last_failure_stage",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "first_started_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "last_started_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "failed_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        },
+        {
+          "name": "created_by_identity",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "command_retain_until",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "response_retain_until",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_order_commands_actor_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (authenticated_actor_id) REFERENCES profiles(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.profiles"
+        },
+        {
+          "name": "atomic_order_commands_attempt_count_check",
+          "type": "c",
+          "definition": "CHECK (attempt_count >= 0 AND attempt_count <= 3)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_authorization_context_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (authorization_context_id) REFERENCES atomic_authorization_contexts(id) ON UPDATE RESTRICT ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+          "validated": true,
+          "referencedObject": "public.atomic_authorization_contexts"
+        },
+        {
+          "name": "atomic_order_commands_authorization_context_key",
+          "type": "u",
+          "definition": "UNIQUE (authorization_context_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_branch_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "atomic_order_commands_command_retention_check",
+          "type": "c",
+          "definition": "CHECK (command_retain_until IS NULL OR command_retain_until >= created_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_command_type_check",
+          "type": "c",
+          "definition": "CHECK (command_type = 'order.create'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_command_version_check",
+          "type": "c",
+          "definition": "CHECK (command_version > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_completed_at_check",
+          "type": "c",
+          "definition": "CHECK (completed_at IS NULL OR first_started_at IS NOT NULL AND completed_at >= first_started_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_correlation_reference_check",
+          "type": "c",
+          "definition": "CHECK (char_length(correlation_reference) >= 1 AND char_length(correlation_reference) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_created_by_identity_check",
+          "type": "c",
+          "definition": "CHECK (char_length(created_by_identity) >= 1 AND char_length(created_by_identity) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_engine_version_check",
+          "type": "c",
+          "definition": "CHECK (engine_version > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_error_code_check",
+          "type": "c",
+          "definition": "CHECK (error_code IS NULL OR char_length(error_code) >= 1 AND char_length(error_code) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_error_detail_check",
+          "type": "c",
+          "definition": "CHECK (error_detail IS NULL OR char_length(error_detail) >= 1 AND char_length(error_detail) <= 2000)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_execution_status_check",
+          "type": "c",
+          "definition": "CHECK (execution_status = ANY (ARRAY['reserved'::text, 'processing'::text, 'succeeded'::text, 'failed_retryable'::text, 'failed_final'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_failed_at_check",
+          "type": "c",
+          "definition": "CHECK (failed_at IS NULL OR first_started_at IS NOT NULL AND failed_at >= first_started_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_failed_final_state_check",
+          "type": "c",
+          "definition": "CHECK (execution_status <> 'failed_final'::text OR lease_owner IS NULL AND lease_expires_at IS NULL AND attempt_count >= 1 AND attempt_count <= 3 AND first_started_at IS NOT NULL AND last_started_at IS NOT NULL AND completed_at IS NULL AND failed_at IS NOT NULL AND order_id IS NULL AND invoice_id IS NULL AND order_number IS NULL AND response_version IS NULL AND response_snapshot IS NULL AND char_length(error_code) >= 1 AND char_length(error_code) <= 128 AND char_length(last_failure_stage) >= 1 AND char_length(last_failure_stage) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_failed_retryable_state_check",
+          "type": "c",
+          "definition": "CHECK (execution_status <> 'failed_retryable'::text OR lease_owner IS NULL AND lease_expires_at IS NULL AND attempt_count >= 1 AND attempt_count <= 2 AND first_started_at IS NOT NULL AND last_started_at IS NOT NULL AND completed_at IS NULL AND failed_at IS NOT NULL AND order_id IS NULL AND invoice_id IS NULL AND order_number IS NULL AND response_version IS NULL AND response_snapshot IS NULL AND char_length(error_code) >= 1 AND char_length(error_code) <= 128 AND char_length(last_failure_stage) >= 1 AND char_length(last_failure_stage) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_fingerprint_version_check",
+          "type": "c",
+          "definition": "CHECK (fingerprint_version > 0)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_idempotency_hash_check",
+          "type": "c",
+          "definition": "CHECK (octet_length(idempotency_key_hash) = 32)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_invoice_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.invoices"
+        },
+        {
+          "name": "atomic_order_commands_last_failure_stage_check",
+          "type": "c",
+          "definition": "CHECK (last_failure_stage IS NULL OR char_length(last_failure_stage) >= 1 AND char_length(last_failure_stage) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_last_started_at_check",
+          "type": "c",
+          "definition": "CHECK (last_started_at IS NULL OR first_started_at IS NOT NULL AND last_started_at >= first_started_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_lease_expiry_check",
+          "type": "c",
+          "definition": "CHECK (lease_expires_at IS NULL OR last_started_at IS NOT NULL AND lease_expires_at > last_started_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_order_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.orders"
+        },
+        {
+          "name": "atomic_order_commands_order_number_check",
+          "type": "c",
+          "definition": "CHECK (order_number IS NULL OR char_length(order_number) >= 1 AND char_length(order_number) <= 64)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_processing_state_check",
+          "type": "c",
+          "definition": "CHECK (execution_status <> 'processing'::text OR lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL AND attempt_count >= 1 AND attempt_count <= 3 AND first_started_at IS NOT NULL AND last_started_at IS NOT NULL AND completed_at IS NULL AND failed_at IS NULL AND order_id IS NULL AND invoice_id IS NULL AND order_number IS NULL AND response_version IS NULL AND response_snapshot IS NULL AND error_code IS NULL AND error_detail IS NULL AND last_failure_stage IS NULL)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_request_fingerprint_check",
+          "type": "c",
+          "definition": "CHECK (octet_length(request_fingerprint) = 32)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_reserved_state_check",
+          "type": "c",
+          "definition": "CHECK (execution_status <> 'reserved'::text OR lease_owner IS NULL AND lease_expires_at IS NULL AND attempt_count = 0 AND first_started_at IS NULL AND last_started_at IS NULL AND completed_at IS NULL AND failed_at IS NULL AND order_id IS NULL AND invoice_id IS NULL AND order_number IS NULL AND response_version IS NULL AND response_snapshot IS NULL AND error_code IS NULL AND error_detail IS NULL AND last_failure_stage IS NULL)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_response_retention_check",
+          "type": "c",
+          "definition": "CHECK (response_retain_until IS NULL OR response_retain_until >= created_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_response_snapshot_check",
+          "type": "c",
+          "definition": "CHECK (response_snapshot IS NULL OR jsonb_typeof(response_snapshot) = 'object'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_response_version_check",
+          "type": "c",
+          "definition": "CHECK (response_version IS NULL OR char_length(response_version) >= 1 AND char_length(response_version) <= 64)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_retention_order_check",
+          "type": "c",
+          "definition": "CHECK (command_retain_until IS NULL OR response_retain_until IS NULL OR response_retain_until <= command_retain_until)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_scoped_idempotency_key",
+          "type": "u",
+          "definition": "UNIQUE (tenant_id, branch_id, command_type, idempotency_key_hash)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_succeeded_state_check",
+          "type": "c",
+          "definition": "CHECK (execution_status <> 'succeeded'::text OR lease_owner IS NULL AND lease_expires_at IS NULL AND attempt_count >= 1 AND attempt_count <= 3 AND first_started_at IS NOT NULL AND last_started_at IS NOT NULL AND completed_at IS NOT NULL AND failed_at IS NULL AND order_id IS NOT NULL AND invoice_id IS NOT NULL AND char_length(order_number) >= 1 AND char_length(order_number) <= 64 AND char_length(response_version) >= 1 AND char_length(response_version) <= 64 AND response_snapshot IS NOT NULL AND error_code IS NULL AND error_detail IS NULL AND last_failure_stage IS NULL)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_commands_tenant_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON UPDATE RESTRICT ON DELETE RESTRICT",
+          "validated": true,
+          "referencedObject": "public.tenants"
+        },
+        {
+          "name": "atomic_order_commands_updated_at_check",
+          "type": "c",
+          "definition": "CHECK (updated_at >= created_at)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_order_commands_actor_history_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_actor_history_idx ON public.atomic_order_commands USING btree (authenticated_actor_id, created_at DESC, id)"
+        },
+        {
+          "name": "atomic_order_commands_authorization_context_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_commands_authorization_context_key ON public.atomic_order_commands USING btree (authorization_context_id)"
+        },
+        {
+          "name": "atomic_order_commands_command_retention_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_command_retention_idx ON public.atomic_order_commands USING btree (command_retain_until, id)"
+        },
+        {
+          "name": "atomic_order_commands_invoice_lookup_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_invoice_lookup_idx ON public.atomic_order_commands USING btree (invoice_id) WHERE (invoice_id IS NOT NULL)"
+        },
+        {
+          "name": "atomic_order_commands_order_lookup_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_order_lookup_idx ON public.atomic_order_commands USING btree (order_id) WHERE (order_id IS NOT NULL)"
+        },
+        {
+          "name": "atomic_order_commands_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_commands_pkey ON public.atomic_order_commands USING btree (id)"
+        },
+        {
+          "name": "atomic_order_commands_processing_lease_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_processing_lease_idx ON public.atomic_order_commands USING btree (execution_status, lease_expires_at, id) WHERE (execution_status = 'processing'::text)"
+        },
+        {
+          "name": "atomic_order_commands_response_retention_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_response_retention_idx ON public.atomic_order_commands USING btree (response_retain_until, id) WHERE (response_retain_until IS NOT NULL)"
+        },
+        {
+          "name": "atomic_order_commands_retryable_recovery_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_retryable_recovery_idx ON public.atomic_order_commands USING btree (execution_status, failed_at, id) WHERE (execution_status = 'failed_retryable'::text)"
+        },
+        {
+          "name": "atomic_order_commands_scoped_idempotency_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_commands_scoped_idempotency_key ON public.atomic_order_commands USING btree (tenant_id, branch_id, command_type, idempotency_key_hash)"
+        },
+        {
+          "name": "atomic_order_commands_successful_completion_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_successful_completion_idx ON public.atomic_order_commands USING btree (completed_at, id) WHERE (execution_status = 'succeeded'::text)"
+        },
+        {
+          "name": "atomic_order_commands_tenant_branch_history_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_commands_tenant_branch_history_idx ON public.atomic_order_commands USING btree (tenant_id, branch_id, created_at DESC, id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-024",
+      "identity": "public.atomic_order_command_payloads",
+      "schema": "public",
+      "name": "atomic_order_command_payloads",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "payload_version",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "fingerprint_version",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "canonical_payload",
+          "type": "jsonb",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "request_fingerprint",
+          "type": "bytea",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "canonical_size_bytes",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        },
+        {
+          "name": "created_by_identity",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "retain_until",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "archive_reference",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "archive_hash",
+          "type": "bytea",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_order_command_payloads_archive_check",
+          "type": "c",
+          "definition": "CHECK (archived_at IS NULL AND archive_reference IS NULL AND archive_hash IS NULL OR archived_at IS NOT NULL AND archived_at >= created_at AND char_length(archive_reference) >= 1 AND char_length(archive_reference) <= 512 AND octet_length(archive_hash) = 32)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_canonical_size_binding_check",
+          "type": "c",
+          "definition": "CHECK (canonical_size_bytes = octet_length(convert_to(canonicalize_atomic_order_json_v1(canonical_payload), 'UTF8'::name)))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_command_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (command_id) REFERENCES atomic_order_commands(id) ON UPDATE RESTRICT ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+          "validated": true,
+          "referencedObject": "public.atomic_order_commands"
+        },
+        {
+          "name": "atomic_order_command_payloads_creator_check",
+          "type": "c",
+          "definition": "CHECK (char_length(created_by_identity) >= 1 AND char_length(created_by_identity) <= 128)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_fingerprint_check",
+          "type": "c",
+          "definition": "CHECK (octet_length(request_fingerprint) = 32)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_fingerprint_version_check",
+          "type": "c",
+          "definition": "CHECK (fingerprint_version = 'order-request-fingerprint-v1'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_payload_contract_check",
+          "type": "c",
+          "definition": "CHECK (canonical_payload ?& ARRAY['authenticated_actor_id'::text, 'branch_id'::text, 'command_type'::text, 'customer'::text, 'discount'::text, 'fingerprint_version'::text, 'fulfillment'::text, 'items'::text, 'metadata'::text, 'order'::text, 'payload_version'::text, 'payment'::text, 'pricing'::text, 'tenant_id'::text, 'vat'::text, 'versions'::text] AND (canonical_payload - ARRAY['authenticated_actor_id'::text, 'branch_id'::text, 'command_type'::text, 'customer'::text, 'discount'::text, 'fingerprint_version'::text, 'fulfillment'::text, 'items'::text, 'metadata'::text, 'order'::text, 'payload_version'::text, 'payment'::text, 'pricing'::text, 'tenant_id'::text, 'vat'::text, 'versions'::text]) = '{}'::jsonb AND (canonical_payload ->> 'payload_version'::text) = payload_version AND (canonical_payload ->> 'fingerprint_version'::text) = fingerprint_version AND (canonical_payload ->> 'command_type'::text) = 'order.create'::text AND jsonb_typeof(canonical_payload -> 'customer'::text) = 'object'::text AND jsonb_typeof(canonical_payload -> 'items'::text) = 'array'::text AND jsonb_array_length(canonical_payload -> 'items'::text) >= 1 AND jsonb_array_length(canonical_payload -> 'items'::text) <= 100 AND jsonb_typeof(canonical_payload -> 'pricing'::text) = 'object'::text AND jsonb_typeof(canonical_payload -> 'vat'::text) = 'object'::text AND jsonb_typeof(canonical_payload -> 'discount'::text) = 'object'::text AND jsonb_typeof(canonical_payload -> 'payment'::text) = 'object'::text AND jsonb_typeof(canonical_payload -> 'fulfillment'::text) = 'object'::text AND jsonb_typeof(canonical_payload -> 'order'::text) = 'object'::text AND jsonb_typeof(canonical_payload -> 'metadata'::text) = 'object'::text AND jsonb_typeof(canonical_payload -> 'versions'::text) = 'object'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_payload_type_check",
+          "type": "c",
+          "definition": "CHECK (jsonb_typeof(canonical_payload) = 'object'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_payload_version_check",
+          "type": "c",
+          "definition": "CHECK (payload_version = 'order-command-payload-v1'::text)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (command_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_retention_check",
+          "type": "c",
+          "definition": "CHECK (retain_until >= created_at)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_command_payloads_size_check",
+          "type": "c",
+          "definition": "CHECK (canonical_size_bytes >= 2 AND canonical_size_bytes <= 262144)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_order_command_payloads_fingerprint_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_command_payloads_fingerprint_idx ON public.atomic_order_command_payloads USING btree (request_fingerprint, command_id)"
+        },
+        {
+          "name": "atomic_order_command_payloads_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_command_payloads_pkey ON public.atomic_order_command_payloads USING btree (command_id)"
+        },
+        {
+          "name": "atomic_order_command_payloads_retention_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_command_payloads_retention_idx ON public.atomic_order_command_payloads USING btree (retain_until, command_id) WHERE (archived_at IS NULL)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-025",
+      "identity": "public.atomic_order_claims",
+      "schema": "public",
+      "name": "atomic_order_claims",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "claim_token",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "attempt_number",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "consumption_kind",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_order_claims_attempt_number_check",
+          "type": "c",
+          "definition": "CHECK (attempt_number >= 1 AND attempt_number <= 3)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_claims_check",
+          "type": "c",
+          "definition": "CHECK (expires_at = (issued_at + '00:05:00'::interval))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_claims_check1",
+          "type": "c",
+          "definition": "CHECK ((consumed_at IS NULL) = (consumption_kind IS NULL))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_claims_claim_token_key",
+          "type": "u",
+          "definition": "UNIQUE (claim_token)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_claims_command_id_attempt_number_key",
+          "type": "u",
+          "definition": "UNIQUE (command_id, attempt_number)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_claims_command_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (command_id) REFERENCES atomic_order_commands(id)",
+          "validated": true,
+          "referencedObject": "public.atomic_order_commands"
+        },
+        {
+          "name": "atomic_order_claims_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_order_claims_claim_token_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_claims_claim_token_key ON public.atomic_order_claims USING btree (claim_token)"
+        },
+        {
+          "name": "atomic_order_claims_command_id_attempt_number_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_claims_command_id_attempt_number_key ON public.atomic_order_claims USING btree (command_id, attempt_number)"
+        },
+        {
+          "name": "atomic_order_claims_one_active",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_claims_one_active ON public.atomic_order_claims USING btree (command_id) WHERE (consumed_at IS NULL)"
+        },
+        {
+          "name": "atomic_order_claims_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_claims_pkey ON public.atomic_order_claims USING btree (id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-026",
+      "identity": "public.atomic_order_retry_authorizations",
+      "schema": "public",
+      "name": "atomic_order_retry_authorizations",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "gen_random_uuid()"
+        },
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "prior_claim_token",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "evidence_digest",
+          "type": "bytea",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "next_attempt",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "(transaction_timestamp() + '00:02:00'::interval)"
+        },
+        {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "consumed_claim_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_order_retry_authorizations_command_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (command_id) REFERENCES atomic_order_commands(id)",
+          "validated": true,
+          "referencedObject": "public.atomic_order_commands"
+        },
+        {
+          "name": "atomic_order_retry_authorizations_command_id_next_attempt_key",
+          "type": "u",
+          "definition": "UNIQUE (command_id, next_attempt)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_retry_authorizations_consumed_claim_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (consumed_claim_id) REFERENCES atomic_order_claims(id)",
+          "validated": true,
+          "referencedObject": "public.atomic_order_claims"
+        },
+        {
+          "name": "atomic_order_retry_authorizations_evidence_digest_check",
+          "type": "c",
+          "definition": "CHECK (octet_length(evidence_digest) = 32)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_retry_authorizations_next_attempt_check",
+          "type": "c",
+          "definition": "CHECK (next_attempt >= 2 AND next_attempt <= 3)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_retry_authorizations_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_order_retry_authorizations_command_id_next_attempt_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_retry_authorizations_command_id_next_attempt_key ON public.atomic_order_retry_authorizations USING btree (command_id, next_attempt)"
+        },
+        {
+          "name": "atomic_order_retry_authorizations_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_retry_authorizations_pkey ON public.atomic_order_retry_authorizations USING btree (id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-027",
+      "identity": "public.atomic_order_business_links",
+      "schema": "public",
+      "name": "atomic_order_business_links",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_order_business_links_command_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (command_id) REFERENCES atomic_order_commands(id)",
+          "validated": true,
+          "referencedObject": "public.atomic_order_commands"
+        },
+        {
+          "name": "atomic_order_business_links_invoice_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (invoice_id) REFERENCES invoices(id)",
+          "validated": true,
+          "referencedObject": "public.invoices"
+        },
+        {
+          "name": "atomic_order_business_links_invoice_id_key",
+          "type": "u",
+          "definition": "UNIQUE (invoice_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_business_links_order_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (order_id) REFERENCES orders(id)",
+          "validated": true,
+          "referencedObject": "public.orders"
+        },
+        {
+          "name": "atomic_order_business_links_order_id_key",
+          "type": "u",
+          "definition": "UNIQUE (order_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_business_links_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (command_id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_order_business_links_invoice_id_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_business_links_invoice_id_key ON public.atomic_order_business_links USING btree (invoice_id)"
+        },
+        {
+          "name": "atomic_order_business_links_order_id_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_business_links_order_id_key ON public.atomic_order_business_links USING btree (order_id)"
+        },
+        {
+          "name": "atomic_order_business_links_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_business_links_pkey ON public.atomic_order_business_links USING btree (command_id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-028",
+      "identity": "public.atomic_order_line_links",
+      "schema": "public",
+      "name": "atomic_order_line_links",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "line_number",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "invoice_item_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "catalog_item_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "inventory_movement_id",
+          "type": "uuid",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "quantity",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_order_line_links_catalog_item_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (catalog_item_id) REFERENCES catalog_items(id)",
+          "validated": true,
+          "referencedObject": "public.catalog_items"
+        },
+        {
+          "name": "atomic_order_line_links_command_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (command_id) REFERENCES atomic_order_commands(id)",
+          "validated": true,
+          "referencedObject": "public.atomic_order_commands"
+        },
+        {
+          "name": "atomic_order_line_links_inventory_movement_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (inventory_movement_id) REFERENCES inventory_movements(id)",
+          "validated": true,
+          "referencedObject": "public.inventory_movements"
+        },
+        {
+          "name": "atomic_order_line_links_inventory_movement_id_key",
+          "type": "u",
+          "definition": "UNIQUE (inventory_movement_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_line_links_invoice_item_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (invoice_item_id) REFERENCES invoice_items(id)",
+          "validated": true,
+          "referencedObject": "public.invoice_items"
+        },
+        {
+          "name": "atomic_order_line_links_invoice_item_id_key",
+          "type": "u",
+          "definition": "UNIQUE (invoice_item_id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_line_links_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (command_id, line_number)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_line_links_quantity_check",
+          "type": "c",
+          "definition": "CHECK (quantity > 0)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_order_line_links_inventory_movement_id_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_line_links_inventory_movement_id_key ON public.atomic_order_line_links USING btree (inventory_movement_id)"
+        },
+        {
+          "name": "atomic_order_line_links_invoice_item_id_key",
+          "unique": true,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_line_links_invoice_item_id_key ON public.atomic_order_line_links USING btree (invoice_item_id)"
+        },
+        {
+          "name": "atomic_order_line_links_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_line_links_pkey ON public.atomic_order_line_links USING btree (command_id, line_number)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-029",
+      "identity": "public.atomic_order_audit",
+      "schema": "public",
+      "name": "atomic_order_audit",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "notNull": true,
+          "identity": "a",
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "event_code",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "attempt_number",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "public_error_code",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        },
+        {
+          "name": "metadata",
+          "type": "jsonb",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "'{}'::jsonb"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_order_audit_attempt_number_check",
+          "type": "c",
+          "definition": "CHECK (attempt_number >= 0 AND attempt_number <= 3)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_audit_command_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (command_id) REFERENCES atomic_order_commands(id)",
+          "validated": true,
+          "referencedObject": "public.atomic_order_commands"
+        },
+        {
+          "name": "atomic_order_audit_event_code_check",
+          "type": "c",
+          "definition": "CHECK (event_code = ANY (ARRAY['CLAIMED'::text, 'EXECUTION_STARTED'::text, 'SUCCEEDED'::text, 'FAILED'::text, 'RECONCILIATION_REQUIRED'::text, 'MANUAL_HOLD'::text, 'RETRY_AUTHORIZED'::text, 'RESOLVED_SUCCESS'::text, 'RESOLVED_FAILURE'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_audit_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_order_audit_command_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_audit_command_idx ON public.atomic_order_audit USING btree (command_id, id)"
+        },
+        {
+          "name": "atomic_order_audit_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_audit_pkey ON public.atomic_order_audit USING btree (id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-030",
+      "identity": "public.atomic_order_diagnostics",
+      "schema": "public",
+      "name": "atomic_order_diagnostics",
+      "owner": "afex_core_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "notNull": true,
+          "identity": "a",
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "attempt_number",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "failure_stage",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "diagnostic_class",
+          "type": "text",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "sqlstate_code",
+          "type": "text",
+          "notNull": false,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "transaction_timestamp()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "atomic_order_diagnostics_attempt_number_check",
+          "type": "c",
+          "definition": "CHECK (attempt_number >= 0 AND attempt_number <= 3)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_diagnostics_command_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (command_id) REFERENCES atomic_order_commands(id)",
+          "validated": true,
+          "referencedObject": "public.atomic_order_commands"
+        },
+        {
+          "name": "atomic_order_diagnostics_diagnostic_class_check",
+          "type": "c",
+          "definition": "CHECK (diagnostic_class = ANY (ARRAY['VALIDATION'::text, 'AUTHORIZATION'::text, 'CONFLICT'::text, 'INVENTORY'::text, 'PERSISTENCE'::text, 'UNKNOWN'::text]))",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_diagnostics_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)",
+          "validated": true,
+          "referencedObject": null
+        },
+        {
+          "name": "atomic_order_diagnostics_sqlstate_code_check",
+          "type": "c",
+          "definition": "CHECK (sqlstate_code IS NULL OR length(sqlstate_code) = 5)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "atomic_order_diagnostics_command_idx",
+          "unique": false,
+          "primary": false,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE INDEX atomic_order_diagnostics_command_idx ON public.atomic_order_diagnostics USING btree (command_id, id)"
+        },
+        {
+          "name": "atomic_order_diagnostics_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX atomic_order_diagnostics_pkey ON public.atomic_order_diagnostics USING btree (id)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "OBJ-031",
+      "identity": "public.order_number_sequences",
+      "schema": "public",
+      "name": "order_number_sequences",
+      "owner": "postgres",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "branch_id",
+          "type": "uuid",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "sequence_month",
+          "type": "date",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "last_sequence",
+          "type": "integer",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "0"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "notNull": true,
+          "identity": null,
+          "generated": null,
+          "defaultExpression": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "order_number_sequences_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (branch_id) REFERENCES branches(id) ON UPDATE CASCADE ON DELETE CASCADE",
+          "validated": true,
+          "referencedObject": "public.branches"
+        },
+        {
+          "name": "order_number_sequences_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (tenant_id, branch_id, sequence_month)",
+          "validated": true,
+          "referencedObject": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "order_number_sequences_pkey",
+          "unique": true,
+          "primary": true,
+          "valid": true,
+          "ready": true,
+          "definition": "CREATE UNIQUE INDEX order_number_sequences_pkey ON public.order_number_sequences USING btree (tenant_id, branch_id, sequence_month)"
+        }
+      ],
+      "triggers": [],
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+      "blockers": []
+    }
+  ],
+  "blockers": [
+    "pg_depend exposes only catalog-declared dependencies for PL/pgSQL; function-body dependency closure still requires static source review.",
+    "No raw business rows were inspected."
+  ]
+}
+

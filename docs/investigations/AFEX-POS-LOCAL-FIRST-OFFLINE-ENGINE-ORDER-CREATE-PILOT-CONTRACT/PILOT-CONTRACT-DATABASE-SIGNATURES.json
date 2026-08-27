@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 4,
+  "installer": {"currentUser":"supabase_admin","sessionUser":"supabase_admin","setRole":false},
+  "contracts": [
+    {"id":"DBSIG-ORDER-ACQUIRE-001","identity":"afex_offline_authority.acquire_offline_order_create_v2(uuid,uuid,uuid,text,text,integer,uuid,text,uuid,uuid,uuid,uuid,uuid,bigint,bigint,bigint,uuid,bigint,text,uuid,text,text,jsonb,jsonb,jsonb,text,jsonb,text,text,text,timestamptz,timestamptz,text)","file":"08D-ATOMIC-ORDER-CREATE-ACQUISITION.sql","authorityFirst":true,"coreV2SameTransaction":true},
+    {"id":"DBSIG-RESOLVE-001","identity":"afex_offline_authority.resolve_offline_order_create_authority_batch_v2(uuid,uuid,uuid,jsonb)","file":"08C-TOTAL-RESOLVER-AND-INVENTORY-READER.sql","maximumClaims":1000,"oneResultPerServerOrdinal":true},
+    {"id":"DBSIG-RECEIPT-001","identity":"afex_offline_authority.lookup_offline_order_create_receipts_v2(uuid,uuid,uuid,jsonb)","file":"11-IDEMPOTENCY-RECEIPT-AND-EFFECT-LEDGERS.sql","freshAuthorityBeforeRead":true,"maximumClaims":1000},
+    {"id":"DBSIG-INVENTORY-001","identity":"afex_offline_authority.read_branch_inventory_frontier_v2(uuid,uuid,uuid,jsonb,uuid[])","file":"08C-TOTAL-RESOLVER-AND-INVENTORY-READER.sql","exactUniqueItemSet":true,"maximumItems":200}
+  ],
+  "runtimeRole":"afex_offline_acquisition_runtime",
+  "provisioningRuntimeRole":"afex_offline_provisioning_runtime",
+  "provisioningContracts": {
+    "deviceLifecycle": ["register_offline_device_v1","activate_offline_device_v1","replace_offline_device_v1","transition_offline_device_v1","read_current_offline_device_authority_v1"],
+    "employeeSelectionLifecycle": ["enroll_offline_employee_v1","replace_offline_employee_pin_verifier_v1","replace_offline_employee_permissions_v1","transition_offline_employee_v1","read_current_offline_employee_authority_v1"],
+    "inventoryPublication": ["publish_branch_inventory_snapshot_v1"],
+    "accountBootstrap": ["publish_offline_account_bootstrap_v1","explicit_logout_offline_account_v1","revoke_offline_account_bootstrap_v1","read_current_offline_bootstrap_authority_v1"],
+    "exactFunctionCount": 15,
+    "activation": false
+  },
+  "forbiddenDirectExecute":["PUBLIC","anon","authenticated","service_role"],
+  "privateValidators":["validate_offline_provenance_v2","validate_payment_attestation_v2","validate_inventory_frontier_v2","assert_offline_core_order_mapping_v2"],
+  "sqlExecuted":0,
+  "businessCallerImports":0
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "evidenceDate": "2026-08-25",
+  "roles": [
+    {"role":"PUBLIC","kind":"pseudo-role","login":false,"inherit":null,"bypassRls":false,"finding":"Receives public-schema USAGE and historical default/object grants; revoke explicitly on restricted domains.","confidence":"PROVEN"},
+    {"role":"anon","kind":"api","login":false,"inherit":true,"superuser":false,"createRole":false,"bypassRls":false,"memberOf":[],"finding":"Direct Data API role; historical table/function reachability is broad.","confidence":"PROVEN"},
+    {"role":"authenticated","kind":"api","login":false,"inherit":true,"superuser":false,"createRole":false,"bypassRls":false,"memberOf":[],"finding":"Signed-in Data API role; broad permissive policies defeat tenant policy pairs on critical legacy tables.","confidence":"PROVEN"},
+    {"role":"authenticator","kind":"gateway","login":true,"inherit":false,"superuser":false,"createRole":false,"bypassRls":false,"memberOf":["anon","authenticated","service_role"],"finding":"PostgREST role-switch gateway; NOINHERIT limits passive privilege inheritance.","confidence":"PROVEN"},
+    {"role":"service_role","kind":"trusted-server","login":false,"inherit":true,"superuser":false,"createRole":false,"bypassRls":true,"memberOf":[],"finding":"Bypasses RLS and must be server-only; reaches narrow modern RPCs and broad legacy objects.","confidence":"PROVEN"},
+    {"role":"postgres","kind":"installer-attestation","login":true,"inherit":true,"superuser":false,"createRole":true,"createDatabase":true,"replication":true,"bypassRls":true,"memberOf":["anon","authenticated","authenticator","service_role","pg_create_subscription","pg_monitor","pg_read_all_data","pg_signal_backend","supabase_privileged_role"],"finding":"Write-capable owner/installer principal; Production inspection was transaction-read-only only.","confidence":"PROVEN"},
+    {"role":"supabase_admin","kind":"platform-admin","login":true,"inherit":true,"superuser":true,"createRole":true,"createDatabase":true,"replication":true,"bypassRls":true,"memberOf":[],"finding":"Platform bootstrap/admin; not an application runtime role.","confidence":"PROVEN"},
+    {"role":"supabase_auth_admin","kind":"auth-owner-runtime","login":true,"inherit":false,"superuser":false,"createRole":true,"bypassRls":false,"memberOf":[],"finding":"Owns auth.users/auth.sessions and has auth-schema CREATE/USAGE.","confidence":"PROVEN"},
+    {"role":"afex_core_owner","kind":"protected-owner","login":false,"inherit":false,"superuser":false,"bypassRls":false,"finding":"Owns Core atomic relations; temporary CREATE was revoked after installation.","confidence":"PROVEN"},
+    {"role":"afex_function_owner","kind":"protected-function-owner","login":false,"inherit":false,"superuser":false,"bypassRls":false,"finding":"Owns Core/customer entry points; receives explicit table/policy access and private-schema USAGE.","confidence":"PROVEN"},
+    {"role":"afex_core_runtime","kind":"internal-runtime","login":false,"inherit":false,"superuser":false,"bypassRls":false,"finding":"Only internal acquisition function entry; service_role cannot directly enter private schema.","confidence":"PROVEN"},
+    {"role":"afex_reconciliation_authority","kind":"bounded-reconciliation","login":false,"inherit":false,"superuser":false,"bypassRls":false,"finding":"Only reconciliation mutation functions; not granted to service_role.","confidence":"PROVEN"},
+    {"role":"afex_pos_session_owner","kind":"protected-owner","login":false,"inherit":false,"superuser":false,"bypassRls":false,"finding":"Owns POS authority schema/tables/functions; public-schema CREATE revoked after install.","confidence":"PROVEN"},
+    {"role":"afex_pos_session_maintenance","kind":"bounded-maintenance","login":false,"inherit":false,"superuser":false,"bypassRls":false,"finding":"Only cleanup function execution; service_role is explicitly denied cleanup.","confidence":"PROVEN"}
+  ],
+  "boundedMemberships": [
+    {"member":"authenticator","role":"anon","options":"captured membership; option columns unavailable in frozen export","confidence":"PROVEN"},
+    {"member":"authenticator","role":"authenticated","options":"captured membership; option columns unavailable in frozen export","confidence":"PROVEN"},
+    {"member":"authenticator","role":"service_role","options":"captured membership; NOINHERIT gateway","confidence":"PROVEN"},
+    {"member":"postgres","role":"afex_function_owner","options":"SET TRUE, INHERIT FALSE required by matched migration/install topology","confidence":"CORROBORATED"},
+    {"member":"postgres","role":"afex_core_owner","options":"SET TRUE, INHERIT FALSE required by Core install topology","confidence":"CORROBORATED"}
+  ],
+  "unknowns": [
+    "The approved final attestation does not enumerate current pg_auth_members option columns for every AFEX role edge.",
+    "No Offline device or employee authorization role exists; browser-local identity is not a database role."
+  ]
+}

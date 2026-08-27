@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 4,
+  "activation":false,
+  "flows":[
+    {"order":1,"stage":"verified Online bootstrap","authority":"existing Auth account plus tenant branch POS actor managed device employee roster and trusted inventory snapshot","network":true,"requiredBeforeOffline":true},
+    {"order":2,"stage":"offline employee selection","authority":"PIN verifies only one pre-enrolled employee under the retained account/device bootstrap; device-bound encryption is independent","network":false},
+    {"order":3,"stage":"retention","authority":"encrypted inaccessible retention after explicit logout; immutable account/bootstrap/employee/device origin hashes","webSessionDependency":false},
+    {"order":4,"stage":"trusted server","authority":"fresh requireVerifiedAuthContext and POS actor session are mandatory for sync or same-account recovery","browserConstructible":false},
+    {"order":5,"stage":"database revalidation","authority":"active same-account bootstrap profile POS scope device employee key and generation rows all revalidated","databaseVerifiesJwtSignature":false},
+    {"order":6,"stage":"exact validators","authority":"payment inventory full Offline/Core mapping and idempotency equality","partialComparison":false},
+    {"order":7,"stage":"Core V2 acquisition","authority":"existing Core V2 in same transaction","parallelBusinessEngine":false},
+    {"order":8,"stage":"resolver frontier receipt","authority":"fresh uploader and immutable origin; receipt read occurs last","oneTypedResultPerOrdinal":true}
+  ],
+  "currentOnlinePath":{"changed":false,"businessImports":0,"activeDatabaseCalls":0}
+}
