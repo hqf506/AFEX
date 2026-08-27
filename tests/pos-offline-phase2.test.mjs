@@ -139,7 +139,7 @@ async function withServiceWorkerBrowser(run) {
   }
 }
 
-test('authority gate B keeps every sensitive Phase 2 capability locked', async () => {
+test('approved pre-PIN dataset authority enables encrypted POS data but never business dispatch', async () => {
   await withBrowser(async (page) => {
     const result = await page.evaluate(async () => {
       const phase2 = await import('/phase2.js')
@@ -152,27 +152,22 @@ test('authority gate B keeps every sensitive Phase 2 capability locked', async (
       }
     })
     assert.deepEqual(result.authority, {
-    classification: 'B',
-    persistentUnwrapAuthority: false,
-    prePinSensitiveIngestion: false,
-    reason: 'PERSISTENT_UNWRAP_AUTHORITY_REQUIRED',
+    classification: 'APPROVED_ORDER_CREATE_PILOT',
+    persistentUnwrapAuthority: true,
+    prePinSensitiveIngestion: true,
+    reason: 'SERVER_ATTESTED_MANAGED_DEVICE_AUTHORITY',
     })
     assert.deepEqual(result.capabilities, {
-    offlineShell: false,
-    encryptedDatasetStore: false,
-    datasetBootstrap: false,
-    catalogReads: false,
+    offlineShell: true,
+    encryptedDatasetStore: true,
+    datasetBootstrap: true,
+    catalogReads: true,
     customerReads: false,
     orderInvoiceReads: false,
     mediaCache: false,
     businessMutationDispatch: false,
     })
-    assert.deepEqual(result.preparation, {
-    state: 'locked',
-    classification: 'PERSISTENT_UNWRAP_AUTHORITY_REQUIRED',
-    requestsStarted: 0,
-    plaintextStored: false,
-    })
+    assert.equal(result.preparation.plaintextStored, false)
     assert.equal(result.noDispatch, true)
   })
 })
@@ -877,7 +872,7 @@ test('service worker caches only AFEX shell/static assets and never authenticate
     ),
     readFile(phase2Path, 'utf8'),
   ])
-  assert.match(worker, /afex-pos-shell-v1/u)
+  assert.match(worker, /afex-pos-shell-v2/u)
   assert.match(worker, /url\.pathname\.startsWith\('\/api\/'\)/u)
   assert.match(worker, /request\.method !== 'GET'/u)
   assert.match(worker, /url\.pathname\.startsWith\('\/_next\/static\/'\)/u)
@@ -897,7 +892,7 @@ test('service worker caches only AFEX shell/static assets and never authenticate
   assert.doesNotMatch(phase2Source, /businessMutationDispatch:\s*true/u)
 })
 
-test('real service worker preserves compatible caches and serves the offline lock shell', async () => {
+test('real service worker removes obsolete AFEX caches and serves the offline lock shell', async () => {
   await withServiceWorkerBrowser(async ({ disconnect, page, origin }) => {
     await page.evaluate(async () => {
       await caches.open('afex-pos-shell-v0')
@@ -926,8 +921,8 @@ test('real service worker preserves compatible caches and serves the offline loc
       }
       return { names, requests }
     })
-    assert.ok(cacheState.names.includes('afex-pos-shell-v0'))
-    assert.ok(cacheState.names.includes('afex-pos-shell-v1'))
+    assert.ok(!cacheState.names.includes('afex-pos-shell-v0'))
+    assert.ok(cacheState.names.includes('afex-pos-shell-v2'))
     assert.ok(cacheState.names.includes('unrelated-application-cache'))
     assert.ok(!cacheState.names.includes('afex-pos-shell-obsolete'))
     assert.ok(
@@ -1033,7 +1028,7 @@ test('real Chromium kill switch removes only the AFEX worker and owned caches', 
   })
 })
 
-test('production source has no route integration or business mutation enablement', async () => {
+test('production source enables encrypted POS preparation while keeping Phase 2 mutation dispatch disabled', async () => {
   const [phase1Source, phase2Source, shellLayout] = await Promise.all([
     readFile(phase1Path, 'utf8'),
     readFile(phase2Path, 'utf8'),
@@ -1042,10 +1037,10 @@ test('production source has no route integration or business mutation enablement
       'utf8'
     ),
   ])
-  assert.match(phase1Source, /persistentUnwrapAuthority:\s*false/u)
+  assert.match(phase1Source, /persistentUnwrapAuthority:\s*true/u)
   assert.match(phase1Source, /businessCommandDispatch:\s*false/u)
-  assert.match(phase2Source, /encryptedDatasetStore:\s*false/u)
-  assert.match(phase2Source, /datasetBootstrap:\s*false/u)
+  assert.match(phase2Source, /encryptedDatasetStore:\s*true/u)
+  assert.match(phase2Source, /datasetBootstrap:\s*true/u)
   assert.match(phase2Source, /businessMutationDispatch:\s*false/u)
   assert.match(shellLayout, /PosOfflineShellRegistration/u)
   assert.doesNotMatch(shellLayout, /Phase2DatasetRepository/u)

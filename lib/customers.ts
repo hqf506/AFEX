@@ -6,6 +6,7 @@ export type CustomerListItem = {
 
 export type SelectedCustomerProfile = {
   id: string
+  recordVersion: number | null
   customerNumber: string | null
   name: string
   phone: string
@@ -22,6 +23,7 @@ export type SelectedCustomerProfile = {
 
 export type CustomerProfileBaseSource = {
   id?: unknown
+  record_version?: unknown
   customer_code?: unknown
   name?: unknown
   phone?: unknown
@@ -58,6 +60,12 @@ export function buildSelectedCustomerProfile(
 
   return {
     id,
+    recordVersion:
+      typeof customer.record_version === 'number' &&
+      Number.isSafeInteger(customer.record_version) &&
+      customer.record_version >= 1
+        ? customer.record_version
+        : null,
     customerNumber: optionalCustomerProfileText(customer.customer_code),
     name,
     phone,
@@ -102,6 +110,10 @@ export function isSelectedCustomerProfile(
   return (
     typeof profile.id === 'string' &&
     Boolean(profile.id) &&
+    (profile.recordVersion === null ||
+      (typeof profile.recordVersion === 'number' &&
+        Number.isSafeInteger(profile.recordVersion) &&
+        profile.recordVersion >= 1)) &&
     typeof profile.name === 'string' &&
     Boolean(profile.name) &&
     typeof profile.phone === 'string' &&

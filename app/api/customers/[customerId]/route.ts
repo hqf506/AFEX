@@ -4,6 +4,7 @@ import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
 import {
   buildSelectedCustomerProfile,
+  normalizeSaudiCustomerPhone,
   type CustomerProfileBaseSource,
 } from '@/lib/customers'
 import { applyTenantFilter } from '@/lib/tenant-filter'
@@ -126,6 +127,46 @@ export async function GET(
       )
     }
 
+    const normalizedPhone = normalizeSaudiCustomerPhone(
+      customerResult.data.display_phone || customerResult.data.phone
+    )
+    let recordVersion: number | null = null
+    if (normalizedPhone) {
+      const versionResult = await auth.supabase.rpc(
+        'lookup_customer_phone_identity_v1',
+        {
+          p_tenant_id: tenantId,
+          p_normalized_phone: normalizedPhone,
+          p_branch_id: null,
+        }
+      )
+      const versionRow = Array.isArray(versionResult.data)
+        ? versionResult.data.find(
+            (candidate) =>
+              candidate &&
+              typeof candidate === 'object' &&
+              'customer_id' in candidate &&
+              candidate.customer_id === customerId
+          )
+        : null
+      const numericVersion = Number(
+        versionRow &&
+          typeof versionRow === 'object' &&
+          'record_version' in versionRow
+          ? versionRow.record_version
+          : NaN
+      )
+      if (Number.isSafeInteger(numericVersion) && numericVersion >= 1) {
+        recordVersion = numericVersion
+      } else if (versionResult.error) {
+        logProfileFailure({
+          stage: 'customer',
+          code: versionResult.error.code,
+          correlationId: auth.context.correlationId,
+        })
+      }
+    }
+
     let activityQuery = auth.supabase
       .from('invoices')
       .select(
@@ -194,7 +235,10 @@ export async function GET(
     }
 
     const profile = buildSelectedCustomerProfile(
-      customerResult.data as CustomerProfileBaseSource,
+      {
+        ...(customerResult.data as CustomerProfileBaseSource),
+        record_version: recordVersion,
+      },
       { visitCount, totalSpending, lastOrderNumber, lastOrderAt }
     )
 

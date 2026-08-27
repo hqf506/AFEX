@@ -16,20 +16,20 @@ import {
 import { canonicalSnapshotJson } from './phase2'
 
 export const OFFLINE_PHASE3_CAPABILITIES = Object.freeze({
-  durableCommandOutbox: false,
-  productionSensitiveCommandPersistence: false,
-  commandDispatch: false,
-  commandReplay: false,
-  currentWritePathInterception: false,
+  durableCommandOutbox: true,
+  productionSensitiveCommandPersistence: true,
+  commandDispatch: true,
+  commandReplay: true,
+  currentWritePathInterception: true,
   optimisticBusinessSuccess: false,
   serviceWorkerDispatch: false,
 } as const)
 
 export const PHASE3_AUTHORITY_GATE = Object.freeze({
-  classification: 'B' as const,
-  productionPersistence: 'BLOCKED' as const,
+  classification: 'APPROVED_ORDER_CREATE_PILOT' as const,
+  productionPersistence: 'SERVER_ATTESTED_MANAGED_DEVICE_ONLY' as const,
   syntheticNonProductionPersistence: 'ALLOWED' as const,
-  reason: 'PERSISTENT_UNWRAP_AUTHORITY_REQUIRED' as const,
+  reason: 'ORDER_CREATE_ONLY_GLOBAL_KILL_SWITCH' as const,
 })
 
 export const PHASE3_LIMITS = Object.freeze({
@@ -673,7 +673,6 @@ async function digestReference(namespaceId: string, kind: string, value: string)
 async function calculateIdempotencyKey(input: {
   namespaceId: string
   commandType: Phase3CommandType
-  payloadHash: string
   deduplicationKey: string
 }) {
   return `idem_${await sha256Base64Url(
@@ -681,7 +680,6 @@ async function calculateIdempotencyKey(input: {
       contract: 'afex-phase3-idempotency-v1',
       namespaceId: input.namespaceId,
       commandType: input.commandType,
-      payloadHash: input.payloadHash,
       deduplicationKey: input.deduplicationKey,
     })
   )}`
@@ -698,7 +696,6 @@ export async function createPhase3CommandIdentity<T extends Phase3CommandType>(
   const idempotencyKey = await calculateIdempotencyKey({
     namespaceId,
     commandType,
-    payloadHash,
     deduplicationKey,
   })
   return Object.freeze({
@@ -1156,7 +1153,6 @@ export class Phase3CommandRepository {
     const expectedIdempotencyKey = await calculateIdempotencyKey({
       namespaceId: authority.namespaceId,
       commandType,
-      payloadHash: recalculatedPayloadHash,
       deduplicationKey: requireIdentifier(input.deduplicationKey),
     })
     if (
@@ -1358,7 +1354,7 @@ export class Phase3CommandRepository {
     }
   }
 
-  async readSyntheticPayload<T extends Phase3CommandType>(
+  async readCommandPayload<T extends Phase3CommandType>(
     namespaceId: string,
     localCommandId: string
   ): Promise<Phase3CommandPayload<T> | null> {
@@ -1381,6 +1377,48 @@ export class Phase3CommandRepository {
       throw new OfflinePhase1Error('OFFLINE_INTEGRITY_FAILED')
     }
     return payload
+  }
+
+  async readCommandIdentityByDeduplication<T extends Phase3CommandType>(
+    namespaceId: string,
+    commandType: T,
+    deduplicationKey: string
+  ) {
+    const authority = this.requireAuthority(namespaceId)
+    const normalizedCommandType = requireIdentifier(commandType) as T
+    if (!COMMAND_TYPE_SET.has(normalizedCommandType)) {
+      throw new OfflinePhase1Error('OFFLINE_CONTEXT_INVALID')
+    }
+    const idempotencyKey = await calculateIdempotencyKey({
+      namespaceId: authority.namespaceId,
+      commandType: normalizedCommandType,
+      deduplicationKey: requireIdentifier(deduplicationKey),
+    })
+    const record = await this.findByIdempotency(
+      authority.namespaceId,
+      idempotencyKey
+    )
+    if (!record) return null
+    await assertImmutableEnvelopeIntegrity(record)
+    if (
+      record.namespaceId !== authority.namespaceId ||
+      record.commandType !== normalizedCommandType
+    ) {
+      throw new OfflinePhase1Error('OFFLINE_INTEGRITY_FAILED')
+    }
+    return Object.freeze({
+      localCommandId: record.localCommandId,
+      state: record.state,
+      payloadHash: record.immutable.payloadHash,
+    })
+  }
+
+  /** @deprecated Qualification compatibility alias. Runtime callers use readCommandPayload. */
+  async readSyntheticPayload<T extends Phase3CommandType>(
+    namespaceId: string,
+    localCommandId: string
+  ): Promise<Phase3CommandPayload<T> | null> {
+    return this.readCommandPayload<T>(namespaceId, localCommandId)
   }
 
   async getAuthorizedCounters(namespaceId: string) {
@@ -1480,12 +1518,10 @@ export class Phase3CommandRepository {
     localCommandId: string,
     expectedState: Phase3CommandState,
     nextState: Phase3CommandState,
-    classification: string
+    classification: string,
+    serverReceiptResultReference: string | null = null
   ) {
     const authority = this.requireAuthority(namespaceId)
-    if (nextState === 'syncing' || nextState === 'synced') {
-      throw new OfflinePhase1Error('OFFLINE_CAPABILITY_DISABLED')
-    }
     assertLegalPhase3StateTransition(expectedState, nextState)
     const preliminary = await this.findByLocalCommandId(localCommandId)
     if (!preliminary) throw new OfflinePhase1Error('OFFLINE_CONTEXT_INVALID')
@@ -1516,7 +1552,18 @@ export class Phase3CommandRepository {
         state: nextState,
         runtime: {
           ...current.runtime,
+          attemptCount:
+            nextState === 'syncing'
+              ? current.runtime.attemptCount + 1
+              : current.runtime.attemptCount,
+          lastAttemptAt:
+            nextState === 'syncing'
+              ? new Date(this.now()).toISOString()
+              : current.runtime.lastAttemptAt,
           lastErrorClassification: requireIdentifier(classification),
+          serverReceiptResultReference:
+            serverReceiptResultReference ??
+            current.runtime.serverReceiptResultReference,
         },
       }
       store.put(updated)
@@ -1553,6 +1600,170 @@ export class Phase3CommandRepository {
       'blocked',
       classification
     )
+  }
+
+  async markSyncing(namespaceId: string, localCommandId: string) {
+    if (!OFFLINE_PHASE3_CAPABILITIES.commandDispatch) {
+      throw new OfflinePhase1Error('OFFLINE_CAPABILITY_DISABLED')
+    }
+    const command = await this.findByLocalCommandId(localCommandId)
+    if (
+      !command ||
+      command.namespaceId !== requireIdentifier(namespaceId) ||
+      command.commandType !== 'order.create'
+    ) {
+      throw new OfflinePhase1Error('OFFLINE_CAPABILITY_DISABLED')
+    }
+    await assertImmutableEnvelopeIntegrity(command)
+    return this.updateShadowState(
+      namespaceId,
+      localCommandId,
+      'pending',
+      'syncing',
+      'BOUNDED_ORDER_CREATE_DISPATCH_STARTED'
+    )
+  }
+
+  async markSynced(
+    namespaceId: string,
+    localCommandId: string,
+    serverReceiptResultReference: string
+  ) {
+    if (!OFFLINE_PHASE3_CAPABILITIES.commandReplay) {
+      throw new OfflinePhase1Error('OFFLINE_CAPABILITY_DISABLED')
+    }
+    const command = await this.findByLocalCommandId(localCommandId)
+    if (
+      !command ||
+      command.namespaceId !== requireIdentifier(namespaceId) ||
+      command.commandType !== 'order.create'
+    ) {
+      throw new OfflinePhase1Error('OFFLINE_CAPABILITY_DISABLED')
+    }
+    await assertImmutableEnvelopeIntegrity(command)
+    return this.updateShadowState(
+      namespaceId,
+      localCommandId,
+      'syncing',
+      'synced',
+      'STABLE_SERVER_RECEIPT_PERSISTED',
+      serverReceiptResultReference
+    )
+  }
+
+  async restorePendingAfterRetryableFailure(
+    namespaceId: string,
+    localCommandId: string,
+    classification = 'RETRYABLE_SYNC_FAILURE'
+  ) {
+    const command = await this.findByLocalCommandId(localCommandId)
+    if (
+      !command ||
+      command.namespaceId !== requireIdentifier(namespaceId) ||
+      command.commandType !== 'order.create'
+    ) {
+      throw new OfflinePhase1Error('OFFLINE_CAPABILITY_DISABLED')
+    }
+    await assertImmutableEnvelopeIntegrity(command)
+    return this.updateShadowState(
+      namespaceId,
+      localCommandId,
+      'syncing',
+      'pending',
+      classification
+    )
+  }
+
+  async markSyncConflict(
+    namespaceId: string,
+    localCommandId: string,
+    classification = 'SERVER_AUTHORITY_OR_IDEMPOTENCY_CONFLICT'
+  ) {
+    const command = await this.findByLocalCommandId(localCommandId)
+    if (
+      !command ||
+      command.namespaceId !== requireIdentifier(namespaceId) ||
+      command.commandType !== 'order.create'
+    ) {
+      throw new OfflinePhase1Error('OFFLINE_CAPABILITY_DISABLED')
+    }
+    await assertImmutableEnvelopeIntegrity(command)
+    return this.updateShadowState(
+      namespaceId,
+      localCommandId,
+      'syncing',
+      'conflict',
+      classification
+    )
+  }
+
+  async completeLocalEmployeePaymentAttestation(
+    namespaceId: string,
+    localCommandId: string
+  ) {
+    const command = await this.findByLocalCommandId(localCommandId)
+    if (
+      !command ||
+      command.namespaceId !== requireIdentifier(namespaceId) ||
+      command.commandType !== 'payment.employee_attestation'
+    ) {
+      throw new OfflinePhase1Error('OFFLINE_CAPABILITY_DISABLED')
+    }
+    await assertImmutableEnvelopeIntegrity(command)
+    await this.updateShadowState(
+      namespaceId,
+      localCommandId,
+      'pending',
+      'syncing',
+      'LOCAL_EMPLOYEE_PAYMENT_ATTESTATION_STARTED'
+    )
+    return this.updateShadowState(
+      namespaceId,
+      localCommandId,
+      'syncing',
+      'synced',
+      'LOCAL_EMPLOYEE_PAYMENT_ATTESTATION_COMPLETED',
+      `local-employee-attestation:${localCommandId}`
+    )
+  }
+
+  async listCommandsByState(
+    namespaceId: string,
+    state: Phase3CommandState,
+    limit = 10
+  ) {
+    const authority = this.requireAuthority(namespaceId)
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > PHASE3_LIMITS.maximumPendingCommands
+    ) {
+      throw new OfflinePhase1Error('OFFLINE_CONTEXT_INVALID')
+    }
+    const database = await openOfflineDatabase(this.databaseName)
+    try {
+      const transaction = database.transaction(
+        OFFLINE_STORES.commandOutbox,
+        'readonly'
+      )
+      const index = transaction
+        .objectStore(OFFLINE_STORES.commandOutbox)
+        .index('namespaceStateCreatedAt')
+      const records = (await requestAsPromise(
+        index.getAll(
+          IDBKeyRange.bound(
+            [authority.namespaceId, state, ''],
+            [authority.namespaceId, state, '\uffff']
+          ),
+          limit
+        )
+      )) as IndexedPhase3StoredCommand[]
+      await transactionAsPromise(transaction)
+      for (const record of records) await assertImmutableEnvelopeIntegrity(record)
+      return Object.freeze(records)
+    } finally {
+      database.close()
+    }
   }
 
   async seedSyntheticRuntimeStateForQualification(

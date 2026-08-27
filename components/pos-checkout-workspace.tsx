@@ -41,6 +41,9 @@ function paymentHint(method: PosPaymentMethod) {
   if (method === 'mada') return 'مدى - شبكة الدفع المحلية'
   if (method === 'cash') return 'أدخل المبلغ المستلم'
   if (method === 'visa') return 'بطاقة ائتمانية'
+  if (method === 'card') return 'بطاقة دفع'
+  if (method === 'bank_transfer') return 'تحويل بنكي مؤكد من الموظف'
+  if (method === 'transfer') return 'تحويل مؤكد من الموظف'
   return 'تحصيل عند الاستلام'
 }
 
@@ -48,6 +51,9 @@ function selectedPaymentCopy(method: PosPaymentMethod) {
   if (method === 'mada') return 'سيتم الدفع عبر شبكة مدى'
   if (method === 'visa') return 'سيتم الدفع عبر بطاقة فيزا'
   if (method === 'cash') return 'أدخل المبلغ المستلم لحساب الباقي للعميل'
+  if (method === 'card') return 'سيتم تسجيل الدفع بالبطاقة'
+  if (method === 'bank_transfer') return 'سيتم تسجيل التحويل البنكي بإقرار الموظف'
+  if (method === 'transfer') return 'سيتم تسجيل التحويل بإقرار الموظف'
   return 'سيتم تسجيل المبلغ للتحصيل عند الاستلام'
 }
 
@@ -69,7 +75,7 @@ function Icon({ name }: { name: IconName }) {
 }
 
 function PaymentIcon({ method }: { method: PosPaymentMethod }) {
-  return <Icon name={method === 'cash' ? 'cash' : method === 'cod' ? 'delivery' : 'card'} />
+  return <Icon name={method === 'cash' ? 'cash' : method === 'cod' || method === 'on_delivery' ? 'delivery' : 'card'} />
 }
 
 function SummaryContents(props: Props) {

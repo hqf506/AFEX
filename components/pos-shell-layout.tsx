@@ -12,15 +12,18 @@ import { PosOfflineSyncStatus } from '@/components/pos-offline-sync-status'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { canAccessPos } from '@/lib/permissions'
 import {
+  hasPosLoggedOut,
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
 import { syncPosOfflineDrafts } from '@/lib/pos-offline-draft'
 import {
   initializeOfflinePhase1Runtime,
+  hasOfflineBootstrapReadyMarker,
   lockOfflineRuntime,
   OFFLINE_CAPABILITIES,
 } from '@/lib/offline/phase1'
+import { restorePreparedOfflineRuntime } from '@/lib/offline/complete-runtime'
 
 type PosShellLayoutProps = {
   children: React.ReactNode
@@ -87,24 +90,24 @@ export function PosShellLayout({ children }: PosShellLayoutProps) {
   const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
   const isPosEmployeePinPage =
     pathname?.startsWith('/pos/employee-pin') ?? false
+  const isPosOfflinePreparationPage =
+    pathname?.startsWith('/pos/offline-preparation') ?? false
 
   useEffect(() => {
     void initializeOfflinePhase1Runtime()
-    if (isPosLoginPage || isPosEmployeePinPage) {
-      lockOfflineRuntime(
-        isPosLoginPage ? 'primary-login-page' : 'primary-auth-only'
-      )
+    if (isPosLoginPage) {
+      lockOfflineRuntime('primary-login-page')
     }
-  }, [isPosEmployeePinPage, isPosLoginPage])
+  }, [isPosLoginPage])
 
   if (isPosLoginPage) {
     return <PosShellViewport isLoginPage>{children}</PosShellViewport>
   }
 
-  if (isPosEmployeePinPage) {
+  if (isPosEmployeePinPage || isPosOfflinePreparationPage) {
     return (
       <ProtectedPosShellLayout
-        key="pin-entry"
+        key={isPosEmployeePinPage ? 'pin-entry' : 'offline-preparation'}
         requireEmployee={false}
       >
         {children}
@@ -132,15 +135,48 @@ function ProtectedPosShellLayout({
   const [employeeCheckReady, setEmployeeCheckReady] = useState(false)
   const [activeEmployee, setActiveEmployee] =
     useState<ActivePosEmployee | null>(null)
+  const [offlineRecoveryState, setOfflineRecoveryState] = useState<
+    'checking' | 'ready' | 'unavailable'
+  >('checking')
   const allowed = Boolean(
     authState.profile && canAccessPos(authState.profile.role)
   )
+  const offlineRecoveryReady = offlineRecoveryState === 'ready'
+  const effectivelyAllowed = allowed || offlineRecoveryReady
   const { settings, loading: settingsLoading } = useSystemSettings(
     !authState.loading && allowed
   )
   const hasAuthError = Boolean(authState.error)
   const isTimeoutError = authState.error === 'timeout'
   const isLockError = authState.error === 'auth-lock'
+
+  useEffect(() => {
+    let cancelled = false
+    if (
+      typeof navigator === 'undefined' ||
+      navigator.onLine !== false ||
+      !hasOfflineBootstrapReadyMarker() ||
+      hasPosLoggedOut()
+    ) {
+      const unavailableTimer = window.setTimeout(() => {
+        if (!cancelled) setOfflineRecoveryState('unavailable')
+      }, 0)
+      return () => {
+        cancelled = true
+        window.clearTimeout(unavailableTimer)
+      }
+    }
+    void restorePreparedOfflineRuntime()
+      .then(() => {
+        if (!cancelled) setOfflineRecoveryState('ready')
+      })
+      .catch(() => {
+        if (!cancelled) setOfflineRecoveryState('unavailable')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -162,10 +198,17 @@ function ProtectedPosShellLayout({
       return
     }
 
-    if (!authState.profile || !allowed) {
+    if ((!authState.profile || !allowed) && !offlineRecoveryReady) {
       router.replace('/pos/login')
     }
-  }, [allowed, authState.error, authState.loading, authState.profile, router])
+  }, [
+    allowed,
+    authState.error,
+    authState.loading,
+    authState.profile,
+    offlineRecoveryReady,
+    router,
+  ])
 
   useEffect(() => {
     if (
@@ -173,7 +216,7 @@ function ProtectedPosShellLayout({
       !requireEmployee ||
       authState.loading ||
       authState.error ||
-      !allowed ||
+      !effectivelyAllowed ||
       !employeeCheckReady
     ) {
       return
@@ -184,7 +227,7 @@ function ProtectedPosShellLayout({
     }
   }, [
     activeEmployee,
-    allowed,
+    effectivelyAllowed,
     authState.error,
     authState.loading,
     employeeCheckReady,
@@ -206,7 +249,7 @@ function ProtectedPosShellLayout({
       !requireEmployee ||
       authState.loading ||
       authState.error ||
-      !allowed ||
+      !effectivelyAllowed ||
       !employeeCheckReady ||
       !activeEmployee
     ) {
@@ -228,7 +271,7 @@ function ProtectedPosShellLayout({
     }
   }, [
     activeEmployee,
-    allowed,
+    effectivelyAllowed,
     authState.error,
     authState.loading,
     employeeCheckReady,
@@ -244,7 +287,11 @@ function ProtectedPosShellLayout({
     }
   }
 
-  if (authState.loading || (requireEmployee && allowed && !employeeCheckReady)) {
+  if (
+    (authState.loading && !offlineRecoveryReady) ||
+    offlineRecoveryState === 'checking' ||
+    (requireEmployee && effectivelyAllowed && !employeeCheckReady)
+  ) {
     return (
       <PosShellViewport>
         <PosPreparingScreen />
@@ -252,7 +299,7 @@ function ProtectedPosShellLayout({
     )
   }
 
-  if (hasAuthError) {
+  if (hasAuthError && !offlineRecoveryReady) {
     return (
       <PosShellViewport>
         <div className="page-wrap">
@@ -294,7 +341,7 @@ function ProtectedPosShellLayout({
     )
   }
 
-  if (!allowed) {
+  if (!effectivelyAllowed) {
     return (
       <PosShellViewport>
         <div className="page-wrap">
@@ -304,7 +351,12 @@ function ProtectedPosShellLayout({
     )
   }
 
-  if (requireEmployee && allowed && employeeCheckReady && !activeEmployee) {
+  if (
+    requireEmployee &&
+    effectivelyAllowed &&
+    employeeCheckReady &&
+    !activeEmployee
+  ) {
     return (
       <PosShellViewport>
         <div className="page-wrap">
@@ -314,7 +366,7 @@ function ProtectedPosShellLayout({
     )
   }
 
-  if (!settingsLoading && settings?.enable_pos === false) {
+  if (allowed && !settingsLoading && settings?.enable_pos === false) {
     return (
       <PosShellViewport>
         <div className="page-wrap">

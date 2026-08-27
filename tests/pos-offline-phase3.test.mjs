@@ -104,10 +104,10 @@ const customerPayload = (suffix = 'a') => ({
   notes: null,
 })
 
-test('authority B, strict shadow flags and every current payment method are explicit', async () => {
+test('approved order.create authority, provider isolation and all payment methods are explicit', async () => {
   const source = await readFile(phase3Path, 'utf8')
-  assert.match(source, /productionPersistence:\s*'BLOCKED'/u)
-  assert.match(source, /commandDispatch:\s*false/u)
+  assert.match(source, /productionPersistence:\s*'SERVER_ATTESTED_MANAGED_DEVICE_ONLY'/u)
+  assert.match(source, /commandDispatch:\s*true/u)
   assert.match(source, /serviceWorkerDispatch:\s*false/u)
   assert.doesNotMatch(source, /\bfetch\s*\(/u)
   assert.doesNotMatch(source, /localStorage|sessionStorage/u)
@@ -378,7 +378,7 @@ test('version-aware migration rejects corrupt v2 and v3 structures without silen
   })
 })
 
-test('production denial occurs before any IndexedDB payload write', async () => {
+test('missing managed-device key authority denies before any IndexedDB payload write', async () => {
   await withBrowser(async (page) => {
     const result = await page.evaluate(async (authority) => {
       const p3 = await import('/phase3.js')
@@ -413,7 +413,7 @@ test('production denial occurs before any IndexedDB payload write', async () => 
       }
     }, syntheticAuthority)
     assert.deepEqual(result, {
-      code: 'OFFLINE_AUTHORITY_UNAVAILABLE',
+      code: 'OFFLINE_KEY_LOCKED',
       databaseCreated: false,
     })
   }, 'production')
@@ -490,9 +490,19 @@ test('encrypted enqueue survives repository restart, converges duplicates and re
         keyManager: manager,
         allowSyntheticAuthority: true,
       })
-      const restored = await restarted.readSyntheticPayload(
+      const restored = await restarted.readCommandPayload(
         namespaceId,
         first.command.localCommandId
+      )
+      const recoveredIdentity = await restarted.readCommandIdentityByDeduplication(
+        namespaceId,
+        'customer.create',
+        'customer-submit-a'
+      )
+      const missingIdentity = await restarted.readCommandIdentityByDeduplication(
+        namespaceId,
+        'customer.create',
+        'customer-submit-missing'
       )
       const database = await p1.openOfflineDatabase(databaseName)
       const transaction = database.transaction('commandOutbox', 'readonly')
@@ -578,11 +588,14 @@ test('encrypted enqueue survives repository restart, converges duplicates and re
       indexedDB.deleteDatabase(databaseName)
       return {
         firstStatus: first.status,
+        firstLocalCommandId: first.command.localCommandId,
         duplicateStatus: duplicate.status,
         sameId: first.command.localCommandId === duplicate.command.localCommandId,
         sameIdempotency:
           first.command.idempotencyKey === duplicate.command.idempotencyKey,
         restored,
+        recoveredIdentity,
+        missingIdentity,
         plaintextAbsent:
           !ciphertextProjection.includes(payload.name) &&
           !ciphertextProjection.includes(payload.phone),
@@ -598,6 +611,13 @@ test('encrypted enqueue survives repository restart, converges duplicates and re
     assert.equal(result.sameId, true)
     assert.equal(result.sameIdempotency, true)
     assert.deepEqual(result.restored, customerPayload('a'))
+    assert.equal(
+      result.recoveredIdentity.localCommandId,
+      result.firstLocalCommandId
+    )
+    assert.equal(result.recoveredIdentity.state, 'pending')
+    assert.equal(typeof result.recoveredIdentity.payloadHash, 'string')
+    assert.equal(result.missingIdentity, null)
     assert.equal(result.plaintextAbsent, true)
     assert.equal(result.wrongKeyCode, 'OFFLINE_INTEGRITY_FAILED')
     assert.equal(result.wrongStoreCode, 'OFFLINE_INTEGRITY_FAILED')
@@ -872,6 +892,8 @@ test('payment attestation accepts employee states for all methods and rejects pr
       manager.unlock({ source: 'synthetic-test', primaryAuthenticated: true, posActorAuthorized: true, namespaceId, keyVersion: 1, key: material.key })
       const repository = new p3.Phase3CommandRepository({ databaseName, keyManager: manager, allowSyntheticAuthority: true })
       const accepted = []
+      let firstPaymentId = null
+      let lastPaymentId = null
       for (const method of p3.PHASE3_PAYMENT_METHODS) {
         for (const confirmationStatus of ['not_integrated', 'employee_attested']) {
           const command = await repository.enqueue({ namespaceId, commandType: 'payment.employee_attestation', payload: {
@@ -881,7 +903,24 @@ test('payment attestation accepts employee states for all methods and rejects pr
             paymentReplayPolicy: 'never_charge_or_invoke_provider', reconciliationStatus: 'pending',
           }, authority, deduplicationKey: `payment-${method}-${confirmationStatus}` })
           accepted.push(command.command.commandType)
+          firstPaymentId ??= command.command.localCommandId
+          lastPaymentId = command.command.localCommandId
         }
+      }
+      await repository.completeLocalEmployeePaymentAttestation(
+        namespaceId,
+        firstPaymentId
+      )
+      const completedAttestations = await repository.listCommandsByState(
+        namespaceId,
+        'synced',
+        25
+      )
+      let networkDispatchDenied = null
+      try {
+        await repository.markSyncing(namespaceId, lastPaymentId)
+      } catch (error) {
+        networkDispatchDenied = error.code
       }
       const providerConfirmedRejected = []
       for (const method of p3.PHASE3_PAYMENT_METHODS) {
@@ -916,10 +955,19 @@ test('payment attestation accepts employee states for all methods and rejects pr
         }, authority, deduplicationKey: 'payment-bad-ref' })
       } catch (error) { externalReference = error.code }
       indexedDB.deleteDatabase(databaseName)
-      return { accepted, providerConfirmedRejected, credential, externalReference }
+      return {
+        accepted,
+        completedAttestationCount: completedAttestations.length,
+        networkDispatchDenied,
+        providerConfirmedRejected,
+        credential,
+        externalReference,
+      }
     }, syntheticAuthority)
     assert.equal(result.accepted.length, 16)
     assert.ok(result.accepted.every((type) => type === 'payment.employee_attestation'))
+    assert.equal(result.completedAttestationCount, 1)
+    assert.equal(result.networkDispatchDenied, 'OFFLINE_CAPABILITY_DISABLED')
     assert.deepEqual(
       result.providerConfirmedRejected,
       Array(8).fill('OFFLINE_CONTEXT_INVALID')

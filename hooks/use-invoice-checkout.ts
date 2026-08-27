@@ -46,6 +46,7 @@ export type CheckoutVatSetting = {
 
 type UseInvoiceCheckoutOptions = {
   customerId: string | null
+  customerRecordVersion: number | null
   customerName: string
   customerPhone: string
   invoiceItems: InvoiceLineItem[]
@@ -62,6 +63,7 @@ type UseInvoiceCheckoutOptions = {
 
 export function useInvoiceCheckout({
   customerId,
+  customerRecordVersion,
   customerName,
   customerPhone,
   invoiceItems,
@@ -149,11 +151,15 @@ export function useInvoiceCheckout({
   const cashReceived = useMemo(() => {
     const safePaymentMethod = normalizeUiPaymentMethod(paymentMethod)
 
-    if (safePaymentMethod === 'mada' || safePaymentMethod === 'visa') {
+    if (
+      ['mada', 'visa', 'card', 'bank_transfer', 'transfer'].includes(
+        safePaymentMethod
+      )
+    ) {
       return finalTotal.toFixed(2)
     }
 
-    if (safePaymentMethod === 'cod') {
+    if (safePaymentMethod === 'cod' || safePaymentMethod === 'on_delivery') {
       return Math.min(
         Math.max(parseCashReceivedAmount(cashReceivedInput), 0),
         finalTotal
@@ -166,11 +172,15 @@ export function useInvoiceCheckout({
   const numericCashReceived = useMemo(() => {
     const safePaymentMethod = normalizeUiPaymentMethod(paymentMethod)
 
-    if (safePaymentMethod === 'mada' || safePaymentMethod === 'visa') {
+    if (
+      ['mada', 'visa', 'card', 'bank_transfer', 'transfer'].includes(
+        safePaymentMethod
+      )
+    ) {
       return finalTotal
     }
 
-    if (safePaymentMethod === 'cod') {
+    if (safePaymentMethod === 'cod' || safePaymentMethod === 'on_delivery') {
       return Math.min(
         Math.max(parseCashReceivedAmount(cashReceivedInput), 0),
         finalTotal
@@ -183,7 +193,11 @@ export function useInvoiceCheckout({
   const remainingFromCustomer = useMemo(() => {
     const safePaymentMethod = normalizeUiPaymentMethod(paymentMethod)
 
-    if (safePaymentMethod !== 'cash' && safePaymentMethod !== 'cod') {
+    if (
+      safePaymentMethod !== 'cash' &&
+      safePaymentMethod !== 'cod' &&
+      safePaymentMethod !== 'on_delivery'
+    ) {
       return 0
     }
 
@@ -209,11 +223,15 @@ export function useInvoiceCheckout({
 
     setPaymentMethodState(safePaymentMethod)
     setCashReceivedInput(() => {
-      if (safePaymentMethod === 'mada' || safePaymentMethod === 'visa') {
+      if (
+        ['mada', 'visa', 'card', 'bank_transfer', 'transfer'].includes(
+          safePaymentMethod
+        )
+      ) {
         return finalTotal.toFixed(2)
       }
 
-      if (safePaymentMethod === 'cod') {
+      if (safePaymentMethod === 'cod' || safePaymentMethod === 'on_delivery') {
         return '0'
       }
 
@@ -330,20 +348,48 @@ export function useInvoiceCheckout({
     }
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      const pilotDisposition = resolveOfflineOrderCreatePilotCheckout({
+      const pilotDisposition = await resolveOfflineOrderCreatePilotCheckout({
+        clientIdempotencyKey,
+        customerId,
+        customerRecordVersion,
+        customerName,
         paymentMethod: safePaymentMethod,
-        itemCount: validItems.length,
+        note,
+        items: validItems,
+        totals: {
+          subtotal,
+          discountAmount,
+          taxAmount,
+          finalTotal,
+          numericCashReceived,
+          remainingFromCustomer,
+          cashChange,
+          vatRate,
+        },
         branchId,
-        actualPosEmployeeId: activePosEmployee?.id ?? null,
+        employee: activePosEmployee,
       })
 
       if (pilotDisposition.handled) {
+        if (pilotDisposition.queued) {
+          markPosCheckoutIdentitySucceeded(clientIdempotencyKey)
+          setOfflineDraftMessage(
+            `تم حفظ الطلب بأمان للمزامنة — ${pilotDisposition.receipt.receiptNumber}`
+          )
+          setLoading(false)
+          return
+        }
         setLoading(false)
         setErrorMessage(
-          pilotDisposition.classification ===
-            'OFFLINE_ORDER_CREATE_PILOT_AUTHORITY_LOCKED'
-            ? 'إنشاء الطلب دون اتصال غير مفعّل بعد على هذا الجهاز.'
-            : 'تعذر التحقق من سلطة الطلب دون اتصال.'
+          pilotDisposition.classification.startsWith(
+            'OFFLINE_INVENTORY_EXHAUSTED'
+          )
+            ? 'نفدت الكمية المتاحة وفق آخر تحديث للمخزون. يرجى الاتصال بالإنترنت لتحديث المخزون والتحقق من الرصيد.'
+            : pilotDisposition.classification.startsWith(
+                  'OFFLINE_INVENTORY_INSUFFICIENT:'
+                )
+              ? `الكمية المتاحة غير كافية. المتاح حاليًا: ${pilotDisposition.classification.split(':')[1]}`
+              : 'تعذر التحقق من سلطة الطلب دون اتصال.'
         )
         return
       }

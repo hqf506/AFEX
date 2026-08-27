@@ -41,6 +41,7 @@ import {
   isBranchInvoiceCatalogPageFresh,
   loadBranchInvoiceCatalogPage,
   peekBranchInvoiceCatalog,
+  type PosInvoiceCatalogPage,
   type PosInvoiceCatalogProduct,
 } from '@/lib/invoices/catalog'
 import {
@@ -86,6 +87,29 @@ const CATALOG_ITEMS_PER_PAGE = 10
 type PosFeedbackKind = 'add' | 'remove' | 'error'
 const SOUND_ENABLED = true
 let posFeedbackAudioContext: AudioContext | null = null
+
+async function loadPosCatalogPage(
+  branchId: string,
+  options: Parameters<typeof loadBranchInvoiceCatalogPage>[1]
+): Promise<PosInvoiceCatalogPage> {
+  try {
+    return await loadBranchInvoiceCatalogPage(branchId, options)
+  } catch (error) {
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+      throw error
+    }
+    const { readOfflineCatalogPage } = await import(
+      '@/lib/offline/complete-runtime'
+    )
+    return (await readOfflineCatalogPage({
+      branchId,
+      page: options.page,
+      pageSize: options.pageSize,
+      search: options.search,
+      category: options.category,
+    })) as PosInvoiceCatalogPage
+  }
+}
 
 function getPosFeedbackAudioContext() {
   if (typeof window === 'undefined') {
@@ -458,6 +482,9 @@ export function InvoiceItemsStep({
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerId, setCustomerId] = useState<string | null>(null)
+  const [customerRecordVersion, setCustomerRecordVersion] = useState<
+    number | null
+  >(null)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState(INVOICE_ALL_FILTER)
   const [invoiceItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([])
@@ -511,7 +538,7 @@ export function InvoiceItemsStep({
       }
 
       try {
-        const nextCatalogPage = await loadBranchInvoiceCatalogPage(invoiceBranchId, {
+        const nextCatalogPage = await loadPosCatalogPage(invoiceBranchId, {
           page: currentCatalogPage,
           pageSize: CATALOG_ITEMS_PER_PAGE,
           search: deferredSearch,
@@ -593,6 +620,7 @@ export function InvoiceItemsStep({
       setCustomerName(parsed.name)
       setCustomerPhone(parsed.phone)
       setCustomerId(parsed.customerId)
+      setCustomerRecordVersion(parsed.customerRecordVersion)
       setInvoiceLineItems(parsedSaleItemsDraft?.items ?? [])
       setHydratedSaleDraft(true)
       setReady(true)
@@ -621,13 +649,16 @@ export function InvoiceItemsStep({
       return
     }
 
+    const catalogBranchId = invoiceBranchId
+    if (!catalogBranchId) return
+
     let cancelled = false
 
     const requestGeneration = catalogGenerationRef.current
     const loadCatalog = async () => {
       const requestKey = [
         requestGeneration,
-        invoiceBranchId,
+        catalogBranchId,
         currentCatalogPage,
         deferredSearch.trim(),
         activeFilter,
@@ -636,7 +667,7 @@ export function InvoiceItemsStep({
         const cachedProducts =
           variant === 'pos' || activeFilter !== INVOICE_ALL_FILTER || deferredSearch.trim()
             ? []
-            : peekBranchInvoiceCatalog(invoiceBranchId, tenantId)
+            : peekBranchInvoiceCatalog(catalogBranchId, tenantId)
 
         if (!cancelled && cachedProducts.length > 0) {
           setCatalogProducts(cachedProducts)
@@ -653,7 +684,7 @@ export function InvoiceItemsStep({
 
         let catalogRequest = catalogRequestsRef.current.get(requestKey)
         if (!catalogRequest) {
-          catalogRequest = loadBranchInvoiceCatalogPage(invoiceBranchId, {
+          catalogRequest = loadPosCatalogPage(catalogBranchId, {
             page: currentCatalogPage,
             pageSize: CATALOG_ITEMS_PER_PAGE,
             search: deferredSearch,
@@ -1137,6 +1168,7 @@ export function InvoiceItemsStep({
 
   const checkout = useInvoiceCheckout({
     customerId,
+    customerRecordVersion,
     customerName,
     customerPhone,
     invoiceItems,

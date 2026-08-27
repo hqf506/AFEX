@@ -188,7 +188,7 @@ test('logout locks authority while restart recovery remains same-account and PIN
   assert.match(transport, /afex_offline_server_recovery_state_v1/u)
 })
 
-test('all twelve bridge flags and all application compatibility safety flags remain false', async () => {
+test('all twelve bridge flags remain false and only approved client runtime flags are enabled', async () => {
   const bridge = await read('lib/offline/core-v2-offline-authority-bridge.ts')
   const bridgeFlags = bridge.match(
     /CORE_V2_OFFLINE_BRIDGE_FLAGS = Object\.freeze\(\{([\s\S]*?)\}\s+as const\)/u
@@ -201,13 +201,15 @@ test('all twelve bridge flags and all application compatibility safety flags rem
     /APP_COMPAT_SAFETY_FLAGS = Object\.freeze\(\{([\s\S]*?)\}\)/u
   )
   assert.ok(compatFlags)
-  assert.equal((compatFlags[1].match(/:\s*false\b/gu) ?? []).length, 10)
-  assert.equal((compatFlags[1].match(/:\s*true\b/gu) ?? []).length, 0)
+  assert.equal((compatFlags[1].match(/:\s*false\b/gu) ?? []).length, 4)
+  assert.equal((compatFlags[1].match(/:\s*true\b/gu) ?? []).length, 6)
+  assert.match(compatFlags[1], /paymentProviderAction:\s*false/u)
+  assert.match(compatFlags[1], /externalEffects:\s*false/u)
 })
 
 test('Admin and Dashboard remain outside shell, outbox, transport, and replay integration', async () => {
   const sw = await read('public/sw.js')
-  assert.match(sw, /url\.pathname\.startsWith\('\/pos'\)/u)
+  assert.match(sw, /url\.pathname === '\/pos' \|\| url\.pathname\.startsWith\('\/pos\/'\)/u)
   assert.match(sw, /url\.pathname\.startsWith\('\/api\/'\)/u)
   assert.doesNotMatch(sw, /startsWith\('\/admin/u)
   const adminFiles = (await filesBelow(path.join(root, 'app/admin')))

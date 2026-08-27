@@ -641,17 +641,17 @@ test('inventory quantity outcomes use the two exact approved Arabic messages', a
   assert.equal(compatibility.getLocalInventoryQuantityOutcome(4, -1).allowed, false)
 })
 
-test('every sensitive or transactional compatibility capability remains disabled', async () => {
+test('approved order.create runtime capabilities are enabled while sensitive effects remain disabled', async () => {
   const compatibility = await importStandalone(paths.compatibility)
   assert.deepEqual(compatibility.APP_COMPAT_SAFETY_FLAGS, {
     localInventoryBusinessEnforcement: false,
     sensitiveCacheIngestion: false,
-    persistentUnwrap: false,
-    productionOutboxPersistence: false,
-    dispatch: false,
-    replay: false,
-    offlineOrderInterception: false,
-    offlineOrderCreate: false,
+    persistentUnwrap: true,
+    productionOutboxPersistence: true,
+    dispatch: true,
+    replay: true,
+    offlineOrderInterception: true,
+    offlineOrderCreate: true,
     paymentProviderAction: false,
     externalEffects: false,
   })

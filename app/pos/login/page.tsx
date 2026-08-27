@@ -165,7 +165,7 @@ export default function PosLoginPage() {
 
       if (!pinNavigationStartedRef.current) {
         pinNavigationStartedRef.current = true
-        router.replace('/pos/employee-pin')
+        router.replace('/pos/offline-preparation')
       }
       return
     }
@@ -244,7 +244,7 @@ export default function PosLoginPage() {
       clearPosLoggedOut()
       if (!pinNavigationStartedRef.current) {
         pinNavigationStartedRef.current = true
-        router.replace('/pos/employee-pin')
+        router.replace('/pos/offline-preparation')
       }
     } catch (loginError) {
       setError(

@@ -596,6 +596,41 @@ export async function POST(request: NextRequest) {
     phone: string
   }
 
+  const createdVersionResult = await auth.supabase.rpc(
+    'lookup_customer_phone_identity_v1',
+    {
+      p_tenant_id: auth.profile.tenant_id,
+      p_normalized_phone: customerIdentity.identity.phoneNormalized,
+      p_branch_id: branchId,
+    }
+  )
+  const createdVersionRow = Array.isArray(createdVersionResult.data)
+    ? createdVersionResult.data.find(
+        (candidate) =>
+          candidate &&
+          typeof candidate === 'object' &&
+          'customer_id' in candidate &&
+          candidate.customer_id === createdCustomer.id
+      )
+    : null
+  const createdRecordVersion = Number(
+    createdVersionRow &&
+      typeof createdVersionRow === 'object' &&
+      'record_version' in createdVersionRow
+      ? createdVersionRow.record_version
+      : NaN
+  )
+  const trustedCreatedRecordVersion =
+    Number.isSafeInteger(createdRecordVersion) && createdRecordVersion >= 1
+      ? createdRecordVersion
+      : null
+  if (createdVersionResult.error) {
+    logCustomerDatabaseFailure('hydrate', createdVersionResult.error, 200, {
+      classification: 'CUSTOMER_RECORD_VERSION_LOAD_FAILED',
+      correlationId: auth.context.correlationId,
+    })
+  }
+
   let createdProfileQuery = auth.supabase
     .from('customers')
     .select(CUSTOMER_PROFILE_SELECT)
@@ -619,7 +654,7 @@ export async function POST(request: NextRequest) {
       ...createdCustomer,
       email,
       notes,
-    }) as CustomerProfileBaseSource,
+    }) as CustomerProfileBaseSource & { record_version?: number | null },
     {
       visitCount: 0,
       totalSpending: 0,
@@ -628,11 +663,16 @@ export async function POST(request: NextRequest) {
     }
   )
 
+  const createdProfileWithVersion = createdProfile
+    ? { ...createdProfile, recordVersion: trustedCreatedRecordVersion }
+    : null
+
   return jsonWithAuthCookies(auth.response, {
     success: true,
     customer:
-      createdProfile || {
+      createdProfileWithVersion || {
         ...createdCustomer,
+        recordVersion: trustedCreatedRecordVersion,
         customerNumber: null,
         email,
         city: null,

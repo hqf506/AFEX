@@ -1,18 +1,25 @@
 'use strict'
 
 const AFEX_SHELL_CACHE_PREFIX = 'afex-pos-shell-'
-const AFEX_SHELL_CACHE = 'afex-pos-shell-v1'
+const AFEX_SHELL_CACHE = 'afex-pos-shell-v2'
 const AFEX_COMPATIBLE_SHELL_CACHES = new Set([
   AFEX_SHELL_CACHE,
-  'afex-pos-shell-v0',
 ])
 const AFEX_OFFLINE_SHELL = '/pos/offline-shell.html'
+const AFEX_STATIC_SHELL_ASSETS = Object.freeze([
+  AFEX_OFFLINE_SHELL,
+  '/brand/afex-logo.png',
+])
 let afexShellEnabled = true
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(AFEX_SHELL_CACHE).then((cache) =>
-      cache.add(new Request(AFEX_OFFLINE_SHELL, { cache: 'reload' }))
+      cache.addAll(
+        AFEX_STATIC_SHELL_ASSETS.map(
+          (path) => new Request(path, { cache: 'reload' })
+        )
+      )
     )
   )
 })
@@ -69,7 +76,11 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (request.mode === 'navigate' && url.pathname.startsWith('/pos')) {
+  const isPosNavigation =
+    request.mode === 'navigate' &&
+    (url.pathname === '/pos' || url.pathname.startsWith('/pos/')) &&
+    !url.pathname.startsWith('/pos/login')
+  if (isPosNavigation) {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(AFEX_SHELL_CACHE)
@@ -82,7 +93,10 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (url.pathname.startsWith('/_next/static/')) {
+  if (
+    url.pathname.startsWith('/_next/static/') ||
+    AFEX_STATIC_SHELL_ASSETS.includes(url.pathname)
+  ) {
     event.respondWith(
       caches.open(AFEX_SHELL_CACHE).then(async (cache) => {
         const cached = await cache.match(request)

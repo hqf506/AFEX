@@ -1,7 +1,10 @@
 'use client'
 
 import { APP_COMPAT_SAFETY_FLAGS } from '@/lib/offline/application-compatibility'
-import type { PosPaymentMethod } from '@/lib/invoices/payment-method'
+import {
+  enqueueOfflineOrderCreate,
+  type OfflineCheckoutInput,
+} from '@/lib/offline/complete-runtime'
 
 export const OFFLINE_ORDER_CREATE_POS_INTEGRATION = Object.freeze({
   pilotCommandType: 'order.create' as const,
@@ -29,14 +32,9 @@ const OFFLINE_ORDER_CREATE_PILOT_PAYMENT_METHOD_SET = new Set<string>(
   OFFLINE_ORDER_CREATE_PILOT_PAYMENT_METHODS
 )
 
-type OfflineCheckoutCandidate = Readonly<{
-  paymentMethod: PosPaymentMethod
-  itemCount: number
-  branchId: string | null
-  actualPosEmployeeId: string | null
-}>
+type OfflineCheckoutCandidate = OfflineCheckoutInput
 
-export function resolveOfflineOrderCreatePilotCheckout(
+export async function resolveOfflineOrderCreatePilotCheckout(
   input: OfflineCheckoutCandidate
 ) {
   if (!OFFLINE_ORDER_CREATE_POS_INTEGRATION.offlineOrderCreate) {
@@ -49,8 +47,8 @@ export function resolveOfflineOrderCreatePilotCheckout(
   }
   if (
     !input.branchId ||
-    !input.actualPosEmployeeId ||
-    input.itemCount < 1 ||
+    !input.employee?.id ||
+    input.items.length < 1 ||
     !OFFLINE_ORDER_CREATE_PILOT_PAYMENT_METHOD_SET.has(input.paymentMethod)
   ) {
     return Object.freeze({
@@ -61,16 +59,31 @@ export function resolveOfflineOrderCreatePilotCheckout(
       externalEffects: 0 as const,
     })
   }
-  // The encrypted Phase 1/3 repository remains the sole future persistence path.
-  // It is deliberately unreachable until the already-frozen authority flags are
-  // enabled after manual Activation and qualification.
-  return Object.freeze({
-    handled: true as const,
-    queued: false as const,
-    classification: 'OFFLINE_ORDER_CREATE_PILOT_AUTHORITY_LOCKED' as const,
-    providerActions: 0 as const,
-    externalEffects: 0 as const,
-  })
+  try {
+    const result = await enqueueOfflineOrderCreate(input)
+    return Object.freeze({
+      handled: true as const,
+      queued: true as const,
+      classification: result.duplicate
+        ? ('OFFLINE_ORDER_CREATE_DUPLICATE_RECEIPT' as const)
+        : ('OFFLINE_ORDER_CREATE_QUEUED' as const),
+      duplicate: result.duplicate,
+      receipt: result.receipt,
+      providerActions: 0 as const,
+      externalEffects: 0 as const,
+    })
+  } catch (error) {
+    return Object.freeze({
+      handled: true as const,
+      queued: false as const,
+      classification:
+        error instanceof Error && error.message
+          ? error.message
+          : 'OFFLINE_ORDER_CREATE_PILOT_LOCAL_AUTHORITY_INVALID',
+      providerActions: 0 as const,
+      externalEffects: 0 as const,
+    })
+  }
 }
 
 export async function notifyOfflineOrderCreatePilotLogout(input: Readonly<{

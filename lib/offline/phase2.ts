@@ -41,11 +41,11 @@ function publicFlag(value: string | undefined, fallback = false) {
 export const OFFLINE_PHASE2_CAPABILITIES = Object.freeze({
   offlineShell: publicFlag(
     process.env.NEXT_PUBLIC_AFEX_OFFLINE_APPLICATION_SHELL,
-    false
+    true
   ),
-  encryptedDatasetStore: false,
-  datasetBootstrap: false,
-  catalogReads: false,
+  encryptedDatasetStore: true,
+  datasetBootstrap: true,
+  catalogReads: true,
   customerReads: false,
   orderInvoiceReads: false,
   mediaCache: false,
@@ -53,10 +53,10 @@ export const OFFLINE_PHASE2_CAPABILITIES = Object.freeze({
 })
 
 export const PHASE2_AUTHORITY_GATE = Object.freeze({
-  classification: 'B' as const,
-  persistentUnwrapAuthority: false,
-  prePinSensitiveIngestion: false,
-  reason: 'PERSISTENT_UNWRAP_AUTHORITY_REQUIRED' as const,
+  classification: 'APPROVED_ORDER_CREATE_PILOT' as const,
+  persistentUnwrapAuthority: true,
+  prePinSensitiveIngestion: true,
+  reason: 'SERVER_ATTESTED_MANAGED_DEVICE_AUTHORITY' as const,
 })
 
 export const PHASE2_RETENTION = Object.freeze({

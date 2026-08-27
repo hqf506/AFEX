@@ -24,6 +24,12 @@ import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
 import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
 import { completePosPinOfflineRecoveryGate } from '@/lib/offline/phase1'
+import {
+  enrollOnlineEmployeeForOffline,
+  restorePreparedOfflineRuntime,
+  verifyOfflineEmployeePin,
+  type PreparedOfflineRuntime,
+} from '@/lib/offline/complete-runtime'
 
 const PIN_LENGTH = 4
 const PIN_LOCK_ATTEMPTS = 3
@@ -122,14 +128,19 @@ export default function PosEmployeePinPage() {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [hasActiveSale, setHasActiveSale] = useState(false)
   const [now, setNow] = useState(() => new Date())
+  const [offlineRuntime, setOfflineRuntime] =
+    useState<PreparedOfflineRuntime | null>(null)
+  const [offlineRuntimeChecked, setOfflineRuntimeChecked] = useState(false)
 
-  const allowed = Boolean(
+  const onlineAllowed = Boolean(
     authState.profile && canAccessPos(authState.profile.role)
   )
+  const allowed = onlineAllowed || Boolean(offlineRuntime)
   const { settings: systemSettings } = useSystemSettings(
-    !authState.loading && allowed
+    !authState.loading && onlineAllowed
   )
-  const currentBranchId = authState.profile?.branch_id ?? null
+  const currentBranchId =
+    authState.profile?.branch_id ?? offlineRuntime?.context.branchId ?? null
   const employeeName = authState.profile?.full_name || 'موظف AFEX'
   const employeeRole = getRoleLabel(authState.profile?.role) || 'موظف POS'
   const employeeId = authState.profile?.id
@@ -146,6 +157,21 @@ export default function PosEmployeePinPage() {
 
   const dots = getPinIndicatorState(pin.length, PIN_LENGTH)
   const [deviceLabel, setDeviceLabel] = useState('جهاز غير معروف')
+
+  useEffect(() => {
+    let cancelled = false
+    void restorePreparedOfflineRuntime()
+      .then((runtime) => {
+        if (!cancelled) setOfflineRuntime(runtime)
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setOfflineRuntimeChecked(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDeviceLabel(getCurrentPosDeviceLabel()), 0)
@@ -178,7 +204,7 @@ export default function PosEmployeePinPage() {
   }, [])
 
   useEffect(() => {
-    if (authState.loading) {
+    if (authState.loading && !offlineRuntimeChecked) {
       return
     }
 
@@ -222,7 +248,14 @@ export default function PosEmployeePinPage() {
       }
       clearActivePosEmployee()
     }
-  }, [allowed, authState.loading, authState.profile, currentBranchId, router])
+  }, [
+    allowed,
+    authState.loading,
+    authState.profile,
+    currentBranchId,
+    offlineRuntimeChecked,
+    router,
+  ])
 
   useEffect(() => {
     if (!allowed || !currentBranchId) {
@@ -272,40 +305,49 @@ export default function PosEmployeePinPage() {
         setLoading(true)
         setError('')
 
-        const response = await fetch('/api/pos/identify-employee-by-pin', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            pin: pinToVerify,
-          }),
-        })
-
-        const result = await response.json().catch(() => null)
-        const resultBody =
-          result && typeof result === 'object'
-            ? (result as Record<string, unknown>)
-            : null
-
-        if (!response.ok || !result?.employee) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[POS PIN] Employee identification failed.', {
-              status: response.status,
-              ok: response.ok,
-              statusText: response.statusText,
-              error:
-                typeof resultBody?.error === 'string' ? resultBody.error : null,
-            })
+        let selectedEmployee: ActivePosEmployee
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)
+        } else {
+          const response = await fetch('/api/pos/identify-employee-by-pin', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ pin: pinToVerify }),
+          })
+          const result = await response.json().catch(() => null)
+          const resultBody =
+            result && typeof result === 'object'
+              ? (result as Record<string, unknown>)
+              : null
+          if (!response.ok || !result?.employee) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[POS PIN] Employee identification failed.', {
+                status: response.status,
+                ok: response.ok,
+                statusText: response.statusText,
+                error:
+                  typeof resultBody?.error === 'string' ? resultBody.error : null,
+              })
+            }
+            throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
           }
+          selectedEmployee = result.employee as ActivePosEmployee
+          await enrollOnlineEmployeeForOffline(pinToVerify, selectedEmployee)
+        }
 
-          throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
+        if (!selectedEmployee) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[POS PIN] Employee identification returned no actor.')
+          }
+          throw new Error(INVALID_PIN_MESSAGE)
         }
 
         await completePosPinOfflineRecoveryGate(() => {
           clearAllInvoiceCatalogCache()
-          writeActivePosEmployee(result.employee as ActivePosEmployee)
+          writeActivePosEmployee(selectedEmployee)
           clearPosLoggedOut()
         })
         setFailedAttempts(0)
@@ -406,7 +448,7 @@ export default function PosEmployeePinPage() {
     setLogoutOpen(true)
   }
 
-  if (authState.loading) {
+  if (authState.loading && !offlineRuntimeChecked) {
     return (
       <div className="flex h-[100svh] w-full items-center justify-center overflow-hidden bg-[#020817] p-4 text-white">
         <div className="rounded-2xl border border-cyan-300/25 bg-[rgba(2,8,23,0.72)] px-5 py-4 text-sm font-bold text-slate-200 shadow-[0_0_40px_rgba(34,211,238,0.14)]">

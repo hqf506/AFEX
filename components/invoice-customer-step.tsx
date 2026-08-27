@@ -162,6 +162,8 @@ export function InvoiceCustomerStep({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [selectedCustomerProfile, setSelectedCustomerProfile] =
     useState<SelectedCustomerProfile | null>(null)
+  const [selectedCustomerRecordVersion, setSelectedCustomerRecordVersion] =
+    useState<number | null>(null)
   const [customerProfileLoading, setCustomerProfileLoading] = useState(false)
   const [customerProfileError, setCustomerProfileError] = useState('')
   const customerSearchRequestIdRef = useRef(0)
@@ -210,6 +212,7 @@ export function InvoiceCustomerStep({
     customerProfileRequestIdRef.current += 1
     selectedCustomerIdRef.current = null
     setSelectedCustomerProfile(null)
+    setSelectedCustomerRecordVersion(null)
     setCustomerProfileLoading(false)
     setCustomerProfileError('')
   }, [])
@@ -232,6 +235,7 @@ export function InvoiceCustomerStep({
         isClientResourceFresh(cacheKey, CUSTOMER_PROFILE_CACHE_TTL_MS)
       ) {
         setSelectedCustomerProfile(cachedProfile)
+        setSelectedCustomerRecordVersion(cachedProfile.recordVersion)
         setCustomerProfileLoading(false)
         setCustomerProfileError('')
         return
@@ -286,6 +290,7 @@ export function InvoiceCustomerStep({
         }
 
         setSelectedCustomerProfile(profile)
+        setSelectedCustomerRecordVersion(profile.recordVersion)
         setCustomerProfileError('')
       } catch {
         if (
@@ -608,6 +613,7 @@ export function InvoiceCustomerStep({
           phone: storedCustomer.phone,
         }
         setSelectedCustomerId(storedCustomer.customerId)
+        setSelectedCustomerRecordVersion(storedCustomer.customerRecordVersion)
         selectedCustomerIdRef.current = storedCustomer.customerId
         setCustomerName(storedCustomer.name)
         setCustomerPhone(storedCustomer.phone)
@@ -631,10 +637,22 @@ export function InvoiceCustomerStep({
       return
     }
 
+    if (
+      variant === 'pos' &&
+      typeof navigator !== 'undefined' &&
+      navigator.onLine === false &&
+      selectedCustomerId &&
+      !selectedCustomerRecordVersion
+    ) {
+      alert('يجب تحديث بيانات العميل عبر الإنترنت مرة واحدة قبل استخدامه دون اتصال.')
+      return
+    }
+
     localStorage.setItem(
       INVOICE_CUSTOMER_STORAGE_KEY,
       serializeInvoiceCustomerDraft({
         customerId: selectedCustomerId,
+        customerRecordVersion: selectedCustomerRecordVersion,
         name: customerName,
         phone: customerPhone,
       })
@@ -666,10 +684,11 @@ export function InvoiceCustomerStep({
     setCustomerName(customer.name)
     setCustomerPhone(customer.phone)
     setSelectedCustomerId(customer.id)
+    setSelectedCustomerRecordVersion(null)
     selectedCustomerIdRef.current = customer.id
     setCustomerSearchError('')
     void loadSelectedCustomerProfile(customer)
-    if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: customer.id, name: customer.name, phone: customer.phone }))
+    if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: customer.id, customerRecordVersion: null, name: customer.name, phone: customer.phone }))
   }
 
   const openAddCustomerModal = () => {
@@ -700,6 +719,7 @@ export function InvoiceCustomerStep({
     setCustomerPhone(createdCustomer.phone)
     setSelectedCustomerId(createdCustomer.id)
     setSelectedCustomerProfile(createdCustomer)
+    setSelectedCustomerRecordVersion(createdCustomer.recordVersion)
     setCustomerProfileLoading(false)
     setCustomerProfileError('')
     writeClientResource(
@@ -716,7 +736,7 @@ export function InvoiceCustomerStep({
       ...currentCustomers.filter((customer) => customer.id !== createdCustomer.id),
     ])
     setAddCustomerOpen(false)
-    if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: createdCustomer.id, name: createdCustomer.name, phone: createdCustomer.phone }))
+    if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: createdCustomer.id, customerRecordVersion: createdCustomer.recordVersion, name: createdCustomer.name, phone: createdCustomer.phone }))
   }
 
   const retrySelectedCustomerProfile = () => {
@@ -747,6 +767,7 @@ export function InvoiceCustomerStep({
         INVOICE_CUSTOMER_STORAGE_KEY,
         serializeInvoiceCustomerDraft({
           customerId: selectedCustomerId,
+          customerRecordVersion: selectedCustomerRecordVersion,
           name: customerName,
           phone: customerPhone,
         })

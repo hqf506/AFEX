@@ -195,6 +195,9 @@ export default function PosSaleCheckoutPage() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerId, setCustomerId] = useState<string | null>(null)
+  const [customerRecordVersion, setCustomerRecordVersion] = useState<
+    number | null
+  >(null)
   const [invoiceItems, setInvoiceItems] = useState<InvoiceLineItem[]>([])
   const [availableDiscounts, setAvailableDiscounts] = useState<
     CheckoutDiscountOption[]
@@ -259,6 +262,7 @@ export default function PosSaleCheckoutPage() {
       setCustomerName(parsedCustomer.name)
       setCustomerPhone(parsedCustomer.phone)
       setCustomerId(parsedCustomer.customerId)
+      setCustomerRecordVersion(parsedCustomer.customerRecordVersion)
       setInvoiceItems(parsedItems.items)
       setReady(true)
     }, 0)
@@ -327,8 +331,29 @@ export default function PosSaleCheckoutPage() {
         }
       } catch {
         if (!cancelled) {
-          setAvailableDiscounts([])
-          setAvailableVatSetting(null)
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            try {
+              const { readOfflineRuntimeSettings } = await import(
+                '@/lib/offline/complete-runtime'
+              )
+              const offlineRuntime = (await readOfflineRuntimeSettings()) as {
+                discounts?: CheckoutDiscountOption[]
+                vat?: CheckoutVatSetting | null
+              }
+              setAvailableDiscounts(
+                Array.isArray(offlineRuntime.discounts)
+                  ? offlineRuntime.discounts
+                  : []
+              )
+              setAvailableVatSetting(offlineRuntime.vat ?? null)
+            } catch {
+              setAvailableDiscounts([])
+              setAvailableVatSetting(null)
+            }
+          } else {
+            setAvailableDiscounts([])
+            setAvailableVatSetting(null)
+          }
         }
       } finally {
         if (!cancelled) {
@@ -347,6 +372,7 @@ export default function PosSaleCheckoutPage() {
 
   const checkout = useInvoiceCheckout({
     customerId,
+    customerRecordVersion,
     customerName,
     customerPhone,
     invoiceItems,
@@ -382,7 +408,8 @@ export default function PosSaleCheckoutPage() {
   )
 
   const isCashOnDelivery =
-    normalizedPaymentMethod === 'cod'
+    normalizedPaymentMethod === 'cod' ||
+    normalizedPaymentMethod === 'on_delivery'
 
   const printPaymentMethodLabel = useMemo(
     () => (isCashOnDelivery ? 'عند الاستلام' : selectedPaymentLabel),
@@ -1710,7 +1737,7 @@ function PaymentMethodIcon({
     )
   }
 
-  if (method === 'cod') {
+  if (method === 'cod' || method === 'on_delivery') {
     return (
       <svg viewBox="0 0 24 24" fill="none" className="h-10 w-10" aria-hidden="true">
         <path

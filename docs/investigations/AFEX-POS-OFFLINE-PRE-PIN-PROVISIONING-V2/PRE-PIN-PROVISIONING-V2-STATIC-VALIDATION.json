@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "decision": "STATIC_REVIEW_PASS_HUMAN_SQL_EXECUTION_REQUIRED",
+  "targetPostgreSQL": "17.6",
+  "constructionSafety": {
+    "sqlExecutions": 0,
+    "databaseConnections": 0,
+    "productionAccesses": 0,
+    "providerEffects": 0,
+    "businessWrites": 0
+  },
+  "preflight": {
+    "transactionReadOnly": true,
+    "endsInRollback": true,
+    "expectedDecision": "AFEX_PRE_PIN_V2_PREFLIGHT_PASS"
+  },
+  "forwardWave": {
+    "singleTransaction": true,
+    "additiveOnly": true,
+    "tables": 2,
+    "rlsPolicies": 3,
+    "immutableEvidenceTriggers": 1,
+    "securityDefinerFunctions": 8,
+    "fixedPgCatalogSearchPaths": 8,
+    "privateContextHelpers": 1,
+    "serviceRoleFacades": 4,
+    "browserExecuteGrants": 0,
+    "orderAcquisitionDefinitions": 0,
+    "destructiveDrops": 0,
+    "temporaryInstallerMembershipGrants": 2,
+    "temporaryInstallerMembershipRevokes": 2,
+    "expectedNotice": "AFEX_PRE_PIN_V2_POST_ATTESTATION_PASS: facades=4 service_role=4 browser=0 order_acquisition_v1_unchanged=true"
+  },
+  "deactivation": {
+    "singleTransaction": true,
+    "serviceFacadeRevokes": 4,
+    "destructiveDrops": 0,
+    "retainsEvidence": true
+  },
+  "application": {
+    "inventoriedImplementationAndSqlFiles": 34,
+    "offlineTests": "197/197 PASS",
+    "coreV2OrderIntegration": "37/37 PASS",
+    "coreV2AcquisitionObservability": "PASS",
+    "customerSelectionBinding": "26/26 PASS",
+    "posUx": "PASS",
+    "responsiveUx": "151/151 PASS",
+    "typescript": "PASS",
+    "eslint": "PASS",
+    "productionBuild": "PASS_WITH_NON_SECRET_LOCAL_BUILD_PLACEHOLDERS"
+  },
+  "claims": {
+    "postgresqlParserExecuted": false,
+    "sqlExecuted": false,
+    "productionAuthorized": false,
+    "remainingAction": "HUMAN_REVIEW_AND_MANUAL_SQL_EXECUTION"
+  }
+}

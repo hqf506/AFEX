@@ -2,9 +2,9 @@
 
 /**
  * Phase 1 is the only browser persistence boundary for future AFEX POS data.
- * It intentionally contains no business API dispatch and no runtime key-unlock
- * implementation. Persistent sensitive writes remain disabled until a reviewed
- * server/device unwrap authority is available.
+ * The approved order.create pilot uses this as its only browser persistence
+ * boundary. Runtime authority is still established by the server and a
+ * non-extractable managed-device key; the employee PIN never unwraps the DEK.
  */
 
 export const OFFLINE_DATABASE_NAME = 'afex-pos-local-v1'
@@ -104,7 +104,7 @@ export const OFFLINE_CAPABILITIES: Readonly<OfflineCapabilityFlags> =
       process.env.NEXT_PUBLIC_AFEX_OFFLINE_LOGOUT_PURGE,
       true
     ),
-    persistentUnwrapAuthority: false,
+    persistentUnwrapAuthority: true,
     businessCommandDispatch: false,
     serviceWorkerDataCache: false,
   })
@@ -367,7 +367,7 @@ export type StoredKeyEnvelopeMetadata = {
   namespaceId: string
   keyVersion: number
   envelopeVersion: number
-  wrappingAlgorithm: 'AES-KW'
+  wrappingAlgorithm: 'AES-KW' | 'RSA-OAEP-3072-SHA256'
   wrappedKey: string
   authority: 'synthetic-test' | 'reviewed-runtime'
   createdAt: string
@@ -431,6 +431,7 @@ export type OfflineUnlockAuthority = {
   source: 'synthetic-test' | 'reviewed-runtime'
   primaryAuthenticated: boolean
   posActorAuthorized: boolean
+  prePinProvisioningAuthorized?: boolean
   namespaceId: string
   keyVersion: number
   key: CryptoKey
@@ -469,7 +470,10 @@ export class OfflineKeyManager {
   }
 
   unlock(authority: OfflineUnlockAuthority) {
-    if (!authority.primaryAuthenticated || !authority.posActorAuthorized) {
+    if (
+      !authority.primaryAuthenticated ||
+      (!authority.posActorAuthorized && !authority.prePinProvisioningAuthorized)
+    ) {
       this.lock('authority-denied', authority.namespaceId)
       throw new OfflinePhase1Error('OFFLINE_AUTHORITY_UNAVAILABLE')
     }
@@ -530,6 +534,26 @@ type CoordinationMessage = {
 }
 
 const OFFLINE_COORDINATION_CHANNEL = 'afex-pos-offline-control-v1'
+const OFFLINE_BOOTSTRAP_READY_MARKER = 'afex_pos_offline_bootstrap_ready_v1'
+
+export function markOfflineBootstrapReady() {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(OFFLINE_BOOTSTRAP_READY_MARKER, 'ready')
+  }
+}
+
+export function clearOfflineBootstrapReady() {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(OFFLINE_BOOTSTRAP_READY_MARKER)
+  }
+}
+
+export function hasOfflineBootstrapReadyMarker() {
+  return (
+    typeof window !== 'undefined' &&
+    window.localStorage.getItem(OFFLINE_BOOTSTRAP_READY_MARKER) === 'ready'
+  )
+}
 const OFFLINE_COORDINATION_FALLBACK_KEY =
   'afex-pos-offline-control-event-v1'
 
@@ -641,6 +665,8 @@ export async function executeFullPosLogoutLifecycle(
   }
 ) {
   lockOfflineRuntime('logout-start')
+  clearOfflineBootstrapReady()
+  await markOfflineRuntimeAccessLoggedOut().catch(() => undefined)
   await dependencies.revokePosActor()
   await dependencies.signOutPrimary()
   dependencies.clearEmployeePresentation()
@@ -663,11 +689,124 @@ type OfflineMetaRecord = {
   id: string
   kind: string
   value?: string | number
+  material?: unknown
   namespaceId?: string
   expiresAt?: number
   ownerId?: string
   schemaVersion: number
   updatedAt: string
+}
+
+export type OfflineRuntimeMaterialRecord<T = unknown> = Readonly<{
+  id: string
+  kind: string
+  namespaceId: string
+  material: T
+  schemaVersion: number
+  updatedAt: string
+}>
+
+export const OFFLINE_RUNTIME_ACCESS_STATE_ID =
+  'afex-offline-runtime-access-state-v1' as const
+
+export type OfflineRuntimeAccessState = Readonly<{
+  version: 1
+  runtimeMaterialId: string
+  namespaceId: string
+  loggedOut: boolean
+  updatedAt: string
+}>
+
+/**
+ * Stores structured-cloneable runtime key material (including non-extractable
+ * CryptoKey handles) in IndexedDB. Values never pass through JSON, logs, Cache
+ * Storage, or browser storage APIs that expose plaintext strings.
+ */
+export async function putOfflineRuntimeMaterial<T>(
+  record: OfflineRuntimeMaterialRecord<T>,
+  databaseName = OFFLINE_DATABASE_NAME
+) {
+  const database = await openOfflineDatabase(databaseName)
+  try {
+    const transaction = database.transaction(OFFLINE_STORES.meta, 'readwrite')
+    transaction.objectStore(OFFLINE_STORES.meta).put(record)
+    await transactionAsPromise(transaction)
+  } finally {
+    database.close()
+  }
+}
+
+export async function readOfflineRuntimeMaterial<T>(
+  id: string,
+  databaseName = OFFLINE_DATABASE_NAME
+) {
+  const database = await openOfflineDatabase(databaseName)
+  try {
+    const transaction = database.transaction(OFFLINE_STORES.meta, 'readonly')
+    const record = (await requestAsPromise(
+      transaction.objectStore(OFFLINE_STORES.meta).get(requireOpaqueInput(id))
+    )) as OfflineRuntimeMaterialRecord<T> | undefined
+    await transactionAsPromise(transaction)
+    return record ?? null
+  } finally {
+    database.close()
+  }
+}
+
+export async function deleteOfflineRuntimeMaterial(
+  id: string,
+  databaseName = OFFLINE_DATABASE_NAME
+) {
+  const database = await openOfflineDatabase(databaseName)
+  try {
+    const transaction = database.transaction(OFFLINE_STORES.meta, 'readwrite')
+    transaction.objectStore(OFFLINE_STORES.meta).delete(requireOpaqueInput(id))
+    await transactionAsPromise(transaction)
+  } finally {
+    database.close()
+  }
+}
+
+export async function putOfflineRuntimeAccessState(
+  state: OfflineRuntimeAccessState,
+  databaseName = OFFLINE_DATABASE_NAME
+) {
+  await putOfflineRuntimeMaterial(
+    {
+      id: OFFLINE_RUNTIME_ACCESS_STATE_ID,
+      kind: 'offline-runtime-access-state',
+      namespaceId: state.namespaceId,
+      material: state,
+      schemaVersion: OFFLINE_SCHEMA_VERSION,
+      updatedAt: state.updatedAt,
+    },
+    databaseName
+  )
+}
+
+export async function readOfflineRuntimeAccessState(
+  databaseName = OFFLINE_DATABASE_NAME
+) {
+  const record = await readOfflineRuntimeMaterial<OfflineRuntimeAccessState>(
+    OFFLINE_RUNTIME_ACCESS_STATE_ID,
+    databaseName
+  )
+  return record?.material ?? null
+}
+
+export async function markOfflineRuntimeAccessLoggedOut(
+  databaseName = OFFLINE_DATABASE_NAME
+) {
+  const current = await readOfflineRuntimeAccessState(databaseName)
+  if (!current) return
+  await putOfflineRuntimeAccessState(
+    {
+      ...current,
+      loggedOut: true,
+      updatedAt: new Date().toISOString(),
+    },
+    databaseName
+  )
 }
 
 export type PurgeTombstoneRecord = {
@@ -1323,6 +1462,121 @@ export class EncryptedOfflineRepository {
     )
   }
 
+  async putEncryptedDraftIfAbsent(
+    namespaceId: string,
+    recordKey: string,
+    value: unknown,
+    classification = 'draft'
+  ) {
+    this.assertWritesEnabled()
+    const { key, keyVersion } = this.keyManager.requireKey(namespaceId)
+    const envelope = await encryptOfflineRecord({
+      key,
+      keyVersion,
+      namespaceId,
+      storeName: OFFLINE_STORES.drafts,
+      recordKey,
+      value,
+    })
+    const database = await openOfflineDatabase(this.databaseName)
+    try {
+      const transaction = database.transaction(OFFLINE_STORES.drafts, 'readwrite')
+      const now = new Date().toISOString()
+      const request = transaction.objectStore(OFFLINE_STORES.drafts).add({
+        id: `${namespaceId}:${recordKey}`,
+        namespaceId,
+        recordKey,
+        envelope,
+        classification,
+        createdAt: now,
+        updatedAt: now,
+      } satisfies OfflineStoredRecord)
+      const created = await new Promise<boolean>((resolve, reject) => {
+        request.addEventListener('success', () => resolve(true), { once: true })
+        request.addEventListener(
+          'error',
+          (event) => {
+            if (request.error?.name === 'ConstraintError') {
+              event.preventDefault()
+              event.stopPropagation()
+              resolve(false)
+              return
+            }
+            reject(
+              new OfflinePhase1Error(
+                request.error?.name === 'QuotaExceededError'
+                  ? 'OFFLINE_QUOTA_HARD_STOP'
+                  : 'OFFLINE_DATABASE_UNAVAILABLE',
+                request.error?.name !== 'QuotaExceededError'
+              )
+            )
+          },
+          { once: true }
+        )
+      })
+      await transactionAsPromise(transaction)
+      return created
+    } finally {
+      database.close()
+    }
+  }
+
+  async putEncryptedDraftBatch(
+    namespaceId: string,
+    records: readonly Readonly<{
+      recordKey: string
+      value: unknown
+      classification?: string
+    }>[]
+  ) {
+    this.assertWritesEnabled()
+    if (records.length < 1 || new Set(records.map((record) => record.recordKey)).size !== records.length) {
+      throw new OfflinePhase1Error('OFFLINE_CONTEXT_INVALID')
+    }
+    const { key, keyVersion } = this.keyManager.requireKey(namespaceId)
+    const encrypted = await Promise.all(
+      records.map(async (record) => ({
+        ...record,
+        envelope: await encryptOfflineRecord({
+          key,
+          keyVersion,
+          namespaceId,
+          storeName: OFFLINE_STORES.drafts,
+          recordKey: record.recordKey,
+          value: record.value,
+        }),
+      }))
+    )
+    const database = await openOfflineDatabase(this.databaseName)
+    try {
+      const transaction = database.transaction(OFFLINE_STORES.drafts, 'readwrite')
+      const store = transaction.objectStore(OFFLINE_STORES.drafts)
+      const existing = await Promise.all(
+        encrypted.map((record) =>
+          requestAsPromise(store.get(`${namespaceId}:${record.recordKey}`)) as Promise<
+            OfflineStoredRecord | undefined
+          >
+        )
+      )
+      const now = new Date().toISOString()
+      encrypted.forEach((record, index) => {
+        store.put({
+          id: `${namespaceId}:${record.recordKey}`,
+          namespaceId,
+          recordKey: record.recordKey,
+          envelope: record.envelope,
+          classification: record.classification ?? 'draft',
+          createdAt: existing[index]?.createdAt ?? now,
+          updatedAt: now,
+        } satisfies OfflineStoredRecord)
+      })
+      await transactionAsPromise(transaction)
+      return encrypted.map((record) => record.envelope)
+    } finally {
+      database.close()
+    }
+  }
+
   async putEncryptedQuarantine(
     namespaceId: string,
     recordKey: string,
@@ -1856,6 +2110,26 @@ function assertVerifiedPurgeAuthorization(
 
 export function getActiveOfflineNamespace() {
   return activeNamespace ? { ...activeNamespace } : null
+}
+
+export function activateServerVerifiedOfflineNamespace(
+  descriptor: OfflineNamespaceDescriptor
+) {
+  if (
+    descriptor.schemaGeneration !== OFFLINE_SCHEMA_GENERATION ||
+    descriptor.schemaVersion !== OFFLINE_SCHEMA_VERSION ||
+    !descriptor.namespaceId.startsWith('ns_')
+  ) {
+    lockOfflineRuntime('namespace-authority-invalid')
+    throw new OfflinePhase1Error('OFFLINE_CONTEXT_INVALID')
+  }
+  if (activeNamespace && !sameOfflineNamespace(activeNamespace, descriptor)) {
+    lockOfflineRuntime('namespace-authority-mismatch')
+    activeNamespace = null
+    throw new OfflinePhase1Error('OFFLINE_CROSS_SCOPE_DENIED')
+  }
+  activeNamespace = { ...descriptor }
+  return { ...activeNamespace }
 }
 
 export function clearActiveOfflineNamespace(namespaceId?: string) {

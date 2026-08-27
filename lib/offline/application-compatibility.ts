@@ -14,12 +14,12 @@ export const APP_COMPAT_SERVER_FLAGS = Object.freeze({
 export const APP_COMPAT_SAFETY_FLAGS = Object.freeze({
   localInventoryBusinessEnforcement: false,
   sensitiveCacheIngestion: false,
-  persistentUnwrap: false,
-  productionOutboxPersistence: false,
-  dispatch: false,
-  replay: false,
-  offlineOrderInterception: false,
-  offlineOrderCreate: false,
+  persistentUnwrap: true,
+  productionOutboxPersistence: true,
+  dispatch: true,
+  replay: true,
+  offlineOrderInterception: true,
+  offlineOrderCreate: true,
   paymentProviderAction: false,
   externalEffects: false,
 })

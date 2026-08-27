@@ -1,11 +1,17 @@
 'use client'
 
 import { useEffect } from 'react'
-import { initializeOfflinePhase1Runtime } from '@/lib/offline/phase1'
+import { usePathname } from 'next/navigation'
+import {
+  hasOfflineBootstrapReadyMarker,
+  initializeOfflinePhase1Runtime,
+} from '@/lib/offline/phase1'
+import { hasPosLoggedOut } from '@/lib/pos-employee-session'
 import {
   OFFLINE_PHASE2_CAPABILITIES,
   neutralizeAfexOfflineShell,
 } from '@/lib/offline/phase2'
+import { installOfflineReconnectSynchronization } from '@/lib/offline/complete-runtime'
 
 const ACTIVATE_MESSAGE = Object.freeze({ type: 'AFEX_ACTIVATE_SHELL_V1' })
 
@@ -14,12 +20,19 @@ function activateWaitingWorker(registration: ServiceWorkerRegistration) {
 }
 
 export function PosOfflineShellRegistration() {
+  const pathname = usePathname()
+
   useEffect(() => {
     let cancelled = false
     let registration: ServiceWorkerRegistration | null = null
     let cleanupRetry: number | null = null
+    let cleanupSynchronization: (() => void) | null = null
 
-    if (!OFFLINE_PHASE2_CAPABILITIES.offlineShell) {
+    if (
+      !OFFLINE_PHASE2_CAPABILITIES.offlineShell ||
+      !hasOfflineBootstrapReadyMarker() ||
+      hasPosLoggedOut()
+    ) {
       const cleanup = async () => {
         const result = await neutralizeAfexOfflineShell()
         if (!cancelled && result.status === 'incomplete') {
@@ -51,6 +64,7 @@ export function PosOfflineShellRegistration() {
         updateViaCache: 'none',
       })
       if (cancelled) return
+      cleanupSynchronization = installOfflineReconnectSynchronization()
       activateWaitingWorker(registration)
       registration.addEventListener('updatefound', () => {
         const installing = registration?.installing
@@ -68,8 +82,10 @@ export function PosOfflineShellRegistration() {
       cancelled = true
       if (cleanupRetry !== null) window.clearTimeout(cleanupRetry)
       registration = null
+      cleanupSynchronization?.()
+      cleanupSynchronization = null
     }
-  }, [])
+  }, [pathname])
 
   return null
 }
