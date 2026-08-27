@@ -29,24 +29,36 @@
     "destructiveDrops": 0,
     "temporaryInstallerMembershipGrants": 2,
     "temporaryInstallerMembershipRevokes": 2,
-    "expectedNotice": "AFEX_PRE_PIN_V2_POST_ATTESTATION_PASS: facades=4 service_role=4 browser=0 order_acquisition_v1_unchanged=true"
+    "temporaryPublicCreateGrants": 1,
+    "temporaryPublicCreateRevokes": 1,
+    "supportingIndexes": 6,
+    "stableEventDispositions": true,
+    "eligibleEnrolledRosterOnly": true,
+    "pgCatalogCoalesceOccurrences": 0,
+    "acceptedButUnusedAuthorityInputs": 0,
+    "directServiceRolePrivateTableGrants": 0,
+    "expectedNoticePrefix": "AFEX_PRE_PIN_V2_POST_ATTESTATION_PASS:"
   },
   "deactivation": {
     "singleTransaction": true,
     "serviceFacadeRevokes": 4,
+    "ownerAware": true,
+    "baselineMembershipRestored": true,
     "destructiveDrops": 0,
     "retainsEvidence": true
   },
   "application": {
     "inventoriedImplementationAndSqlFiles": 34,
-    "offlineTests": "197/197 PASS",
+    "focusedPrePinTests": "31/31 PASS",
+    "offlineTests": "201/201 PASS",
     "coreV2OrderIntegration": "37/37 PASS",
     "coreV2AcquisitionObservability": "PASS",
     "customerSelectionBinding": "26/26 PASS",
     "posUx": "PASS",
     "responsiveUx": "151/151 PASS",
     "typescript": "PASS",
-    "eslint": "PASS",
+    "eslintChangedFiles": "PASS",
+    "repositoryWideEslint": "BASELINE_FAIL_UNRELATED_PREFER_CONST_DATABASE_RECONCILIATION_CORE_V2_P2D_A2_4B_3",
     "productionBuild": "PASS_WITH_NON_SECRET_LOCAL_BUILD_PLACEHOLDERS"
   },
   "claims": {

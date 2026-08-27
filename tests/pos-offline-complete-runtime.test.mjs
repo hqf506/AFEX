@@ -115,6 +115,8 @@ test('employee PIN supports online enrollment and offline verifier selection wit
   assert.match(runtime, /600_000/u)
   assert.match(runtime, /OFFLINE_EMPLOYEE_SUBSTITUTION_REJECTED/u)
   assert.match(runtime, /primaryAuthenticatedSubjectId/u)
+  assert.match(runtime, /const operation = existing \? 'employee\.replace_pin' : 'employee\.enroll'/u)
+  assert.doesNotMatch(runtime, /!runtime\.roster\.some\(\(entry\) => entry\.employeeId === employee\.id\)/u)
 })
 
 test('post-PIN enrollment creates the existing actor-bound v1 bootstrap before dispatch', async () => {
@@ -263,6 +265,69 @@ test('pre-PIN SQL exposes exactly four service facades and no browser EXECUTE', 
   assert.match(sql, /TO service_role;/u)
   assert.match(sql, /FROM PUBLIC,anon,authenticated,service_role;/u)
   assert.match(sql, /SET search_path=pg_catalog/u)
+  assert.doesNotMatch(sql, /CREATE FUNCTION public\.afex_offline_server_pre_pin_context_matches_v2/u)
+  assert.match(sql, /CREATE FUNCTION afex_offline_authority\.pre_pin_context_matches_v2/u)
+})
+
+test('pre-PIN roster contains only eligible enrolled authorities and honest verifier metadata', async () => {
+  const [sql, runtime] = await Promise.all([
+    read(`${sqlRoot}/01-ADD-PRE-PIN-PROVISIONING-V2.sql`),
+    read('lib/offline/complete-runtime.ts'),
+  ])
+  assert.match(sql, /e\.status='active' AND e\.revoked_at IS NULL/u)
+  assert.match(sql, /e\.revocation_generation=d\.revocation_generation/u)
+  assert.match(sql, /e\.local_lock_state='unlocked'/u)
+  assert.match(sql, /e\.allowed_command_types=ARRAY\['order\.create'\]::text\[\]/u)
+  assert.match(sql, /employee_count>25/u)
+  assert.doesNotMatch(sql, /employee_count<1/u)
+  assert.match(sql, /'containsPlaintextPin',false/u)
+  assert.match(sql, /'containsOfflinePinVerifier',true/u)
+  assert.doesNotMatch(sql, /containsOperationalPosPinHash/u)
+  assert.match(runtime, /pinVerifierAlgorithm !== 'PBKDF2-HMAC-SHA256'/u)
+  assert.match(runtime, /pinVerifierIterations !== 600000/u)
+  assert.match(runtime, /value\.enrolledEmployeeCount !== value\.employees\.length/u)
+})
+
+test('pre-PIN device hash inputs are semantically bound and obsolete package input is removed only from device operation', async () => {
+  const [sql, transport, runtime] = await Promise.all([
+    read(`${sqlRoot}/01-ADD-PRE-PIN-PROVISIONING-V2.sql`),
+    read('lib/server/offline/pre-pin-provisioning.ts'),
+    read('lib/offline/complete-runtime.ts'),
+  ])
+  assert.match(sql, /p_wrap_public_key_jwk->>'n'/u)
+  assert.match(sql, /AFEX_PRE_PIN_DEVICE_PUBLIC_KEY_HASH_MISMATCH/u)
+  assert.doesNotMatch(sql, /provision_pre_pin_device_v2\([\s\S]{0,700}p_package_sha256/u)
+  assert.doesNotMatch(transport, /'device\.provision':[\s\S]{0,360}'packageSha256'/u)
+  assert.doesNotMatch(runtime, /postPreparation\('device\.provision',[\s\S]{0,520}packageSha256/u)
+  assert.match(transport, /'bootstrap\.publish':[\s\S]{0,260}'packageSha256'/u)
+})
+
+test('pre-PIN bootstrap replay returns immutable stored disposition only after fresh authority checks', async () => {
+  const sql = await read(`${sqlRoot}/01-ADD-PRE-PIN-PROVISIONING-V2.sql`)
+  assert.match(sql, /result_disposition jsonb NOT NULL/u)
+  assert.match(sql, /UNIQUE \(operation_id\)/u)
+  assert.match(sql, /pg_advisory_xact_lock/u)
+  assert.ok(
+    sql.indexOf('afex_current_auth_session_matches_v1') <
+      sql.indexOf('RETURN prior_event.result_disposition')
+  )
+  assert.match(sql, /AFEX_PRE_PIN_BOOTSTRAP_OPERATION_CONFLICT/u)
+  assert.match(sql, /INSERT INTO afex_offline_authority\.offline_pre_pin_bootstrap_events_v2[\s\S]*result_disposition/u)
+})
+
+test('pre-PIN owner and ACL lifecycle is temporary, private-first and fail-before-commit', async () => {
+  const [sql, rollback] = await Promise.all([
+    read(`${sqlRoot}/01-ADD-PRE-PIN-PROVISIONING-V2.sql`),
+    read(`${sqlRoot}/90-DEACTIVATE-PRE-PIN-PROVISIONING-V2.sql`),
+  ])
+  assert.match(sql, /GRANT CREATE ON SCHEMA public TO afex_function_owner/u)
+  assert.match(sql, /REVOKE CREATE ON SCHEMA public FROM afex_function_owner/u)
+  assert.ok(sql.indexOf('REVOKE CREATE ON SCHEMA public') < sql.lastIndexOf('COMMIT;'))
+  assert.match(sql, /NOT pg_catalog\.has_schema_privilege\('afex_function_owner','public','CREATE'\)/u)
+  assert.doesNotMatch(sql, /pg_catalog\.coalesce/iu)
+  assert.match(rollback, /SET LOCAL ROLE afex_function_owner/u)
+  assert.match(rollback, /REVOKE afex_function_owner FROM postgres GRANTED BY CURRENT_USER/u)
+  assert.match(rollback, /deactivate_membership/u)
 })
 
 test('pre-PIN SQL accepts every application POS account role without browser authority', async () => {
@@ -284,7 +349,7 @@ test('preflight, forward and deactivation are complete bounded transactions', as
   assert.match(preflight, /ROLLBACK;/u)
   assert.equal((forward.match(/^BEGIN;$/gmu) ?? []).length, 1)
   assert.equal((forward.match(/^COMMIT;$/gmu) ?? []).length, 1)
-  assert.match(forward, /server_version_num'\) <> '170006'/u)
+  assert.match(forward, /server_version_num'\)\s*<>\s*'170006'/u)
   assert.match(rollback, /REVOKE EXECUTE ON FUNCTION/u)
   assert.doesNotMatch(rollback, /^\s*(?:DELETE|TRUNCATE|DROP)\b/gimu)
 })
@@ -305,8 +370,8 @@ test('one active managed device, roster limit and deterministic device replay re
   ])
   assert.match(invariant, /offline_devices_one_active_branch_uidx/u)
   assert.match(sql, /STABLE_IDENTITY_CONFLICT/u)
-  assert.match(sql, /ROSTER_COUNT_OUTSIDE_1_25/u)
-  assert.match(sql, /stable_replay|operation_id/iu)
+  assert.match(sql, /ROSTER_COUNT_EXCEEDS_25/u)
+  assert.match(sql, /result_disposition|operation_id/iu)
 })
 
 test('no plaintext PIN, card secret, service credential or provider token is persisted', async () => {

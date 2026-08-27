@@ -8,10 +8,12 @@ Offline employee PIN binding, actual local `order.create`, stable pending receip
 inventory commitment enforcement and bounded authority-revalidated reconnection
 synchronization.
 
-The SQL wave is additive and versioned. It does not alter or acquire an order. It
-adds one private context helper plus four `service_role`-only pre-PIN facades,
-retains immutable evidence, restores temporary installer memberships inside the
-transaction and has an exact non-destructive deactivation mapping.
+The corrected SQL wave is additive and versioned. It does not alter or acquire
+an order. It adds one private context helper plus four `service_role`-only
+pre-PIN facades, keeps `public CREATE` transaction-bounded, returns only eligible
+enrolled employees with honestly classified encrypted Offline PIN-verifier
+material, stores immutable idempotent dispositions, covers new FK/lookup indexes,
+restores exact installer memberships, and provides owner-aware deactivation.
 
 ## Frozen safety outcome
 

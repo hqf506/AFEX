@@ -37,7 +37,6 @@ const PAYLOAD_KEYS = Object.freeze({
     'publicKeySha256',
     'envelopeAadSha256',
     'envelopeCiphertextSha256',
-    'packageSha256',
     'evidenceSha256',
   ]),
   'employee.roster': Object.freeze(['deviceId']),
@@ -293,10 +292,6 @@ async function execute(
         p_envelope_ciphertext_sha256: sha256(
           payload.envelopeCiphertextSha256,
           'OFFLINE_PRE_PIN_CIPHERTEXT_HASH_INVALID'
-        ),
-        p_package_sha256: sha256(
-          payload.packageSha256,
-          'OFFLINE_PRE_PIN_PACKAGE_HASH_INVALID'
         ),
         p_evidence_sha256: sha256(
           payload.evidenceSha256,

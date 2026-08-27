@@ -87,13 +87,21 @@ export type OfflineEmployeeRosterEntry = Readonly<{
   fullName: string | null
   role: string
   branchId: string
-  enrolled: boolean
-  enrollmentId: string | null
-  enrollmentGeneration: number | null
-  commandGeneration: number | null
-  pinVerifierSaltHex: string | null
-  pinVerifierHex: string | null
-  status: 'active' | 'not_enrolled'
+  enrolled: true
+  enrollmentId: string
+  enrollmentGeneration: number
+  credentialGeneration: number
+  permissionGeneration: number
+  revocationGeneration: number
+  commandGeneration: number
+  pinVerifierAlgorithm: 'PBKDF2-HMAC-SHA256'
+  pinVerifierVersion: 1
+  pinVerifierIterations: 600000
+  pinVerifierSaltLength: 32
+  pinVerifierLength: 32
+  pinVerifierSaltHex: string
+  pinVerifierHex: string
+  status: 'active'
 }>
 
 export type TrustedInventory = Readonly<{
@@ -473,30 +481,44 @@ function deviceAuthority(value: unknown): DeviceAuthority {
 }
 
 function employeeRoster(value: unknown) {
-  const rows = Array.isArray(value)
-    ? value
-    : isRecord(value) && Array.isArray(value.employees)
-      ? value.employees
-      : null
-  if (!rows || rows.length > 25) throw new Error('OFFLINE_ROSTER_INVALID')
+  if (
+    !isRecord(value) ||
+    value.contractVersion !== 'offline-pre-pin-roster.v2' ||
+    value.containsPlaintextPin !== false ||
+    value.containsOfflinePinVerifier !== true ||
+    value.maximumEmployees !== 25 ||
+    !Array.isArray(value.employees) ||
+    value.employees.length > 25 ||
+    value.employeeCount !== value.employees.length ||
+    value.enrolledEmployeeCount !== value.employees.length
+  ) {
+    throw new Error('OFFLINE_ROSTER_INVALID')
+  }
+  const rows = value.employees
   return Object.freeze(
     rows.map((candidate) => {
       if (!isRecord(candidate)) throw new Error('OFFLINE_ROSTER_INVALID')
-      const enrolled = candidate.enrolled === true
-      const salt =
-        typeof candidate.pinVerifierSaltHex === 'string'
-          ? candidate.pinVerifierSaltHex
-          : null
-      const verifier =
-        typeof candidate.pinVerifierHex === 'string'
-          ? candidate.pinVerifierHex
-          : null
+      const salt = String(candidate.pinVerifierSaltHex ?? '')
+      const verifier = String(candidate.pinVerifierHex ?? '')
       if (
-        enrolled &&
-        (!salt ||
-          !verifier ||
-          !/^[0-9a-f]{64}$/i.test(salt) ||
-          !/^[0-9a-f]{64}$/i.test(verifier))
+        candidate.enrolled !== true ||
+        candidate.pinVerifierAlgorithm !== 'PBKDF2-HMAC-SHA256' ||
+        candidate.pinVerifierVersion !== 1 ||
+        candidate.pinVerifierIterations !== 600000 ||
+        candidate.pinVerifierSaltLength !== 32 ||
+        candidate.pinVerifierLength !== 32 ||
+        !/^[0-9a-f]{64}$/.test(salt) ||
+        !/^[0-9a-f]{64}$/.test(verifier) ||
+        !Number.isSafeInteger(candidate.enrollmentGeneration) ||
+        Number(candidate.enrollmentGeneration) < 1 ||
+        !Number.isSafeInteger(candidate.credentialGeneration) ||
+        Number(candidate.credentialGeneration) < 1 ||
+        !Number.isSafeInteger(candidate.permissionGeneration) ||
+        Number(candidate.permissionGeneration) < 1 ||
+        !Number.isSafeInteger(candidate.revocationGeneration) ||
+        Number(candidate.revocationGeneration) < 0 ||
+        !Number.isSafeInteger(candidate.commandGeneration) ||
+        Number(candidate.commandGeneration) < 1
       ) {
         throw new Error('OFFLINE_ROSTER_VERIFIER_INVALID')
       }
@@ -508,15 +530,21 @@ function employeeRoster(value: unknown) {
           typeof candidate.fullName === 'string' ? candidate.fullName : null,
         role: String(candidate.role),
         branchId: requireUuid(candidate.branchId),
-        enrolled,
-        enrollmentId: enrolled ? requireUuid(candidate.enrollmentId) : null,
-        enrollmentGeneration: enrolled
-          ? Number(candidate.enrollmentGeneration)
-          : null,
-        commandGeneration: enrolled ? Number(candidate.commandGeneration) : null,
+        enrolled: true as const,
+        enrollmentId: requireUuid(candidate.enrollmentId),
+        enrollmentGeneration: Number(candidate.enrollmentGeneration),
+        credentialGeneration: Number(candidate.credentialGeneration),
+        permissionGeneration: Number(candidate.permissionGeneration),
+        revocationGeneration: Number(candidate.revocationGeneration),
+        commandGeneration: Number(candidate.commandGeneration),
+        pinVerifierAlgorithm: 'PBKDF2-HMAC-SHA256' as const,
+        pinVerifierVersion: 1 as const,
+        pinVerifierIterations: 600000 as const,
+        pinVerifierSaltLength: 32 as const,
+        pinVerifierLength: 32 as const,
         pinVerifierSaltHex: salt,
         pinVerifierHex: verifier,
-        status: enrolled ? ('active' as const) : ('not_enrolled' as const),
+        status: 'active' as const,
       })
     })
   )
@@ -660,7 +688,7 @@ async function doPrepare(
   const material = await loadOrCreateRuntimeMaterial(context)
   const wrappedKeySha256 = await sha256Hex(material.wrappedDek)
   const publicKeySha256 = await sha256Hex(
-    JSON.stringify(canonical(material.wrapPublicKeyJwk))
+    String(material.wrapPublicKeyJwk.n ?? '')
   )
   const envelopeAadSha256 = await sha256Hex(
     JSON.stringify(
@@ -682,7 +710,6 @@ async function doPrepare(
     publicKeySha256,
     envelopeAadSha256,
     envelopeCiphertextSha256: wrappedKeySha256,
-    packageSha256: material.packageSha256,
     evidenceSha256: material.evidenceSha256,
   })
   const device = deviceAuthority(rawDevice)
@@ -1064,10 +1091,7 @@ export async function enrollOnlineEmployeeForOffline(
   employee: ActivePosEmployee
 ) {
   const runtime = await restorePreparedOfflineRuntime()
-  if (
-    employee.branch_id !== runtime.context.branchId ||
-    !runtime.roster.some((entry) => entry.employeeId === employee.id)
-  ) {
+  if (employee.branch_id !== runtime.context.branchId) {
     throw new Error('OFFLINE_EMPLOYEE_SUBSTITUTION_REJECTED')
   }
   const existing = runtime.roster.find(
