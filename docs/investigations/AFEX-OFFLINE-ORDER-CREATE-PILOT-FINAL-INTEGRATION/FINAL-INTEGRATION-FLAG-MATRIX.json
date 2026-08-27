@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "sensitiveFlags": [
     {"name":"authorityPersistence","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
     {"name":"persistentUnwrap","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
@@ -15,14 +15,11 @@
     {"name":"refundReplay","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"payment.refund remains dispatch-blocked"}
   ],
   "pilotServerActivation": [
-    {"variableName":"AFEX_OFFLINE_ORDER_CREATE_PILOT_ACCOUNT_ID","currentDefaultValue":null,"requiredPilotValue":"exact test account UUID","scope":"one official establishment account","dependencyOrder":1,"disableValue":"unset","expectedEffect":"bind trusted authenticated subject"},
-    {"variableName":"AFEX_OFFLINE_ORDER_CREATE_PILOT_TENANT_ID","currentDefaultValue":null,"requiredPilotValue":"exact test tenant UUID","scope":"one test tenant","dependencyOrder":1,"disableValue":"unset","expectedEffect":"reject all other tenants"},
-    {"variableName":"AFEX_OFFLINE_ORDER_CREATE_PILOT_BRANCH_ID","currentDefaultValue":null,"requiredPilotValue":"exact test branch UUID","scope":"one test branch","dependencyOrder":1,"disableValue":"unset","expectedEffect":"reject all other branches"},
-    {"variableName":"AFEX_OFFLINE_ORDER_CREATE_PILOT_DEVICE_ID","currentDefaultValue":null,"requiredPilotValue":"exact managed test device UUID","scope":"one managed test device","dependencyOrder":1,"disableValue":"unset","expectedEffect":"reject mixed or non-allowlisted device claims"},
-    {"variableName":"AFEX_OFFLINE_ORDER_CREATE_PILOT_EMPLOYEE_ID","currentDefaultValue":null,"requiredPilotValue":"exact pre-enrolled test employee UUID","scope":"one test employee","dependencyOrder":1,"disableValue":"unset","expectedEffect":"reject employee substitution"},
-    {"variableName":"AFEX_OFFLINE_ORDER_CREATE_PILOT_ENABLED","currentDefaultValue":false,"requiredPilotValue":true,"scope":"server transport after all five scope values are present","dependencyOrder":2,"disableValue":false,"expectedEffect":"expose only the bounded POS server transport; does not change the twelve safety flags"}
+    {"variableName":"AFEX_OFFLINE_ORDER_CREATE_PILOT_ENABLED","currentDefaultValue":false,"requiredPilotValue":true,"scope":"global server feature availability for any valid authenticated establishment","dependencyOrder":1,"disableValue":false,"expectedEffect":"expose only the bounded POS server transport; authority is re-derived from verified Auth and POS actor state for every request and revalidated by the database facades"}
   ],
-  "missingScopeFailsClosed": true,
+  "staticUuidScopeVariablesRequired": false,
+  "dynamicAuthorityRequiredForEveryRequest": true,
+  "missingGlobalKillSwitchFailsClosed": true,
   "broadEnableSwitch": false,
   "adminDashboardOffline": false,
   "disablePreservesPendingEncryptedCommands": true

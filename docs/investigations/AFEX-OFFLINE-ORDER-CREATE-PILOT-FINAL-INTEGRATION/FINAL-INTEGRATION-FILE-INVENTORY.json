@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "files": [
     {"path":"app/api/pos/offline-pilot/route.ts","classification":"trusted-server route","bytes":296,"sha256":"34cb18020933c4b57b24e285a359471eeb2a538b646e36c45209f363d9af7086"},
-    {"path":"lib/server/offline/order-create-pilot-transport.ts","classification":"server-only exact-scope transport","bytes":29122,"sha256":"78e6c1b8ae859c99c1e2015818c99d2efcdcb84287eaa5ecd30c626b6ca40b15"},
+    {"path":"lib/server/offline/order-create-pilot-transport.ts","classification":"server-only dynamic verified-establishment transport","bytes":29345,"sha256":"817aad1bf09c4134efae1488bc1c36f98c3c13cc0216cb420fb5af1f84db3cae"},
     {"path":"lib/offline/order-create-pilot-pos-integration.ts","classification":"disabled POS integration","bytes":3001,"sha256":"f98d3f76e4efa02546f78c8b8fb3a97cfe4e5505d3f7670c61f1c921e41cb13f"},
     {"path":"hooks/use-invoice-checkout.ts","classification":"actual POS checkout integration","bytes":14890,"sha256":"356b9e9a41243b485c5ac416cc73c6287e3ac17ae37ed16a480bc59bfe1c1100"},
-    {"path":"tests/pos-offline-final-pilot-integration.test.mjs","classification":"focused regression tests","bytes":12323,"sha256":"cfb836a61aa01ab011b4c38ee47120a7330ca2a3d20c21f82a3dc2eb58beb526"},
+    {"path":"tests/pos-offline-final-pilot-integration.test.mjs","classification":"focused dynamic-authority regression tests","bytes":15801,"sha256":"8c052068215c26725448bb9f1c2bc7e3218294772fb3b1adb2d3b9a05c7d0523"},
     {"path":"docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-SQL-AUTHORITY-FINAL-CANDIDATE/90-FINAL-MANUAL-PILOT-ACTIVATION.sql","classification":"human-executed Activation authority; not executed by Codex","bytes":18583,"sha256":"340fbdfa47fa394226a95ef786d46b8a9bb4be05b81219226912820602bdf9b5"},
     {"path":"docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-SQL-AUTHORITY-FINAL-CANDIDATE/90Z-FINAL-EMERGENCY-PILOT-DEACTIVATION.sql","classification":"unexecuted emergency deactivation","bytes":2555,"sha256":"96e4a9f1ff18953ee12b38412131c1ce9c148c0f6641daeea0f1dbc6d67875ff"}
   ],

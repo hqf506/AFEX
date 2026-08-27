@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "pilotCommandAllowlist": ["order.create"],
   "shadowCommands": [
     "customer.create",
@@ -12,6 +12,9 @@
   ],
   "surfaces": ["POS"],
   "excludedSurfaces": ["Admin", "Dashboard"],
+  "activationModel": "GLOBAL_FEATURE_KILL_SWITCH_WITH_DYNAMIC_VERIFIED_ESTABLISHMENT_AUTHORITY",
+  "staticUuidAllowlistRequired": false,
+  "authorityNamespaceKeys": ["authenticatedSubjectId", "tenantId", "branchId", "deviceId", "deviceGeneration", "actualPosEmployeeId", "employeeEnrollmentGeneration", "commandGeneration"],
   "maximumClaimBatch": 1000,
   "foundationStatus": "FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN",
   "activationStatus": "ACTIVATION_EXECUTED_AND_ATTESTED_BY_HUMAN_FLAGS_FALSE",

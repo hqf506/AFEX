@@ -31,23 +31,38 @@ test('Pilot transport is server-only, default-off, and never public-configured',
   assert.match(route, /handleOfflineOrderCreatePilotRequest\(request\)/u)
 })
 
-test('Pilot activation is fail-closed to one exact server-owned test scope', async () => {
+test('Pilot activation has one server-only global kill switch and no static UUID allowlist', async () => {
   const source = await read('lib/server/offline/order-create-pilot-transport.ts')
-  for (const name of [
+  const removedScopeVariables = [
     'AFEX_OFFLINE_ORDER_CREATE_PILOT_ACCOUNT_ID',
     'AFEX_OFFLINE_ORDER_CREATE_PILOT_TENANT_ID',
     'AFEX_OFFLINE_ORDER_CREATE_PILOT_BRANCH_ID',
     'AFEX_OFFLINE_ORDER_CREATE_PILOT_DEVICE_ID',
     'AFEX_OFFLINE_ORDER_CREATE_PILOT_EMPLOYEE_ID',
-  ]) assert.ok(source.includes(name), name)
-  assert.match(source, /OFFLINE_PILOT_SCOPE_CONFIGURATION_INVALID/u)
-  assert.match(source, /OFFLINE_PILOT_SCOPE_NOT_ALLOWLISTED/u)
+  ]
+  for (const name of removedScopeVariables) assert.doesNotMatch(source, new RegExp(name, 'u'))
+  assert.doesNotMatch(source, /PilotScope|readPilotScopeFromEnvironment|options\.scope/u)
+  assert.match(source, /AFEX_OFFLINE_ORDER_CREATE_PILOT_ENABLED === 'true'/u)
+  assert.match(source, /OFFLINE_PILOT_DISABLED/u)
   assert.match(source, /OFFLINE_PILOT_MIXED_DEVICE_BATCH_REJECTED/u)
-  assert.match(source, /options\.scope \?\? readPilotScopeFromEnvironment\(\)/u)
   assert.doesNotMatch(source, /NEXT_PUBLIC_AFEX_OFFLINE_ORDER_CREATE_PILOT/u)
 })
 
-test('trusted context is resolved server-side and hostile scope substitution fails closed', async () => {
+test('two establishments resolve independent trusted authority without configured identities', async () => {
+  const source = await read('lib/server/offline/order-create-pilot-transport.ts')
+  for (const binding of [
+    'authenticatedSubjectId: context.verifiedAuth.subjectId',
+    'authenticatedSessionId: context.verifiedAuth.sessionId',
+    'posActorSessionId: actor.sessionId',
+    'actualPosEmployeeId: employee.id',
+    'tenantId: context.tenantId',
+    'branchId: context.activeBranchId',
+  ]) assert.ok(source.includes(binding), binding)
+  assert.match(source, /const trusted = assertTrustedContext\(authorization\.context\)/u)
+  assert.doesNotMatch(source, /(?:account|tenant|branch|device|employee)Id:\s*process\.env/u)
+})
+
+test('trusted context is resolved server-side and hostile authority substitution fails closed', async () => {
   const source = await read('lib/server/offline/order-create-pilot-transport.ts')
   for (const token of [
     'requireAuthorizationContext',
@@ -59,9 +74,29 @@ test('trusted context is resolved server-side and hostile scope substitution fai
     'context.activeBranchId',
     'OFFLINE_PILOT_TRUSTED_CONTEXT_MISMATCH',
     'OFFLINE_PILOT_ENVELOPE_AUTHORITY_SUBSTITUTION_REJECTED',
+    'OFFLINE_PILOT_CLAIM_AUTHORITY_SUBSTITUTION_REJECTED',
+    'assertDynamicRequestAuthority',
+    'requestDeviceId',
   ]) assert.ok(source.includes(token), token)
   const authorization = await read('lib/authorization-context.ts')
   assert.match(authorization, /requireVerifiedAuthContext\(supabase\)/u)
+  assert.match(authorization, /supplied-but-invalid POS token is an ambiguous\/revoked authority state/u)
+  assert.match(authorization, /POS actor session is invalid or revoked/u)
+})
+
+test('dynamic claims bind tenant branch employee device generations before fresh resolver or receipt authority', async () => {
+  const source = await read('lib/server/offline/order-create-pilot-transport.ts')
+  for (const binding of [
+    'value.primaryAuthenticatedUserId !== trusted.authenticatedSubjectId',
+    'value.actualPosEmployeeId !== trusted.actualPosEmployeeId',
+    'value.tenantId !== trusted.tenantId',
+    'value.branchId !== trusted.branchId',
+    'value.deviceGeneration',
+    'value.employeeEnrollmentGeneration',
+    'value.commandGeneration',
+  ]) assert.ok(source.includes(binding), binding)
+  assert.match(source, /case 'receipt\.lookup'[\s\S]*afex_offline_server_lookup_receipts_v1/u)
+  assert.match(source, /assertDynamicRequestAuthority\(body\.operation, body\.payload, trusted\)[\s\S]*executeOperation/u)
 })
 
 test('transport accepts an exact operation schema and only the bounded Pilot operations', async () => {
@@ -127,6 +162,30 @@ test('all eight payment methods remain distinct and provider state is never asse
   ])
   assert.equal(new Set(values).size, 8)
   assert.doesNotMatch(integration, /provider(?:Status|Confirmed):\s*(?:true|'verified')/u)
+})
+
+test('managed device and employee capacity invariants remain database-enforced', async () => {
+  const roleAuthority = await read(`${sqlRoot}/05A-TRUSTED-DEVICE-LIFECYCLE-WRITERS.sql`)
+  const employeeAuthority = await read(`${sqlRoot}/06A-TRUSTED-EMPLOYEE-PIN-SELECTION-WRITERS.sql`)
+  const invariantAuthority = await read(`${sqlRoot}/13-INDEXES-CONSTRAINTS-AND-INVARIANTS.sql`)
+  const combined = `${roleAuthority}\n${employeeAuthority}\n${invariantAuthority}`
+  assert.match(combined, /25/u)
+  assert.match(combined, /offline_devices_one_active_branch_uidx/iu)
+  assert.match(combined, /device_generation/iu)
+  assert.match(combined, /enrollment_generation/iu)
+})
+
+test('logout locks authority while restart recovery remains same-account and PIN-selection bounded', async () => {
+  const integration = await read('lib/offline/order-create-pilot-pos-integration.ts')
+  const phase1 = await read('lib/offline/phase1.ts')
+  const transport = await read('lib/server/offline/order-create-pilot-transport.ts')
+  assert.match(integration, /preservePendingCommandsOnExplicitLogout: true/u)
+  assert.match(integration, /requireSameAccountOnlineRecovery: true/u)
+  assert.match(integration, /maximumPinFailures: 5/u)
+  assert.match(phase1, /finalizeOfflineSessionIntent\(intent: 'logout' \| 'switch'\)/u)
+  assert.match(phase1, /if \(intent === 'logout'\) clearActiveOfflineNamespace\(\)/u)
+  assert.match(transport, /afex_offline_server_logout_v1/u)
+  assert.match(transport, /afex_offline_server_recovery_state_v1/u)
 })
 
 test('all twelve bridge flags and all application compatibility safety flags remain false', async () => {

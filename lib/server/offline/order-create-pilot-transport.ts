@@ -31,14 +31,6 @@ export const OFFLINE_ORDER_CREATE_PILOT_MAX_BATCH = Math.min(
   CORE_V2_OFFLINE_LIMITS.maximumBatchSize
 )
 
-export const OFFLINE_ORDER_CREATE_PILOT_SCOPE_ENV = Object.freeze({
-  accountId: 'AFEX_OFFLINE_ORDER_CREATE_PILOT_ACCOUNT_ID',
-  tenantId: 'AFEX_OFFLINE_ORDER_CREATE_PILOT_TENANT_ID',
-  branchId: 'AFEX_OFFLINE_ORDER_CREATE_PILOT_BRANCH_ID',
-  deviceId: 'AFEX_OFFLINE_ORDER_CREATE_PILOT_DEVICE_ID',
-  employeeId: 'AFEX_OFFLINE_ORDER_CREATE_PILOT_EMPLOYEE_ID',
-} as const)
-
 export const OFFLINE_ORDER_CREATE_PILOT_OPERATIONS = Object.freeze([
   'online.bootstrap',
   'device.register',
@@ -55,13 +47,6 @@ export const OFFLINE_ORDER_CREATE_PILOT_OPERATIONS = Object.freeze([
 
 type PilotOperation = (typeof OFFLINE_ORDER_CREATE_PILOT_OPERATIONS)[number]
 type JsonRecord = Record<string, unknown>
-type PilotScope = Readonly<{
-  accountId: string
-  tenantId: string
-  branchId: string
-  deviceId: string
-  employeeId: string
-}>
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -225,25 +210,6 @@ function parseRequestBody(value: unknown) {
   }
 }
 
-function readPilotScopeFromEnvironment(): PilotScope {
-  const candidate = {
-    accountId: process.env[OFFLINE_ORDER_CREATE_PILOT_SCOPE_ENV.accountId],
-    tenantId: process.env[OFFLINE_ORDER_CREATE_PILOT_SCOPE_ENV.tenantId],
-    branchId: process.env[OFFLINE_ORDER_CREATE_PILOT_SCOPE_ENV.branchId],
-    deviceId: process.env[OFFLINE_ORDER_CREATE_PILOT_SCOPE_ENV.deviceId],
-    employeeId: process.env[OFFLINE_ORDER_CREATE_PILOT_SCOPE_ENV.employeeId],
-  }
-  for (const value of Object.values(candidate)) {
-    if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
-      throw new OfflinePilotTransportError(
-        'OFFLINE_PILOT_SCOPE_CONFIGURATION_INVALID',
-        503
-      )
-    }
-  }
-  return Object.freeze(candidate as PilotScope)
-}
-
 type TrustedPilotContext = Readonly<{
   authenticatedSubjectId: string
   authenticatedSessionId: string
@@ -323,7 +289,7 @@ function assertEnvelopeContext(
   }
 }
 
-function scopedDeviceId(operation: PilotOperation, payload: JsonRecord) {
+function requestDeviceId(operation: PilotOperation, payload: JsonRecord) {
   if (typeof payload.deviceId === 'string') {
     return uuid(payload.deviceId, 'OFFLINE_PILOT_DEVICE_ID_INVALID')
   }
@@ -369,23 +335,75 @@ function scopedDeviceId(operation: PilotOperation, payload: JsonRecord) {
   return deviceIds[0]
 }
 
-function assertPilotScope(
-  operation: PilotOperation,
-  payload: JsonRecord,
-  trusted: TrustedPilotContext,
-  scope: PilotScope
+function assertAuthorityClaimContext(
+  value: unknown,
+  trusted: TrustedPilotContext
 ) {
+  if (!isRecord(value)) {
+    throw new OfflinePilotTransportError(
+      'OFFLINE_PILOT_AUTHORITY_CLAIM_INVALID',
+      400
+    )
+  }
+  const origin = value.originAuthorityReference
   if (
-    trusted.authenticatedSubjectId !== scope.accountId ||
-    trusted.tenantId !== scope.tenantId ||
-    trusted.branchId !== scope.branchId ||
-    trusted.actualPosEmployeeId !== scope.employeeId ||
-    scopedDeviceId(operation, payload) !== scope.deviceId
+    value.commandType !== 'order.create' ||
+    value.primaryAuthenticatedUserId !== trusted.authenticatedSubjectId ||
+    value.actualPosEmployeeId !== trusted.actualPosEmployeeId ||
+    value.tenantId !== trusted.tenantId ||
+    value.branchId !== trusted.branchId ||
+    !isRecord(origin) ||
+    origin.primaryAuthenticatedSubjectId !== trusted.authenticatedSubjectId ||
+    origin.actualPosEmployeeId !== trusted.actualPosEmployeeId ||
+    origin.tenantId !== trusted.tenantId ||
+    origin.branchId !== trusted.branchId
   ) {
     throw new OfflinePilotTransportError(
-      'OFFLINE_PILOT_SCOPE_NOT_ALLOWLISTED',
+      'OFFLINE_PILOT_CLAIM_AUTHORITY_SUBSTITUTION_REJECTED',
       403
     )
+  }
+  uuid(value.deviceId, 'OFFLINE_PILOT_DEVICE_ID_INVALID')
+  positiveGeneration(
+    value.deviceGeneration,
+    'OFFLINE_PILOT_DEVICE_GENERATION_INVALID'
+  )
+  positiveGeneration(
+    value.employeeEnrollmentGeneration,
+    'OFFLINE_PILOT_ENROLLMENT_GENERATION_INVALID'
+  )
+  positiveGeneration(
+    value.commandGeneration,
+    'OFFLINE_PILOT_COMMAND_GENERATION_INVALID'
+  )
+}
+
+function assertDynamicRequestAuthority(
+  operation: PilotOperation,
+  payload: JsonRecord,
+  trusted: TrustedPilotContext
+) {
+  if (
+    typeof payload.deviceId === 'string' ||
+    operation === 'order.create.resolve_and_acquire' ||
+    operation === 'receipt.lookup' ||
+    operation === 'inventory.read'
+  ) {
+    requestDeviceId(operation, payload)
+  }
+
+  if (operation === 'receipt.lookup') {
+    if (!Array.isArray(payload.claims)) {
+      throw new OfflinePilotTransportError(
+        'OFFLINE_PILOT_AUTHORITY_CLAIM_INVALID',
+        400
+      )
+    }
+    for (const claim of payload.claims) {
+      assertAuthorityClaimContext(claim, trusted)
+    }
+  } else if (operation === 'inventory.read') {
+    assertAuthorityClaimContext(payload.claim, trusted)
   }
 }
 
@@ -762,7 +780,6 @@ export async function handleOfflineOrderCreatePilotRequest(
   options: Readonly<{
     provider?: OfflinePilotRpcProvider
     enabled?: boolean
-    scope?: PilotScope
   }> = {}
 ) {
   const enabled = options.enabled ?? OFFLINE_ORDER_CREATE_PILOT_SERVER_FLAGS.transport
@@ -794,12 +811,7 @@ export async function handleOfflineOrderCreatePilotRequest(
   try {
     const trusted = assertTrustedContext(authorization.context)
     const body = parseRequestBody(await request.json())
-    assertPilotScope(
-      body.operation,
-      body.payload,
-      trusted,
-      options.scope ?? readPilotScopeFromEnvironment()
-    )
+    assertDynamicRequestAuthority(body.operation, body.payload, trusted)
     const result = await executeOperation(
       body.operation,
       body.payload,

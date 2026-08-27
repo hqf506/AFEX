@@ -4,7 +4,7 @@
 - PIN يختار موظفًا مسجلًا مسبقًا؛ حد الفشل 5، ولا ينشئ Auth أوtenant/branch/device/DEK authority.
 - restart دون logout يحافظ على الحزمة المشفرة ويطلب PIN.
 - checkout الفعلي يستدعي Pilot disposition داخل فرع `navigator.onLine === false`.
-- مع الأعلام الحالية false يبقى السلوك الحالي كما هو ولا يحدث اعتراض أوdispatch.
-- عند الاعتماد اللاحق، لا يقبل Pilot إلا `order.create` وطرق الدفع الثمانية كإقرار موظف، مع provider state غير متحقق.
+- مفتاح الخادم العالمي لا يمنح authority؛ كل bootstrap/sync يعيد اشتقاق منشأة وPOS actor موثقين، ولا توجد هوية عميل ثابتة في environment.
+- لا يقبل Pilot إلا `order.create` وطرق الدفع الثمانية كإقرار موظف، مع provider state غير متحقق.
 - المخزون المحلي = confirmed - pending - syncing، ومحصور عند الصفر ولا يسمح بالسالب.
 - logout الصريح يقفل الأعمال المحلية فورًا ويحفظ pending مشفرًا لاستعادة الحساب نفسه Online.
