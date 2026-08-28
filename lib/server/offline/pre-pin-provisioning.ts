@@ -6,6 +6,10 @@ import { canAccessPos } from '@/lib/permissions'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { requireVerifiedAuthContext } from '@/lib/verified-auth-context'
+import {
+  prePinDatabaseEvidence,
+  type PrePinDatabaseEvidence,
+} from '@/lib/server/offline/pre-pin-safe-diagnostics'
 
 export const PRE_PIN_PROVISIONING_CONTRACT_VERSION =
   'afex-offline-pre-pin-provisioning.v2' as const
@@ -61,7 +65,12 @@ const PAYLOAD_KEYS = Object.freeze({
 class PrePinProvisioningError extends Error {
   constructor(
     readonly classification: string,
-    readonly status: number
+    readonly status: number,
+    readonly diagnostic: Readonly<{
+      stage: Operation
+      rpcName: string
+      database: PrePinDatabaseEvidence
+    }> | null = null
   ) {
     super(classification)
     this.name = 'PrePinProvisioningError'
@@ -203,14 +212,19 @@ async function trustedPrePinContext(): Promise<TrustedPrePinContext> {
   })
 }
 
-async function invoke(name: string, args: JsonRecord) {
+async function invoke(operation: Operation, name: string, args: JsonRecord) {
   const { data, error } = await supabaseAdmin.rpc(name, args)
   if (error) {
     throw new PrePinProvisioningError(
       error.code === 'PGRST202'
         ? 'OFFLINE_PRE_PIN_SQL_CONTRACT_NOT_INSTALLED'
         : 'OFFLINE_PRE_PIN_DATABASE_CONTRACT_FAILED',
-      503
+      503,
+      Object.freeze({
+        stage: operation,
+        rpcName: name,
+        database: prePinDatabaseEvidence(error),
+      })
     )
   }
   return data
@@ -255,76 +269,88 @@ async function execute(
   }
   switch (operation) {
     case 'device.provision':
-      return invoke('afex_offline_server_pre_pin_provision_device_v2', {
-        ...common,
-        p_operation_id: uuid(
-          payload.operationId,
-          'OFFLINE_PRE_PIN_OPERATION_INVALID'
-        ),
-        p_device_id: uuid(payload.deviceId, 'OFFLINE_PRE_PIN_DEVICE_INVALID'),
-        p_mode: 'MODE_A_MANAGED_PWA_CONTINUOUS_OFFLINE',
-        p_proof_public_key_jwk: publicJwk(
-          payload.proofPublicKeyJwk,
-          ['crv', 'kty', 'use', 'x', 'y'],
-          'OFFLINE_PRE_PIN_PROOF_KEY_INVALID'
-        ),
-        p_wrap_public_key_jwk: publicJwk(
-          payload.wrapPublicKeyJwk,
-          ['alg', 'e', 'kty', 'n', 'use'],
-          'OFFLINE_PRE_PIN_WRAP_KEY_INVALID'
-        ),
-        p_key_envelope_id: uuid(
-          payload.keyEnvelopeId,
-          'OFFLINE_PRE_PIN_KEY_ENVELOPE_INVALID'
-        ),
-        p_wrapped_key_sha256: sha256(
-          payload.wrappedKeySha256,
-          'OFFLINE_PRE_PIN_WRAPPED_KEY_HASH_INVALID'
-        ),
-        p_public_key_sha256: sha256(
-          payload.publicKeySha256,
-          'OFFLINE_PRE_PIN_PUBLIC_KEY_HASH_INVALID'
-        ),
-        p_envelope_aad_sha256: sha256(
-          payload.envelopeAadSha256,
-          'OFFLINE_PRE_PIN_AAD_HASH_INVALID'
-        ),
-        p_envelope_ciphertext_sha256: sha256(
-          payload.envelopeCiphertextSha256,
-          'OFFLINE_PRE_PIN_CIPHERTEXT_HASH_INVALID'
-        ),
-        p_evidence_sha256: sha256(
-          payload.evidenceSha256,
-          'OFFLINE_PRE_PIN_EVIDENCE_HASH_INVALID'
-        ),
-      })
+      return invoke(
+        operation,
+        'afex_offline_server_pre_pin_provision_device_v2',
+        {
+          ...common,
+          p_operation_id: uuid(
+            payload.operationId,
+            'OFFLINE_PRE_PIN_OPERATION_INVALID'
+          ),
+          p_device_id: uuid(payload.deviceId, 'OFFLINE_PRE_PIN_DEVICE_INVALID'),
+          p_mode: 'MODE_A_MANAGED_PWA_CONTINUOUS_OFFLINE',
+          p_proof_public_key_jwk: publicJwk(
+            payload.proofPublicKeyJwk,
+            ['crv', 'kty', 'use', 'x', 'y'],
+            'OFFLINE_PRE_PIN_PROOF_KEY_INVALID'
+          ),
+          p_wrap_public_key_jwk: publicJwk(
+            payload.wrapPublicKeyJwk,
+            ['alg', 'e', 'kty', 'n', 'use'],
+            'OFFLINE_PRE_PIN_WRAP_KEY_INVALID'
+          ),
+          p_key_envelope_id: uuid(
+            payload.keyEnvelopeId,
+            'OFFLINE_PRE_PIN_KEY_ENVELOPE_INVALID'
+          ),
+          p_wrapped_key_sha256: sha256(
+            payload.wrappedKeySha256,
+            'OFFLINE_PRE_PIN_WRAPPED_KEY_HASH_INVALID'
+          ),
+          p_public_key_sha256: sha256(
+            payload.publicKeySha256,
+            'OFFLINE_PRE_PIN_PUBLIC_KEY_HASH_INVALID'
+          ),
+          p_envelope_aad_sha256: sha256(
+            payload.envelopeAadSha256,
+            'OFFLINE_PRE_PIN_AAD_HASH_INVALID'
+          ),
+          p_envelope_ciphertext_sha256: sha256(
+            payload.envelopeCiphertextSha256,
+            'OFFLINE_PRE_PIN_CIPHERTEXT_HASH_INVALID'
+          ),
+          p_evidence_sha256: sha256(
+            payload.evidenceSha256,
+            'OFFLINE_PRE_PIN_EVIDENCE_HASH_INVALID'
+          ),
+        }
+      )
     case 'employee.roster':
-      return invoke('afex_offline_server_pre_pin_employee_roster_v2', {
-        ...common,
-        p_device_id: uuid(payload.deviceId, 'OFFLINE_PRE_PIN_DEVICE_INVALID'),
-      })
+      return invoke(
+        operation,
+        'afex_offline_server_pre_pin_employee_roster_v2',
+        {
+          ...common,
+          p_device_id: uuid(payload.deviceId, 'OFFLINE_PRE_PIN_DEVICE_INVALID'),
+        }
+      )
     case 'inventory.publish': {
       const items = await trustedInventory(trusted.tenantId, trusted.branchId)
-      return invoke('afex_offline_server_pre_pin_publish_inventory_v2', {
-        ...common,
-        p_device_id: uuid(payload.deviceId, 'OFFLINE_PRE_PIN_DEVICE_INVALID'),
-        p_snapshot_id: uuid(
-          payload.snapshotId,
-          'OFFLINE_PRE_PIN_SNAPSHOT_INVALID'
-        ),
-        p_frontier_version: safeVersion(
-          payload.frontierVersion,
-          'OFFLINE_PRE_PIN_FRONTIER_INVALID'
-        ),
-        p_confirmed_at: isoTimestamp(
-          payload.confirmedAt,
-          'OFFLINE_PRE_PIN_CONFIRMED_AT_INVALID'
-        ),
-        p_items: items,
-      })
+      return invoke(
+        operation,
+        'afex_offline_server_pre_pin_publish_inventory_v2',
+        {
+          ...common,
+          p_device_id: uuid(payload.deviceId, 'OFFLINE_PRE_PIN_DEVICE_INVALID'),
+          p_snapshot_id: uuid(
+            payload.snapshotId,
+            'OFFLINE_PRE_PIN_SNAPSHOT_INVALID'
+          ),
+          p_frontier_version: safeVersion(
+            payload.frontierVersion,
+            'OFFLINE_PRE_PIN_FRONTIER_INVALID'
+          ),
+          p_confirmed_at: isoTimestamp(
+            payload.confirmedAt,
+            'OFFLINE_PRE_PIN_CONFIRMED_AT_INVALID'
+          ),
+          p_items: items,
+        }
+      )
     }
     case 'bootstrap.publish':
-      return invoke('afex_offline_server_pre_pin_bootstrap_v2', {
+      return invoke(operation, 'afex_offline_server_pre_pin_bootstrap_v2', {
         ...common,
         p_operation_id: uuid(
           payload.operationId,
@@ -403,6 +429,9 @@ export async function handlePrePinProvisioningRequest(request: NextRequest) {
       { status: 404 }
     )
   }
+  const correlationId = randomUUID()
+  const vercelRequestId = request.headers.get('x-vercel-id')
+  let operation: Operation | null = null
   try {
     const body = exactRecord(
       await request.json(),
@@ -418,7 +447,7 @@ export async function handlePrePinProvisioningRequest(request: NextRequest) {
         400
       )
     }
-    const operation = body.operation as Operation
+    operation = body.operation as Operation
     const payload = exactRecord(
       body.payload,
       PAYLOAD_KEYS[operation],
@@ -428,7 +457,7 @@ export async function handlePrePinProvisioningRequest(request: NextRequest) {
     const data = await execute(operation, payload, trusted)
     return NextResponse.json({
       success: true,
-      correlationId: randomUUID(),
+      correlationId,
       contractVersion: PRE_PIN_PROVISIONING_CONTRACT_VERSION,
       operation,
       data,
@@ -443,9 +472,40 @@ export async function handlePrePinProvisioningRequest(request: NextRequest) {
             'OFFLINE_PRE_PIN_REQUEST_FAILED',
             500
           )
+    if (process.env.VERCEL_ENV === 'preview') {
+      console.error(
+        JSON.stringify({
+          event: 'AFEX_PRE_PIN_PREVIEW_REQUEST_FAILED',
+          timestamp: new Date().toISOString(),
+          correlationId,
+          vercelRequestId:
+            vercelRequestId && /^[A-Za-z0-9:_-]{1,160}$/u.test(vercelRequestId)
+              ? vercelRequestId
+              : null,
+          route: '/api/pos/offline-preparation',
+          stage: operation ?? failure.diagnostic?.stage ?? 'request.validation',
+          rpcName: failure.diagnostic?.rpcName ?? null,
+          httpStatus: failure.status,
+          applicationErrorCode: failure.classification,
+          databaseCode: failure.diagnostic?.database.databaseCode ?? null,
+          databaseMessage: failure.diagnostic?.database.databaseMessage ?? null,
+          databaseDetails: failure.diagnostic?.database.databaseDetails ?? null,
+          databaseHint: failure.diagnostic?.database.databaseHint ?? null,
+          providerActions: 0,
+          externalEffects: 0,
+        })
+      )
+    }
     return NextResponse.json(
-      { success: false, error: failure.classification },
-      { status: failure.status }
+      {
+        success: false,
+        error: failure.classification,
+        correlationId,
+      },
+      {
+        status: failure.status,
+        headers: { 'x-afex-correlation-id': correlationId },
+      }
     )
   }
 }
