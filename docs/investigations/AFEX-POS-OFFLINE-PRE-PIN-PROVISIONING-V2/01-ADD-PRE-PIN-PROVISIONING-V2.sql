@@ -27,7 +27,8 @@ BEGIN
      OR pg_catalog.to_regprocedure('public.afex_offline_server_pre_pin_employee_roster_v2(uuid,uuid,uuid,uuid,uuid)') IS NOT NULL
      OR pg_catalog.to_regprocedure('public.afex_offline_server_pre_pin_publish_inventory_v2(uuid,uuid,uuid,uuid,uuid,uuid,text,timestamp with time zone,jsonb)') IS NOT NULL
      OR pg_catalog.to_regprocedure('public.afex_offline_server_pre_pin_bootstrap_v2(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bigint,uuid,text,text)') IS NOT NULL
-     OR NOT pg_catalog.has_function_privilege('afex_offline_authority_owner','public.digest(bytea,text)','EXECUTE')
+     OR pg_catalog.to_regprocedure('pg_catalog.sha256(bytea)') IS NULL
+     OR NOT pg_catalog.has_function_privilege('afex_offline_authority_owner','pg_catalog.sha256(bytea)','EXECUTE')
      OR NOT pg_catalog.has_function_privilege('afex_offline_authority_owner','afex_offline_authority.afex_current_auth_session_matches_v1(uuid,uuid)','EXECUTE')
   THEN RAISE EXCEPTION 'AFEX_PRE_PIN_V2_INSTALL_PRECONDITION_FAILED'; END IF;
 
@@ -233,8 +234,8 @@ BEGIN
      OR p_evidence_sha256 !~ '^[0-9a-f]{64}$' THEN
     RAISE EXCEPTION 'AFEX_PRE_PIN_DEVICE_SCHEMA_INVALID';
   END IF;
-  derived_wrap_key_sha256:=pg_catalog.encode(public.digest(
-    pg_catalog.convert_to(p_wrap_public_key_jwk->>'n','UTF8'),'sha256'),'hex');
+  derived_wrap_key_sha256:=pg_catalog.encode(pg_catalog.sha256(
+    pg_catalog.convert_to(p_wrap_public_key_jwk->>'n','UTF8')),'hex');
   IF p_public_key_sha256<>derived_wrap_key_sha256 THEN
     RAISE EXCEPTION 'AFEX_PRE_PIN_DEVICE_PUBLIC_KEY_HASH_MISMATCH';
   END IF;
@@ -249,8 +250,8 @@ BEGIN
        OR d.mode<>p_mode
        OR d.device_proof_public_key_jwk<>p_proof_public_key_jwk
        OR d.device_wrap_public_key_jwk<>p_wrap_public_key_jwk
-       OR pg_catalog.encode(public.digest(pg_catalog.convert_to(
-            d.device_wrap_public_key_jwk->>'n','UTF8'),'sha256'),'hex')<>p_public_key_sha256
+       OR pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+            d.device_wrap_public_key_jwk->>'n','UTF8')),'hex')<>p_public_key_sha256
        OR d.status<>'active' OR d.revoked_at IS NOT NULL THEN
       RAISE EXCEPTION 'AFEX_PRE_PIN_DEVICE_STABLE_IDENTITY_CONFLICT';
     END IF;
@@ -269,8 +270,8 @@ BEGIN
     SELECT * INTO STRICT d FROM afex_offline_authority.offline_devices
     WHERE device_id=p_device_id AND tenant_id=p_tenant_id AND branch_id=p_branch_id;
   END IF;
-  IF pg_catalog.encode(public.digest(pg_catalog.convert_to(
-       d.device_wrap_public_key_jwk->>'n','UTF8'),'sha256'),'hex')<>p_public_key_sha256 THEN
+  IF pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+       d.device_wrap_public_key_jwk->>'n','UTF8')),'hex')<>p_public_key_sha256 THEN
     RAISE EXCEPTION 'AFEX_PRE_PIN_DEVICE_STORED_PUBLIC_KEY_HASH_MISMATCH';
   END IF;
 
@@ -403,7 +404,7 @@ BEGIN
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('afex-pre-pin-bootstrap:'||p_operation_id::text,0));
 
-  /* Fresh authority is mandatory before replay; a stable receipt cannot revive
+  /* Fresh authority is mandatory before returning stored disposition; it cannot revive
      a revoked session, device, envelope, or inventory authority. */
   IF NOT afex_offline_authority.afex_current_auth_session_matches_v1(
     p_primary_authenticated_subject_id,p_authenticated_session_id) THEN
@@ -429,7 +430,7 @@ BEGIN
     AND branch_id=p_branch_id FOR KEY SHARE;
   IF NOT FOUND THEN RAISE EXCEPTION 'AFEX_PRE_PIN_BOOTSTRAP_INVENTORY_INVALID'; END IF;
 
-  request_hash:=pg_catalog.encode(public.digest(pg_catalog.convert_to(
+  request_hash:=pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
     pg_catalog.jsonb_build_object(
       'operationId',p_operation_id,'subjectId',p_primary_authenticated_subject_id,
       'authenticatedSessionId',p_authenticated_session_id,'tenantId',p_tenant_id,
@@ -439,7 +440,7 @@ BEGIN
       'namespaceGeneration',p_namespace_generation,
       'inventorySnapshotId',p_inventory_snapshot_id,
       'packageSha256',p_package_sha256,'evidenceSha256',p_evidence_sha256
-    )::text,'UTF8'),'sha256'),'hex');
+    )::text,'UTF8')),'hex');
 
   SELECT * INTO prior_event
   FROM afex_offline_authority.offline_pre_pin_bootstrap_events_v2

@@ -74,9 +74,9 @@ facts AS (
       LEFT JOIN pg_catalog.pg_proc AS p ON p.oid=pg_catalog.to_regprocedure(expected.identity)
       WHERE p.oid IS NULL OR pg_catalog.pg_get_userbyid(p.proowner)<>expected.expected_owner
     ) AS prerequisite_function_owners_exact,
-    pg_catalog.to_regprocedure('public.digest(bytea,text)') IS NOT NULL
+    pg_catalog.to_regprocedure('pg_catalog.sha256(bytea)') IS NOT NULL
       AND pg_catalog.has_function_privilege(
-        'afex_offline_authority_owner','public.digest(bytea,text)','EXECUTE') AS digest_identity_and_execute_exact,
+        'afex_offline_authority_owner','pg_catalog.sha256(bytea)','EXECUTE') AS sha256_identity_and_execute_exact,
     pg_catalog.has_function_privilege(
       'afex_offline_authority_owner',
       'afex_offline_authority.afex_current_auth_session_matches_v1(uuid,uuid)',

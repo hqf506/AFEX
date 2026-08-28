@@ -1,22 +1,40 @@
 # AFEX POS Offline pre-PIN provisioning v2 — manual SQL runbook
 
-Status: review-only and not executed by Codex. This package adds pre-PIN
-provisioning authority; it does not activate Offline in Production and it cannot
-acquire an order.
+Status: Production Foundation installed and post-attested by the human owner;
+not executed by Codex. The installed forward-wave identity is
+`f36d18366ecc5d6c0217c8cbe855a1c99415a56cf7ba5a407522eb32f24fde7e`.
+This package adds pre-PIN provisioning authority; it does not activate Offline
+in Production and it cannot acquire an order.
+
+## Human execution record
+
+- PostgreSQL 17.6 preflight: `AFEX_PRE_PIN_V2_PREFLIGHT_PASS`.
+- Complete forward wave: successful; PostgreSQL committed only after the
+  embedded post-attestation passed.
+- The executed SQL and repository SQL are byte-identical. The sole correction
+  after review was the proven comment wording: `Fresh authority is mandatory
+  before returning stored disposition; it cannot revive`.
+- Do not rerun the Foundation and do not run the deactivation wave for Preview
+  activation or qualification.
 
 ## Exact order
 
 1. Confirm Production Offline remains disabled:
    `AFEX_OFFLINE_ORDER_CREATE_PILOT_ENABLED` is unset or false.
-2. Run `00-READ-ONLY-PREFLIGHT.sql` as the bounded `postgres` installer. Its
-   single JSON result must contain `AFEX_PRE_PIN_V2_PREFLIGHT_PASS`.
-3. Independently review the entire whole file
-   `01-ADD-PRE-PIN-PROVISIONING-V2.sql`; never run a subset or line range.
-4. Execute that one additive wave manually. The terminal notice must begin with
+2. Historical completed gate: `00-READ-ONLY-PREFLIGHT.sql` ran as the bounded
+   `postgres` installer. Its
+   single JSON result must contain `AFEX_PRE_PIN_V2_PREFLIGHT_PASS`. The
+   `sha256_identity_and_execute_exact` diagnostic must be `true`; otherwise the
+   exact failure classification is
+   `AFEX_PRE_PIN_V2_PREFLIGHT_SHA256_IDENTITY_AND_EXECUTE_EXACT`.
+3. Historical completed gate: the entire whole file
+   `01-ADD-PRE-PIN-PROVISIONING-V2.sql` was reviewed and executed without a
+   subset or line range.
+4. Historical completed gate: the terminal notice began with
    `AFEX_PRE_PIN_V2_POST_ATTESTATION_PASS:` and every emitted diagnostic boolean
    must be `true`; any false diagnostic aborts before `COMMIT`.
-5. Re-run the catalog-only attestation in the final `DO` block under a read-only
-   transaction if independent confirmation is required.
+5. Do not rerun the installed Foundation. Preserve its successful human
+   preflight and embedded post-attestation evidence.
 6. Deploy the matching application commit to Preview only and enable the global
    flag only there for authenticated human qualification.
 
@@ -30,6 +48,9 @@ acquire an order.
 - `PUBLIC`, `anon` and `authenticated` have no table or function access.
 - `afex_function_owner` receives `public CREATE` only while creating the four
   facades; the forward wave proves that it is false again before commit.
+- Canonical SHA-256 identities use PostgreSQL 17 native
+  `pg_catalog.sha256(bytea)`. The wave neither depends on `pgcrypto` schema
+  access nor changes the `extensions` schema, extension ownership, or ACLs.
 - Device identity is stable and the existing one-active-device-per-branch guard
   remains authoritative.
 - The employee roster contains only active, unlocked, non-revoked device
@@ -43,7 +64,9 @@ acquire an order.
 
 ## Deactivation
 
-Run the complete `90-DEACTIVATE-PRE-PIN-PROVISIONING-V2.sql`. It temporarily
+Do not run `90-DEACTIVATE-PRE-PIN-PROVISIONING-V2.sql` during Preview
+qualification. It remains an independently reviewed emergency deactivation
+control. When separately authorized, it temporarily
 sets the proven facade owner, revokes the four `service_role` facade grants,
 restores the exact baseline membership, and proves that restoration before
 commit. It deliberately retains functions,
@@ -54,4 +77,6 @@ order acquisition is not modified by either forward or deactivation file.
 
 Any preflight, owner, ACL, scope, one-device, idempotency or post-attestation
 failure aborts the transaction. Do not repair interactively and do not run a
-subset. Keep the application flag disabled until the exact blocker is reviewed.
+subset. Keep the Production application flag disabled. Preview activation is
+limited to the exact reviewed application commit and authenticated human
+qualification described above.
