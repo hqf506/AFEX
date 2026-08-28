@@ -39,6 +39,7 @@ import {
   type Phase3AuthorityReferences,
   type Phase3PaymentMethod,
 } from '@/lib/offline/phase3'
+import { assertSelectedEmployeeMatchesPreparedBranch } from '@/lib/offline/employee-pin-selection'
 
 export const OFFLINE_COMPLETE_RUNTIME_VERSION =
   'afex-pos-offline-complete-runtime.v1' as const
@@ -1091,9 +1092,10 @@ export async function enrollOnlineEmployeeForOffline(
   employee: ActivePosEmployee
 ) {
   const runtime = await restorePreparedOfflineRuntime()
-  if (employee.branch_id !== runtime.context.branchId) {
-    throw new Error('OFFLINE_EMPLOYEE_SUBSTITUTION_REJECTED')
-  }
+  assertSelectedEmployeeMatchesPreparedBranch(
+    employee.branch_id,
+    runtime.context.branchId
+  )
   const existing = runtime.roster.find(
     (entry) => entry.employeeId === employee.id && entry.enrolled
   )

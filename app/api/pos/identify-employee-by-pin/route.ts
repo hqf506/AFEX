@@ -262,6 +262,16 @@ export async function POST(request: NextRequest) {
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
+    if (authIsFullAdmin && !requestedBranchId) {
+      const response = pinFailureResponse({
+        authResponse: auth.response,
+        errorCode: 'POS_CONTEXT_MISSING',
+        message: MISSING_POS_CONTEXT_MESSAGE,
+        status: 400,
+      })
+      return withFixedPinDelay(withAuthCookies(auth.response, response))
+    }
+
     if (authIsFullAdmin && requestedBranchId) {
       const branchBelongsToTenant = await isTenantBranch(
         tenantId,
@@ -309,6 +319,7 @@ export async function POST(request: NextRequest) {
       return withFixedPinDelay(withAuthCookies(auth.response, response))
     }
 
+    let verificationRpcName = 'verify_pos_pin_for_actor'
     let { data, error } = await supabaseAdmin.rpc(
       'verify_pos_pin_for_actor',
       {
@@ -321,6 +332,7 @@ export async function POST(request: NextRequest) {
     // Application-first deployment compatibility: use the existing RPC only
     // until the security migration creates the actor-scoped replacement.
     if (error?.code === 'PGRST202') {
+      verificationRpcName = 'verify_pos_pin'
       const legacyResult = await supabaseAdmin.rpc('verify_pos_pin', {
         p_raw_pin: pin,
         p_tenant_id: tenantId,
@@ -389,16 +401,16 @@ export async function POST(request: NextRequest) {
 
     clearPinRateLimit(rateLimitKey)
 
-    const effectiveBranchId = employee.branch_id || branchId
-    if (!effectiveBranchId) {
+    if (!branchId || (employee.branch_id && employee.branch_id !== branchId)) {
       const missingBranchResponse = pinFailureResponse({
         authResponse: auth.response,
-        errorCode: 'POS_CONTEXT_MISSING',
-        message: MISSING_POS_CONTEXT_MESSAGE,
-        status: 400,
+        errorCode: 'PIN_INVALID',
+        message: PIN_BRANCH_MISMATCH_MESSAGE,
+        status: 422,
       })
       return withFixedPinDelay(withAuthCookies(auth.response, missingBranchResponse))
     }
+    const effectiveBranchId = branchId
 
     actorSessionIssueReference = createSupportReference()
     const actorSession = await issuePosActorSession({
@@ -408,10 +420,29 @@ export async function POST(request: NextRequest) {
     })
     console.info('[POS actor session]', {
       reference: actorSessionIssueReference,
+      correlationId: actorSessionIssueReference,
       phase: 'actor_session_issue',
       classification: 'ACTOR_SESSION_ISSUED',
       httpStatus: 200,
       rowCountClassification: 'ONE',
+      ...(process.env.VERCEL_ENV === 'preview'
+        ? {
+            route: '/api/pos/identify-employee-by-pin',
+            verificationRpcName,
+            actorSessionRpcName: 'issue_pos_actor_session_v1',
+            establishmentIdentitySource: 'verified-auth-session',
+            employeeIdentitySource: 'actor-scoped-pin-verification',
+            branchAuthoritySource: authIsFullAdmin
+              ? 'tenant-validated-request-branch'
+              : 'verified-profile-branch',
+            requestedBranchBound: Boolean(requestedBranchId),
+            selectedEmployeeMatchesTrustedBranch:
+              effectiveBranchId === branchId,
+            applicationErrorCode: null,
+            databaseCode: null,
+            ...safeRequestCorrelation(request),
+          }
+        : {}),
     })
 
     const response = jsonResponse({

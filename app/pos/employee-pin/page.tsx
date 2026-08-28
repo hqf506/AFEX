@@ -30,6 +30,7 @@ import {
   verifyOfflineEmployeePin,
   type PreparedOfflineRuntime,
 } from '@/lib/offline/complete-runtime'
+import { buildScopedOnlinePinIdentification } from '@/lib/offline/employee-pin-selection'
 
 const PIN_LENGTH = 4
 const PIN_LOCK_ATTEMPTS = 3
@@ -287,6 +288,7 @@ export default function PosEmployeePinPage() {
       pin.length !== PIN_LENGTH ||
       inputDisabled ||
       !allowed ||
+      !currentBranchId ||
       verificationPausedRef.current
     ) {
       return
@@ -315,7 +317,9 @@ export default function PosEmployeePinPage() {
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ pin: pinToVerify }),
+            body: JSON.stringify(
+              buildScopedOnlinePinIdentification(pinToVerify, currentBranchId)
+            ),
           })
           const result = await response.json().catch(() => null)
           const resultBody =
@@ -407,7 +411,14 @@ export default function PosEmployeePinPage() {
     }
 
     void verifyPin()
-  }, [allowed, failedAttempts, inputDisabled, pin, router])
+  }, [
+    allowed,
+    currentBranchId,
+    failedAttempts,
+    inputDisabled,
+    pin,
+    router,
+  ])
 
   const appendDigit = (digit: string) => {
     if (inputDisabled) {
