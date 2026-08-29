@@ -19,6 +19,7 @@ const MAX_SNAPSHOT_PAGE_SIZE = 200
 const MAX_READ_PAGE_SIZE = 200
 const AFEX_SERVICE_WORKER_PATH = '/sw.js'
 const AFEX_POS_SERVICE_WORKER_SCOPE = '/'
+const AFEX_SERVICE_WORKER_PROTOCOL_VERSION = 3
 const AFEX_LEGACY_SERVICE_WORKER_SCOPES = new Set(['/pos/'])
 
 export const AFEX_SHELL_CACHE_PREFIX = 'afex-pos-shell-'
@@ -34,6 +35,51 @@ export const AFEX_OFFLINE_POS_SHELL_ROUTES = Object.freeze([
   '/pos/order-history',
   '/pos/invoices',
 ] as const)
+
+async function readAfexWorkerProtocol(worker: ServiceWorker) {
+  return new Promise<number | null>((resolve) => {
+    const channel = new MessageChannel()
+    const timeoutId = window.setTimeout(() => {
+      channel.port1.close()
+      resolve(null)
+    }, 2_000)
+    channel.port1.addEventListener(
+      'message',
+      (event: MessageEvent<unknown>) => {
+        window.clearTimeout(timeoutId)
+        channel.port1.close()
+        const value = event.data as
+          | { type?: unknown; protocolVersion?: unknown }
+          | null
+        resolve(
+          value?.type === 'AFEX_SHELL_STATUS_V3' &&
+            value.protocolVersion === AFEX_SERVICE_WORKER_PROTOCOL_VERSION
+            ? AFEX_SERVICE_WORKER_PROTOCOL_VERSION
+            : null
+        )
+      },
+      { once: true }
+    )
+    channel.port1.start()
+    worker.postMessage({ type: 'AFEX_SHELL_STATUS_V3' }, [channel.port2])
+  })
+}
+
+async function waitForCurrentAfexWorker() {
+  const deadline = Date.now() + 15_000
+  do {
+    const controller = navigator.serviceWorker.controller
+    if (
+      controller?.state === 'activated' &&
+      (await readAfexWorkerProtocol(controller)) ===
+        AFEX_SERVICE_WORKER_PROTOCOL_VERSION
+    ) {
+      return controller
+    }
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 100))
+  } while (Date.now() < deadline)
+  throw new OfflinePhase1Error('OFFLINE_SHELL_UNAVAILABLE', true)
+}
 
 export async function installAfexOfflineApplicationShell() {
   if (
@@ -92,6 +138,7 @@ export async function installAfexOfflineApplicationShell() {
   if (!worker) {
     throw new OfflinePhase1Error('OFFLINE_SHELL_UNAVAILABLE', true)
   }
+  worker = await waitForCurrentAfexWorker()
 
   return new Promise<Readonly<{ routeCount: number; assetCount: number }>>(
     (resolve, reject) => {

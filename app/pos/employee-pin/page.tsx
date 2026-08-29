@@ -334,7 +334,14 @@ export default function PosEmployeePinPage() {
               throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
             }
             selectedEmployee = result.employee as ActivePosEmployee
-            await enrollOnlineEmployeeForOffline(pinToVerify, selectedEmployee)
+            const enrollment = await enrollOnlineEmployeeForOffline(
+              pinToVerify,
+              selectedEmployee
+            )
+            if (enrollment.preparationResumeRequired) {
+              router.replace('/pos/offline-preparation')
+              return
+            }
           } catch (onlineError) {
             if (!(onlineError instanceof TypeError)) throw onlineError
             selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)

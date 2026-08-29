@@ -85,6 +85,16 @@ async function withServiceWorkerBrowser(run) {
       )
       return
     }
+    if (request.url === '/sw-old.js') {
+      response.writeHead(200, {
+        'Content-Type': 'text/javascript',
+        'Service-Worker-Allowed': '/',
+      })
+      response.end(
+        "self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',(event)=>event.waitUntil(self.clients.claim()));self.addEventListener('fetch',()=>undefined);"
+      )
+      return
+    }
     if (request.url === '/phase1.js') {
       response.writeHead(200, { 'Content-Type': 'text/javascript' })
       response.end(phase1Source)
@@ -874,7 +884,7 @@ test('service worker caches only AFEX shell/static assets and never authenticate
     ),
     readFile(phase2Path, 'utf8'),
   ])
-  assert.match(worker, /afex-pos-shell-v3/u)
+  assert.match(worker, /afex-pos-shell-v4/u)
   assert.match(worker, /url\.pathname\.startsWith\('\/api\/'\)/u)
   assert.match(worker, /request\.method !== 'GET'/u)
   assert.match(worker, /url\.pathname\.startsWith\('\/_next\/static\/'\)/u)
@@ -924,7 +934,7 @@ test('real service worker removes obsolete AFEX caches and serves the offline lo
       return { names, requests }
     })
     assert.ok(!cacheState.names.includes('afex-pos-shell-v0'))
-    assert.ok(cacheState.names.includes('afex-pos-shell-v3'))
+    assert.ok(cacheState.names.includes('afex-pos-shell-v4'))
     assert.ok(cacheState.names.includes('unrelated-application-cache'))
     assert.ok(!cacheState.names.includes('afex-pos-shell-obsolete'))
     assert.ok(
@@ -970,6 +980,36 @@ test('real Chromium installs the complete POS route shell and cold reloads it of
       await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js')),
       true
     )
+  })
+})
+
+test('an old controlling worker is replaced before the current shell is attested', async () => {
+  await withServiceWorkerBrowser(async ({ page }) => {
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.register('/sw-old.js', { scope: '/' })
+      await navigator.serviceWorker.ready
+    })
+    await page.reload()
+    await page.waitForFunction(() =>
+      navigator.serviceWorker.controller?.scriptURL.endsWith('/sw-old.js')
+    )
+
+    const installed = await page.evaluate(async () => {
+      globalThis.process = { env: { NODE_ENV: 'test' } }
+      const phase2 = await import('/phase2.js')
+      return phase2.installAfexOfflineApplicationShell()
+    })
+
+    assert.deepEqual(installed, { routeCount: 9, assetCount: 1 })
+    await page.waitForFunction(() =>
+      navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js')
+    )
+    const state = await page.evaluate(async () => ({
+      cacheNames: (await caches.keys()).sort(),
+      controller: navigator.serviceWorker.controller?.scriptURL ?? '',
+    }))
+    assert.ok(state.cacheNames.includes('afex-pos-shell-v4'))
+    assert.ok(state.controller.endsWith('/sw.js'))
   })
 })
 

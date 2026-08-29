@@ -35,6 +35,55 @@ const SAFE_VERSION_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/
 const OPERATION_SET = new Set<string>(PRE_PIN_PROVISIONING_OPERATIONS)
 const PRE_PIN_ATTEMPT_CONTRACT_COOKIE = 'afex_pre_pin_attempt_contract'
 const PRE_PIN_ATTEMPT_CONTRACT_MAX_AGE_SECONDS = 10 * 60
+const PREPARATION_DIAGNOSTIC_CONTRACT =
+  'afex-offline-preparation-client-diagnostic.v1'
+const PREPARATION_DIAGNOSTIC_STAGES = new Set([
+  'context.verify',
+  'device.material',
+  'device.provision',
+  'employee.roster',
+  'employee.enrollment',
+  'read-snapshot',
+  'inventory.publish',
+  'bootstrap.publish',
+  'local.install',
+  'service-worker.install',
+  'complete',
+])
+const PREPARATION_DIAGNOSTIC_OPERATIONS = new Set([
+  'start',
+  'success',
+  'failure',
+  'resume-required',
+  'resume',
+])
+const PREPARATION_DIAGNOSTIC_MATERIAL_STATES = new Set([
+  'unknown',
+  'restored',
+  'created',
+])
+const PREPARATION_DIAGNOSTIC_SW_STATES = new Set([
+  'unsupported',
+  'uncontrolled',
+  'installing',
+  'installed',
+  'activating',
+  'activated',
+  'redundant',
+])
+const PREPARATION_DIAGNOSTIC_CLASSIFICATIONS = new Set([
+  'none',
+  'OFFLINE_EMPLOYEE_ENROLLMENT_REQUIRED',
+  'OFFLINE_ROSTER_INVALID',
+  'OFFLINE_ROSTER_VERIFIER_INVALID',
+  'OFFLINE_DATABASE_BLOCKED',
+  'OFFLINE_DATABASE_UNAVAILABLE',
+  'OFFLINE_SCHEMA_CORRUPT',
+  'OFFLINE_SCHEMA_UNSUPPORTED',
+  'OFFLINE_KEY_LOCKED',
+  'OFFLINE_SHELL_UNAVAILABLE',
+  'OFFLINE_PREPARATION_CLIENT_FAILURE',
+])
 
 function multiDeviceOnboardingW1Enabled() {
   return (
@@ -736,5 +785,82 @@ export async function handlePrePinProvisioningRequest(request: NextRequest) {
         headers: { 'x-afex-correlation-id': correlationId },
       }
     )
+  }
+}
+
+export async function handlePrePinClientDiagnosticRequest(
+  request: NextRequest
+) {
+  if (
+    process.env.VERCEL_ENV !== 'preview' ||
+    !multiDeviceOnboardingW1Enabled()
+  ) {
+    return NextResponse.json({ success: false }, { status: 404 })
+  }
+
+  const verified = await requireVerifiedAuthContext(
+    await createSupabaseServerClient()
+  )
+  if (!verified) {
+    return NextResponse.json({ success: false }, { status: 401 })
+  }
+
+  try {
+    const body = exactRecord(
+      await request.json(),
+      [
+        'contractVersion',
+        'stage',
+        'progress',
+        'operation',
+        'schemaVersion',
+        'serviceWorkerState',
+        'runtimeMaterialState',
+        'classification',
+      ],
+      'OFFLINE_PREPARATION_DIAGNOSTIC_INVALID'
+    )
+    if (
+      body.contractVersion !== PREPARATION_DIAGNOSTIC_CONTRACT ||
+      typeof body.stage !== 'string' ||
+      !PREPARATION_DIAGNOSTIC_STAGES.has(body.stage) ||
+      !Number.isSafeInteger(body.progress) ||
+      ![0, 10, 20, 35, 50, 75, 90, 100].includes(Number(body.progress)) ||
+      typeof body.operation !== 'string' ||
+      !PREPARATION_DIAGNOSTIC_OPERATIONS.has(body.operation) ||
+      body.schemaVersion !== 3 ||
+      typeof body.serviceWorkerState !== 'string' ||
+      !PREPARATION_DIAGNOSTIC_SW_STATES.has(body.serviceWorkerState) ||
+      typeof body.runtimeMaterialState !== 'string' ||
+      !PREPARATION_DIAGNOSTIC_MATERIAL_STATES.has(
+        body.runtimeMaterialState
+      ) ||
+      typeof body.classification !== 'string' ||
+      !PREPARATION_DIAGNOSTIC_CLASSIFICATIONS.has(body.classification)
+    ) {
+      throw new PrePinProvisioningError(
+        'OFFLINE_PREPARATION_DIAGNOSTIC_INVALID',
+        400
+      )
+    }
+
+    console.info(
+      JSON.stringify({
+        event: 'AFEX_OFFLINE_PREPARATION_CLIENT_DIAGNOSTIC',
+        timestamp: new Date().toISOString(),
+        stage: body.stage,
+        progress: body.progress,
+        operation: body.operation,
+        schemaVersion: body.schemaVersion,
+        serviceWorkerState: body.serviceWorkerState,
+        runtimeMaterialState: body.runtimeMaterialState,
+        classification: body.classification,
+        providerActions: 0,
+        externalEffects: 0,
+      })
+    )
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ success: false }, { status: 400 })
   }
 }

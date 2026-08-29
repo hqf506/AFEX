@@ -93,6 +93,18 @@ export default function PosOfflinePreparationPage() {
         router.replace('/pos/employee-pin')
         return
       }
+      if (
+        preparationError instanceof Error &&
+        preparationError.message === 'OFFLINE_EMPLOYEE_ENROLLMENT_REQUIRED'
+      ) {
+        clearActivePosEmployee()
+        setProgress({
+          percentage: 35,
+          stage: 'يلزم اختيار موظف مرة واحدة لإكمال التجهيز الآمن',
+        })
+        router.replace('/pos/employee-pin')
+        return
+      }
       setRunning(false)
       setError(publicPreparationError(preparationError))
     }

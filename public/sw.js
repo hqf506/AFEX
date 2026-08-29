@@ -1,7 +1,8 @@
 'use strict'
 
 const AFEX_SHELL_CACHE_PREFIX = 'afex-pos-shell-'
-const AFEX_SHELL_CACHE = 'afex-pos-shell-v3'
+const AFEX_SHELL_CACHE = 'afex-pos-shell-v4'
+const AFEX_SERVICE_WORKER_PROTOCOL_VERSION = 3
 const AFEX_COMPATIBLE_SHELL_CACHES = new Set([
   AFEX_SHELL_CACHE,
 ])
@@ -108,6 +109,13 @@ self.addEventListener('install', (event) => {
 })
 
 self.addEventListener('message', (event) => {
+  if (event.data?.type === 'AFEX_SHELL_STATUS_V3') {
+    event.ports[0]?.postMessage({
+      type: 'AFEX_SHELL_STATUS_V3',
+      protocolVersion: AFEX_SERVICE_WORKER_PROTOCOL_VERSION,
+    })
+    return
+  }
   if (event.data?.type === 'AFEX_OFFLINE_COORDINATION_V1') {
     event.waitUntil(
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(

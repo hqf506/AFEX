@@ -13,6 +13,7 @@ import type { AppRole } from '@/lib/app-roles'
 import type { CurrentUserProfile } from '@/lib/auth'
 import { resolveAuthScopeType } from '@/lib/auth-profile'
 import {
+  OFFLINE_DATABASE_VERSION,
   OFFLINE_KEY_ENVELOPE_VERSION,
   OFFLINE_SCHEMA_GENERATION,
   OFFLINE_SCHEMA_VERSION,
@@ -65,7 +66,11 @@ const PAYMENT_CONFIGURATION_RECORD_KEY = 'pos-payment-configuration-v1'
 const CATEGORIES_RECORD_KEY = 'pos-categories-v1'
 const VARIANTS_RECORD_KEY = 'pos-variants-v1'
 const INVENTORY_SNAPSHOT_RECORD_KEY = 'pos-inventory-snapshot-v1'
+const PREPARATION_CHECKPOINT_RECORD_KEY =
+  'offline-preparation-checkpoint-v1'
 const OFFLINE_READ_CONTRACT_VERSION = 'afex-pos-offline-read-runtime.v1'
+const PREPARATION_DIAGNOSTIC_CONTRACT =
+  'afex-offline-preparation-client-diagnostic.v1'
 const OFFLINE_PIN_MAX_ATTEMPTS = 3
 const OFFLINE_PIN_LOCKOUT_MS = 30_000
 const CORE_COMMAND_PREFIX = 'core-order-command:'
@@ -177,6 +182,24 @@ export type PreparedOfflineRuntime = Readonly<{
   preparedAt: string
 }>
 
+type PendingOfflinePreparationCheckpoint = Readonly<{
+  version: 1
+  state: 'employee-enrollment-required'
+  context: PrePinContext
+  descriptor: OfflineNamespaceDescriptor
+  device: DeviceAuthority
+  createdAt: string
+}>
+
+type EmployeeEnrollmentAuthority = Readonly<{
+  source: 'prepared-runtime' | 'preparation-checkpoint'
+  context: PrePinContext
+  descriptor: OfflineNamespaceDescriptor
+  device: DeviceAuthority
+  roster: readonly OfflineEmployeeRosterEntry[]
+  runtime: PreparedOfflineRuntime | null
+}>
+
 export type OfflineReadDatasetName =
   | 'applicationShell'
   | 'employeeRoster'
@@ -246,6 +269,11 @@ let currentReadCompleteness: Readonly<{
 }> | null = null
 let preparationInFlight: Promise<PreparedOfflineRuntime> | null = null
 let syncInFlight: Promise<unknown> | null = null
+let clientDiagnosticsEnabled = false
+let runtimeMaterialState: 'unknown' | 'restored' | 'created' = 'unknown'
+let preparationDiagnosticStage: OfflinePreparationDiagnosticStage =
+  'context.verify'
+let preparationDiagnosticProgress: OfflinePreparationProgress['percentage'] = 0
 
 if (typeof window !== 'undefined') {
   window.addEventListener('afex:offline-runtime-locked', () => {
@@ -311,6 +339,113 @@ function requireUuid(value: unknown, classification = 'OFFLINE_UUID_INVALID') {
   return value
 }
 
+type OfflinePreparationDiagnosticStage =
+  | 'context.verify'
+  | 'device.material'
+  | 'device.provision'
+  | 'employee.roster'
+  | 'employee.enrollment'
+  | 'read-snapshot'
+  | 'inventory.publish'
+  | 'bootstrap.publish'
+  | 'local.install'
+  | 'service-worker.install'
+  | 'complete'
+
+type OfflinePreparationDiagnosticOperation =
+  | 'start'
+  | 'success'
+  | 'failure'
+  | 'resume-required'
+  | 'resume'
+
+const SAFE_PREPARATION_CLASSIFICATIONS = new Set([
+  'none',
+  'OFFLINE_EMPLOYEE_ENROLLMENT_REQUIRED',
+  'OFFLINE_ROSTER_INVALID',
+  'OFFLINE_ROSTER_VERIFIER_INVALID',
+  'OFFLINE_DATABASE_BLOCKED',
+  'OFFLINE_DATABASE_UNAVAILABLE',
+  'OFFLINE_SCHEMA_CORRUPT',
+  'OFFLINE_SCHEMA_UNSUPPORTED',
+  'OFFLINE_KEY_LOCKED',
+  'OFFLINE_SHELL_UNAVAILABLE',
+])
+
+function safePreparationClassification(error: unknown) {
+  const value = error instanceof Error ? error.message : ''
+  return SAFE_PREPARATION_CLASSIFICATIONS.has(value)
+    ? value
+    : 'OFFLINE_PREPARATION_CLIENT_FAILURE'
+}
+
+async function serviceWorkerDiagnosticState() {
+  if (
+    typeof navigator === 'undefined' ||
+    !('serviceWorker' in navigator)
+  ) {
+    return 'unsupported' as const
+  }
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/')
+    const worker =
+      registration?.waiting ??
+      registration?.installing ??
+      registration?.active ??
+      navigator.serviceWorker.controller
+    if (!worker) return 'uncontrolled' as const
+    return worker.state
+  } catch {
+    return navigator.serviceWorker.controller
+      ? ('activated' as const)
+      : ('uncontrolled' as const)
+  }
+}
+
+async function reportOfflinePreparationDiagnostic(input: Readonly<{
+  stage: OfflinePreparationDiagnosticStage
+  progress: OfflinePreparationProgress['percentage']
+  operation: OfflinePreparationDiagnosticOperation
+  classification?: string
+}>) {
+  if (!clientDiagnosticsEnabled || typeof window === 'undefined') return
+  const diagnostic = Object.freeze({
+    contractVersion: PREPARATION_DIAGNOSTIC_CONTRACT,
+    stage: input.stage,
+    progress: input.progress,
+    operation: input.operation,
+    schemaVersion: OFFLINE_DATABASE_VERSION,
+    serviceWorkerState: await serviceWorkerDiagnosticState(),
+    runtimeMaterialState,
+    classification: input.classification ?? 'none',
+  })
+  console.info('[AFEX offline preparation]', diagnostic)
+  await fetch('/api/pos/offline-preparation', {
+    method: 'PUT',
+    credentials: 'include',
+    cache: 'no-store',
+    keepalive: true,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(diagnostic),
+  }).catch(() => undefined)
+}
+
+async function preparationDiagnostic(
+  stage: OfflinePreparationDiagnosticStage,
+  progress: OfflinePreparationProgress['percentage'],
+  operation: OfflinePreparationDiagnosticOperation,
+  classification = 'none'
+) {
+  preparationDiagnosticStage = stage
+  preparationDiagnosticProgress = progress
+  await reportOfflinePreparationDiagnostic({
+    stage,
+    progress,
+    operation,
+    classification,
+  })
+}
+
 async function postPreparation(operation: string, payload: JsonRecord) {
   const response = await fetch('/api/pos/offline-preparation', {
     method: 'POST',
@@ -331,6 +466,7 @@ async function postPreparation(operation: string, payload: JsonRecord) {
 }
 
 async function fetchPrePinContext() {
+  clientDiagnosticsEnabled = false
   const response = await fetch('/api/pos/offline-preparation', {
     credentials: 'include',
     cache: 'no-store',
@@ -351,6 +487,7 @@ async function fetchPrePinContext() {
         : 'OFFLINE_PREPARATION_CONTEXT_FAILED'
     )
   }
+  clientDiagnosticsEnabled = result.multiDeviceOnboardingEnabled === true
   return Object.freeze({
     primarySubjectId: requireUuid(context.primarySubjectId),
     tenantId: requireUuid(context.tenantId),
@@ -476,6 +613,7 @@ async function loadOrCreateRuntimeMaterial(
     materialId
   )
   let material = existing?.material ?? null
+  runtimeMaterialState = 'restored'
   if (
     !material ||
     material.version !== 1 ||
@@ -486,6 +624,7 @@ async function loadOrCreateRuntimeMaterial(
     if (!options.allowCreate) {
       throw new Error('OFFLINE_RUNTIME_MATERIAL_UNAVAILABLE')
     }
+    runtimeMaterialState = 'created'
     material = await createRuntimeMaterial(context)
     await putOfflineRuntimeMaterial({
       id: materialId,
@@ -551,7 +690,12 @@ function deviceAuthority(value: unknown): DeviceAuthority {
   })
 }
 
-function employeeRoster(value: unknown) {
+function employeeRoster(
+  value: unknown,
+  options: Readonly<{ requireEnrolledEmployee: boolean }> = {
+    requireEnrolledEmployee: true,
+  }
+) {
   if (
     !isRecord(value) ||
     value.contractVersion !== 'offline-pre-pin-roster.v2' ||
@@ -559,7 +703,7 @@ function employeeRoster(value: unknown) {
     value.containsOfflinePinVerifier !== true ||
     value.maximumEmployees !== 25 ||
     !Array.isArray(value.employees) ||
-    value.employees.length < 1 ||
+    (options.requireEnrolledEmployee && value.employees.length < 1) ||
     value.employees.length > 25 ||
     value.employeeCount !== value.employees.length ||
     value.enrolledEmployeeCount !== value.employees.length
@@ -620,6 +764,107 @@ function employeeRoster(value: unknown) {
       })
     })
   )
+}
+
+async function persistPendingPreparationCheckpoint(
+  material: RuntimeMaterial,
+  device: DeviceAuthority
+) {
+  const encrypted = new EncryptedOfflineRepository({
+    allowPersistentWrites: true,
+  })
+  await encrypted.initialize()
+  const checkpoint: PendingOfflinePreparationCheckpoint = Object.freeze({
+    version: 1,
+    state: 'employee-enrollment-required',
+    context: material.context,
+    descriptor: material.descriptor,
+    device,
+    createdAt: new Date().toISOString(),
+  })
+  await encrypted.putEncryptedDraft(
+    material.descriptor.namespaceId,
+    PREPARATION_CHECKPOINT_RECORD_KEY,
+    checkpoint,
+    'offline-preparation-resume-checkpoint'
+  )
+  return checkpoint
+}
+
+async function restorePendingPreparationCheckpoint() {
+  const access = await readOfflineRuntimeAccessState()
+  if (!access || access.loggedOut) {
+    throw new Error('OFFLINE_PREPARATION_CHECKPOINT_UNAVAILABLE')
+  }
+  const existing = await readOfflineRuntimeMaterial<RuntimeMaterial>(
+    access.runtimeMaterialId
+  )
+  if (!existing?.material || existing.namespaceId !== access.namespaceId) {
+    throw new Error('OFFLINE_PREPARATION_CHECKPOINT_UNAVAILABLE')
+  }
+  const material = await loadOrCreateRuntimeMaterial(existing.material.context, {
+    allowCreate: false,
+  })
+  const encrypted = new EncryptedOfflineRepository({
+    allowPersistentWrites: true,
+  })
+  const checkpoint =
+    await encrypted.readEncryptedRecord<PendingOfflinePreparationCheckpoint>(
+      OFFLINE_STORES.drafts,
+      material.descriptor.namespaceId,
+      PREPARATION_CHECKPOINT_RECORD_KEY
+    )
+  if (
+    !checkpoint ||
+    checkpoint.version !== 1 ||
+    checkpoint.state !== 'employee-enrollment-required' ||
+    checkpoint.context.primarySubjectId !== material.context.primarySubjectId ||
+    checkpoint.context.tenantId !== material.context.tenantId ||
+    checkpoint.context.branchId !== material.context.branchId ||
+    checkpoint.descriptor.namespaceId !== material.descriptor.namespaceId ||
+    checkpoint.device.deviceId !== material.deviceId ||
+    checkpoint.device.status !== 'active'
+  ) {
+    throw new Error('OFFLINE_PREPARATION_CHECKPOINT_INVALID')
+  }
+  return checkpoint
+}
+
+async function employeeEnrollmentAuthority(): Promise<EmployeeEnrollmentAuthority> {
+  try {
+    const runtime = await restorePreparedOfflineRuntime()
+    return Object.freeze({
+      source: 'prepared-runtime' as const,
+      context: runtime.context,
+      descriptor: runtime.descriptor,
+      device: runtime.device,
+      roster: runtime.roster,
+      runtime,
+    })
+  } catch (error) {
+    let checkpoint: PendingOfflinePreparationCheckpoint
+    try {
+      checkpoint = await restorePendingPreparationCheckpoint()
+    } catch {
+      throw error
+    }
+    const currentContext = await fetchPrePinContext()
+    if (
+      currentContext.primarySubjectId !== checkpoint.context.primarySubjectId ||
+      currentContext.tenantId !== checkpoint.context.tenantId ||
+      currentContext.branchId !== checkpoint.context.branchId
+    ) {
+      throw new Error('OFFLINE_PREPARATION_CHECKPOINT_SCOPE_MISMATCH')
+    }
+    return Object.freeze({
+      source: 'preparation-checkpoint' as const,
+      context: currentContext,
+      descriptor: checkpoint.descriptor,
+      device: checkpoint.device,
+      roster: Object.freeze([]),
+      runtime: null,
+    })
+  }
 }
 
 function trustedInventory(value: unknown): TrustedInventory {
@@ -900,6 +1145,9 @@ async function fetchRequiredReadDatasets(context: PrePinContext) {
 async function doPrepare(
   onProgress?: (progress: OfflinePreparationProgress) => void
 ) {
+  runtimeMaterialState = 'unknown'
+  preparationDiagnosticStage = 'context.verify'
+  preparationDiagnosticProgress = 0
   const progress = (
     percentage: OfflinePreparationProgress['percentage'],
     stage: string
@@ -907,11 +1155,14 @@ async function doPrepare(
   progress(0, 'بدء التحقق من جلسة المنشأة')
   const context = await fetchPrePinContext()
   progress(10, 'تم التحقق من جلسة الحساب')
+  await preparationDiagnostic('context.verify', 10, 'success')
   if (!context.tenantId || !context.branchId) {
     throw new Error('OFFLINE_PREPARATION_SCOPE_MISSING')
   }
   progress(20, 'تم تثبيت نطاق المنشأة والفرع')
+  await preparationDiagnostic('device.material', 20, 'start')
   const material = await loadOrCreateRuntimeMaterial(context)
+  await preparationDiagnostic('device.material', 20, 'success')
   const wrappedKeySha256 = await sha256Hex(material.wrappedDek)
   const publicKeySha256 = await sha256Hex(
     String(material.wrapPublicKeyJwk.n ?? '')
@@ -926,6 +1177,7 @@ async function doPrepare(
       })
     )
   )
+  await preparationDiagnostic('device.provision', 20, 'start')
   const rawDevice = await postPreparation('device.provision', {
     operationId: crypto.randomUUID(),
     deviceId: material.deviceId,
@@ -943,10 +1195,25 @@ async function doPrepare(
     throw new Error('OFFLINE_DEVICE_SUBSTITUTION_REJECTED')
   }
   progress(35, 'تم تسجيل الجهاز المُدار والتحقق منه')
+  await preparationDiagnostic('device.provision', 35, 'success')
+  await preparationDiagnostic('employee.roster', 35, 'start')
   const roster = employeeRoster(
-    await postPreparation('employee.roster', { deviceId: device.deviceId })
+    await postPreparation('employee.roster', { deviceId: device.deviceId }),
+    { requireEnrolledEmployee: false }
   )
+  if (roster.length < 1) {
+    await persistPendingPreparationCheckpoint(material, device)
+    await preparationDiagnostic(
+      'employee.enrollment',
+      35,
+      'resume-required',
+      'OFFLINE_EMPLOYEE_ENROLLMENT_REQUIRED'
+    )
+    throw new Error('OFFLINE_EMPLOYEE_ENROLLMENT_REQUIRED')
+  }
   progress(50, 'تم تنزيل قائمة الموظفين المعتمدة')
+  await preparationDiagnostic('employee.roster', 50, 'success')
+  await preparationDiagnostic('read-snapshot', 50, 'start')
   const {
     catalog,
     runtime,
@@ -957,9 +1224,11 @@ async function doPrepare(
   } =
     await fetchRequiredReadDatasets(context)
   progress(75, 'تم تنزيل الكتالوج والأسعار والضريبة وطرق الدفع')
+  await preparationDiagnostic('read-snapshot', 75, 'success')
   const now = new Date().toISOString()
   const snapshotId = crypto.randomUUID()
   const frontierVersion = `frontier-${Date.now()}`
+  await preparationDiagnostic('inventory.publish', 75, 'start')
   const inventory = trustedInventory(
     await postPreparation('inventory.publish', {
       deviceId: device.deviceId,
@@ -969,7 +1238,9 @@ async function doPrepare(
     })
   )
   progress(90, 'تم تثبيت لقطة المخزون الموثوقة')
+  await preparationDiagnostic('inventory.publish', 90, 'success')
 
+  await preparationDiagnostic('bootstrap.publish', 90, 'start')
   const bootstrap = approvedBootstrap(
     await postPreparation('bootstrap.publish', {
       operationId: crypto.randomUUID(),
@@ -991,7 +1262,9 @@ async function doPrepare(
   ) {
     throw new Error('OFFLINE_BOOTSTRAP_AUTHORITY_MISMATCH')
   }
+  await preparationDiagnostic('bootstrap.publish', 90, 'success')
 
+  await preparationDiagnostic('local.install', 90, 'start')
   const encrypted = new EncryptedOfflineRepository({
     allowPersistentWrites: true,
   })
@@ -1075,7 +1348,9 @@ async function doPrepare(
     if (!color && !shape) return []
     return [{ catalogItemId: value.id, color, shape }]
   })
+  await preparationDiagnostic('service-worker.install', 90, 'start')
   const shellInstallation = await installAfexOfflineApplicationShell()
+  await preparationDiagnostic('service-worker.install', 90, 'success')
   const completeness: OfflineReadCompletenessManifest = Object.freeze({
     contractVersion: OFFLINE_READ_CONTRACT_VERSION,
     snapshotVersion,
@@ -1280,8 +1555,10 @@ async function doPrepare(
     namespaceId: material.descriptor.namespaceId,
     manifest: completeness,
   })
+  await preparationDiagnostic('local.install', 90, 'success')
   markOfflineBootstrapReady()
   progress(100, 'اكتمل تجهيز نقطة البيع للعمل دون اتصال')
+  await preparationDiagnostic('complete', 100, 'success')
   return prepared
 }
 
@@ -1289,9 +1566,19 @@ export function prepareCompleteOfflineRuntime(
   onProgress?: (progress: OfflinePreparationProgress) => void
 ) {
   if (!preparationInFlight) {
-    preparationInFlight = doPrepare(onProgress).finally(() => {
-      preparationInFlight = null
-    })
+    preparationInFlight = doPrepare(onProgress)
+      .catch(async (error) => {
+        await reportOfflinePreparationDiagnostic({
+          stage: preparationDiagnosticStage,
+          progress: preparationDiagnosticProgress,
+          operation: 'failure',
+          classification: safePreparationClassification(error),
+        })
+        throw error
+      })
+      .finally(() => {
+        preparationInFlight = null
+      })
   }
   return preparationInFlight
 }
@@ -1912,21 +2199,21 @@ export async function enrollOnlineEmployeeForOffline(
   pin: string,
   employee: ActivePosEmployee
 ) {
-  const runtime = await restorePreparedOfflineRuntime()
+  const authority = await employeeEnrollmentAuthority()
   assertSelectedEmployeeMatchesPreparedBranch(
     employee.branch_id,
-    runtime.context.branchId
+    authority.context.branchId
   )
-  const existing = runtime.roster.find(
+  const existing = authority.roster.find(
     (entry) => entry.employeeId === employee.id && entry.enrolled
   )
-  const materialId = await runtimeMaterialId(runtime.context)
+  const materialId = await runtimeMaterialId(authority.context)
   const verifier = await derivePinVerifier(pin)
   const operation = existing ? 'employee.replace_pin' : 'employee.enroll'
   const payload = existing
     ? {
         operationId: crypto.randomUUID(),
-        deviceId: runtime.device.deviceId,
+        deviceId: authority.device.deviceId,
         actualPosEmployeeId: employee.id,
         expectedEnrollmentGeneration: existing.enrollmentGeneration,
         pinVerifierSaltHex: verifier.saltHex,
@@ -1942,11 +2229,11 @@ export async function enrollOnlineEmployeeForOffline(
       }
     : {
         operationId: crypto.randomUUID(),
-        deviceId: runtime.device.deviceId,
+        deviceId: authority.device.deviceId,
         actualPosEmployeeId: employee.id,
-        keyEnvelopeId: runtime.device.keyEnvelopeId,
-        keyEnvelopeVersion: runtime.device.keyEnvelopeVersion,
-        namespaceGeneration: runtime.device.namespaceGeneration,
+        keyEnvelopeId: authority.device.keyEnvelopeId,
+        keyEnvelopeVersion: authority.device.keyEnvelopeVersion,
+        namespaceGeneration: authority.device.namespaceGeneration,
         pinVerifierSaltHex: verifier.saltHex,
         pinVerifierHex: verifier.verifierHex,
         packageSha256: (
@@ -1976,10 +2263,38 @@ export async function enrollOnlineEmployeeForOffline(
   }
   const refreshedRoster = employeeRoster(
     await postPreparation('employee.roster', {
-      deviceId: runtime.device.deviceId,
+      deviceId: authority.device.deviceId,
     })
   )
   const encrypted = new EncryptedOfflineRepository({ allowPersistentWrites: true })
+  const enrolledEmployee =
+    refreshedRoster.find(
+      (entry) => entry.employeeId === employee.id && entry.enrolled
+    ) ?? null
+  if (
+    !enrolledEmployee?.enrollmentId ||
+    !enrolledEmployee.enrollmentGeneration ||
+    !enrolledEmployee.commandGeneration
+  ) {
+    throw new Error('OFFLINE_EMPLOYEE_ENROLLMENT_NOT_ATTESTED')
+  }
+
+  if (authority.source === 'preparation-checkpoint') {
+    await encrypted.putEncryptedDraft(
+      authority.descriptor.namespaceId,
+      ROSTER_RECORD_KEY,
+      refreshedRoster,
+      'pre-pin-employee-roster-resume'
+    )
+    await preparationDiagnostic('employee.enrollment', 35, 'resume')
+    return Object.freeze({
+      employee: enrolledEmployee,
+      preparationResumeRequired: true as const,
+    })
+  }
+
+  const runtime = authority.runtime
+  if (!runtime) throw new Error('OFFLINE_BOOTSTRAP_NOT_PREPARED')
   const installedCompleteness = await readOfflineReadCompleteness(runtime)
   const refreshedCompleteness: OfflineReadCompletenessManifest = Object.freeze({
     ...installedCompleteness,
@@ -2005,17 +2320,6 @@ export async function enrollOnlineEmployeeForOffline(
     namespaceId: runtime.descriptor.namespaceId,
     manifest: refreshedCompleteness,
   })
-  const enrolledEmployee =
-    refreshedRoster.find(
-      (entry) => entry.employeeId === employee.id && entry.enrolled
-    ) ?? null
-  if (
-    !enrolledEmployee?.enrollmentId ||
-    !enrolledEmployee.enrollmentGeneration ||
-    !enrolledEmployee.commandGeneration
-  ) {
-    throw new Error('OFFLINE_EMPLOYEE_ENROLLMENT_NOT_ATTESTED')
-  }
   const actorBootstrapResponse = await fetch('/api/pos/offline-pilot', {
     method: 'POST',
     credentials: 'include',
@@ -2067,7 +2371,10 @@ export async function enrollOnlineEmployeeForOffline(
     },
     'local-pos-actor-binding'
   )
-  return enrolledEmployee
+  return Object.freeze({
+    employee: enrolledEmployee,
+    preparationResumeRequired: false as const,
+  })
 }
 
 async function actorAuthority(runtime: PreparedOfflineRuntime, employeeId: string) {
