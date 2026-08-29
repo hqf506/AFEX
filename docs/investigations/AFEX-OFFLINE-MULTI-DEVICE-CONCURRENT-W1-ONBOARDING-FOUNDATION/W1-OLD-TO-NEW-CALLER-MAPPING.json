@@ -1,0 +1,55 @@
+{
+  "contractVersion": "afex-multi-device-concurrent-w1-caller-mapping.v2-live-w0",
+  "previewFlag": "AFEX_OFFLINE_MULTI_DEVICE_ONBOARDING_W1_ENABLED",
+  "previewGuard": "VERCEL_ENV=preview AND flag=true",
+  "attemptContractBinding": {
+    "source": "GET /api/pos/offline-preparation",
+    "mechanism": "HTTPONLY_STRICT_SAMESITE_SERVER_COOKIE",
+    "maxAgeSeconds": 600,
+    "postRequirement": "COOKIE_CONTRACT_EQUALS_ACTIVE_DEPLOYMENT_CONTRACT",
+    "mismatchDisposition": "FAIL_BEFORE_PAYLOAD_AUTH_CONTEXT_AND_RPC",
+    "mixedV2V3AttemptAllowed": false
+  },
+  "mappings": [
+    {
+      "operation": "device.provision",
+      "legacyFacade": "public.afex_offline_server_pre_pin_provision_device_v2",
+      "w1Facade": "public.afex_offline_server_pre_pin_provision_device_v3",
+      "privateTarget": "afex_offline_authority.provision_pre_pin_device_v3",
+      "replacementRequiredForActiveSibling": false
+    },
+    {
+      "operation": "employee.roster",
+      "legacyFacade": "public.afex_offline_server_pre_pin_employee_roster_v2",
+      "w1Facade": "public.afex_offline_server_pre_pin_employee_roster_v3",
+      "privateTarget": "afex_offline_authority.read_pre_pin_employee_roster_v2",
+      "semanticChange": "versioned_facade_only"
+    },
+    {
+      "operation": "inventory.publish",
+      "legacyFacade": "public.afex_offline_server_pre_pin_publish_inventory_v2",
+      "w1Facade": "public.afex_offline_server_pre_pin_publish_inventory_v3",
+      "privateTarget": "afex_offline_authority.publish_branch_inventory_snapshot_v1",
+      "semanticChange": "independent_active_device_context"
+    },
+    {
+      "operation": "bootstrap.publish",
+      "legacyFacade": "public.afex_offline_server_pre_pin_bootstrap_v2",
+      "w1Facade": "public.afex_offline_server_pre_pin_bootstrap_v3",
+      "privateTarget": "afex_offline_authority.publish_pre_pin_account_bootstrap_v2",
+      "semanticChange": "versioned_facade_only"
+    }
+  ],
+  "route": "/api/pos/offline-preparation",
+  "liveW0Bindings": {
+    "employeeAuthorityRelation": "afex_offline_authority.offline_employee_authorities",
+    "commandBindingRelation": "afex_offline_authority.offline_command_bindings",
+    "v2BootstrapActiveStatus": "active"
+  },
+  "historicalReplacementOperationsPreserved": [
+    "device.replacement.inspect",
+    "device.replacement.retire"
+  ],
+  "historicalReplacementInvokedByW1Onboarding": false,
+  "productionRoutingChanged": false
+}

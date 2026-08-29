@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { canAccessPos } from '@/lib/permissions'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -13,9 +13,13 @@ import {
 
 export const PRE_PIN_PROVISIONING_CONTRACT_VERSION =
   'afex-offline-pre-pin-provisioning.v2' as const
+export const MULTI_DEVICE_PRE_PIN_PROVISIONING_CONTRACT_VERSION =
+  'afex-offline-pre-pin-provisioning.v3' as const
 
 export const PRE_PIN_PROVISIONING_OPERATIONS = Object.freeze([
   'device.provision',
+  'device.replacement.inspect',
+  'device.replacement.retire',
   'employee.roster',
   'inventory.publish',
   'bootstrap.publish',
@@ -29,6 +33,37 @@ const UUID_PATTERN =
 const SHA256_PATTERN = /^[0-9a-f]{64}$/
 const SAFE_VERSION_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/
 const OPERATION_SET = new Set<string>(PRE_PIN_PROVISIONING_OPERATIONS)
+const PRE_PIN_ATTEMPT_CONTRACT_COOKIE = 'afex_pre_pin_attempt_contract'
+const PRE_PIN_ATTEMPT_CONTRACT_MAX_AGE_SECONDS = 10 * 60
+
+function multiDeviceOnboardingW1Enabled() {
+  return (
+    process.env.VERCEL_ENV === 'preview' &&
+    process.env.AFEX_OFFLINE_MULTI_DEVICE_ONBOARDING_W1_ENABLED === 'true'
+  )
+}
+
+function activePrePinContractVersion() {
+  return multiDeviceOnboardingW1Enabled()
+    ? MULTI_DEVICE_PRE_PIN_PROVISIONING_CONTRACT_VERSION
+    : PRE_PIN_PROVISIONING_CONTRACT_VERSION
+}
+
+function prePinFacade(
+  operation: Extract<
+    Operation,
+    'device.provision' | 'employee.roster' | 'inventory.publish' | 'bootstrap.publish'
+  >
+) {
+  const version = multiDeviceOnboardingW1Enabled() ? 'v3' : 'v2'
+  const names = {
+    'device.provision': `afex_offline_server_pre_pin_provision_device_${version}`,
+    'employee.roster': `afex_offline_server_pre_pin_employee_roster_${version}`,
+    'inventory.publish': `afex_offline_server_pre_pin_publish_inventory_${version}`,
+    'bootstrap.publish': `afex_offline_server_pre_pin_bootstrap_${version}`,
+  } as const
+  return names[operation]
+}
 
 const PAYLOAD_KEYS = Object.freeze({
   'device.provision': Object.freeze([
@@ -42,6 +77,12 @@ const PAYLOAD_KEYS = Object.freeze({
     'envelopeAadSha256',
     'envelopeCiphertextSha256',
     'evidenceSha256',
+  ]),
+  'device.replacement.inspect': Object.freeze([]),
+  'device.replacement.retire': Object.freeze([
+    'operationId',
+    'confirmation',
+    'localOutboxZeroAttested',
   ]),
   'employee.roster': Object.freeze(['deviceId']),
   'inventory.publish': Object.freeze([
@@ -133,6 +174,84 @@ function safeVersion(value: unknown, classification: string) {
   return value
 }
 
+function requiredBoolean(value: unknown, classification: string) {
+  if (typeof value !== 'boolean') {
+    throw new PrePinProvisioningError(classification, 400)
+  }
+  return value
+}
+
+function replacementAdministrator(trusted: TrustedPrePinContext) {
+  if (!['owner', 'admin'].includes(trusted.accountRole)) {
+    throw new PrePinProvisioningError(
+      'OFFLINE_PRE_PIN_DEVICE_REPLACEMENT_ADMIN_REQUIRED',
+      403
+    )
+  }
+}
+
+function replacementContext(value: unknown) {
+  if (!isRecord(value) || value.contractVersion !== 'offline-pre-pin-device-retirement.v2') {
+    throw new PrePinProvisioningError(
+      'OFFLINE_PRE_PIN_DEVICE_REPLACEMENT_CONTEXT_INVALID',
+      503
+    )
+  }
+  const requiredNumbers = [
+    'activeDeviceCount',
+    'currentBootstrapCount',
+    'currentKeyEnvelopeCount',
+    'boundServerCommandCount',
+    'nonterminalServerCommandCount',
+    'unresolvedReceiptCount',
+    'durableServerPayloadCount',
+    'expectedDeviceGeneration',
+    'expectedKeyEnvelopeVersion',
+    'expectedNamespaceGeneration',
+    'expectedBootstrapGeneration',
+    'expectedRevocationGeneration',
+  ] as const
+  for (const key of requiredNumbers) {
+    if (!Number.isSafeInteger(value[key]) || Number(value[key]) < 0) {
+      throw new PrePinProvisioningError(
+        'OFFLINE_PRE_PIN_DEVICE_REPLACEMENT_CONTEXT_INVALID',
+        503
+      )
+    }
+  }
+  if (
+    typeof value.replacementRequired !== 'boolean' ||
+    typeof value.serverStateZero !== 'boolean' ||
+    typeof value.serverOutboxRelationPresent !== 'boolean'
+  ) {
+    throw new PrePinProvisioningError(
+      'OFFLINE_PRE_PIN_DEVICE_REPLACEMENT_CONTEXT_INVALID',
+      503
+    )
+  }
+  return value
+}
+
+function publicReplacementContext(value: JsonRecord) {
+  return Object.freeze({
+    contractVersion: value.contractVersion,
+    replacementRequired: value.replacementRequired,
+    replacementAllowedAfterLocalAttestation:
+      value.replacementRequired === true && value.serverStateZero === true,
+    activeDeviceCount: value.activeDeviceCount,
+    currentBootstrapCount: value.currentBootstrapCount,
+    currentKeyEnvelopeCount: value.currentKeyEnvelopeCount,
+    boundServerCommandCount: value.boundServerCommandCount,
+    nonterminalServerCommandCount: value.nonterminalServerCommandCount,
+    unresolvedReceiptCount: value.unresolvedReceiptCount,
+    durableServerPayloadCount: value.durableServerPayloadCount,
+    serverOutboxRelationPresent: value.serverOutboxRelationPresent,
+    serverStateZero: value.serverStateZero,
+    identifiersExposed: false,
+    keysExposed: false,
+  })
+}
+
 function publicJwk(
   value: unknown,
   expectedKeys: readonly string[],
@@ -174,7 +293,7 @@ async function trustedPrePinContext(): Promise<TrustedPrePinContext> {
     !profile ||
     profile.is_active !== true ||
     typeof profile.role !== 'string' ||
-    !canAccessPos(profile.role) ||
+    (!canAccessPos(profile.role) && profile.role !== 'owner') ||
     typeof profile.tenant_id !== 'string'
   ) {
     throw new PrePinProvisioningError(
@@ -269,10 +388,11 @@ async function execute(
   }
   switch (operation) {
     case 'device.provision':
-      return invoke(
-        operation,
-        'afex_offline_server_pre_pin_provision_device_v2',
-        {
+      try {
+        return await invoke(
+          operation,
+          prePinFacade(operation),
+          {
           ...common,
           p_operation_id: uuid(
             payload.operationId,
@@ -314,12 +434,102 @@ async function execute(
             payload.evidenceSha256,
             'OFFLINE_PRE_PIN_EVIDENCE_HASH_INVALID'
           ),
+          }
+        )
+      } catch (error) {
+        if (
+          !multiDeviceOnboardingW1Enabled() &&
+          error instanceof PrePinProvisioningError &&
+          error.diagnostic?.database.databaseMessage?.includes(
+            'AFEX_DEVICE_ACTIVATION_AUTHORITY_INVALID'
+          )
+        ) {
+          throw new PrePinProvisioningError(
+            'OFFLINE_PRE_PIN_ACTIVE_DEVICE_REPLACEMENT_REQUIRED',
+            409,
+            error.diagnostic
+          )
+        }
+        throw error
+      }
+    case 'device.replacement.inspect': {
+      replacementAdministrator(trusted)
+      const context = replacementContext(
+        await invoke(
+          operation,
+          'afex_offline_server_pre_pin_device_replacement_context_v2',
+          common
+        )
+      )
+      return publicReplacementContext(context)
+    }
+    case 'device.replacement.retire': {
+      replacementAdministrator(trusted)
+      if (
+        payload.confirmation !== 'RETIRE_ACTIVE_DEVICE_AND_REPROVISION' ||
+        requiredBoolean(
+          payload.localOutboxZeroAttested,
+          'OFFLINE_PRE_PIN_LOCAL_ZERO_ATTESTATION_REQUIRED'
+        ) !== true
+      ) {
+        throw new PrePinProvisioningError(
+          'OFFLINE_PRE_PIN_EXPLICIT_DEVICE_REPLACEMENT_CONFIRMATION_REQUIRED',
+          409
+        )
+      }
+      const operationId = uuid(
+        payload.operationId,
+        'OFFLINE_PRE_PIN_OPERATION_INVALID'
+      )
+      const context = replacementContext(
+        await invoke(
+          'device.replacement.inspect',
+          'afex_offline_server_pre_pin_device_replacement_context_v2',
+          common
+        )
+      )
+      if (context.replacementRequired !== true || context.serverStateZero !== true) {
+        throw new PrePinProvisioningError(
+          'OFFLINE_PRE_PIN_DEVICE_REPLACEMENT_PENDING_STATE_PRESENT',
+          409
+        )
+      }
+      const evidenceSha256 = createHash('sha256')
+        .update(
+          JSON.stringify({
+            contractVersion: PRE_PIN_PROVISIONING_CONTRACT_VERSION,
+            operationId,
+            authenticatedSubjectId: trusted.authenticatedSubjectId,
+            authenticatedSessionId: trusted.authenticatedSessionId,
+            tenantId: trusted.tenantId,
+            branchId: trusted.branchId,
+            localOutboxZeroAttested: true,
+            confirmation: payload.confirmation,
+          })
+        )
+        .digest('hex')
+      return invoke(
+        operation,
+        'afex_offline_server_pre_pin_retire_device_v2',
+        {
+          ...common,
+          p_operation_id: operationId,
+          p_expected_device_generation: context.expectedDeviceGeneration,
+          p_expected_key_envelope_version: context.expectedKeyEnvelopeVersion,
+          p_expected_namespace_generation: context.expectedNamespaceGeneration,
+          p_expected_bootstrap_generation: context.expectedBootstrapGeneration,
+          p_expected_revocation_generation: context.expectedRevocationGeneration,
+          p_local_outbox_zero_attested: true,
+          p_local_attestation_method: 'HUMAN_VERIFIED_OLD_ORIGIN_READ_ONLY',
+          p_reason_code: 'explicit_authenticated_device_replacement',
+          p_evidence_sha256: evidenceSha256,
         }
       )
+    }
     case 'employee.roster':
       return invoke(
         operation,
-        'afex_offline_server_pre_pin_employee_roster_v2',
+        prePinFacade(operation),
         {
           ...common,
           p_device_id: uuid(payload.deviceId, 'OFFLINE_PRE_PIN_DEVICE_INVALID'),
@@ -329,7 +539,7 @@ async function execute(
       const items = await trustedInventory(trusted.tenantId, trusted.branchId)
       return invoke(
         operation,
-        'afex_offline_server_pre_pin_publish_inventory_v2',
+        prePinFacade(operation),
         {
           ...common,
           p_device_id: uuid(payload.deviceId, 'OFFLINE_PRE_PIN_DEVICE_INVALID'),
@@ -350,7 +560,7 @@ async function execute(
       )
     }
     case 'bootstrap.publish':
-      return invoke(operation, 'afex_offline_server_pre_pin_bootstrap_v2', {
+      return invoke(operation, prePinFacade(operation), {
         ...common,
         p_operation_id: uuid(
           payload.operationId,
@@ -394,10 +604,12 @@ export async function getPrePinProvisioningContext() {
   }
   try {
     const trusted = await trustedPrePinContext()
-    return NextResponse.json({
+    const contractVersion = activePrePinContractVersion()
+    const response = NextResponse.json({
       success: true,
-      contractVersion: PRE_PIN_PROVISIONING_CONTRACT_VERSION,
+      contractVersion,
       globalPilotEnabled: true,
+      multiDeviceOnboardingEnabled: multiDeviceOnboardingW1Enabled(),
       context: {
         primarySubjectId: trusted.authenticatedSubjectId,
         tenantId: trusted.tenantId,
@@ -407,6 +619,14 @@ export async function getPrePinProvisioningContext() {
         authority: 'verified-primary-auth-pre-pin',
       },
     })
+    response.cookies.set(PRE_PIN_ATTEMPT_CONTRACT_COOKIE, contractVersion, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/api/pos/offline-preparation',
+      maxAge: PRE_PIN_ATTEMPT_CONTRACT_MAX_AGE_SECONDS,
+    })
+    return response
   } catch (error) {
     const failure =
       error instanceof PrePinProvisioningError
@@ -433,6 +653,15 @@ export async function handlePrePinProvisioningRequest(request: NextRequest) {
   const vercelRequestId = request.headers.get('x-vercel-id')
   let operation: Operation | null = null
   try {
+    const attemptContractVersion = request.cookies.get(
+      PRE_PIN_ATTEMPT_CONTRACT_COOKIE
+    )?.value
+    if (attemptContractVersion !== activePrePinContractVersion()) {
+      throw new PrePinProvisioningError(
+        'OFFLINE_PRE_PIN_ATTEMPT_CONTRACT_MISMATCH',
+        409
+      )
+    }
     const body = exactRecord(
       await request.json(),
       ['operation', 'payload'],
@@ -458,7 +687,7 @@ export async function handlePrePinProvisioningRequest(request: NextRequest) {
     return NextResponse.json({
       success: true,
       correlationId,
-      contractVersion: PRE_PIN_PROVISIONING_CONTRACT_VERSION,
+      contractVersion: activePrePinContractVersion(),
       operation,
       data,
       providerActions: 0,

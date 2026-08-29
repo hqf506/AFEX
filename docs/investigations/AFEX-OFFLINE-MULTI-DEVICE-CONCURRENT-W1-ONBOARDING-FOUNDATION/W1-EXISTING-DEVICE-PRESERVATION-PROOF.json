@@ -1,0 +1,43 @@
+{
+  "contractVersion": "afex-multi-device-concurrent-w1-existing-device-preservation.v2-live-w0",
+  "protectedDataSets": [
+    "afex_offline_authority.offline_devices",
+    "afex_offline_authority.offline_key_envelopes",
+    "afex_offline_authority.offline_pre_pin_bootstrap_authorities_v2"
+  ],
+  "preMigrationIdentity": "COUNT_PLUS_SHA256_OF_CANONICAL_JSONB_ROWS",
+  "inTransactionPostIdentity": "MUST_EQUAL_PRE_MIGRATION_BYTE_FOR_BYTE",
+  "existingRowDmlStatements": 0,
+  "deviceGenerationChanges": 0,
+  "bootstrapGenerationChanges": 0,
+  "keyEnvelopeGenerationChanges": 0,
+  "siblingDeviceReadsByRegisterOrActivate": 0,
+  "siblingDeviceMutations": 0,
+  "replaceOfflineDeviceV1Calls": 0,
+  "transitionOfflineDeviceV1Calls": 0,
+  "commandOrPayloadDeletes": 0,
+  "existingDeviceExpectedState": "ACTIVE_AND_BYTE_IDENTICAL",
+  "existingActiveV2BootstrapExpectedState": "ACTIVE_AND_BYTE_IDENTICAL",
+  "authoritativeProductionPostAttestation": {
+    "decision": "AFEX_MULTI_DEVICE_W1_POST_ATTESTATION_PASS",
+    "ready": true,
+    "failureClassifications": [],
+    "failedChecks": 0,
+    "existingDevicePreserved": true,
+    "existingEnvelopePreserved": true,
+    "existingV2BootstrapPreserved": true,
+    "duplicateDeviceIdCount": 0,
+    "orphanActiveEnvelopeBootstrapEmployeeAuthorityCount": 0,
+    "browserExecuteGrantCount": 0,
+    "temporaryMembershipResidueCount": 0,
+    "legacyV1V2BodiesAndAclsUnchanged": true
+  },
+  "relationAclExpectedState": "POSTGRESQL17_EXACT_OWNER_ACL_INCLUDING_MAINTAIN_AND_BYTE_IDENTICAL",
+  "maintainGrantOrRevokeStatements": 0,
+  "liveAuthorityRelations": {
+    "employee": "afex_offline_authority.offline_employee_authorities",
+    "command": "afex_offline_authority.offline_command_bindings"
+  },
+  "w1Scope": "CONCURRENT_DEVICE_ONBOARDING_PREPARATION_AND_PIN_BOOTSTRAP_ONLY",
+  "fullConcurrentCheckoutClaimed": false
+}

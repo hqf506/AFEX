@@ -1,0 +1,25 @@
+# W1 final decision
+
+Decision: `AFEX_MULTI_DEVICE_W1_DATABASE_INSTALLED_POST_ATTESTED_APPLICATION_PREVIEW_AUTHORIZED`
+
+The human-supplied authoritative Production result is now the installed database identity: `AFEX_MULTI_DEVICE_W1_POST_ATTESTATION_PASS`, `ready=true`, `failureClassifications=[]`, and zero failed checks. Seven W1 functions/facades, exact-device guards, removal of the branch singleton, preservation of the existing device/envelope/active V2 bootstrap, zero orphans, zero browser EXECUTE, zero temporary membership residue, and unchanged legacy V1/V2 bodies and ACLs are accepted as post-attested facts. Codex did not execute or connect to the database in this application/Preview phase.
+
+The proven forward-transaction post-attestation defect is corrected in place. The original snapshot, the singleton-drop gate, and the final `legacy_ok` comparison now use the same exact thirteen-function preservation set: `13/13/13`. The final set includes `pre_pin_context_matches_v2`, `read_pre_pin_employee_roster_v2`, `publish_pre_pin_account_bootstrap_v2`, and `publish_branch_inventory_snapshot_v1`; a nine-function final comparison is explicitly rejected by regression coverage. No legacy function body or ACL was changed.
+
+If the final attestation fails, its exception now reports only the six safe booleans `functions_ok`, `acl_ok`, `data_ok`, `legacy_ok`, `memberships_ok`, and `public_create_ok`. It emits no UUID, PII, function body, hash, payload, key, token, or credential.
+
+The package introduces a versioned, fail-closed W1 onboarding foundation. Its live foreign-key model now carries deferrability, initially-deferred state, update action, and delete action per constraint at all three attestation boundaries. Twenty constraints remain exactly `false,false,'r','r'`; `offline_employee_authorities_device_envelope_scope_fk` is exactly `true,true,'a','a'`. PostgreSQL `NO ACTION` is therefore no longer flattened to `RESTRICT`, and the deferrable identity is preserved without changing any constraint.
+
+Regression coverage proves the complete 21/21 identity/action distribution, rejects a global `confupdtype<>'r'` or `confdeltype<>'r'` assumption, and rejects constraint DDL. The preflight, forward W0 gate, and post-attestation all compare `confupdtype` and `confdeltype` to their expected row values.
+
+The preceding PostgreSQL `42883` blocker remains corrected at all seven ACL catalog boundaries: `PUBLIC` and `pg_roles.rolname` become `text` at source, and all three grantee-array equality checks aggregate `text[]`. ACL rows, privileges, owners, and authority semantics remain unchanged.
+
+The preceding PostgreSQL `42601` correction remains intact: the CTE expectation columns are `expected_deferrable` and `expected_initially_deferred`, and the post-attestation binds all 21 live foreign keys. A cross-file catalog type audit found no remaining unsafe `name[]/text[]`, `name/text`, `char/text`, or `oid/name` comparison boundary in the W1 SQL. Catalog character metadata is compared through explicit expectation casts or type-resolved literals; index key arrays remain explicitly `name[]`. No PostgreSQL parser PASS is claimed because no independent parser is installed.
+
+The post-attestation binds the same 21 live foreign keys by relation and constraint name and proves `contype='f'`, validation, per-row update/delete actions, deferrability, and initially-deferred values. It uses bidirectional exact-set comparison, so a missing, changed, or extra foreign key fails closed. Its other live W0 checks remain intact: active V2 bootstrap state, exact legacy function bodies and ACL rows, four exact trigger identities, PostgreSQL 17 `MAINTAIN`, membership grantors, data preservation, and zero browser EXECUTE. W1 contains no trigger DDL or foreign-key mutation.
+
+The application selects V3 only when both `VERCEL_ENV=preview` and `AFEX_OFFLINE_MULTI_DEVICE_ONBOARDING_W1_ENABLED=true`. Otherwise it retains the established V2 and explicit replacement behavior; Production therefore remains V2 even if the W1 flag were accidentally present. All four preparation operations use the same selector. The authenticated context GET pins the chosen contract to a short-lived HttpOnly, Strict-SameSite server cookie, and every POST rejects a changed/missing attempt contract before parsing the payload, resolving authority or invoking an RPC. A branch-alias deployment transition therefore fails closed instead of mixing V2 and V3 within one attempt. Under W1, an active sibling is normal and is not mapped to `replacementRequired`.
+
+W1 does not create an effect ledger, change order execution, change inventory conflict semantics, enable provider/external effects, or claim full concurrent Offline checkout readiness. W2 remains unstarted.
+
+Required human boundary: Preview activation is limited to the permanent branch origin after the exact application commit is READY and mapped there. Codex must not perform device onboarding. The human owner must test two independent devices on that same permanent origin. Production deployment, W2, checkout mutation, providers and external effects remain unapproved.

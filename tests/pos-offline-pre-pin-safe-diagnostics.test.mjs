@@ -65,20 +65,22 @@ test('Preview failure logging is correlation-bound, payload-free and production-
   )
 })
 
-test('device provisioning keeps the approved public facade and does not bypass Foundation', async () => {
-  const [transport, sql] = await Promise.all([
+test('device provisioning selects only approved versioned public facades and never bypasses Foundation', async () => {
+  const [transport, sql, w1Sql] = await Promise.all([
     read('lib/server/offline/pre-pin-provisioning.ts'),
     read(
       'docs/investigations/AFEX-POS-OFFLINE-PRE-PIN-PROVISIONING-V2/01-ADD-PRE-PIN-PROVISIONING-V2.sql'
     ),
+    read(
+      'docs/investigations/AFEX-OFFLINE-MULTI-DEVICE-CONCURRENT-W1-ONBOARDING-FOUNDATION/01-ADD-MULTI-DEVICE-ONBOARDING-FOUNDATION.sql'
+    ),
   ])
-  assert.match(
-    transport,
-    /invoke\(\s*operation,\s*'afex_offline_server_pre_pin_provision_device_v2'/u
-  )
+  assert.match(transport, /function prePinFacade\(/u)
+  assert.match(transport, /multiDeviceOnboardingW1Enabled\(\) \? 'v3' : 'v2'/u)
+  assert.match(transport, /invoke\(\s*operation,\s*prePinFacade\(operation\)/u)
   assert.doesNotMatch(
     transport,
-    /supabaseAdmin\.rpc\(['"](?:register_offline_device_v1|provision_pre_pin_device_v2)/u
+    /supabaseAdmin\.rpc\(['"](?:register_offline_device_v1|register_offline_device_v2|provision_pre_pin_device_v2|provision_pre_pin_device_v3)/u
   )
   const signature = [
     'p_authenticated_subject_id uuid',
@@ -111,5 +113,16 @@ test('device provisioning keeps the approved public facade and does not bypass F
   assert.match(
     facade,
     /RETURN afex_offline_authority\.provision_pre_pin_device_v2\(/u
+  )
+  const w1Facade = w1Sql.slice(
+    w1Sql.indexOf('CREATE FUNCTION public.afex_offline_server_pre_pin_provision_device_v3('),
+    w1Sql.indexOf('CREATE FUNCTION public.afex_offline_server_pre_pin_employee_roster_v3(')
+  )
+  for (const parameter of signature) {
+    assert.match(w1Facade, new RegExp(parameter.replace(' ', '\\s+'), 'u'))
+  }
+  assert.match(
+    w1Facade,
+    /RETURN afex_offline_authority\.provision_pre_pin_device_v3\(/u
   )
 })
