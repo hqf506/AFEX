@@ -16,6 +16,11 @@ import { supabase } from '@/lib/supabase/client'
 import { normalizeUsername } from '@/lib/usernames'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
+import { hasOfflineBootstrapReadyMarker } from '@/lib/offline/phase1'
+import {
+  reportPosRouteTransition,
+  resolveAuthenticatedPosEntryRoute,
+} from '@/lib/pos-route-guard'
 
 function AfexMark({ className = 'h-14 w-14' }: { className?: string }) {
   return (
@@ -164,8 +169,14 @@ export default function PosLoginPage() {
       }
 
       if (!pinNavigationStartedRef.current) {
+        const decision = resolveAuthenticatedPosEntryRoute({
+          preparedDevice: hasOfflineBootstrapReadyMarker(),
+          explicitlyLoggedOut: false,
+        })
+        if (!decision) return
         pinNavigationStartedRef.current = true
-        router.replace('/pos/offline-preparation')
+        reportPosRouteTransition(decision)
+        router.replace(decision.route)
       }
       return
     }

@@ -6,7 +6,10 @@ import {
   lockOfflineRuntime,
 } from '@/lib/offline/phase1'
 import { clearCurrentUserProfileCache } from '@/lib/auth'
-import { clearProtectedClientResources } from '@/lib/client-resource-cache'
+import {
+  clearProtectedClientResources,
+  resetProtectedResourceUnauthorized,
+} from '@/lib/client-resource-cache'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
 
@@ -77,6 +80,7 @@ export function writeActivePosEmployee(employee: ActivePosEmployee) {
     POS_EMPLOYEE_SESSION_KEY,
     JSON.stringify(employee)
   )
+  resetProtectedResourceUnauthorized()
   emitPosEmployeeSessionChange()
 }
 
@@ -156,20 +160,24 @@ function emitPosEmployeeSessionChange() {
   window.dispatchEvent(new Event(POS_EMPLOYEE_SESSION_CHANGE_EVENT))
 }
 
-function clearPosPlaintextCaches() {
+function clearPosEmployeePlaintextCaches() {
   clearAllInvoiceCatalogCache()
-  clearProtectedClientResources()
-  clearCurrentUserProfileCache()
   if (typeof window !== 'undefined') {
     window.sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
   }
+}
+
+function clearFullPosSessionPlaintextCaches() {
+  clearPosEmployeePlaintextCaches()
+  clearProtectedClientResources()
+  clearCurrentUserProfileCache()
 }
 
 export async function switchPosEmployeeAndRequirePin() {
   return executePosEmployeeSwitchLifecycle({
     revokePosActor: revokeCurrentPosActorSession,
     clearEmployeePresentation: clearActivePosEmployee,
-    clearPlaintextCaches: clearPosPlaintextCaches,
+    clearPlaintextCaches: clearPosEmployeePlaintextCaches,
   })
 }
 
@@ -183,7 +191,7 @@ export async function endFullPosSessionAndRequireLogin() {
       }
     },
     clearEmployeePresentation: clearActivePosEmployee,
-    clearPlaintextCaches: clearPosPlaintextCaches,
+    clearPlaintextCaches: clearFullPosSessionPlaintextCaches,
     markPrimaryLoggedOut: markPosLoggedOut,
   })
 }

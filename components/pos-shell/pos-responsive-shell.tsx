@@ -165,10 +165,10 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
         intent={logoutIntent}
         hasActiveSale={hasActiveSale}
         onCancel={() => setConfirmOpen(false)}
-        onComplete={({ route }) => {
+        onComplete={({ intent, route }) => {
           setEmployee(null)
           setConfirmOpen(false)
-          router.replace(route)
+          if (intent === 'logout') router.replace(route)
         }}
       />
       <PosSaleHomeConfirmationDialog open={saleHomeConfirmOpen} onCancel={() => setSaleHomeConfirmOpen(false)} onConfirm={() => router.replace('/pos')} />

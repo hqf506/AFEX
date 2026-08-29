@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { readActivePosEmployee } from '@/lib/pos-employee-session'
 import {
   createProtectedResourceAuthError,
   isClientResourceFresh,
-  isProtectedResourceAuthError,
   loadClientResource,
   markProtectedResourcesUnauthorized,
   peekClientResource,
@@ -105,7 +105,12 @@ export function useSystemSettings(enabled = true): SystemSettingsHookResult {
           })
 
           if (response.status === 401) {
-            markProtectedResourcesUnauthorized()
+            const expectedPosActorRelock =
+              pathname?.startsWith('/pos') && !readActivePosEmployee()
+
+            if (!expectedPosActorRelock) {
+              markProtectedResourcesUnauthorized()
+            }
             throw createProtectedResourceAuthError()
           }
 
@@ -128,20 +133,13 @@ export function useSystemSettings(enabled = true): SystemSettingsHookResult {
       setSettings(nextSettings)
       setLoading(false)
     } catch (fetchError) {
-      if (isProtectedResourceAuthError(fetchError)) {
-        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/pos')) {
-          window.location.href = '/pos/login'
-          return
-        }
-      }
-
       setSettings(cachedSettings || null)
       setError(
         fetchError instanceof Error ? fetchError.message : 'فشل تحميل إعدادات النظام'
       )
       setLoading(false)
     }
-  }, [shouldFetch])
+  }, [pathname, shouldFetch])
 
   useEffect(() => {
     if (!shouldFetch) {

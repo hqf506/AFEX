@@ -1568,11 +1568,11 @@ export default function PosPage() {
         intent="switch"
         hasActiveSale={hasActiveSale}
         onCancel={() => setSwitchEmployeeOpen(false)}
-        onComplete={({ route }) => {
+        onComplete={({ intent, route }) => {
           clearAllInvoiceCatalogCache()
           setActivePosEmployee(null)
           setSwitchEmployeeOpen(false)
-          router.push(route)
+          if (intent === 'logout') router.replace(route)
         }}
       />
     </main>

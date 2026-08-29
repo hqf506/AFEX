@@ -8,10 +8,12 @@ const read = (relative) => readFile(path.join(root, relative), 'utf8')
 const sqlRoot =
   'docs/investigations/AFEX-POS-OFFLINE-PRE-PIN-PROVISIONING-V2'
 
-test('successful POS login always enters the real preparation route before PIN', async () => {
+test('POS login prepares a new device but recovers an existing prepared device at PIN', async () => {
   const login = await read('app/pos/login/page.tsx')
-  assert.equal((login.match(/router\.replace\('\/pos\/offline-preparation'\)/gu) ?? []).length, 2)
-  assert.doesNotMatch(login, /router\.replace\('\/pos\/employee-pin'\)/u)
+  assert.equal((login.match(/router\.replace\('\/pos\/offline-preparation'\)/gu) ?? []).length, 1)
+  assert.match(login, /hasOfflineBootstrapReadyMarker/u)
+  assert.match(login, /resolveAuthenticatedPosEntryRoute/u)
+  assert.match(login, /router\.replace\(decision\.route\)/u)
 })
 
 test('preparation UI exposes exact Arabic title, real progress and fail-closed actions', async () => {

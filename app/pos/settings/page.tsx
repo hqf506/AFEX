@@ -53,11 +53,11 @@ export default function PosSettingsPage() {
     intent={logoutIntent}
     hasActiveSale={hasActiveSale}
     onCancel={() => setLogoutOpen(false)}
-    onComplete={({ route }) => {
+    onComplete={({ intent, route }) => {
       clearAllInvoiceCatalogCache()
       sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
       setLogoutOpen(false)
-      router.push(route)
+      if (intent === 'logout') router.replace(route)
     }}
   /></div>
 }

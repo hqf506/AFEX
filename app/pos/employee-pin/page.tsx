@@ -137,9 +137,7 @@ export default function PosEmployeePinPage() {
     authState.profile && canAccessPos(authState.profile.role)
   )
   const allowed = onlineAllowed || Boolean(offlineRuntime)
-  const { settings: systemSettings } = useSystemSettings(
-    !authState.loading && onlineAllowed
-  )
+  const { settings: systemSettings } = useSystemSettings(false)
   const currentBranchId =
     authState.profile?.branch_id ?? offlineRuntime?.context.branchId ?? null
   const employeeName = authState.profile?.full_name || 'موظف AFEX'

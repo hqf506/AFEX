@@ -46,6 +46,7 @@ function OpenPosLogoutRetentionDialog({
   onComplete,
 }: Omit<PosLogoutRetentionDialogProps, 'open'>) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const actionInFlightRef = useRef(false)
   const [deleteCachedData, setDeleteCachedData] = useState(false)
   const [purgeAuthorization, setPurgeAuthorization] =
     useState<VerifiedPurgeAuthorization | null>(null)
@@ -116,9 +117,12 @@ function OpenPosLogoutRetentionDialog({
   }
 
   const executeLogout = async (includeUnscopedLegacyCleanup = false) => {
+    if (actionInFlightRef.current) return
+    actionInFlightRef.current = true
+    const deleteAuthorizedCachedData = intent === 'logout' && deleteCachedData
     let exactAuthorization = purgeAuthorization
     let exactAssessment = assessment
-    if (deleteCachedData) {
+    if (deleteAuthorizedCachedData) {
       try {
         setPreparing(true)
         if (!exactAuthorization || !exactAssessment) {
@@ -144,6 +148,7 @@ function OpenPosLogoutRetentionDialog({
           setSafeError(
             'توجد مسودات AFEX تاريخية غير منسوبة إلى حساب أوفرع موثوق. يلزم تأكيد حذفها بشكل مستقل.'
           )
+          actionInFlightRef.current = false
           return
         }
       } catch {
@@ -151,6 +156,7 @@ function OpenPosLogoutRetentionDialog({
         setSafeError(
           'تغيّر نطاق الحساب أوالفرع، أوتعذر التحقق منه بأمان. لم يبدأ تسجيل الخروج أوالحذف.'
         )
+        actionInFlightRef.current = false
         return
       } finally {
         setPreparing(false)
@@ -178,10 +184,11 @@ function OpenPosLogoutRetentionDialog({
         'تعذر إكمال تسجيل الخروج الموثوق. بقيت البيانات مقفلة، ويمكنك إعادة المحاولة.'
       )
       setLoggingOut(false)
+      actionInFlightRef.current = false
       return
     }
 
-    if (!deleteCachedData || !exactAuthorization) {
+    if (!deleteAuthorizedCachedData || !exactAuthorization) {
       await completeLogout()
       return
     }
@@ -202,6 +209,7 @@ function OpenPosLogoutRetentionDialog({
         'تم تسجيل الخروج، لكن تعذر إكمال حذف البيانات المحلية. بقي النطاق مقفلاً وسيُستأنف الحذف بأمان.'
       )
       setLoggingOut(false)
+      actionInFlightRef.current = false
     }
   }
 
@@ -350,18 +358,20 @@ function OpenPosLogoutRetentionDialog({
                 <li>لن تُرسل أي عملية محلية أثناء تسجيل الخروج</li>
               </ul>
             </section>
-            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-current/15 px-3 py-2 text-right">
-              <input
-                type="checkbox"
-                checked={deleteCachedData}
-                disabled={busy}
-                onChange={(event) =>
-                  void handleDeleteChoice(event.currentTarget.checked)
-                }
-                className="h-5 w-5 shrink-0"
-              />
-              <span>حذف البيانات المحفوظة من هذا الجهاز</span>
-            </label>
+            {intent === 'logout' ? (
+              <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-current/15 px-3 py-2 text-right">
+                <input
+                  type="checkbox"
+                  checked={deleteCachedData}
+                  disabled={busy}
+                  onChange={(event) =>
+                    void handleDeleteChoice(event.currentTarget.checked)
+                  }
+                  className="h-5 w-5 shrink-0"
+                />
+                <span>حذف البيانات المحفوظة من هذا الجهاز</span>
+              </label>
+            ) : null}
             {preparing ? (
               <p role="status">جارٍ التحقق من نطاق الحذف الآمن...</p>
             ) : null}

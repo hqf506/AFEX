@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { FeatureDisabledState } from '@/components/feature-disabled-state'
@@ -14,6 +14,7 @@ import { canAccessPos } from '@/lib/permissions'
 import {
   hasPosLoggedOut,
   readActivePosEmployee,
+  subscribeToPosEmployeeSessionChanges,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
 import { syncPosOfflineDrafts } from '@/lib/pos-offline-draft'
@@ -21,9 +22,13 @@ import {
   initializeOfflinePhase1Runtime,
   hasOfflineBootstrapReadyMarker,
   lockOfflineRuntime,
-  OFFLINE_CAPABILITIES,
 } from '@/lib/offline/phase1'
 import { restorePreparedOfflineRuntime } from '@/lib/offline/complete-runtime'
+import {
+  reportPosRouteTransition,
+  resolveProtectedPosRoute,
+  type PosGuardRoute,
+} from '@/lib/pos-route-guard'
 
 type PosShellLayoutProps = {
   children: React.ReactNode
@@ -131,6 +136,7 @@ function ProtectedPosShellLayout({
 }: PosShellLayoutProps & { requireEmployee?: boolean }) {
   const router = useRouter()
   const authState = useAuthState()
+  const navigationInFlightRef = useRef<PosGuardRoute | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [employeeCheckReady, setEmployeeCheckReady] = useState(false)
   const [activeEmployee, setActiveEmployee] =
@@ -144,7 +150,7 @@ function ProtectedPosShellLayout({
   const offlineRecoveryReady = offlineRecoveryState === 'ready'
   const effectivelyAllowed = allowed || offlineRecoveryReady
   const { settings, loading: settingsLoading } = useSystemSettings(
-    !authState.loading && allowed
+    !authState.loading && allowed && requireEmployee && Boolean(activeEmployee)
   )
   const hasAuthError = Boolean(authState.error)
   const isTimeoutError = authState.error === 'timeout'
@@ -179,58 +185,53 @@ function ProtectedPosShellLayout({
   }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (!requireEmployee) {
+    if (!requireEmployee) {
+      const timer = window.setTimeout(() => {
         setActiveEmployee(null)
         setEmployeeCheckReady(true)
-        return
-      }
+      }, 0)
+      return () => window.clearTimeout(timer)
+    }
 
+    const synchronizeEmployee = () => {
       setActiveEmployee(readActivePosEmployee())
       setEmployeeCheckReady(true)
-    }, 0)
+    }
+    const timer = window.setTimeout(synchronizeEmployee, 0)
+    const unsubscribe = subscribeToPosEmployeeSessionChanges(
+      synchronizeEmployee
+    )
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      unsubscribe()
+    }
   }, [requireEmployee])
 
   useEffect(() => {
-    if (authState.loading || authState.error) {
-      return
-    }
+    const decision = resolveProtectedPosRoute({
+      authSettled: !authState.loading && !authState.error,
+      organizationAuthorized: allowed,
+      offlineRecoveryReady,
+      preparedDevice: hasOfflineBootstrapReadyMarker(),
+      explicitlyLoggedOut: hasPosLoggedOut(),
+      requiresEmployee: requireEmployee,
+      employeeCheckReady,
+      hasEmployeeActor: Boolean(activeEmployee),
+    })
 
-    if ((!authState.profile || !allowed) && !offlineRecoveryReady) {
-      router.replace('/pos/login')
-    }
+    if (!decision || navigationInFlightRef.current) return
+
+    navigationInFlightRef.current = decision.route
+    reportPosRouteTransition(decision)
+    router.replace(decision.route)
   }, [
+    activeEmployee,
     allowed,
     authState.error,
     authState.loading,
-    authState.profile,
-    offlineRecoveryReady,
-    router,
-  ])
-
-  useEffect(() => {
-    if (
-      !OFFLINE_CAPABILITIES.businessCommandDispatch ||
-      !requireEmployee ||
-      authState.loading ||
-      authState.error ||
-      !effectivelyAllowed ||
-      !employeeCheckReady
-    ) {
-      return
-    }
-
-    if (!activeEmployee) {
-      router.replace('/pos/employee-pin')
-    }
-  }, [
-    activeEmployee,
-    effectivelyAllowed,
-    authState.error,
-    authState.loading,
     employeeCheckReady,
+    offlineRecoveryReady,
     requireEmployee,
     router,
   ])
