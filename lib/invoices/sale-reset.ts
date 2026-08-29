@@ -25,6 +25,11 @@ export function hasCompletedInvoiceSaleState() {
 export function clearCompletedInvoiceDraftState() {
   if (typeof window === 'undefined') return
 
+  window.sessionStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
+  window.sessionStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+  window.sessionStorage.removeItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY)
+  // Remove legacy POS draft copies so customer/order payloads are not retained
+  // in Local Storage by installations upgraded from an earlier runtime.
   window.localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
   window.localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
   window.localStorage.removeItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY)

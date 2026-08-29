@@ -70,6 +70,7 @@ import {
 } from '@/lib/invoices/sale-draft'
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 import {
   canAutofillCatalog,
   isCatalogScrollContainerUnderfilled,
@@ -92,10 +93,22 @@ async function loadPosCatalogPage(
   branchId: string,
   options: Parameters<typeof loadBranchInvoiceCatalogPage>[1]
 ): Promise<PosInvoiceCatalogPage> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const { readOfflineCatalogPage } = await import(
+      '@/lib/offline/complete-runtime'
+    )
+    return (await readOfflineCatalogPage({
+      branchId,
+      page: options.page,
+      pageSize: options.pageSize,
+      search: options.search,
+      category: options.category,
+    })) as PosInvoiceCatalogPage
+  }
   try {
     return await loadBranchInvoiceCatalogPage(branchId, options)
   } catch (error) {
-    if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+    if (!shouldUseOfflineReadFallback(error)) {
       throw error
     }
     const { readOfflineCatalogPage } = await import(
@@ -604,11 +617,13 @@ export function InvoiceItemsStep({
   useEffect(() => {
     if (!allowed) return
 
+    const saleDraftStorage = variant === 'pos' ? sessionStorage : localStorage
+
     const parsed = parseStoredInvoiceCustomerDraft(
-      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
+      saleDraftStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
     )
     const parsedSaleItemsDraft = parseStoredInvoiceSaleItemsDraft(
-      localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      saleDraftStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
     )
 
     if (!parsed) {
@@ -625,7 +640,7 @@ export function InvoiceItemsStep({
       setHydratedSaleDraft(true)
       setReady(true)
     }, 0)
-  }, [allowed, customerStepHref, router])
+  }, [allowed, customerStepHref, router, variant])
 
   useEffect(() => {
     if (variant !== 'pos') return
@@ -1017,6 +1032,19 @@ export function InvoiceItemsStep({
 
     async function loadPosRuntime() {
       try {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          const { readOfflineRuntimeSettings } = await import(
+            '@/lib/offline/complete-runtime'
+          )
+          const offlineRuntime = (await readOfflineRuntimeSettings()) as {
+            discounts?: CheckoutDiscountOption[]
+            vat?: CheckoutVatSetting | null
+          }
+          if (!cancelled) {
+            setVatSetting(offlineRuntime.vat ?? null)
+          }
+          return
+        }
         const runtimeCacheKey = getPosRuntimeCacheKey(tenantId, invoiceBranchId)
         const cachedRuntime = peekClientResource<PosRuntime>(runtimeCacheKey)
 
@@ -1075,6 +1103,20 @@ export function InvoiceItemsStep({
         }
 
         if (!cancelled) {
+          if (shouldUseOfflineReadFallback(error)) {
+            try {
+              const { readOfflineRuntimeSettings } = await import(
+                '@/lib/offline/complete-runtime'
+              )
+              const offlineRuntime = (await readOfflineRuntimeSettings()) as {
+                vat?: CheckoutVatSetting | null
+              }
+              setVatSetting(offlineRuntime.vat ?? null)
+              return
+            } catch {
+              // Fall through to the fail-closed empty state.
+            }
+          }
           setVatSetting(null)
         }
       }
@@ -1089,6 +1131,10 @@ export function InvoiceItemsStep({
 
   useEffect(() => {
     if (!allowed || !ready || hasUnavailablePosBranchContext) {
+      return
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       return
     }
 
@@ -1313,15 +1359,17 @@ export function InvoiceItemsStep({
     if (!ready || !hydratedSaleDraft || checkoutMode !== 'separate') return
 
     if (invoiceItems.length === 0) {
-      localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      ;(variant === 'pos' ? sessionStorage : localStorage).removeItem(
+        INVOICE_SALE_ITEMS_STORAGE_KEY
+      )
       return
     }
 
-    localStorage.setItem(
+    ;(variant === 'pos' ? sessionStorage : localStorage).setItem(
       INVOICE_SALE_ITEMS_STORAGE_KEY,
       serializeInvoiceSaleItemsDraft({ items: invoiceItems })
     )
-  }, [checkoutMode, hydratedSaleDraft, invoiceItems, ready])
+  }, [checkoutMode, hydratedSaleDraft, invoiceItems, ready, variant])
 
   if (authError === 'timeout' && variant === 'pos') {
     return (

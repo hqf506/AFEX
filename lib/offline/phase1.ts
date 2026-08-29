@@ -126,6 +126,7 @@ export type OfflineErrorCode =
   | 'OFFLINE_QUOTA_HARD_STOP'
   | 'OFFLINE_SCHEMA_CORRUPT'
   | 'OFFLINE_SCHEMA_UNSUPPORTED'
+  | 'OFFLINE_SHELL_UNAVAILABLE'
 
 export class OfflinePhase1Error extends Error {
   readonly code: OfflineErrorCode
@@ -554,9 +555,6 @@ export function hasOfflineBootstrapReadyMarker() {
     window.localStorage.getItem(OFFLINE_BOOTSTRAP_READY_MARKER) === 'ready'
   )
 }
-const OFFLINE_COORDINATION_FALLBACK_KEY =
-  'afex-pos-offline-control-event-v1'
-
 class OfflineTabCoordinator {
   private channel: BroadcastChannel | null = null
   private started = false
@@ -571,7 +569,7 @@ class OfflineTabCoordinator {
       )
       return
     }
-    window.addEventListener('storage', this.handleStorage)
+    navigator.serviceWorker?.addEventListener('message', this.handleWorkerMessage)
   }
 
   broadcast(message: Omit<CoordinationMessage, 'version' | 'eventId'>) {
@@ -585,26 +583,16 @@ class OfflineTabCoordinator {
       this.channel.postMessage(payload)
       return
     }
-    try {
-      window.localStorage.setItem(
-        OFFLINE_COORDINATION_FALLBACK_KEY,
-        JSON.stringify(payload)
-      )
-      window.localStorage.removeItem(OFFLINE_COORDINATION_FALLBACK_KEY)
-    } catch {
-      // No sensitive data is written and the current tab remains locked.
-    }
+    navigator.serviceWorker?.controller?.postMessage({
+      type: 'AFEX_OFFLINE_COORDINATION_V1',
+      payload,
+    })
   }
 
-  private handleStorage = (event: StorageEvent) => {
-    if (event.key !== OFFLINE_COORDINATION_FALLBACK_KEY || !event.newValue) {
-      return
-    }
-    try {
-      this.receive(JSON.parse(event.newValue))
-    } catch {
-      offlineKeyManager.lock('coordination-integrity-failure')
-    }
+  private handleWorkerMessage = (event: MessageEvent<unknown>) => {
+    const message = event.data as { type?: unknown; payload?: unknown } | null
+    if (message?.type !== 'AFEX_OFFLINE_COORDINATION_V1') return
+    this.receive(message.payload)
   }
 
   private receive(value: unknown) {
@@ -633,6 +621,9 @@ export function lockOfflineRuntime(
   broadcast = true
 ) {
   offlineKeyManager.lock(reason, namespaceId)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('afex:offline-runtime-locked'))
+  }
   if (broadcast && typeof window !== 'undefined') {
     offlineTabCoordinator.broadcast({
       action: reason.includes('purge') ? 'purge' : 'lock',

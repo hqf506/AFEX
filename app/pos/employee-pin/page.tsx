@@ -241,8 +241,7 @@ export default function PosEmployeePinPage() {
 
       if (process.env.NODE_ENV === 'development') {
         console.warn('[POS PIN] Ignoring stale POS employee session.', {
-          currentBranchId,
-          employeeBranchId: activeEmployee.branch_id,
+          branchMismatch: true,
         })
       }
       clearActivePosEmployee()
@@ -263,7 +262,7 @@ export default function PosEmployeePinPage() {
 
     if (process.env.NODE_ENV === 'development') {
       console.info('[POS PIN] Client POS context.', {
-        branchId: currentBranchId,
+        branchAvailable: true,
         authRole: authState.profile?.role ?? null,
       })
     }
@@ -275,9 +274,8 @@ export default function PosEmployeePinPage() {
     }
 
     console.info('[POS PIN] Session organization context.', {
-      tenant_id: authState.profile?.tenant_id ?? null,
-      tenant_name: authState.profile?.tenant_name ?? null,
-      branch_id: currentBranchId,
+      tenantAvailable: Boolean(authState.profile?.tenant_id),
+      branchAvailable: Boolean(currentBranchId),
     })
   }, [authState.profile?.tenant_id, authState.profile?.tenant_name, currentBranchId])
 
@@ -309,35 +307,38 @@ export default function PosEmployeePinPage() {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
           selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)
         } else {
-          const response = await fetch('/api/pos/identify-employee-by-pin', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(
-              buildScopedOnlinePinIdentification(pinToVerify, currentBranchId)
-            ),
-          })
-          const result = await response.json().catch(() => null)
-          const resultBody =
-            result && typeof result === 'object'
-              ? (result as Record<string, unknown>)
-              : null
-          if (!response.ok || !result?.employee) {
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('[POS PIN] Employee identification failed.', {
-                status: response.status,
-                ok: response.ok,
-                statusText: response.statusText,
-                error:
-                  typeof resultBody?.error === 'string' ? resultBody.error : null,
-              })
+          try {
+            const response = await fetch('/api/pos/identify-employee-by-pin', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(
+                buildScopedOnlinePinIdentification(pinToVerify, currentBranchId)
+              ),
+            })
+            const result = await response.json().catch(() => null)
+            const resultBody =
+              result && typeof result === 'object'
+                ? (result as Record<string, unknown>)
+                : null
+            if (!response.ok || !result?.employee) {
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('[POS PIN] Employee identification failed.', {
+                  status: response.status,
+                  ok: response.ok,
+                  classified: typeof resultBody?.error === 'string',
+                })
+              }
+              throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
             }
-            throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
+            selectedEmployee = result.employee as ActivePosEmployee
+            await enrollOnlineEmployeeForOffline(pinToVerify, selectedEmployee)
+          } catch (onlineError) {
+            if (!(onlineError instanceof TypeError)) throw onlineError
+            selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)
           }
-          selectedEmployee = result.employee as ActivePosEmployee
-          await enrollOnlineEmployeeForOffline(pinToVerify, selectedEmployee)
         }
 
         if (!selectedEmployee) {
@@ -453,7 +454,7 @@ export default function PosEmployeePinPage() {
   }
 
   const handleLogout = () => {
-    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.localStorage))
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.sessionStorage))
     setLogoutOpen(true)
   }
 

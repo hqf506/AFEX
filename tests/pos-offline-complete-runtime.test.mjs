@@ -128,14 +128,14 @@ test('post-PIN enrollment creates the existing actor-bound v1 bootstrap before d
   assert.ok(runtime.indexOf("operation: 'online.bootstrap'") < runtime.indexOf("source: 'online-pos-actor-session'"))
 })
 
-test('actual checkout caller enqueues an immutable local order and never reports Online business success', async () => {
+test('actual checkout caller keeps local calculations but blocks Offline order and payment submission pending W2', async () => {
   const [hook, integration, runtime] = await Promise.all([
     read('hooks/use-invoice-checkout.ts'),
     read('lib/offline/order-create-pilot-pos-integration.ts'),
     read('lib/offline/complete-runtime.ts'),
   ])
-  assert.match(hook, /navigator\.onLine === false/u)
-  assert.match(hook, /await resolveOfflineOrderCreatePilotCheckout/u)
+  assert.match(hook, /إتمام البيع والدفع غير متاح/u)
+  assert.doesNotMatch(hook, /resolveOfflineOrderCreatePilotCheckout/u)
   assert.match(integration, /await enqueueOfflineOrderCreate/u)
   assert.match(runtime, /commands\.enqueue/u)
   assert.match(runtime, /state:\s*'pending_sync'/u)
@@ -158,7 +158,8 @@ test('offline order creation binds the trusted customer record version captured 
   assert.match(runtime, /expected_record_version:\s*input\.customerRecordVersion/u)
   assert.doesNotMatch(runtime, /expected_record_version:\s*1[,\s]/u)
   assert.match(customerStep, /setSelectedCustomerRecordVersion\(storedCustomer\.customerRecordVersion\)/u)
-  assert.match(customerStep, /يجب تحديث بيانات العميل عبر الإنترنت مرة واحدة قبل استخدامه دون اتصال/u)
+  assert.match(customerStep, /readOfflineCustomerProfile/u)
+  assert.match(customerStep, /searchOfflineCustomers/u)
 })
 
 test('all eight payment methods remain distinct and provider execution remains impossible', async () => {
@@ -177,15 +178,15 @@ test('all eight payment methods remain distinct and provider execution remains i
   assert.match(runtime, /completeLocalEmployeePaymentAttestation/u)
 })
 
-test('local inventory uses pending plus syncing commitments and exact zero/insufficient messages', async () => {
+test('local inventory preserves pending plus syncing commitments while checkout remains disabled before W2', async () => {
   const [runtime, hook] = await Promise.all([
     read('lib/offline/complete-runtime.ts'),
     read('hooks/use-invoice-checkout.ts'),
   ])
   assert.match(runtime, /\['pending', 'syncing'\]/u)
   assert.match(runtime, /Math\.max\(0,/u)
-  assert.match(hook, /نفدت الكمية المتاحة وفق آخر تحديث للمخزون/u)
-  assert.match(hook, /الكمية المتاحة غير كافية\. المتاح حاليًا/u)
+  assert.match(runtime, /branchInventory/u)
+  assert.match(hook, /إتمام البيع والدفع غير متاح/u)
 })
 
 test('idempotency stabilizes the local receipt and rejects same key with a changed payload', async () => {

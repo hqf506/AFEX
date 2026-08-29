@@ -136,11 +136,11 @@ test('order.create resolver is bounded, positional, validated, and stops before 
   assert.match(source, /afex_offline_server_acquire_order_create_v1/u)
 })
 
-test('checkout integration is the actual POS path but remains immutable-false', async () => {
+test('pilot integration remains immutable-false and is not called by checkout before W2', async () => {
   const integration = await read('lib/offline/order-create-pilot-pos-integration.ts')
   const checkout = await read('hooks/use-invoice-checkout.ts')
-  assert.match(checkout, /resolveOfflineOrderCreatePilotCheckout/u)
-  assert.match(checkout, /navigator\.onLine === false/u)
+  assert.doesNotMatch(checkout, /resolveOfflineOrderCreatePilotCheckout/u)
+  assert.match(checkout, /إتمام البيع والدفع غير متاح/u)
   assert.match(integration, /APP_COMPAT_SAFETY_FLAGS\.offlineOrderCreate/u)
   assert.match(integration, /maximumPinFailures: 5/u)
   assert.match(integration, /preservePendingCommandsOnExplicitLogout: true/u)

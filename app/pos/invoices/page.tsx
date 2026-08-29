@@ -7,6 +7,8 @@ import { getClientErrorMessage } from '@/lib/api/client-error'
 import { formatCurrency } from '@/lib/orders/format'
 import { mapOrderSummaryToOrderRecord, type OrderRecord } from '@/lib/orders/orders-page'
 import { normalizeOrderRecord, type OrderSourceRow } from '@/lib/orders/normalize'
+import { readOfflineOrderRecord, readOfflineOrderRecords } from '@/lib/orders/offline-client'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { resolveInvoicePaymentDisplay } from '@/lib/invoices/order-payment'
 import { formatRiyadhDateTime, formatRiyadhTime, groupInvoicesByRiyadhDate, normalizeInvoiceLedgerSearch } from '@/lib/pos/invoice-ledger'
@@ -116,7 +118,33 @@ export default function PosInvoiceHistoryPage() {
     invoiceRequestControllerRef.current = controller
     const requestId = ++invoiceRequestRef.current
     setLoading(true); setError('')
+    const loadOfflineInvoices = async () => {
+      const allOrders = await readOfflineOrderRecords()
+      const source = query
+        ? allOrders.filter((order) =>
+            [order.invoice_number, order.order_number, order.customer_name]
+              .some((value) => normalizeInvoiceLedgerSearch(value).includes(query))
+          )
+        : allOrders
+      const start = (requestedPage - 1) * PAGE_SIZE
+      const mapped = source.slice(start, start + PAGE_SIZE)
+      if (!isLatestInvoiceLedgerRequest(invoiceRequestRef.current, requestId, controller.signal.aborted)) return
+      const updateCollection = (current: OrderRecord[]) => mergeInvoiceLedgerPage(current, mapped, requestedPage)
+      const nextMeta = { page: requestedPage, hasMore: start + mapped.length < source.length, totalCount: source.length }
+      if (query) {
+        setSearchResults((current) => updateCollection(current ?? []))
+        setSearchMeta(nextMeta)
+      } else {
+        setOrders(updateCollection)
+        setUnfilteredMeta(nextMeta)
+        authoritativeLoadedRef.current = true
+      }
+    }
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await loadOfflineInvoices()
+        return
+      }
       const params = new URLSearchParams({ mode: 'full', page: String(requestedPage), pageSize: String(PAGE_SIZE) })
       if (query) params.set('search', query)
       const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store', signal: controller.signal })
@@ -136,7 +164,18 @@ export default function PosInvoiceHistoryPage() {
         authoritativeLoadedRef.current = true
       }
     } catch (loadError) {
-      if (!controller.signal.aborted && invoiceRequestRef.current === requestId) setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل الفواتير.')
+      if (!controller.signal.aborted && invoiceRequestRef.current === requestId) {
+        if (shouldUseOfflineReadFallback(loadError)) {
+          try {
+            await loadOfflineInvoices()
+            return
+          } catch {
+            setError('لقطة سجل الفواتير المحلية غير مكتملة.')
+            return
+          }
+        }
+        setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل الفواتير.')
+      }
     } finally {
       if (invoiceRequestRef.current === requestId) setLoading(false)
     }
@@ -192,7 +231,16 @@ export default function PosInvoiceHistoryPage() {
     const requestId = ++detailsRequestRef.current
     void (async () => {
       setDetailsLoading(true); setDetailsError('')
+      const loadOfflineDetails = async () => {
+        const detailed = await readOfflineOrderRecord(selectedSummaryId)
+        if (!detailed) throw new Error('OFFLINE_ORDER_NOT_READY')
+        if (detailsRequestRef.current === requestId) setSelectedDetails(detailed)
+      }
       try {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          await loadOfflineDetails()
+          return
+        }
         const response = await fetch(`/api/orders?${new URLSearchParams({ mode: 'details', id: selectedSummaryId })}`, { credentials: 'include', cache: 'no-store' })
         const result = await response.json().catch(() => null)
         if (!response.ok || !result?.success || !Array.isArray(result.items) || result.items.length !== 1) throw new Error('تعذر تحميل تفاصيل الفاتورة المحددة.')
@@ -200,7 +248,18 @@ export default function PosInvoiceHistoryPage() {
         if (detailed.id !== selectedSummaryId) throw new Error('تعذر مطابقة تفاصيل الفاتورة المحددة.')
         if (detailsRequestRef.current === requestId) setSelectedDetails(detailed)
       } catch (detailsLoadError) {
-        if (detailsRequestRef.current === requestId) setDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الفاتورة المحددة.')
+        if (detailsRequestRef.current === requestId) {
+          if (shouldUseOfflineReadFallback(detailsLoadError)) {
+            try {
+              await loadOfflineDetails()
+              return
+            } catch {
+              setDetailsError('تفاصيل الفاتورة المحلية غير مكتملة.')
+              return
+            }
+          }
+          setDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الفاتورة المحددة.')
+        }
       } finally {
         if (detailsRequestRef.current === requestId) setDetailsLoading(false)
       }
@@ -213,7 +272,16 @@ export default function PosInvoiceHistoryPage() {
     const controller = new AbortController()
     const requestedInvoiceId = mobileDetailsSummary.id
     void (async () => {
+      const loadOfflineDetails = async () => {
+        const detailed = await readOfflineOrderRecord(requestedInvoiceId)
+        if (!detailed) throw new Error('OFFLINE_ORDER_NOT_READY')
+        if (mobileDetailsRequestRef.current === requestId) setMobileDetails(detailed)
+      }
       try {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          await loadOfflineDetails()
+          return
+        }
         const response = await fetch(`/api/orders?${new URLSearchParams({ mode: 'details', id: requestedInvoiceId })}`, { credentials: 'include', cache: 'no-store', signal: controller.signal })
         const result = await response.json().catch(() => null)
         if (!response.ok || !result?.success || !Array.isArray(result.items) || result.items.length !== 1) throw new Error('تعذر تحميل تفاصيل الفاتورة المحددة.')
@@ -221,7 +289,18 @@ export default function PosInvoiceHistoryPage() {
         if (detailed.id !== requestedInvoiceId) throw new Error('تعذر مطابقة تفاصيل الفاتورة المحددة.')
         if (mobileDetailsRequestRef.current === requestId) setMobileDetails(detailed)
       } catch (detailsLoadError) {
-        if (!controller.signal.aborted && mobileDetailsRequestRef.current === requestId) setMobileDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الفاتورة المحددة.')
+        if (!controller.signal.aborted && mobileDetailsRequestRef.current === requestId) {
+          if (shouldUseOfflineReadFallback(detailsLoadError)) {
+            try {
+              await loadOfflineDetails()
+              return
+            } catch {
+              setMobileDetailsError('تفاصيل الفاتورة المحلية غير مكتملة.')
+              return
+            }
+          }
+          setMobileDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الفاتورة المحددة.')
+        }
       } finally {
         if (!controller.signal.aborted && mobileDetailsRequestRef.current === requestId) setMobileDetailsLoading(false)
       }

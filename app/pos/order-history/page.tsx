@@ -7,6 +7,8 @@ import { getClientErrorMessage } from '@/lib/api/client-error'
 import { formatCurrency } from '@/lib/orders/format'
 import { mapOrderSummaryToOrderRecord, type OrderRecord } from '@/lib/orders/orders-page'
 import { normalizeOrderRecord, type OrderSourceRow } from '@/lib/orders/normalize'
+import { readOfflineOrderRecord, readOfflineOrderRecords } from '@/lib/orders/offline-client'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 import { countUniqueOperationCustomers, currentRiyadhDayOperations, filterPosOperations, formatPosOperationTime, getRiyadhDayLabel, mapOrdersToPosOperations, millisecondsUntilNextRiyadhMidnight } from '@/lib/pos/operations-timeline'
@@ -67,7 +69,28 @@ export default function PosOrderHistoryPage() {
     const requestId = loadRequestRef.current + 1
     loadRequestRef.current = requestId
     setLoading(true); setError('')
+    const loadOfflineInvoices = async () => {
+      const allOrders = await readOfflineOrderRecords()
+      const normalizedSearch = search.trim().toLocaleLowerCase('ar')
+      const filteredOrders = normalizedSearch
+        ? allOrders.filter((order) =>
+            [order.order_number, order.invoice_number, order.customer_name]
+              .some((value) => value.toLocaleLowerCase('ar').includes(normalizedSearch))
+          )
+        : allOrders
+      const start = (requestedPage - 1) * PAGE_SIZE
+      const mapped = filteredOrders.slice(start, start + PAGE_SIZE)
+      if (loadRequestRef.current !== requestId) return
+      setOrders((current) => requestedPage === 1 ? mapped : [...current, ...mapped])
+      setPage(requestedPage)
+      setHasMore(start + mapped.length < filteredOrders.length)
+      setTotalCount(filteredOrders.length)
+    }
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await loadOfflineInvoices()
+        return
+      }
       const params = new URLSearchParams({ mode: 'full', page: String(requestedPage), pageSize: String(PAGE_SIZE), todayRiyadh: '1' })
       if (search.trim()) params.set('search', search.trim())
       const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
@@ -86,7 +109,18 @@ export default function PosOrderHistoryPage() {
       setHasMore(Boolean(result.hasMore))
       setTotalCount(Number(result.totalCount) || mapped.length)
     } catch (loadError) {
-      if (loadRequestRef.current === requestId) setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل العمليات.')
+      if (loadRequestRef.current === requestId) {
+        if (shouldUseOfflineReadFallback(loadError)) {
+          try {
+            await loadOfflineInvoices()
+            return
+          } catch {
+            setError('لقطة سجل العمليات المحلية غير مكتملة.')
+            return
+          }
+        }
+        setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل سجل العمليات.')
+      }
     } finally { if (loadRequestRef.current === requestId) setLoading(false) }
   }, [access.allowed, access.branchId, access.tenantId, search])
 
@@ -128,7 +162,16 @@ export default function PosOrderHistoryPage() {
     const requestSequence = detailsRequestRef.current + 1
     detailsRequestRef.current = requestSequence
     returnFocusRef.current = trigger; setSelected(order); setDetailsLoading(true); setDetailsError('')
+    const loadOfflineDetails = async () => {
+      const detailed = await readOfflineOrderRecord(order.id)
+      if (!detailed) throw new Error('OFFLINE_ORDER_NOT_READY')
+      if (detailsRequestRef.current === requestSequence) setSelected(detailed)
+    }
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await loadOfflineDetails()
+        return
+      }
       const params = new URLSearchParams({ mode: 'details', id: order.id })
       const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
       const result = await response.json().catch(() => null)
@@ -137,7 +180,18 @@ export default function PosOrderHistoryPage() {
       if (detailed.id !== order.id) throw new Error('تعذر مطابقة تفاصيل الطلب المحدد.')
       if (detailsRequestRef.current === requestSequence) setSelected(detailed)
     } catch (detailsLoadError) {
-      if (detailsRequestRef.current === requestSequence) setDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الطلب المحدد.')
+      if (detailsRequestRef.current === requestSequence) {
+        if (shouldUseOfflineReadFallback(detailsLoadError)) {
+          try {
+            await loadOfflineDetails()
+            return
+          } catch {
+            setDetailsError('تفاصيل الطلب المحلية غير مكتملة.')
+            return
+          }
+        }
+        setDetailsError(detailsLoadError instanceof Error ? detailsLoadError.message : 'تعذر تحميل تفاصيل الطلب المحدد.')
+      }
     } finally {
       if (detailsRequestRef.current === requestSequence) setDetailsLoading(false)
     }

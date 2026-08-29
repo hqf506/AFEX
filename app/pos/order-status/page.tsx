@@ -12,6 +12,8 @@ import {
 } from '@/lib/orders/order-status-details'
 import { mapOrderSummaryToOrderRecord, ORDER_STATUS_MAP, type OrderRecord } from '@/lib/orders/orders-page'
 import { normalizeOrderRecord, type OrderSourceRow, type OrderStatus } from '@/lib/orders/normalize'
+import { readOfflineOrderRecord, readOfflineOrderRecords } from '@/lib/orders/offline-client'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 import { POS_ACCESS_ROLES } from '@/lib/permissions'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
 import { PosThemeToggle } from '@/components/pos-theme-toggle'
@@ -394,7 +396,22 @@ export default function PosOrderStatusPage() {
       history: cached?.history ?? [],
     })
 
+    const loadOfflineDetails = async () => {
+      const detailedOrder = await readOfflineOrderRecord(orderId)
+      if (!detailedOrder) throw new Error('OFFLINE_ORDER_NOT_READY')
+      storeOrderDetails(orderId, {
+        readState: 'success',
+        order: detailedOrder,
+        historyReadState: 'success',
+        history: [],
+      })
+    }
+
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await loadOfflineDetails()
+        return
+      }
       const params = new URLSearchParams({ mode: 'details', id: orderId })
       const response = await fetch(`/api/orders?${params.toString()}`, {
         credentials: 'include',
@@ -418,8 +435,16 @@ export default function PosOrderStatusPage() {
           ? parseOrderStatusHistoryEntries(result.statusHistory?.entries)
           : [],
       })
-    } catch {
+    } catch (detailsError) {
       if (controller.signal.aborted) return
+      if (shouldUseOfflineReadFallback(detailsError)) {
+        try {
+          await loadOfflineDetails()
+          return
+        } catch {
+          // The local snapshot is not complete; expose the bounded error state.
+        }
+      }
       storeOrderDetails(orderId, {
         readState: 'error',
         historyReadState: 'error',
@@ -441,7 +466,25 @@ export default function PosOrderStatusPage() {
     if (!access.allowed || !access.tenantId || !access.branchId) return
     setLoading(true)
     setError('')
+    const loadOfflineOrders = async () => {
+      const allOrders = (await readOfflineOrderRecords()).filter(
+        (order) => Boolean(STATUS_TRANSITIONS[order.status])
+      )
+      const start = (requestedPage - 1) * PAGE_SIZE
+      const mapped = allOrders.slice(start, start + PAGE_SIZE)
+      setOrders((current) => {
+        const unique = new Map((requestedPage === 1 ? [] : current).map((order) => [order.id, order]))
+        for (const order of mapped) unique.set(order.id, order)
+        return [...unique.values()]
+      })
+      setPage(requestedPage)
+      setHasMore(start + mapped.length < allOrders.length)
+    }
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await loadOfflineOrders()
+        return
+      }
       const params = new URLSearchParams({ mode: 'full', page: String(requestedPage), pageSize: String(PAGE_SIZE), listFilter: 'all' })
       const response = await fetch(`/api/orders?${params}`, { credentials: 'include', cache: 'no-store' })
       const result = await response.json().catch(() => null)
@@ -459,6 +502,15 @@ export default function PosOrderStatusPage() {
       setPage(requestedPage)
       setHasMore(Boolean(result.hasMore))
     } catch (loadError) {
+      if (shouldUseOfflineReadFallback(loadError)) {
+        try {
+          await loadOfflineOrders()
+          return
+        } catch {
+          setError('لقطة حالات الطلبات المحلية غير مكتملة.')
+          return
+        }
+      }
       setError(loadError instanceof Error ? loadError.message : 'تعذر تحميل حالة الطلبات.')
     } finally {
       setLoading(false)
@@ -543,6 +595,13 @@ export default function PosOrderStatusPage() {
   const closeResultDialog = useCallback(() => setResultDialog(null), [])
 
   const advance = async (order: OrderRecord) => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setMutationFeedback({
+        type: 'error',
+        message: 'تحديث حالة الطلب يتطلب الاتصال حاليًا.',
+      })
+      return
+    }
     const nextStatus = STATUS_TRANSITIONS[order.status]
     if (!nextStatus || updatingId || !access.tenantId || !access.branchId) return
     if (nextStatus !== 'ready' && nextStatus !== 'closed') return

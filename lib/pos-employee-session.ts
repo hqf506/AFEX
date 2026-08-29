@@ -17,6 +17,8 @@ export const POS_EMPLOYEE_SESSION_KEY = 'leather_fix_pos_employee'
 export const POS_EMPLOYEE_SESSION_CHANGE_EVENT =
   'afex:pos-employee-session-change'
 const POS_LOGGED_OUT_SESSION_KEY = 'leather_fix_pos_logged_out'
+const POS_ACTOR_REVOCATION_PENDING_KEY =
+  'afex_pos_actor_revocation_pending_v1'
 
 let posEmployeeSessionGeneration = 0
 
@@ -135,6 +137,10 @@ export function hasPosLoggedOut() {
 }
 
 async function revokeCurrentPosActorSession() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    window.sessionStorage.setItem(POS_ACTOR_REVOCATION_PENDING_KEY, '1')
+    return
+  }
   let response: Response
   try {
     response = await fetch('/api/pos/end-actor-session', {
@@ -147,6 +153,21 @@ async function revokeCurrentPosActorSession() {
   if (!response.ok) {
     throw new PosSessionEndError('POS_ACTOR_REVOCATION_REJECTED')
   }
+  window.sessionStorage.removeItem(POS_ACTOR_REVOCATION_PENDING_KEY)
+}
+
+export async function flushPendingPosActorRevocation() {
+  if (
+    typeof window === 'undefined' ||
+    typeof navigator === 'undefined' ||
+    navigator.onLine === false ||
+    window.sessionStorage.getItem(POS_ACTOR_REVOCATION_PENDING_KEY) !== '1'
+  ) {
+    return false
+  }
+  await revokeCurrentPosActorSession()
+  clearActivePosEmployee()
+  return true
 }
 
 export type PosEmployeePresentationScope = Readonly<{

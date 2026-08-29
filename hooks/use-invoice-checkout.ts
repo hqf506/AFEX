@@ -17,7 +17,6 @@ import {
   type InvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
-import { savePosOfflineInvoiceDraft } from '@/lib/pos-offline-draft'
 import {
   acquirePosCheckoutIdentity,
   clearPosCheckoutIdentity,
@@ -26,7 +25,6 @@ import {
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { INVOICE_SALE_CHECKOUT_STORAGE_KEY, parseStoredInvoiceSaleCheckoutDraft, serializeInvoiceSaleCheckoutDraft } from '@/lib/invoices/sale-navigation'
-import { resolveOfflineOrderCreatePilotCheckout } from '@/lib/offline/order-create-pilot-pos-integration'
 
 export type CheckoutDiscountOption = {
   id: string
@@ -63,7 +61,6 @@ type UseInvoiceCheckoutOptions = {
 
 export function useInvoiceCheckout({
   customerId,
-  customerRecordVersion,
   customerName,
   customerPhone,
   invoiceItems,
@@ -90,7 +87,7 @@ export function useInvoiceCheckout({
 
   useEffect(() => {
     if (!persistSaleDraft) return
-    const stored = parseStoredInvoiceSaleCheckoutDraft(window.localStorage.getItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY))
+    const stored = parseStoredInvoiceSaleCheckoutDraft(window.sessionStorage.getItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY))
     if (!stored) {
       saleDraftHydratedRef.current = true
       return
@@ -107,7 +104,7 @@ export function useInvoiceCheckout({
 
   useEffect(() => {
     if (!persistSaleDraft || !saleDraftHydratedRef.current) return
-    window.localStorage.setItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY, serializeInvoiceSaleCheckoutDraft({ paymentMethod, selectedDiscount, note, cashReceivedInput }))
+    window.sessionStorage.setItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY, serializeInvoiceSaleCheckoutDraft({ paymentMethod, selectedDiscount, note, cashReceivedInput }))
   }, [cashReceivedInput, note, paymentMethod, persistSaleDraft, selectedDiscount])
 
   const subtotal = useMemo(() => {
@@ -255,7 +252,7 @@ export function useInvoiceCheckout({
     setPaymentMethodState('mada')
     setCashReceivedInput('')
     clearPosCheckoutIdentity()
-    if (persistSaleDraft && typeof window !== 'undefined') window.localStorage.removeItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY)
+    if (persistSaleDraft && typeof window !== 'undefined') window.sessionStorage.removeItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY)
   }
 
   const createInvoice = async () => {
@@ -318,6 +315,14 @@ export function useInvoiceCheckout({
       return
     }
 
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setLoading(false)
+      setErrorMessage(
+        'يمكنك تجهيز السلة وحساب الإجمالي دون اتصال، لكن إتمام البيع والدفع غير متاح حتى مراجعة عقد W2 والاتصال بالإنترنت.'
+      )
+      return
+    }
+
     const activePosEmployee = readActivePosEmployee()
     let clientIdempotencyKey: string
 
@@ -344,86 +349,6 @@ export function useInvoiceCheckout({
     } catch {
       setLoading(false)
       setErrorMessage(POS_UX_MESSAGES.uncertainSubmission)
-      return
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      const pilotDisposition = await resolveOfflineOrderCreatePilotCheckout({
-        clientIdempotencyKey,
-        customerId,
-        customerRecordVersion,
-        customerName,
-        paymentMethod: safePaymentMethod,
-        note,
-        items: validItems,
-        totals: {
-          subtotal,
-          discountAmount,
-          taxAmount,
-          finalTotal,
-          numericCashReceived,
-          remainingFromCustomer,
-          cashChange,
-          vatRate,
-        },
-        branchId,
-        employee: activePosEmployee,
-      })
-
-      if (pilotDisposition.handled) {
-        if (pilotDisposition.queued) {
-          markPosCheckoutIdentitySucceeded(clientIdempotencyKey)
-          setOfflineDraftMessage(
-            `تم حفظ الطلب بأمان للمزامنة — ${pilotDisposition.receipt.receiptNumber}`
-          )
-          setLoading(false)
-          return
-        }
-        setLoading(false)
-        setErrorMessage(
-          pilotDisposition.classification.startsWith(
-            'OFFLINE_INVENTORY_EXHAUSTED'
-          )
-            ? 'نفدت الكمية المتاحة وفق آخر تحديث للمخزون. يرجى الاتصال بالإنترنت لتحديث المخزون والتحقق من الرصيد.'
-            : pilotDisposition.classification.startsWith(
-                  'OFFLINE_INVENTORY_INSUFFICIENT:'
-                )
-              ? `الكمية المتاحة غير كافية. المتاح حاليًا: ${pilotDisposition.classification.split(':')[1]}`
-              : 'تعذر التحقق من سلطة الطلب دون اتصال.'
-        )
-        return
-      }
-
-      try {
-        savePosOfflineInvoiceDraft({
-          clientIdempotencyKey,
-          customerId,
-          customerName,
-          customerPhone,
-          paymentMethod: safePaymentMethod,
-          note,
-          items: validItems,
-          totalsSnapshot: {
-            subtotal,
-            discountAmount,
-            taxAmount,
-            finalTotal,
-            cashReceived,
-            numericCashReceived,
-            remainingFromCustomer,
-            cashChange,
-          },
-          employee: activePosEmployee,
-        })
-
-        setOfflineDraftMessage(POS_UX_MESSAGES.draftSaved)
-      } catch (error) {
-        console.error('[POS OFFLINE] Failed to save checkout draft.', error)
-        setErrorMessage(POS_UX_MESSAGES.draftSaveFailure)
-      } finally {
-        setLoading(false)
-      }
-
       return
     }
 

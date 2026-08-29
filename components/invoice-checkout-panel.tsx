@@ -19,6 +19,7 @@ import {
   type CheckoutDiscountOption,
 } from '@/hooks/use-invoice-checkout'
 import { formatCurrency } from '@/lib/orders/format'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 
 type InvoiceCheckoutPanelProps = {
   checkout: ReturnType<typeof useInvoiceCheckout>
@@ -90,6 +91,20 @@ export function InvoiceCheckoutPanel({
         const nextDiscounts = await loadClientResource(
           discountsCacheKey,
           async () => {
+            if (
+              typeof navigator !== 'undefined' &&
+              navigator.onLine === false
+            ) {
+              const { readOfflineRuntimeSettings } = await import(
+                '@/lib/offline/complete-runtime'
+              )
+              const runtime = (await readOfflineRuntimeSettings()) as {
+                discounts?: CheckoutDiscountOption[]
+              }
+              return Array.isArray(runtime.discounts)
+                ? runtime.discounts
+                : []
+            }
             const response = await fetch(
               `/api/admin/discounts${
                 searchParams.toString() ? `?${searchParams.toString()}` : ''
@@ -117,8 +132,24 @@ export function InvoiceCheckoutPanel({
         if (!cancelled) {
           setAvailableDiscounts(nextDiscounts)
         }
-      } catch {
+      } catch (discountError) {
         if (!cancelled) {
+          if (shouldUseOfflineReadFallback(discountError)) {
+            try {
+              const { readOfflineRuntimeSettings } = await import(
+                '@/lib/offline/complete-runtime'
+              )
+              const runtime = (await readOfflineRuntimeSettings()) as {
+                discounts?: CheckoutDiscountOption[]
+              }
+              setAvailableDiscounts(
+                Array.isArray(runtime.discounts) ? runtime.discounts : []
+              )
+              return
+            } catch {
+              // Preserve the last safe in-memory value below.
+            }
+          }
           setAvailableDiscounts(
             peekClientResource<CheckoutDiscountOption[]>(
               getDiscountsCacheKey(branchId)

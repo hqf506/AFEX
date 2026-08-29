@@ -54,6 +54,7 @@ import {
 } from '@/components/pos-add-customer-modal'
 import { PosPreparingScreen } from '@/components/pos-preparing-screen'
 import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
@@ -626,6 +627,10 @@ export default function PosPage() {
       return
     }
 
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return
+    }
+
     router.prefetch('/pos/sale/customer')
     router.prefetch('/pos/sale/items')
     router.prefetch('/pos/sale/checkout')
@@ -703,6 +708,36 @@ export default function PosPage() {
       setOrdersLoading(true)
       setOrdersError('')
 
+      const loadOfflineOrders = async () => {
+        try {
+          const { readOfflineRecentOrders } = await import(
+            '@/lib/offline/complete-runtime'
+          )
+          const rows = (await readOfflineRecentOrders()) as OrderSourceRow[]
+          setOrders(
+            rows
+              .map((row, index) => normalizeOrderRecord(row, index))
+              .map(mapOrderSummaryToOrderRecord)
+          )
+          setOrdersError('')
+        } catch (offlineError) {
+          setOrders([])
+          setOrdersError(
+            offlineError instanceof Error &&
+              offlineError.message.includes('INTEGRITY')
+              ? 'تعذر التحقق من سلامة لقطة الطلبات المحلية.'
+              : 'لقطة الطلبات المحلية غير مكتملة.'
+          )
+        } finally {
+          setOrdersLoading(false)
+        }
+      }
+
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await loadOfflineOrders()
+        return
+      }
+
       try {
         const searchParams = new URLSearchParams()
         searchParams.set('page', '1')
@@ -748,6 +783,10 @@ export default function PosPage() {
         }
       } catch (error) {
         if (!cancelled) {
+          if (shouldUseOfflineReadFallback(error)) {
+            await loadOfflineOrders()
+            return
+          }
           setOrders([])
           setOrdersError(
             error instanceof Error ? error.message : 'تعذر تحميل الطلبات'
@@ -774,7 +813,7 @@ export default function PosPage() {
   ])
 
   const handleSwitchEmployee = () => {
-    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.localStorage))
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.sessionStorage))
     setSwitchEmployeeOpen(true)
   }
 

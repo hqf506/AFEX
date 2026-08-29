@@ -29,7 +29,7 @@ export default function PosSettingsPage() {
 
   const openLogout = (intent: 'logout' | 'switch') => {
     setLogoutIntent(intent)
-    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.localStorage))
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.sessionStorage))
     setLogoutOpen(true)
   }
 

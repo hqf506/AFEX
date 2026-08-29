@@ -1,7 +1,10 @@
 'use client'
 
 import type { InvoiceLineItem } from '@/lib/invoices/items'
-import type { PosPaymentMethod } from '@/lib/invoices/payment-method'
+import {
+  PAYMENT_METHODS,
+  type PosPaymentMethod,
+} from '@/lib/invoices/payment-method'
 import {
   readActivePosEmployee,
   type ActivePosEmployee,
@@ -27,9 +30,11 @@ import {
   type OfflineNamespaceDescriptor,
 } from '@/lib/offline/phase1'
 import {
+  AFEX_OFFLINE_POS_SHELL_ROUTES,
   Phase2DatasetRepository,
   calculateSnapshotClosureHash,
   calculateSnapshotPageHash,
+  installAfexOfflineApplicationShell,
   type Phase2DatasetId,
 } from '@/lib/offline/phase2'
 import {
@@ -40,6 +45,7 @@ import {
   type Phase3PaymentMethod,
 } from '@/lib/offline/phase3'
 import { assertSelectedEmployeeMatchesPreparedBranch } from '@/lib/offline/employee-pin-selection'
+import type { SelectedCustomerProfile } from '@/lib/customers'
 
 export const OFFLINE_COMPLETE_RUNTIME_VERSION =
   'afex-pos-offline-complete-runtime.v1' as const
@@ -52,10 +58,23 @@ const BOOTSTRAP_RECORD_KEY = 'approved-bootstrap-v2'
 const ROSTER_RECORD_KEY = 'approved-employee-roster-v2'
 const INVENTORY_RECORD_KEY = 'trusted-inventory-frontier-v2'
 const ACTOR_RECORD_KEY = 'active-pos-actor-binding-v2'
+const PIN_ATTEMPT_RECORD_KEY = 'offline-pin-attempt-state-v1'
+const READ_COMPLETENESS_RECORD_KEY = 'pos-read-completeness-v1'
+const SYSTEM_SETTINGS_RECORD_KEY = 'pos-system-settings-v1'
+const PAYMENT_CONFIGURATION_RECORD_KEY = 'pos-payment-configuration-v1'
+const CATEGORIES_RECORD_KEY = 'pos-categories-v1'
+const VARIANTS_RECORD_KEY = 'pos-variants-v1'
+const INVENTORY_SNAPSHOT_RECORD_KEY = 'pos-inventory-snapshot-v1'
+const OFFLINE_READ_CONTRACT_VERSION = 'afex-pos-offline-read-runtime.v1'
+const OFFLINE_PIN_MAX_ATTEMPTS = 3
+const OFFLINE_PIN_LOCKOUT_MS = 30_000
 const CORE_COMMAND_PREFIX = 'core-order-command:'
 const SERVER_RECEIPT_PREFIX = 'server-receipt:'
 const MAX_DATASET_PAGE_SIZE = 200
 const MAX_SYNC_BATCH = 10
+const MAX_REQUIRED_READ_RECORDS = 10_000
+const CATALOG_DOWNLOAD_PAGE_SIZE = 60
+const RECENT_ORDERS_DOWNLOAD_PAGE_SIZE = 100
 
 type JsonRecord = Record<string, unknown>
 
@@ -158,6 +177,46 @@ export type PreparedOfflineRuntime = Readonly<{
   preparedAt: string
 }>
 
+export type OfflineReadDatasetName =
+  | 'applicationShell'
+  | 'employeeRoster'
+  | 'customers'
+  | 'customerSearch'
+  | 'catalog'
+  | 'categories'
+  | 'variants'
+  | 'prices'
+  | 'discounts'
+  | 'vat'
+  | 'branchInventory'
+  | 'posSettings'
+  | 'receiptSettings'
+  | 'paymentConfiguration'
+  | 'recentOrders'
+
+export type OfflineReadCompletenessManifest = Readonly<{
+  contractVersion: typeof OFFLINE_READ_CONTRACT_VERSION
+  snapshotVersion: string
+  confirmedAt: string
+  datasetVersions: Readonly<{
+    catalog: string
+    customers: string
+    orders: string
+    runtimeSettings: string
+  }>
+  counts: Readonly<Record<OfflineReadDatasetName, number>>
+  complete: true
+}>
+
+export type OfflineCustomerSnapshot = SelectedCustomerProfile &
+  Readonly<{
+    lastPurchaseAmount: number | null
+    firstVisitAt: string | null
+    lastActivityAt: string | null
+    visitsCount: number | null
+    totalSpent: number | null
+  }>
+
 export type OfflineCheckoutInput = Readonly<{
   clientIdempotencyKey: string
   customerId: string | null
@@ -181,8 +240,19 @@ export type OfflineCheckoutInput = Readonly<{
 }>
 
 let currentRuntime: PreparedOfflineRuntime | null = null
+let currentReadCompleteness: Readonly<{
+  namespaceId: string
+  manifest: OfflineReadCompletenessManifest
+}> | null = null
 let preparationInFlight: Promise<PreparedOfflineRuntime> | null = null
 let syncInFlight: Promise<unknown> | null = null
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('afex:offline-runtime-locked', () => {
+    currentRuntime = null
+    currentReadCompleteness = null
+  })
+}
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -489,6 +559,7 @@ function employeeRoster(value: unknown) {
     value.containsOfflinePinVerifier !== true ||
     value.maximumEmployees !== 25 ||
     !Array.isArray(value.employees) ||
+    value.employees.length < 1 ||
     value.employees.length > 25 ||
     value.employeeCount !== value.employees.length ||
     value.enrolledEmployeeCount !== value.employees.length
@@ -607,7 +678,8 @@ async function persistDataset(
   datasetId: Phase2DatasetId,
   snapshotVersion: string,
   confirmedAtServer: string,
-  records: readonly Readonly<{ recordKey: string; value: unknown }>[]
+  records: readonly Readonly<{ recordKey: string; value: unknown }>[],
+  retainSnapshotVersions: readonly string[] = []
 ) {
   const pages: Array<Array<{ recordKey: string; value: unknown }>> = []
   for (let index = 0; index < records.length; index += MAX_DATASET_PAGE_SIZE) {
@@ -640,36 +712,189 @@ async function persistDataset(
       records: page,
     })
   }
-  return repository.completeSnapshot(writer)
+  return repository.completeSnapshot(writer, { retainSnapshotVersions })
 }
 
-async function fetchCatalogAndRuntime(context: PrePinContext) {
-  const query = encodeURIComponent(context.branchId)
-  const [catalogResponse, runtimeResponse] = await Promise.all([
-    fetch(`/api/invoice/catalog?branchId=${query}`, {
+async function readInstalledReadCompleteness(namespaceId: string) {
+  try {
+    const encrypted = new EncryptedOfflineRepository({
+      allowPersistentWrites: true,
+    })
+    const manifest = await encrypted.readEncryptedRecord<unknown>(
+      OFFLINE_STORES.drafts,
+      namespaceId,
+      READ_COMPLETENESS_RECORD_KEY
+    )
+    return requireOfflineReadCompleteness(manifest)
+  } catch {
+    return null
+  }
+}
+
+function offlineCustomerSnapshot(value: unknown): OfflineCustomerSnapshot {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== 'string' ||
+    typeof value.name !== 'string' ||
+    typeof value.phone !== 'string'
+  ) {
+    throw new Error('OFFLINE_REQUIRED_DATASET_INVALID:customers')
+  }
+  return Object.freeze({
+    ...(value as unknown as SelectedCustomerProfile),
+    lastPurchaseAmount: null,
+    firstVisitAt:
+      typeof value.createdAt === 'string' ? value.createdAt : null,
+    lastActivityAt: null,
+    visitsCount:
+      typeof value.visitCount === 'number' ? value.visitCount : null,
+    totalSpent:
+      typeof value.totalSpending === 'number' ? value.totalSpending : null,
+  })
+}
+
+async function fetchCompleteCatalogSnapshot(branchId: string) {
+  const products: unknown[] = []
+  const categories = new Set<string>()
+  const productIds = new Set<string>()
+  let total = 0
+  let page = 1
+  do {
+    const params = new URLSearchParams({
+      branchId,
+      page: String(page),
+      pageSize: String(CATALOG_DOWNLOAD_PAGE_SIZE),
+    })
+    const response = await fetch(`/api/invoice/catalog?${params}`, {
       credentials: 'include',
       cache: 'no-store',
-    }),
+    })
+    const result = (await response.json().catch(() => null)) as JsonRecord | null
+    if (
+      !response.ok ||
+      result?.success !== true ||
+      !Array.isArray(result.products) ||
+      !Number.isSafeInteger(result.total) ||
+      Number(result.total) < 0 ||
+      Number(result.total) > MAX_REQUIRED_READ_RECORDS
+    ) {
+      throw new Error('OFFLINE_REQUIRED_DATASET_MISSING:catalog')
+    }
+    total = Number(result.total)
+    for (const category of Array.isArray(result.categories)
+      ? result.categories
+      : []) {
+      if (typeof category === 'string' && category.trim()) {
+        categories.add(category.trim())
+      }
+    }
+    for (const product of result.products) {
+      if (!isRecord(product) || typeof product.id !== 'string') {
+        throw new Error('OFFLINE_REQUIRED_DATASET_INVALID:catalog')
+      }
+      if (productIds.has(product.id)) {
+        throw new Error('OFFLINE_REQUIRED_DATASET_INVALID:catalog')
+      }
+      productIds.add(product.id)
+      products.push(product)
+    }
+    page += 1
+  } while ((page - 1) * CATALOG_DOWNLOAD_PAGE_SIZE < total)
+  return Object.freeze({
+    success: true as const,
+    products: Object.freeze(products),
+    categories: Object.freeze([...categories]),
+    total: products.length,
+  })
+}
+
+async function fetchCompleteRecentOrdersSnapshot(branchId: string) {
+  const items: unknown[] = []
+  const orderIds = new Set<string>()
+  let page = 1
+  let hasMore = false
+  do {
+    const params = new URLSearchParams({
+      mode: 'full',
+      page: String(page),
+      pageSize: String(RECENT_ORDERS_DOWNLOAD_PAGE_SIZE),
+      recentHours: '48',
+      branchId,
+    })
+    const response = await fetch(`/api/orders?${params}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    const result = (await response.json().catch(() => null)) as JsonRecord | null
+    if (!response.ok || result?.success !== true || !Array.isArray(result.items)) {
+      throw new Error('OFFLINE_REQUIRED_DATASET_MISSING:recentOrders')
+    }
+    for (const order of result.items) {
+      if (!isRecord(order) || typeof order.id !== 'string') {
+        throw new Error('OFFLINE_REQUIRED_DATASET_INVALID:recentOrders')
+      }
+      if (orderIds.has(order.id)) {
+        throw new Error('OFFLINE_REQUIRED_DATASET_INVALID:recentOrders')
+      }
+      orderIds.add(order.id)
+      items.push(order)
+    }
+    if (items.length > MAX_REQUIRED_READ_RECORDS) {
+      throw new Error('OFFLINE_REQUIRED_DATASET_CAPACITY_EXCEEDED:recentOrders')
+    }
+    hasMore = result.hasMore === true
+    if (hasMore && result.items.length === 0) {
+      throw new Error('OFFLINE_REQUIRED_DATASET_INVALID:recentOrders')
+    }
+    page += 1
+  } while (hasMore)
+  return Object.freeze(items)
+}
+
+async function fetchRequiredReadDatasets(context: PrePinContext) {
+  const query = encodeURIComponent(context.branchId)
+  const [catalog, runtimeResponse, readSnapshotResponse, recentOrders] = await Promise.all([
+    fetchCompleteCatalogSnapshot(context.branchId),
     fetch(`/api/pos/runtime?branchId=${query}`, {
       credentials: 'include',
       cache: 'no-store',
     }),
+    fetch(`/api/pos/offline-read-snapshot?branchId=${query}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    }),
+    fetchCompleteRecentOrdersSnapshot(context.branchId),
   ])
-  const [catalog, runtime] = (await Promise.all([
-    catalogResponse.json().catch(() => null),
+  const [runtime, readSnapshot] = (await Promise.all([
     runtimeResponse.json().catch(() => null),
+    readSnapshotResponse.json().catch(() => null),
   ])) as [JsonRecord | null, JsonRecord | null]
-  if (
-    !catalogResponse.ok ||
-    catalog?.success !== true ||
-    !Array.isArray(catalog.products) ||
-    !runtimeResponse.ok ||
-    runtime?.success !== true ||
-    !isRecord(runtime.runtime)
-  ) {
-    throw new Error('OFFLINE_CATALOG_OR_RUNTIME_FAILED')
+
+  if (!runtimeResponse.ok || runtime?.success !== true || !isRecord(runtime.runtime)) {
+    throw new Error('OFFLINE_REQUIRED_DATASET_MISSING:runtimeSettings')
   }
-  return { catalog, runtime: runtime.runtime }
+  if (
+    !readSnapshotResponse.ok ||
+    readSnapshot?.success !== true ||
+    readSnapshot.contractVersion !== 'afex-pos-offline-read-snapshot.v1' ||
+    !Array.isArray(readSnapshot.customers) ||
+    !isRecord(readSnapshot.settings) ||
+    typeof readSnapshot.confirmedAt !== 'string'
+  ) {
+    const classification =
+      typeof readSnapshot?.code === 'string'
+        ? readSnapshot.code
+        : 'offlineReadSnapshot'
+    throw new Error(`OFFLINE_REQUIRED_DATASET_MISSING:${classification}`)
+  }
+  return {
+    catalog,
+    runtime: runtime.runtime,
+    customers: readSnapshot.customers.map(offlineCustomerSnapshot),
+    systemSettings: readSnapshot.settings,
+    confirmedAt: readSnapshot.confirmedAt,
+    recentOrders,
+  }
 }
 
 async function doPrepare(
@@ -722,7 +947,15 @@ async function doPrepare(
     await postPreparation('employee.roster', { deviceId: device.deviceId })
   )
   progress(50, 'تم تنزيل قائمة الموظفين المعتمدة')
-  const { catalog, runtime } = await fetchCatalogAndRuntime(context)
+  const {
+    catalog,
+    runtime,
+    customers,
+    systemSettings,
+    confirmedAt,
+    recentOrders,
+  } =
+    await fetchRequiredReadDatasets(context)
   progress(75, 'تم تنزيل الكتالوج والأسعار والضريبة وطرق الدفع')
   const now = new Date().toISOString()
   const snapshotId = crypto.randomUUID()
@@ -762,8 +995,16 @@ async function doPrepare(
   const encrypted = new EncryptedOfflineRepository({
     allowPersistentWrites: true,
   })
+  currentReadCompleteness = null
   const datasets = new Phase2DatasetRepository()
+  const snapshotVersion = inventory.frontierVersion
   await encrypted.initialize()
+  const previousCompleteness = await readInstalledReadCompleteness(
+    material.descriptor.namespaceId
+  )
+  const retainedSnapshotVersions = previousCompleteness
+    ? [previousCompleteness.snapshotVersion]
+    : []
   await encrypted.putKeyEnvelope({
     id: `${material.descriptor.namespaceId}:key:${device.keyEnvelopeVersion}`,
     namespaceId: material.descriptor.namespaceId,
@@ -778,7 +1019,7 @@ async function doPrepare(
     datasets,
     material.descriptor.namespaceId,
     'catalog',
-    inventory.frontierVersion,
+    snapshotVersion,
     inventory.confirmedAt,
     (catalog.products as unknown[]).map((value, index) => ({
       recordKey:
@@ -786,16 +1027,189 @@ async function doPrepare(
           ? value.id
           : `catalog-${index + 1}`,
       value,
-    }))
+    })),
+    retainedSnapshotVersions
   )
   await persistDataset(
     datasets,
     material.descriptor.namespaceId,
-    'runtimeSettings',
-    inventory.frontierVersion,
-    inventory.confirmedAt,
-    [{ recordKey: 'pos-runtime', value: runtime }]
+    'customers',
+    snapshotVersion,
+    confirmedAt,
+    customers.map((value) => ({ recordKey: value.id, value })),
+    retainedSnapshotVersions
   )
+  await persistDataset(
+    datasets,
+    material.descriptor.namespaceId,
+    'orders',
+    snapshotVersion,
+    confirmedAt,
+    recentOrders.map((value, index) => ({
+      recordKey:
+        isRecord(value) && typeof value.id === 'string'
+          ? value.id
+          : `recent-order-${index + 1}`,
+      value,
+    })),
+    retainedSnapshotVersions
+  )
+  const catalogRows = catalog.products as unknown[]
+  const categories = new Set([
+    ...(Array.isArray(catalog.categories)
+      ? catalog.categories.filter(
+          (value): value is string =>
+            typeof value === 'string' && value.trim().length > 0
+        )
+      : []),
+    ...catalogRows.flatMap((value) =>
+      isRecord(value) && typeof value.category === 'string' && value.category.trim()
+        ? [value.category.trim()]
+        : []
+    ),
+  ])
+  const variants = catalogRows.flatMap((value) => {
+    if (!isRecord(value) || typeof value.id !== 'string') return []
+    const color = typeof value.pos_color === 'string' ? value.pos_color : null
+    const shape = typeof value.pos_shape === 'string' ? value.pos_shape : null
+    if (!color && !shape) return []
+    return [{ catalogItemId: value.id, color, shape }]
+  })
+  const shellInstallation = await installAfexOfflineApplicationShell()
+  const completeness: OfflineReadCompletenessManifest = Object.freeze({
+    contractVersion: OFFLINE_READ_CONTRACT_VERSION,
+    snapshotVersion,
+    confirmedAt,
+    datasetVersions: Object.freeze({
+      catalog: snapshotVersion,
+      customers: snapshotVersion,
+      orders: snapshotVersion,
+      runtimeSettings: snapshotVersion,
+    }),
+    counts: Object.freeze({
+      applicationShell: shellInstallation.routeCount,
+      employeeRoster: roster.length,
+      customers: customers.length,
+      customerSearch: customers.length,
+      catalog: catalogRows.length,
+      categories: categories.size,
+      variants: variants.length,
+      prices: catalogRows.length,
+      discounts: Array.isArray(runtime.discounts) ? runtime.discounts.length : 0,
+      vat: isRecord(runtime.vat) ? 1 : 0,
+      branchInventory: inventory.items.length,
+      posSettings: 1,
+      receiptSettings: 1,
+      paymentConfiguration: PAYMENT_METHODS.length,
+      recentOrders: recentOrders.length,
+    }),
+    complete: true,
+  })
+
+  await persistDataset(
+    datasets,
+    material.descriptor.namespaceId,
+    'runtimeSettings',
+    snapshotVersion,
+    confirmedAt,
+    [
+      { recordKey: 'pos-runtime', value: runtime },
+      { recordKey: SYSTEM_SETTINGS_RECORD_KEY, value: systemSettings },
+      { recordKey: PAYMENT_CONFIGURATION_RECORD_KEY, value: PAYMENT_METHODS },
+      { recordKey: CATEGORIES_RECORD_KEY, value: [...categories] },
+      { recordKey: VARIANTS_RECORD_KEY, value: variants },
+      { recordKey: INVENTORY_SNAPSHOT_RECORD_KEY, value: inventory },
+    ],
+    retainedSnapshotVersions
+  )
+  const [
+    catalogAvailability,
+    customerAvailability,
+    orderAvailability,
+    runtimeAvailability,
+  ] =
+    await Promise.all([
+      datasets.getSafeAvailability(
+        material.descriptor.namespaceId,
+        'catalog',
+        snapshotVersion
+      ),
+      datasets.getSafeAvailability(
+        material.descriptor.namespaceId,
+        'customers',
+        snapshotVersion
+      ),
+      datasets.getSafeAvailability(
+        material.descriptor.namespaceId,
+        'orders',
+        snapshotVersion
+      ),
+      datasets.getSafeAvailability(
+        material.descriptor.namespaceId,
+        'runtimeSettings',
+        snapshotVersion
+      ),
+    ])
+  const [
+    installedCatalog,
+    installedCustomers,
+    installedOrders,
+    installedRuntimeSettings,
+  ] =
+    await Promise.all([
+      readCompleteDataset<JsonRecord>(
+        material.descriptor.namespaceId,
+        'catalog',
+        snapshotVersion
+      ),
+      readCompleteDataset<OfflineCustomerSnapshot>(
+        material.descriptor.namespaceId,
+        'customers',
+        snapshotVersion
+      ),
+      readCompleteDataset<JsonRecord>(
+        material.descriptor.namespaceId,
+        'orders',
+        snapshotVersion
+      ),
+      readCompleteDataset<JsonRecord>(
+        material.descriptor.namespaceId,
+        'runtimeSettings',
+        snapshotVersion
+      ),
+    ])
+  const installedRuntimeRecordKeys = new Set(
+    installedRuntimeSettings.map((record) => record.recordKey)
+  )
+  const installedCategories = installedRuntimeSettings.find(
+    (record) => record.recordKey === CATEGORIES_RECORD_KEY
+  )?.value
+  const installedVariants = installedRuntimeSettings.find(
+    (record) => record.recordKey === VARIANTS_RECORD_KEY
+  )?.value
+  if (
+    catalogAvailability.status !== 'complete' ||
+    customerAvailability.status !== 'complete' ||
+    orderAvailability.status !== 'complete' ||
+    runtimeAvailability.status !== 'complete' ||
+    installedCatalog.length !== completeness.counts.catalog ||
+    installedCustomers.length !== completeness.counts.customers ||
+    installedOrders.length !== completeness.counts.recentOrders ||
+    !Array.isArray(installedCategories) ||
+    installedCategories.length !== completeness.counts.categories ||
+    !Array.isArray(installedVariants) ||
+    installedVariants.length !== completeness.counts.variants ||
+    ![
+      'pos-runtime',
+      SYSTEM_SETTINGS_RECORD_KEY,
+      PAYMENT_CONFIGURATION_RECORD_KEY,
+      CATEGORIES_RECORD_KEY,
+      VARIANTS_RECORD_KEY,
+      INVENTORY_SNAPSHOT_RECORD_KEY,
+    ].every((recordKey) => installedRuntimeRecordKeys.has(recordKey))
+  ) {
+    throw new Error('OFFLINE_DURABLE_INTEGRITY_ATTESTATION_FAILED')
+  }
   await encrypted.putEncryptedDraftBatch(material.descriptor.namespaceId, [
     {
       recordKey: ROSTER_RECORD_KEY,
@@ -812,25 +1226,43 @@ async function doPrepare(
       value: bootstrap,
       classification: 'approved-account-bootstrap',
     },
+    {
+      recordKey: READ_COMPLETENESS_RECORD_KEY,
+      value: completeness,
+      classification: 'pos-read-completeness-pivot',
+    },
   ])
-  const [catalogAvailability, runtimeAvailability, storedBootstrap] =
+  const [storedBootstrap, storedRoster, storedInventory, storedCompleteness] =
     await Promise.all([
-      datasets.getSafeAvailability(material.descriptor.namespaceId, 'catalog'),
-      datasets.getSafeAvailability(
-        material.descriptor.namespaceId,
-        'runtimeSettings'
-      ),
       encrypted.readEncryptedRecord<ApprovedBootstrap>(
         OFFLINE_STORES.drafts,
         material.descriptor.namespaceId,
         BOOTSTRAP_RECORD_KEY
       ),
+      encrypted.readEncryptedRecord<readonly OfflineEmployeeRosterEntry[]>(
+        OFFLINE_STORES.drafts,
+        material.descriptor.namespaceId,
+        ROSTER_RECORD_KEY
+      ),
+      encrypted.readEncryptedRecord<TrustedInventory>(
+        OFFLINE_STORES.drafts,
+        material.descriptor.namespaceId,
+        INVENTORY_RECORD_KEY
+      ),
+      encrypted.readEncryptedRecord<unknown>(
+        OFFLINE_STORES.drafts,
+        material.descriptor.namespaceId,
+        READ_COMPLETENESS_RECORD_KEY
+      ),
     ])
+  const installedCompleteness = requireOfflineReadCompleteness(
+    storedCompleteness
+  )
   if (
-    catalogAvailability.status !== 'complete' ||
-    runtimeAvailability.status !== 'complete' ||
-    !storedBootstrap ||
-    storedBootstrap.bootstrapId !== bootstrap.bootstrapId
+    storedBootstrap?.bootstrapId !== bootstrap.bootstrapId ||
+    storedRoster?.length !== roster.length ||
+    storedInventory?.snapshotId !== inventory.snapshotId ||
+    installedCompleteness.snapshotVersion !== snapshotVersion
   ) {
     throw new Error('OFFLINE_DURABLE_INTEGRITY_ATTESTATION_FAILED')
   }
@@ -844,6 +1276,10 @@ async function doPrepare(
     preparedAt: now,
   })
   currentRuntime = prepared
+  currentReadCompleteness = Object.freeze({
+    namespaceId: material.descriptor.namespaceId,
+    manifest: completeness,
+  })
   markOfflineBootstrapReady()
   progress(100, 'اكتمل تجهيز نقطة البيع للعمل دون اتصال')
   return prepared
@@ -903,7 +1339,7 @@ export async function restorePreparedOfflineRuntime() {
   if (!bootstrap || !roster || !inventory) {
     throw new Error('OFFLINE_BOOTSTRAP_NOT_PREPARED')
   }
-  currentRuntime = Object.freeze({
+  const restoredRuntime = Object.freeze({
     context: material.context,
     descriptor: material.descriptor,
     device: Object.freeze({
@@ -919,6 +1355,9 @@ export async function restorePreparedOfflineRuntime() {
     bootstrap,
     preparedAt: bootstrap.preparedAt,
   })
+  currentReadCompleteness = null
+  await readOfflineReadCompleteness(restoredRuntime)
+  currentRuntime = restoredRuntime
   return currentRuntime
 }
 
@@ -939,7 +1378,8 @@ export async function restoreOfflinePrimaryAuthProfile(): Promise<CurrentUserPro
 
 async function readCompleteDataset<T>(
   namespaceId: string,
-  datasetId: Phase2DatasetId
+  datasetId: Phase2DatasetId,
+  snapshotVersion?: string
 ) {
   const repository = new Phase2DatasetRepository()
   const values: Array<{ recordKey: string; value: T }> = []
@@ -948,6 +1388,7 @@ async function readCompleteDataset<T>(
     const page = await repository.readCompleteSnapshotPage<T>({
       namespaceId,
       datasetId,
+      ...(snapshotVersion ? { snapshotVersion } : {}),
       limit: MAX_DATASET_PAGE_SIZE,
       ...(cursor ? { afterRecordKey: cursor } : {}),
     })
@@ -956,6 +1397,175 @@ async function readCompleteDataset<T>(
     cursor = page.nextCursor ?? undefined
   } while (cursor)
   return values
+}
+
+function requireOfflineReadCompleteness(
+  value: unknown
+): OfflineReadCompletenessManifest {
+  if (
+    !isRecord(value) ||
+    value.contractVersion !== OFFLINE_READ_CONTRACT_VERSION ||
+    value.complete !== true ||
+    typeof value.snapshotVersion !== 'string' ||
+    typeof value.confirmedAt !== 'string' ||
+    !isRecord(value.datasetVersions) ||
+    !isRecord(value.counts)
+  ) {
+    throw new Error('OFFLINE_READ_COMPLETENESS_INVALID')
+  }
+  const datasetVersions = value.datasetVersions as Record<string, unknown>
+  const counts = value.counts as Record<string, unknown>
+  const requiredCounts: OfflineReadDatasetName[] = [
+    'applicationShell',
+    'employeeRoster',
+    'customers',
+    'customerSearch',
+    'catalog',
+    'categories',
+    'variants',
+    'prices',
+    'discounts',
+    'vat',
+    'branchInventory',
+    'posSettings',
+    'receiptSettings',
+    'paymentConfiguration',
+    'recentOrders',
+  ]
+  if (
+    !['catalog', 'customers', 'orders', 'runtimeSettings'].every(
+      (datasetId) =>
+        typeof datasetVersions[datasetId] === 'string' &&
+        datasetVersions[datasetId] === value.snapshotVersion
+    ) ||
+    requiredCounts.some(
+      (datasetId) =>
+        !Number.isSafeInteger(counts[datasetId]) ||
+        Number(counts[datasetId]) < 0
+    ) ||
+    Number(counts.applicationShell) !==
+      AFEX_OFFLINE_POS_SHELL_ROUTES.length ||
+    Number(counts.paymentConfiguration) !== PAYMENT_METHODS.length
+  ) {
+    throw new Error('OFFLINE_READ_COMPLETENESS_INVALID')
+  }
+  return value as unknown as OfflineReadCompletenessManifest
+}
+
+async function readOfflineReadCompleteness(runtime: PreparedOfflineRuntime) {
+  if (currentReadCompleteness?.namespaceId === runtime.descriptor.namespaceId) {
+    return currentReadCompleteness.manifest
+  }
+  const manifest = await readInstalledReadCompleteness(
+    runtime.descriptor.namespaceId
+  )
+  if (!manifest) throw new Error('OFFLINE_READ_COMPLETENESS_INVALID')
+  const [
+    catalogAvailability,
+    customerAvailability,
+    orderAvailability,
+    settingsAvailability,
+    catalogRecords,
+    customerRecords,
+    orderRecords,
+    runtimeSettingRecords,
+  ] =
+    await Promise.all([
+      new Phase2DatasetRepository().getSafeAvailability(
+        runtime.descriptor.namespaceId,
+        'catalog',
+        manifest.datasetVersions.catalog
+      ),
+      new Phase2DatasetRepository().getSafeAvailability(
+        runtime.descriptor.namespaceId,
+        'customers',
+        manifest.datasetVersions.customers
+      ),
+      new Phase2DatasetRepository().getSafeAvailability(
+        runtime.descriptor.namespaceId,
+        'orders',
+        manifest.datasetVersions.orders
+      ),
+      new Phase2DatasetRepository().getSafeAvailability(
+        runtime.descriptor.namespaceId,
+        'runtimeSettings',
+        manifest.datasetVersions.runtimeSettings
+      ),
+      readCompleteDataset<JsonRecord>(
+        runtime.descriptor.namespaceId,
+        'catalog',
+        manifest.datasetVersions.catalog
+      ),
+      readCompleteDataset<OfflineCustomerSnapshot>(
+        runtime.descriptor.namespaceId,
+        'customers',
+        manifest.datasetVersions.customers
+      ),
+      readCompleteDataset<JsonRecord>(
+        runtime.descriptor.namespaceId,
+        'orders',
+        manifest.datasetVersions.orders
+      ),
+      readCompleteDataset<JsonRecord>(
+        runtime.descriptor.namespaceId,
+        'runtimeSettings',
+        manifest.datasetVersions.runtimeSettings
+      ),
+    ])
+  const runtimeRecordKeys = new Set(
+    runtimeSettingRecords.map((record) => record.recordKey)
+  )
+  const categories = runtimeSettingRecords.find(
+    (record) => record.recordKey === CATEGORIES_RECORD_KEY
+  )?.value
+  const variants = runtimeSettingRecords.find(
+    (record) => record.recordKey === VARIANTS_RECORD_KEY
+  )?.value
+  if (
+    catalogAvailability.status !== 'complete' ||
+    customerAvailability.status !== 'complete' ||
+    orderAvailability.status !== 'complete' ||
+    settingsAvailability.status !== 'complete' ||
+    catalogRecords.length !== manifest.counts.catalog ||
+    customerRecords.length !== manifest.counts.customers ||
+    orderRecords.length !== manifest.counts.recentOrders ||
+    manifest.counts.employeeRoster !== runtime.roster.length ||
+    manifest.counts.branchInventory !== runtime.inventory.items.length ||
+    !Array.isArray(categories) ||
+    categories.length !== manifest.counts.categories ||
+    !Array.isArray(variants) ||
+    variants.length !== manifest.counts.variants ||
+    ![
+      'pos-runtime',
+      SYSTEM_SETTINGS_RECORD_KEY,
+      PAYMENT_CONFIGURATION_RECORD_KEY,
+      CATEGORIES_RECORD_KEY,
+      VARIANTS_RECORD_KEY,
+      INVENTORY_SNAPSHOT_RECORD_KEY,
+    ].every((recordKey) => runtimeRecordKeys.has(recordKey))
+  ) {
+    throw new Error('OFFLINE_READ_COMPLETENESS_INVALID')
+  }
+  currentReadCompleteness = Object.freeze({
+    namespaceId: runtime.descriptor.namespaceId,
+    manifest,
+  })
+  return manifest
+}
+
+export async function readOfflineReadinessStatus() {
+  const runtime = await restorePreparedOfflineRuntime()
+  const manifest = await readOfflineReadCompleteness(runtime)
+  const confirmedAtMs = Date.parse(manifest.confirmedAt)
+  if (!Number.isFinite(confirmedAtMs)) {
+    throw new Error('OFFLINE_READ_COMPLETENESS_INVALID')
+  }
+  return Object.freeze({
+    complete: true as const,
+    confirmedAt: manifest.confirmedAt,
+    stale: Date.now() - confirmedAtMs > 30 * 24 * 60 * 60 * 1_000,
+    counts: manifest.counts,
+  })
 }
 
 export async function readOfflineCatalogPage(input: Readonly<{
@@ -969,12 +1579,42 @@ export async function readOfflineCatalogPage(input: Readonly<{
   if (runtime.context.branchId !== input.branchId) {
     throw new Error('OFFLINE_CROSS_SCOPE_DENIED')
   }
+  const completeness = await readOfflineReadCompleteness(runtime)
   const rows = (
-    await readCompleteDataset<JsonRecord>(runtime.descriptor.namespaceId, 'catalog')
+    await readCompleteDataset<JsonRecord>(
+      runtime.descriptor.namespaceId,
+      'catalog',
+      completeness.datasetVersions.catalog
+    )
   ).map((record) => record.value)
+  const inventoryByCatalogItem = new Map(
+    runtime.inventory.items.map((item) => [
+      item.catalogItemId,
+      item.confirmedStock,
+    ])
+  )
+  const inventoryBoundRows = rows.map((row) => {
+    const catalogItemId = [row.catalog_item_id, row.item_id, row.id].find(
+      (value): value is string => typeof value === 'string' && value.length > 0
+    )
+    const confirmedStock = catalogItemId
+      ? inventoryByCatalogItem.get(catalogItemId)
+      : undefined
+    if (confirmedStock === undefined) return row
+    const lowStockThreshold = Number(row.low_stock_threshold ?? 0)
+    return {
+      ...row,
+      api_quantity_on_hand: confirmedStock,
+      quantity_on_hand: confirmedStock,
+      is_low_stock:
+        Number.isFinite(lowStockThreshold) &&
+        lowStockThreshold > 0 &&
+        confirmedStock <= lowStockThreshold,
+    }
+  })
   const search = (input.search || '').trim().toLocaleLowerCase('ar')
   const category = (input.category || '').trim()
-  const filtered = rows.filter((row) => {
+  const filtered = inventoryBoundRows.filter((row) => {
     const name = typeof row.name === 'string' ? row.name : ''
     const rowCategory = typeof row.category === 'string' ? row.category : ''
     return (
@@ -991,7 +1631,7 @@ export async function readOfflineCatalogPage(input: Readonly<{
     products: filtered.slice(start, start + pageSize),
     categories: [
       ...new Set(
-        rows
+        inventoryBoundRows
           .map((row) =>
             typeof row.category === 'string' ? row.category.trim() : ''
           )
@@ -1006,13 +1646,103 @@ export async function readOfflineCatalogPage(input: Readonly<{
 
 export async function readOfflineRuntimeSettings() {
   const runtime = await restorePreparedOfflineRuntime()
+  const completeness = await readOfflineReadCompleteness(runtime)
   const records = await readCompleteDataset<JsonRecord>(
     runtime.descriptor.namespaceId,
-    'runtimeSettings'
+    'runtimeSettings',
+    completeness.datasetVersions.runtimeSettings
   )
   const settings = records.find((record) => record.recordKey === 'pos-runtime')
   if (!settings) throw new Error('OFFLINE_RUNTIME_SETTINGS_NOT_READY')
   return settings.value
+}
+
+export async function readOfflineSystemSettings() {
+  const runtime = await restorePreparedOfflineRuntime()
+  const completeness = await readOfflineReadCompleteness(runtime)
+  const records = await readCompleteDataset<JsonRecord>(
+    runtime.descriptor.namespaceId,
+    'runtimeSettings',
+    completeness.datasetVersions.runtimeSettings
+  )
+  const settings = records.find(
+    (record) => record.recordKey === SYSTEM_SETTINGS_RECORD_KEY
+  )
+  if (!settings || !isRecord(settings.value)) {
+    throw new Error('OFFLINE_SYSTEM_SETTINGS_NOT_READY')
+  }
+  return settings.value
+}
+
+function offlineCustomerSearchText(value: string) {
+  return value.trim().toLocaleLowerCase('ar').replace(/[٠-٩۰-۹]/gu, (digit) => {
+    const arabic = '٠١٢٣٤٥٦٧٨٩'.indexOf(digit)
+    return `${arabic >= 0 ? arabic : '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)}`
+  })
+}
+
+async function readOfflineCustomerRecords() {
+  const runtime = await restorePreparedOfflineRuntime()
+  const completeness = await readOfflineReadCompleteness(runtime)
+  const records = await readCompleteDataset<OfflineCustomerSnapshot>(
+    runtime.descriptor.namespaceId,
+    'customers',
+    completeness.datasetVersions.customers
+  )
+  if (records.length !== completeness.counts.customers) {
+    throw new Error('OFFLINE_READ_COMPLETENESS_INVALID')
+  }
+  return records.map((record) => record.value)
+}
+
+export async function searchOfflineCustomers(input: Readonly<{
+  query?: string
+  recent?: boolean
+  limit?: number
+}>) {
+  const customers = await readOfflineCustomerRecords()
+  const query = offlineCustomerSearchText(input.query || '')
+  const queryDigits = query.replace(/[^0-9]/gu, '')
+  const matches = query
+    ? customers.filter((customer) => {
+        const name = offlineCustomerSearchText(customer.name)
+        const phone = offlineCustomerSearchText(customer.phone)
+        return (
+          name.includes(query) ||
+          phone.includes(query) ||
+          (queryDigits.length > 0 && phone.replace(/[^0-9]/gu, '').includes(queryDigits))
+        )
+      })
+    : [...customers]
+  if (input.recent) {
+    matches.sort((left, right) =>
+      (right.lastActivityAt || right.createdAt || '').localeCompare(
+        left.lastActivityAt || left.createdAt || ''
+      )
+    )
+  }
+  return matches.slice(0, Math.max(1, Math.min(input.limit ?? 100, 200)))
+}
+
+export async function readOfflineCustomerProfile(customerId: string) {
+  const customers = await readOfflineCustomerRecords()
+  const customer = customers.find((candidate) => candidate.id === customerId)
+  if (!customer) throw new Error('OFFLINE_CUSTOMER_NOT_FOUND')
+  return customer as SelectedCustomerProfile
+}
+
+export async function readOfflineRecentOrders() {
+  const runtime = await restorePreparedOfflineRuntime()
+  const completeness = await readOfflineReadCompleteness(runtime)
+  const records = await readCompleteDataset<JsonRecord>(
+    runtime.descriptor.namespaceId,
+    'orders',
+    completeness.datasetVersions.orders
+  )
+  if (records.length !== completeness.counts.recentOrders) {
+    throw new Error('OFFLINE_READ_COMPLETENESS_INVALID')
+  }
+  return records.map((record) => record.value)
 }
 
 async function derivePinVerifier(pin: string, salt?: Uint8Array) {
@@ -1041,8 +1771,65 @@ async function derivePinVerifier(pin: string, salt?: Uint8Array) {
   }
 }
 
+function constantTimeHexEqual(leftHex: string, rightHex: string) {
+  let left: Uint8Array
+  let right: Uint8Array
+  try {
+    left = hexToBytes(leftHex.toLowerCase())
+    right = hexToBytes(rightHex.toLowerCase())
+  } catch {
+    return false
+  }
+  const length = Math.max(left.length, right.length, 32)
+  let difference = left.length ^ right.length
+  for (let index = 0; index < length; index += 1) {
+    difference |= (left[index] ?? 0) ^ (right[index] ?? 0)
+  }
+  return difference === 0
+}
+
+type OfflinePinAttemptState = Readonly<{
+  failedAttempts: number
+  lockedUntil: number
+  updatedAt: string
+}>
+
+async function readOfflinePinAttemptState(
+  repository: EncryptedOfflineRepository,
+  namespaceId: string
+) {
+  const value = await repository.readEncryptedRecord<OfflinePinAttemptState>(
+    OFFLINE_STORES.drafts,
+    namespaceId,
+    PIN_ATTEMPT_RECORD_KEY
+  )
+  if (
+    !value ||
+    !Number.isSafeInteger(value.failedAttempts) ||
+    value.failedAttempts < 0 ||
+    !Number.isSafeInteger(value.lockedUntil) ||
+    value.lockedUntil < 0
+  ) {
+    return Object.freeze({
+      failedAttempts: 0,
+      lockedUntil: 0,
+      updatedAt: new Date(0).toISOString(),
+    })
+  }
+  return value
+}
+
 export async function verifyOfflineEmployeePin(pin: string) {
   const runtime = await restorePreparedOfflineRuntime()
+  const encrypted = new EncryptedOfflineRepository({ allowPersistentWrites: true })
+  const attemptState = await readOfflinePinAttemptState(
+    encrypted,
+    runtime.descriptor.namespaceId
+  )
+  const now = Date.now()
+  if (attemptState.lockedUntil > now) {
+    throw new Error('تم إيقاف المحاولات مؤقتًا. انتظر قليلًا ثم حاول مرة أخرى.')
+  }
   const matches: OfflineEmployeeRosterEntry[] = []
   for (const employee of runtime.roster) {
     if (
@@ -1057,11 +1844,36 @@ export async function verifyOfflineEmployeePin(pin: string) {
       pin,
       hexToBytes(employee.pinVerifierSaltHex)
     )
-    if (derived.verifierHex === employee.pinVerifierHex.toLowerCase()) {
+    if (constantTimeHexEqual(derived.verifierHex, employee.pinVerifierHex)) {
       matches.push(employee)
     }
   }
-  if (matches.length !== 1) throw new Error('OFFLINE_PIN_INVALID_OR_AMBIGUOUS')
+  if (matches.length !== 1) {
+    const failedAttempts =
+      attemptState.lockedUntil > 0 && attemptState.lockedUntil <= now
+        ? 1
+        : attemptState.failedAttempts + 1
+    const lockedUntil =
+      failedAttempts >= OFFLINE_PIN_MAX_ATTEMPTS
+        ? now + OFFLINE_PIN_LOCKOUT_MS
+        : 0
+    await encrypted.putEncryptedDraft(
+      runtime.descriptor.namespaceId,
+      PIN_ATTEMPT_RECORD_KEY,
+      {
+        failedAttempts:
+          failedAttempts >= OFFLINE_PIN_MAX_ATTEMPTS ? 0 : failedAttempts,
+        lockedUntil,
+        updatedAt: new Date(now).toISOString(),
+      } satisfies OfflinePinAttemptState,
+      'offline-pin-attempt-state'
+    )
+    throw new Error(
+      lockedUntil > 0
+        ? 'تم إيقاف المحاولات مؤقتًا. انتظر قليلًا ثم حاول مرة أخرى.'
+        : 'رمز الموظف غير صحيح.'
+    )
+  }
   const selected = matches[0]
   const employee: ActivePosEmployee = {
     id: selected.employeeId,
@@ -1070,20 +1882,29 @@ export async function verifyOfflineEmployeePin(pin: string) {
     role: selected.role as ActivePosEmployee['role'],
     branch_id: selected.branchId,
   }
-  const encrypted = new EncryptedOfflineRepository({ allowPersistentWrites: true })
-  await encrypted.putEncryptedDraft(
-    runtime.descriptor.namespaceId,
-    ACTOR_RECORD_KEY,
+  await encrypted.putEncryptedDraftBatch(runtime.descriptor.namespaceId, [
     {
-      employee,
-      enrollmentId: selected.enrollmentId,
-      employeeEnrollmentGeneration: selected.enrollmentGeneration,
-      commandGeneration: selected.commandGeneration,
-      boundAt: new Date().toISOString(),
-      source: 'offline-enrolled-verifier',
+      recordKey: ACTOR_RECORD_KEY,
+      value: {
+        employee,
+        enrollmentId: selected.enrollmentId,
+        employeeEnrollmentGeneration: selected.enrollmentGeneration,
+        commandGeneration: selected.commandGeneration,
+        boundAt: new Date().toISOString(),
+        source: 'offline-enrolled-verifier',
+      },
+      classification: 'local-pos-actor-binding',
     },
-    'local-pos-actor-binding'
-  )
+    {
+      recordKey: PIN_ATTEMPT_RECORD_KEY,
+      value: {
+        failedAttempts: 0,
+        lockedUntil: 0,
+        updatedAt: new Date().toISOString(),
+      } satisfies OfflinePinAttemptState,
+      classification: 'offline-pin-attempt-state',
+    },
+  ])
   return employee
 }
 
@@ -1159,13 +1980,31 @@ export async function enrollOnlineEmployeeForOffline(
     })
   )
   const encrypted = new EncryptedOfflineRepository({ allowPersistentWrites: true })
-  await encrypted.putEncryptedDraft(
-    runtime.descriptor.namespaceId,
-    ROSTER_RECORD_KEY,
-    refreshedRoster,
-    'pre-pin-employee-roster'
-  )
+  const installedCompleteness = await readOfflineReadCompleteness(runtime)
+  const refreshedCompleteness: OfflineReadCompletenessManifest = Object.freeze({
+    ...installedCompleteness,
+    counts: Object.freeze({
+      ...installedCompleteness.counts,
+      employeeRoster: refreshedRoster.length,
+    }),
+  })
+  await encrypted.putEncryptedDraftBatch(runtime.descriptor.namespaceId, [
+    {
+      recordKey: ROSTER_RECORD_KEY,
+      value: refreshedRoster,
+      classification: 'pre-pin-employee-roster',
+    },
+    {
+      recordKey: READ_COMPLETENESS_RECORD_KEY,
+      value: refreshedCompleteness,
+      classification: 'pos-read-completeness-pivot',
+    },
+  ])
   currentRuntime = Object.freeze({ ...runtime, roster: refreshedRoster })
+  currentReadCompleteness = Object.freeze({
+    namespaceId: runtime.descriptor.namespaceId,
+    manifest: refreshedCompleteness,
+  })
   const enrolledEmployee =
     refreshedRoster.find(
       (entry) => entry.employeeId === employee.id && entry.enrolled

@@ -12,6 +12,7 @@ import {
   neutralizeAfexOfflineShell,
 } from '@/lib/offline/phase2'
 import { installOfflineReconnectSynchronization } from '@/lib/offline/complete-runtime'
+import { flushPendingPosActorRevocation } from '@/lib/pos-employee-session'
 
 const ACTIVATE_MESSAGE = Object.freeze({ type: 'AFEX_ACTIVATE_SHELL_V1' })
 
@@ -27,6 +28,9 @@ export function PosOfflineShellRegistration() {
     let registration: ServiceWorkerRegistration | null = null
     let cleanupRetry: number | null = null
     let cleanupSynchronization: (() => void) | null = null
+    const flushPendingActor = () => {
+      void flushPendingPosActorRevocation().catch(() => undefined)
+    }
 
     if (
       !OFFLINE_PHASE2_CAPABILITIES.offlineShell ||
@@ -65,6 +69,8 @@ export function PosOfflineShellRegistration() {
       })
       if (cancelled) return
       cleanupSynchronization = installOfflineReconnectSynchronization()
+      window.addEventListener('online', flushPendingActor)
+      flushPendingActor()
       activateWaitingWorker(registration)
       registration.addEventListener('updatefound', () => {
         const installing = registration?.installing
@@ -82,6 +88,7 @@ export function PosOfflineShellRegistration() {
       cancelled = true
       if (cleanupRetry !== null) window.clearTimeout(cleanupRetry)
       registration = null
+      window.removeEventListener('online', flushPendingActor)
       cleanupSynchronization?.()
       cleanupSynchronization = null
     }

@@ -39,6 +39,7 @@ import {
 } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 import { formatPosGregorianDate, formatPosTime } from '@/lib/pos/date-format'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 import {
   readActivePosEmployee,
   type ActivePosEmployee,
@@ -243,10 +244,10 @@ export default function PosSaleCheckoutPage() {
     if (!allowed) return
 
     const parsedCustomer = parseStoredInvoiceCustomerDraft(
-      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
+      sessionStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
     )
     const parsedItems = parseStoredInvoiceSaleItemsDraft(
-      localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      sessionStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
     )
 
     if (!parsedCustomer || !parsedItems || parsedItems.items.length === 0) {
@@ -275,6 +276,22 @@ export default function PosSaleCheckoutPage() {
 
     async function loadRuntime() {
       try {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          const { readOfflineRuntimeSettings } = await import(
+            '@/lib/offline/complete-runtime'
+          )
+          const offlineRuntime = (await readOfflineRuntimeSettings()) as {
+            discounts?: CheckoutDiscountOption[]
+            vat?: CheckoutVatSetting | null
+          }
+          if (!cancelled) {
+            setAvailableDiscounts(
+              Array.isArray(offlineRuntime.discounts) ? offlineRuntime.discounts : []
+            )
+            setAvailableVatSetting(offlineRuntime.vat ?? null)
+          }
+          return
+        }
         const runtimeCacheKey = getPosRuntimeCacheKey(tenantId, checkoutBranchId)
         const cachedRuntime = peekClientResource<PosRuntime>(runtimeCacheKey)
 
@@ -329,9 +346,9 @@ export default function PosSaleCheckoutPage() {
           setAvailableDiscounts(runtime.discounts)
           setAvailableVatSetting(runtime.vat)
         }
-      } catch {
+      } catch (runtimeError) {
         if (!cancelled) {
-          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          if (shouldUseOfflineReadFallback(runtimeError)) {
             try {
               const { readOfflineRuntimeSettings } = await import(
                 '@/lib/offline/complete-runtime'
@@ -430,6 +447,10 @@ export default function PosSaleCheckoutPage() {
       return false
     }
 
+    if (isOffline) {
+      return false
+    }
+
     if (!customerName.trim() && !customerPhone.trim()) {
       return false
     }
@@ -460,6 +481,7 @@ export default function PosSaleCheckoutPage() {
     hasAmbiguousAdminBranchContext,
     hasInvalidBranchContext,
     invoiceItems.length,
+    isOffline,
     loadingDiscounts,
     loadingVat,
     normalizedPaymentMethod,
@@ -510,8 +532,8 @@ export default function PosSaleCheckoutPage() {
   const confirmCancelInvoice = () => {
     setShowCancelModal(false)
     checkout.clearCheckout()
-    localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
-    localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
+    sessionStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+    sessionStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
     sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
     window.location.href = '/pos'
   }
@@ -582,11 +604,11 @@ export default function PosSaleCheckoutPage() {
     if (!ready) return
 
     if (invoiceItems.length === 0) {
-      localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      sessionStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
       return
     }
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       INVOICE_SALE_ITEMS_STORAGE_KEY,
       serializeInvoiceSaleItemsDraft({ items: invoiceItems })
     )
@@ -682,7 +704,7 @@ export default function PosSaleCheckoutPage() {
                 ? 'اختر فرعًا محددًا قبل استخدام شاشة الدفع.'
                 : checkout.errorMessage
           }
-          offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'أنت غير متصل؛ سيتم حفظ الفاتورة كمسودة فقط.' : '')}
+          offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'يمكنك مراجعة السلة دون اتصال، لكن إتمام البيع يتطلب الاتصال حاليًا.' : '')}
           cashWarning={cashWarningMessage}
           onPreview={() => setShowThermalPreview(true)}
           onPaymentChange={(method) => handleSelectPayment({ id: method, label: getPaymentMethodLabel(method) })}
@@ -804,7 +826,7 @@ export default function PosSaleCheckoutPage() {
               <div className="mb-3 rounded-[18px] bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.20)]">{checkout.offlineDraftMessage}</div>
             ) : null}
             {isOffline ? (
-              <div className="mb-3 rounded-[18px] bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.18)]">أنت غير متصل، سيتم حفظ الفاتورة كمسودة فقط</div>
+              <div className="mb-3 rounded-[18px] bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.18)]">يمكنك مراجعة السلة دون اتصال، ويتطلب إتمام البيع الاتصال.</div>
             ) : null}
 
             <section data-checkout-section="customer" className="flex items-center gap-3 rounded-[18px] bg-white/[0.035] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
@@ -948,8 +970,8 @@ export default function PosSaleCheckoutPage() {
               <span className="text-xs font-black text-slate-400">المبلغ المطلوب</span>
               <span className="text-lg font-black text-white">{formatCurrency(checkout.finalTotal)}</span>
             </div>
-            <button type="button" onClick={handleInvoiceAction} disabled={checkout.loading || invoiceItems.length === 0 || (!customerName.trim() && !customerPhone.trim())} className="afex-mobile-checkout-submit flex min-h-[56px] w-full items-center justify-center rounded-[18px] px-5 text-base font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:shadow-none">
-              إنشاء الفاتورة — {formatCurrency(checkout.finalTotal)}
+            <button type="button" onClick={handleInvoiceAction} disabled={!canSubmitInvoice} className="afex-mobile-checkout-submit flex min-h-[56px] w-full items-center justify-center rounded-[18px] px-5 text-base font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:shadow-none">
+              {isOffline ? 'الإتمام غير متاح دون اتصال' : `إنشاء الفاتورة — ${formatCurrency(checkout.finalTotal)}`}
             </button>
           </div>
         </div>
@@ -975,7 +997,7 @@ export default function PosSaleCheckoutPage() {
             ) : null}
             {isOffline ? (
               <div className="rounded-[22px] border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
-                أنت غير متصل، سيتم حفظ الفاتورة كمسودة فقط
+                يمكنك مراجعة السلة دون اتصال، ويتطلب إتمام البيع الاتصال.
               </div>
             ) : null}
 
@@ -1163,7 +1185,11 @@ export default function PosSaleCheckoutPage() {
                   disabled={!canSubmitInvoice}
                   className="flex min-h-16 w-full flex-1 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] text-lg font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
                 >
-                  {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
+                  {isOffline
+                    ? 'الإتمام غير متاح دون اتصال'
+                    : checkout.loading
+                      ? 'جارٍ إنشاء الفاتورة...'
+                      : 'إنشاء الفاتورة'}
                 </button>
 
                 <button
@@ -1369,7 +1395,11 @@ export default function PosSaleCheckoutPage() {
               disabled={!canSubmitInvoice}
               className="mt-6 flex min-h-[64px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-lg font-black text-[#020817] shadow-[0_0_30px_rgba(34,211,238,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
             >
-              {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
+              {isOffline
+                ? 'الإتمام غير متاح دون اتصال'
+                : checkout.loading
+                  ? 'جارٍ إنشاء الفاتورة...'
+                  : 'إنشاء الفاتورة'}
             </button>
             <button
               type="button"

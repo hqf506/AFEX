@@ -73,7 +73,7 @@ async function withServiceWorkerBrowser(run) {
     if (request.url === '/sw.js') {
       response.writeHead(200, {
         'Content-Type': 'text/javascript',
-        'Service-Worker-Allowed': '/pos/',
+        'Service-Worker-Allowed': '/',
       })
       response.end(worker)
       return
@@ -114,7 +114,9 @@ async function withServiceWorkerBrowser(run) {
       return
     }
     response.writeHead(200, { 'Content-Type': 'text/html' })
-    response.end('<!doctype html><title>AFEX POS live</title>')
+    response.end(
+      '<!doctype html><title>AFEX POS live</title><script src="/_next/static/test.js"></script>'
+    )
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
@@ -152,7 +154,7 @@ test('approved pre-PIN dataset authority enables encrypted POS data but never bu
       }
     })
     assert.deepEqual(result.authority, {
-    classification: 'APPROVED_ORDER_CREATE_PILOT',
+    classification: 'APPROVED_OFFLINE_READ_RUNTIME',
     persistentUnwrapAuthority: true,
     prePinSensitiveIngestion: true,
     reason: 'SERVER_ATTESTED_MANAGED_DEVICE_AUTHORITY',
@@ -162,8 +164,8 @@ test('approved pre-PIN dataset authority enables encrypted POS data but never bu
     encryptedDatasetStore: true,
     datasetBootstrap: true,
     catalogReads: true,
-    customerReads: false,
-    orderInvoiceReads: false,
+    customerReads: true,
+    orderInvoiceReads: true,
     mediaCache: false,
     businessMutationDispatch: false,
     })
@@ -872,7 +874,7 @@ test('service worker caches only AFEX shell/static assets and never authenticate
     ),
     readFile(phase2Path, 'utf8'),
   ])
-  assert.match(worker, /afex-pos-shell-v2/u)
+  assert.match(worker, /afex-pos-shell-v3/u)
   assert.match(worker, /url\.pathname\.startsWith\('\/api\/'\)/u)
   assert.match(worker, /request\.method !== 'GET'/u)
   assert.match(worker, /url\.pathname\.startsWith\('\/_next\/static\/'\)/u)
@@ -922,7 +924,7 @@ test('real service worker removes obsolete AFEX caches and serves the offline lo
       return { names, requests }
     })
     assert.ok(!cacheState.names.includes('afex-pos-shell-v0'))
-    assert.ok(cacheState.names.includes('afex-pos-shell-v2'))
+    assert.ok(cacheState.names.includes('afex-pos-shell-v3'))
     assert.ok(cacheState.names.includes('unrelated-application-cache'))
     assert.ok(!cacheState.names.includes('afex-pos-shell-obsolete'))
     assert.ok(
@@ -944,6 +946,30 @@ test('real service worker removes obsolete AFEX caches and serves the offline lo
     assert.equal(offlineResponse?.status(), 200)
     assert.match(offlineState.body, /AFEX POS غير متصل/u)
     assert.equal(offlineState.title, 'AFEX POS — غير متصل')
+  })
+})
+
+test('real Chromium installs the complete POS route shell and cold reloads it offline', async () => {
+  await withServiceWorkerBrowser(async ({ disconnect, page, origin }) => {
+    const installed = await page.evaluate(async () => {
+      globalThis.process = { env: { NODE_ENV: 'test' } }
+      const phase2 = await import('/phase2.js')
+      return phase2.installAfexOfflineApplicationShell()
+    })
+    assert.deepEqual(installed, { routeCount: 9, assetCount: 1 })
+    await page.reload()
+    await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
+
+    disconnect()
+    const offlineResponse = await page.goto(`${origin}/pos/sale/customer`, {
+      waitUntil: 'domcontentloaded',
+    })
+    assert.equal(offlineResponse?.status(), 200)
+    assert.equal(await page.title(), 'AFEX POS live')
+    assert.equal(
+      await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js')),
+      true
+    )
   })
 })
 

@@ -46,6 +46,7 @@ import {
   isSelectedCustomerProfile,
   type SelectedCustomerProfile,
 } from '@/lib/customers'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 
 type ExistingCustomer = PosCustomerRecord
 
@@ -111,6 +112,26 @@ function normalizeCustomerLookup(
     cacheKey: '',
     active: false,
   } as const
+}
+
+async function loadOfflinePosCustomers(input: {
+  query?: string
+  recent?: boolean
+  limit?: number
+}) {
+  const { searchOfflineCustomers } = await import(
+    '@/lib/offline/complete-runtime'
+  )
+  return (await searchOfflineCustomers(input)).map((customer) => ({
+    id: customer.id,
+    name: customer.name,
+    phone: customer.phone,
+    lastPurchaseAmount: customer.lastPurchaseAmount,
+    firstVisitAt: customer.firstVisitAt,
+    lastActivityAt: customer.lastActivityAt,
+    visitsCount: customer.visitsCount,
+    totalSpent: customer.totalSpent,
+  })) satisfies ExistingCustomer[]
 }
 
 export function InvoiceCustomerStep({
@@ -251,6 +272,16 @@ export function InvoiceCustomerStep({
         const profile = await loadClientResource(
           cacheKey,
           async () => {
+            if (
+              variant === 'pos' &&
+              typeof navigator !== 'undefined' &&
+              navigator.onLine === false
+            ) {
+              const { readOfflineCustomerProfile } = await import(
+                '@/lib/offline/complete-runtime'
+              )
+              return readOfflineCustomerProfile(customer.id)
+            }
             const response = await fetch(
               `/api/customers/${encodeURIComponent(customer.id)}`,
               {
@@ -292,7 +323,7 @@ export function InvoiceCustomerStep({
         setSelectedCustomerProfile(profile)
         setSelectedCustomerRecordVersion(profile.recordVersion)
         setCustomerProfileError('')
-      } catch {
+      } catch (profileError) {
         if (
           controller.signal.aborted ||
           !isCurrentCustomerProfileResponse(
@@ -302,6 +333,35 @@ export function InvoiceCustomerStep({
           selectedCustomerIdRef.current !== customer.id
         ) {
           return
+        }
+
+        if (variant === 'pos' && shouldUseOfflineReadFallback(profileError)) {
+          try {
+            const { readOfflineCustomerProfile } = await import(
+              '@/lib/offline/complete-runtime'
+            )
+            const offlineProfile = await readOfflineCustomerProfile(customer.id)
+            if (
+              isCurrentCustomerProfileResponse(
+                requestId,
+                customerProfileRequestIdRef.current
+              ) &&
+              selectedCustomerIdRef.current === customer.id
+            ) {
+              setSelectedCustomerProfile(offlineProfile)
+              setSelectedCustomerRecordVersion(offlineProfile.recordVersion)
+              setCustomerProfileError('')
+            }
+            return
+          } catch (offlineError) {
+            setCustomerProfileError(
+              offlineError instanceof Error &&
+                offlineError.message.includes('INTEGRITY')
+                ? 'تعذر التحقق من سلامة بيانات العميل المحلية'
+                : 'بيانات العميل المحلية غير مكتملة'
+            )
+            return
+          }
         }
 
         setCustomerProfileError('تعذر تحميل تفاصيل العميل')
@@ -320,7 +380,7 @@ export function InvoiceCustomerStep({
         }
       }
     },
-    [tenantId]
+    [tenantId, variant]
   )
 
   useEffect(
@@ -388,6 +448,16 @@ export function InvoiceCustomerStep({
         const nextMatches = await loadClientResource(
           customerSearch.cacheKey,
           async () => {
+            if (
+              variant === 'pos' &&
+              typeof navigator !== 'undefined' &&
+              navigator.onLine === false
+            ) {
+              return loadOfflinePosCustomers({
+                query: customerSearch.query,
+                limit: 100,
+              })
+            }
             const searchParams = new URLSearchParams({
               q: customerSearch.query,
             })
@@ -395,10 +465,7 @@ export function InvoiceCustomerStep({
             if (customerSearchBranchId) {
               searchParams.set('branchId', customerSearchBranchId)
             } else if (variant === 'pos') {
-              console.warn('[POS CUSTOMER] missing branch context for customer search', {
-                authBranchId: branchId,
-                activePosEmployeeBranchId: activePosEmployee?.branch_id || null,
-              })
+              console.warn('[POS CUSTOMER] customer search branch context unavailable.')
             }
 
             const response = await fetch(
@@ -439,7 +506,7 @@ export function InvoiceCustomerStep({
         setCustomerMatches(nextMatches)
         setCustomerSearchError('')
         setCustomerSearchLoading(false)
-      } catch {
+      } catch (searchError) {
         if (
           controller.signal.aborted ||
           !isCurrentCustomerSearchResponse(
@@ -450,10 +517,30 @@ export function InvoiceCustomerStep({
           return
         }
 
-        setCustomerMatches(
-          peekClientResource<ExistingCustomer[]>(customerSearch.cacheKey) || []
-        )
-        setCustomerSearchError('تعذر البحث عن العملاء حاليًا. حاول مرة أخرى.')
+        if (variant === 'pos' && shouldUseOfflineReadFallback(searchError)) {
+          try {
+            setCustomerMatches(
+              await loadOfflinePosCustomers({
+                query: customerSearch.query,
+                limit: 100,
+              })
+            )
+            setCustomerSearchError('')
+          } catch (offlineError) {
+            setCustomerMatches([])
+            setCustomerSearchError(
+              offlineError instanceof Error &&
+                offlineError.message.includes('INTEGRITY')
+                ? 'تعذر التحقق من سلامة لقطة العملاء المحلية.'
+                : 'لقطة العملاء المحلية غير مكتملة. أكمل التجهيز أثناء الاتصال.'
+            )
+          }
+        } else {
+          setCustomerMatches(
+            peekClientResource<ExistingCustomer[]>(customerSearch.cacheKey) || []
+          )
+          setCustomerSearchError('تعذر البحث عن العملاء حاليًا. حاول مرة أخرى.')
+        }
         setCustomerSearchLoading(false)
       } finally {
         if (process.env.NODE_ENV === 'development') {
@@ -498,6 +585,12 @@ export function InvoiceCustomerStep({
     void loadClientResource(
       cacheKey,
       async () => {
+        if (
+          typeof navigator !== 'undefined' &&
+          navigator.onLine === false
+        ) {
+          return loadOfflinePosCustomers({ recent: true, limit: 100 })
+        }
         const searchParams = new URLSearchParams({
           recent: '1',
         })
@@ -539,14 +632,34 @@ export function InvoiceCustomerStep({
           setRecentCustomersLoading(false)
         }
       })
-      .catch(() => {
+      .catch(async (recentCustomersError) => {
         window.clearTimeout(loadingTimeoutId)
         if (controller.signal.aborted) {
           return
         }
 
-        setRecentCustomers([])
-        setRecentCustomersError('تعذر تحميل العملاء حاليًا. حاول مرة أخرى.')
+        if (
+          variant === 'pos' &&
+          shouldUseOfflineReadFallback(recentCustomersError)
+        ) {
+          try {
+            setRecentCustomers(
+              await loadOfflinePosCustomers({ recent: true, limit: 100 })
+            )
+            setRecentCustomersError('')
+          } catch (offlineError) {
+            setRecentCustomers([])
+            setRecentCustomersError(
+              offlineError instanceof Error &&
+                offlineError.message.includes('INTEGRITY')
+                ? 'تعذر التحقق من سلامة لقطة العملاء المحلية.'
+                : 'لقطة العملاء المحلية غير مكتملة. أكمل التجهيز أثناء الاتصال.'
+            )
+          }
+        } else {
+          setRecentCustomers([])
+          setRecentCustomersError('تعذر تحميل العملاء حاليًا. حاول مرة أخرى.')
+        }
         setRecentCustomersLoading(false)
       })
 
@@ -558,6 +671,10 @@ export function InvoiceCustomerStep({
 
   useEffect(() => {
     if (!allowed || variant !== 'pos') {
+      return
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       return
     }
 
@@ -602,7 +719,7 @@ export function InvoiceCustomerStep({
     }
 
     const storedCustomer = parseStoredInvoiceCustomerDraft(
-      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
+      sessionStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
     )
 
     const timeoutId = window.setTimeout(() => {
@@ -637,18 +754,8 @@ export function InvoiceCustomerStep({
       return
     }
 
-    if (
-      variant === 'pos' &&
-      typeof navigator !== 'undefined' &&
-      navigator.onLine === false &&
-      selectedCustomerId &&
-      !selectedCustomerRecordVersion
-    ) {
-      alert('يجب تحديث بيانات العميل عبر الإنترنت مرة واحدة قبل استخدامه دون اتصال.')
-      return
-    }
-
-    localStorage.setItem(
+    const storage = variant === 'pos' ? sessionStorage : localStorage
+    storage.setItem(
       INVOICE_CUSTOMER_STORAGE_KEY,
       serializeInvoiceCustomerDraft({
         customerId: selectedCustomerId,
@@ -668,7 +775,7 @@ export function InvoiceCustomerStep({
     clearSelectedCustomerProfileState()
     setCustomerMatches([])
     setCustomerSearchError('')
-    if (variant === 'pos') localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
+    if (variant === 'pos') sessionStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
   }
 
   const handleCustomerRetry = () => {
@@ -688,10 +795,18 @@ export function InvoiceCustomerStep({
     selectedCustomerIdRef.current = customer.id
     setCustomerSearchError('')
     void loadSelectedCustomerProfile(customer)
-    if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: customer.id, customerRecordVersion: null, name: customer.name, phone: customer.phone }))
+    if (variant === 'pos') sessionStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: customer.id, customerRecordVersion: null, name: customer.name, phone: customer.phone }))
   }
 
   const openAddCustomerModal = () => {
+    if (
+      variant === 'pos' &&
+      typeof navigator !== 'undefined' &&
+      navigator.onLine === false
+    ) {
+      setCustomerSearchError('إضافة عميل جديد تتطلب اتصالًا بالإنترنت. لم تُغيّر أي بيانات.')
+      return
+    }
     setAddCustomerOpen(true)
   }
 
@@ -736,7 +851,7 @@ export function InvoiceCustomerStep({
       ...currentCustomers.filter((customer) => customer.id !== createdCustomer.id),
     ])
     setAddCustomerOpen(false)
-    if (variant === 'pos') localStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: createdCustomer.id, customerRecordVersion: createdCustomer.recordVersion, name: createdCustomer.name, phone: createdCustomer.phone }))
+    if (variant === 'pos') sessionStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: createdCustomer.id, customerRecordVersion: createdCustomer.recordVersion, name: createdCustomer.name, phone: createdCustomer.phone }))
   }
 
   const retrySelectedCustomerProfile = () => {
@@ -763,7 +878,7 @@ export function InvoiceCustomerStep({
     }
 
     if (hasActiveSale) {
-      localStorage.setItem(
+      sessionStorage.setItem(
         INVOICE_CUSTOMER_STORAGE_KEY,
         serializeInvoiceCustomerDraft({
           customerId: selectedCustomerId,

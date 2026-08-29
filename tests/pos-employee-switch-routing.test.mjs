@@ -128,3 +128,21 @@ test('employee selection writes the new actor and clears stale resource denial',
   assert.match(pinPage, /writeActivePosEmployee\(selectedEmployee\)/u)
   assert.match(employeeSession, /resetProtectedResourceUnauthorized\(\)/u)
 })
+
+test('reconnect revokes the stale server actor then relocks to PIN without preparation', async () => {
+  const employeeSession = await read('lib/pos-employee-session.ts')
+  const flushStart = employeeSession.indexOf(
+    'export async function flushPendingPosActorRevocation'
+  )
+  const flushEnd = employeeSession.indexOf('\n}', flushStart) + 2
+  const flushSource = employeeSession.slice(flushStart, flushEnd)
+
+  assert.match(
+    flushSource,
+    /await revokeCurrentPosActorSession\(\)[\s\S]*clearActivePosEmployee\(\)/u
+  )
+  assert.doesNotMatch(
+    flushSource,
+    /offline-preparation|prepare|provision|replace|signOut|indexedDB/u
+  )
+})

@@ -18,9 +18,126 @@ const SNAPSHOT_WRITER_LEASE_MS = 30_000
 const MAX_SNAPSHOT_PAGE_SIZE = 200
 const MAX_READ_PAGE_SIZE = 200
 const AFEX_SERVICE_WORKER_PATH = '/sw.js'
-const AFEX_POS_SERVICE_WORKER_SCOPE = '/pos/'
+const AFEX_POS_SERVICE_WORKER_SCOPE = '/'
+const AFEX_LEGACY_SERVICE_WORKER_SCOPES = new Set(['/pos/'])
 
 export const AFEX_SHELL_CACHE_PREFIX = 'afex-pos-shell-'
+
+export const AFEX_OFFLINE_POS_SHELL_ROUTES = Object.freeze([
+  '/pos',
+  '/pos/employee-pin',
+  '/pos/sale/customer',
+  '/pos/sale/items',
+  '/pos/sale/checkout',
+  '/pos/settings',
+  '/pos/order-status',
+  '/pos/order-history',
+  '/pos/invoices',
+] as const)
+
+export async function installAfexOfflineApplicationShell() {
+  if (
+    typeof window === 'undefined' ||
+    !('serviceWorker' in navigator) ||
+    !OFFLINE_PHASE2_CAPABILITIES.offlineShell
+  ) {
+    throw new OfflinePhase1Error('OFFLINE_SHELL_UNAVAILABLE', true)
+  }
+
+  const existingRegistrations = await navigator.serviceWorker.getRegistrations()
+  await Promise.all(
+    existingRegistrations
+      .filter((registration) => {
+        try {
+          const scope = new URL(registration.scope)
+          return (
+            scope.origin === window.location.origin &&
+            AFEX_LEGACY_SERVICE_WORKER_SCOPES.has(scope.pathname) &&
+            [registration.active, registration.waiting, registration.installing].some(
+              isOwnedAfexWorker
+            )
+          )
+        } catch {
+          return false
+        }
+      })
+      .map((registration) => registration.unregister())
+  )
+  const registration = await navigator.serviceWorker.register(AFEX_SERVICE_WORKER_PATH, {
+    scope: AFEX_POS_SERVICE_WORKER_SCOPE,
+    updateViaCache: 'none',
+  })
+  let worker = registration.waiting ?? registration.installing ?? registration.active
+  if (worker?.state === 'installing') {
+    await new Promise<void>((resolve, reject) => {
+      const timeoutId = window.setTimeout(
+        () => reject(new OfflinePhase1Error('OFFLINE_SHELL_UNAVAILABLE', true)),
+        15_000
+      )
+      worker?.addEventListener('statechange', () => {
+        if (worker?.state === 'installed' || worker?.state === 'activated') {
+          window.clearTimeout(timeoutId)
+          resolve()
+        } else if (worker?.state === 'redundant') {
+          window.clearTimeout(timeoutId)
+          reject(new OfflinePhase1Error('OFFLINE_SHELL_UNAVAILABLE', true))
+        }
+      })
+    })
+  }
+  worker = registration.waiting ?? registration.active ?? worker
+  if (worker?.state === 'installed') {
+    worker.postMessage({ type: 'AFEX_ACTIVATE_SHELL_V1' })
+  }
+  if (!worker) {
+    throw new OfflinePhase1Error('OFFLINE_SHELL_UNAVAILABLE', true)
+  }
+
+  return new Promise<Readonly<{ routeCount: number; assetCount: number }>>(
+    (resolve, reject) => {
+      const channel = new MessageChannel()
+      const timeoutId = window.setTimeout(() => {
+        channel.port1.close()
+        reject(new OfflinePhase1Error('OFFLINE_SHELL_UNAVAILABLE', true))
+      }, 30_000)
+      channel.port1.addEventListener(
+        'message',
+        (event: MessageEvent<unknown>) => {
+          window.clearTimeout(timeoutId)
+          channel.port1.close()
+          const value = event.data as
+            | { type?: unknown; routeCount?: unknown; assetCount?: unknown }
+            | null
+          if (
+            value?.type !== 'AFEX_POS_SHELL_INSTALLED_V2' ||
+            !Number.isSafeInteger(value.routeCount) ||
+            Number(value.routeCount) !== AFEX_OFFLINE_POS_SHELL_ROUTES.length ||
+            !Number.isSafeInteger(value.assetCount) ||
+            Number(value.assetCount) < 1
+          ) {
+            reject(new OfflinePhase1Error('OFFLINE_SHELL_UNAVAILABLE', true))
+            return
+          }
+          resolve(
+            Object.freeze({
+              routeCount: Number(value.routeCount),
+              assetCount: Number(value.assetCount),
+            })
+          )
+        },
+        { once: true }
+      )
+      channel.port1.start()
+      worker.postMessage(
+        {
+          type: 'AFEX_INSTALL_POS_SHELL_V2',
+          routes: AFEX_OFFLINE_POS_SHELL_ROUTES,
+        },
+        [channel.port2]
+      )
+    }
+  )
+}
 
 const PHASE2_DATASET_IDS = new Set<Phase2DatasetId>([
   'catalog',
@@ -46,14 +163,14 @@ export const OFFLINE_PHASE2_CAPABILITIES = Object.freeze({
   encryptedDatasetStore: true,
   datasetBootstrap: true,
   catalogReads: true,
-  customerReads: false,
-  orderInvoiceReads: false,
+  customerReads: true,
+  orderInvoiceReads: true,
   mediaCache: false,
   businessMutationDispatch: false as const,
 })
 
 export const PHASE2_AUTHORITY_GATE = Object.freeze({
-  classification: 'APPROVED_ORDER_CREATE_PILOT' as const,
+  classification: 'APPROVED_OFFLINE_READ_RUNTIME' as const,
   persistentUnwrapAuthority: true,
   prePinSensitiveIngestion: true,
   reason: 'SERVER_ATTESTED_MANAGED_DEVICE_AUTHORITY' as const,
@@ -319,7 +436,8 @@ function isOwnedAfexRegistration(registration: ServiceWorkerRegistration) {
     const scope = new URL(registration.scope)
     return (
       scope.origin === window.location.origin &&
-      scope.pathname === AFEX_POS_SERVICE_WORKER_SCOPE &&
+      (scope.pathname === AFEX_POS_SERVICE_WORKER_SCOPE ||
+        AFEX_LEGACY_SERVICE_WORKER_SCOPES.has(scope.pathname)) &&
       [registration.active, registration.waiting, registration.installing].some(
         isOwnedAfexWorker
       )
@@ -736,7 +854,10 @@ export class Phase2DatasetRepository {
     }
   }
 
-  async completeSnapshot(writer: SnapshotWriter) {
+  async completeSnapshot(
+    writer: SnapshotWriter,
+    options: Readonly<{ retainSnapshotVersions?: readonly string[] }> = {}
+  ) {
     this.assertWriteAuthority(writer.namespaceId)
     const storeName = datasetStore(writer.datasetId)
     const preliminary = await this.getManifest(writer)
@@ -822,7 +943,13 @@ export class Phase2DatasetRepository {
             left.snapshotVersion
           )
         })
+      const protectedVersions = new Set(
+        (options.retainSnapshotVersions ?? []).map((version) =>
+          requireIdentifier(version, 'retainedSnapshotVersion')
+        )
+      )
       for (const obsolete of retained.slice(2)) {
+        if (protectedVersions.has(obsolete.snapshotVersion)) continue
         manifestStore.delete(obsolete.id)
         await this.deleteSnapshotRecords(
           transaction.objectStore(storeName),
@@ -845,6 +972,7 @@ export class Phase2DatasetRepository {
   async readCompleteSnapshotPage<T>(input: {
     namespaceId: string
     datasetId: Phase2DatasetId
+    snapshotVersion?: string
     limit?: number
     afterRecordKey?: string
   }) {
@@ -856,10 +984,16 @@ export class Phase2DatasetRepository {
       requirePositiveInteger(input.limit ?? 100, MAX_READ_PAGE_SIZE),
       MAX_READ_PAGE_SIZE
     )
-    const manifest = await this.latestCompleteManifest(
-      authority.namespaceId,
-      authority.datasetId
-    )
+    const manifest = input.snapshotVersion
+      ? await this.completeManifestByVersion(
+          authority.namespaceId,
+          authority.datasetId,
+          requireIdentifier(input.snapshotVersion, 'snapshotVersion')
+        )
+      : await this.latestCompleteManifest(
+          authority.namespaceId,
+          authority.datasetId
+        )
     if (!manifest) {
       return {
         status: 'missing' as const,
@@ -905,12 +1039,22 @@ export class Phase2DatasetRepository {
     }
   }
 
-  async getSafeAvailability(namespaceId: string, datasetId: Phase2DatasetId) {
+  async getSafeAvailability(
+    namespaceId: string,
+    datasetId: Phase2DatasetId,
+    snapshotVersion?: string
+  ) {
     const authority = this.requireReadAuthority(namespaceId, datasetId)
-    const manifest = await this.latestCompleteManifest(
-      authority.namespaceId,
-      authority.datasetId
-    )
+    const manifest = snapshotVersion
+      ? await this.completeManifestByVersion(
+          authority.namespaceId,
+          authority.datasetId,
+          requireIdentifier(snapshotVersion, 'snapshotVersion')
+        )
+      : await this.latestCompleteManifest(
+          authority.namespaceId,
+          authority.datasetId
+        )
     return manifest
       ? {
           status: 'complete' as const,
@@ -1011,6 +1155,29 @@ export class Phase2DatasetRepository {
       return manifests.sort((left, right) =>
         (right.completedAt ?? '').localeCompare(left.completedAt ?? '')
       )[0]
+    } finally {
+      database.close()
+    }
+  }
+
+  private async completeManifestByVersion(
+    namespaceId: string,
+    datasetId: Phase2DatasetId,
+    snapshotVersion: string
+  ) {
+    const database = await openOfflineDatabase(this.databaseName)
+    try {
+      const transaction = database.transaction(
+        OFFLINE_STORES.datasetManifests,
+        'readonly'
+      )
+      const manifest = (await requestAsPromise(
+        transaction
+          .objectStore(OFFLINE_STORES.datasetManifests)
+          .get(manifestId(namespaceId, datasetId, snapshotVersion))
+      )) as DatasetManifestRecord | undefined
+      await transactionAsPromise(transaction)
+      return manifest?.status === 'complete' ? manifest : undefined
     } finally {
       database.close()
     }

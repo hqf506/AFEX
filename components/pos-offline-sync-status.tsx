@@ -8,6 +8,7 @@ import {
 } from '@/lib/offline/application-compatibility'
 import { getActiveOfflineNamespace } from '@/lib/offline/phase1'
 import { Phase3CommandRepository } from '@/lib/offline/phase3'
+import { readOfflineReadinessStatus } from '@/lib/offline/complete-runtime'
 
 const phase3StatusRepository = new Phase3CommandRepository()
 
@@ -30,6 +31,10 @@ function stateLabel(state: SyncPresentation['state']) {
 export function PosOfflineSyncStatus() {
   const [presentation, setPresentation] =
     useState<SyncPresentation>(initialPresentation)
+  const [snapshot, setSnapshot] = useState<{
+    confirmedAt: string
+    stale: boolean
+  } | null>(null)
 
   const revalidate = useCallback(async () => {
     const connectionState =
@@ -41,13 +46,15 @@ export function PosOfflineSyncStatus() {
     const namespace = getActiveOfflineNamespace()
     if (!namespace) {
       setPresentation(deriveLocalSyncPresentation(connectionState, null, null))
+      setSnapshot(null)
       return
     }
 
     try {
-      const result = await phase3StatusRepository.getSafeShadowStatus(
-        namespace.namespaceId
-      )
+      const [result, readiness] = await Promise.all([
+        phase3StatusRepository.getSafeShadowStatus(namespace.namespaceId),
+        readOfflineReadinessStatus(),
+      ])
       const counters: LocalSyncCounters | null =
         'pending' in result
           ? {
@@ -62,8 +69,13 @@ export function PosOfflineSyncStatus() {
       setPresentation(
         deriveLocalSyncPresentation(result.connectionState, counters, null)
       )
+      setSnapshot({
+        confirmedAt: readiness.confirmedAt,
+        stale: readiness.stale,
+      })
     } catch {
       setPresentation(deriveLocalSyncPresentation(connectionState, null, null))
+      setSnapshot(null)
     }
   }, [])
 
@@ -100,7 +112,15 @@ export function PosOfflineSyncStatus() {
         <strong>{stateLabel(presentation.state)}</strong>
         <span>المعلّق: {presentation.pendingCount ?? 'غير متاح'}</span>
         <span>التنبيهات: {presentation.attentionCount ?? 'غير متاح'}</span>
-        <span>آخر مزامنة ناجحة: غير متاحة محليًا</span>
+        <span>
+          {snapshot
+            ? `آخر لقطة مكتملة: ${new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
+                dateStyle: 'short',
+                timeStyle: 'short',
+                timeZone: 'Asia/Riyadh',
+              }).format(new Date(snapshot.confirmedAt))}${snapshot.stale ? ' — قديمة' : ''}`
+            : 'اللقطة المحلية غير مكتملة'}
+        </span>
       </div>
     </aside>
   )

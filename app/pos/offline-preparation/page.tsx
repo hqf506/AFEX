@@ -31,6 +31,27 @@ function publicPreparationError(error: unknown) {
   if (classification.includes('NETWORK') || error instanceof TypeError) {
     return 'انقطع الاتصال قبل اكتمال التجهيز. يجب إكمال التجهيز الأول عبر الإنترنت.'
   }
+  if (classification.startsWith('OFFLINE_REQUIRED_DATASET_')) {
+    const dataset = classification.split(':')[1] || 'غير محددة'
+    const safeDatasetLabel: Record<string, string> = {
+      catalog: 'الكتالوج والأسعار',
+      runtimeSettings: 'إعدادات نقطة البيع والضريبة',
+      customers: 'بيانات العملاء والبحث',
+      recentOrders: 'سجل العمليات الأخيرة',
+      offlineReadSnapshot: 'لقطة بيانات نقطة البيع',
+      OFFLINE_READ_CUSTOMERS_UNAVAILABLE: 'بيانات العملاء والبحث',
+      OFFLINE_READ_CUSTOMERS_CAPACITY_EXCEEDED: 'بيانات العملاء والبحث',
+      OFFLINE_READ_SETTINGS_UNAVAILABLE: 'إعدادات نقطة البيع',
+    }
+    return `لم يكتمل تنزيل ${safeDatasetLabel[dataset] || 'إحدى مجموعات البيانات المطلوبة'}. أعد المحاولة أثناء الاتصال بالإنترنت.`
+  }
+  if (
+    classification === 'OFFLINE_READ_COMPLETENESS_INVALID' ||
+    classification === 'OFFLINE_DURABLE_INTEGRITY_ATTESTATION_FAILED' ||
+    classification === 'OFFLINE_SHELL_UNAVAILABLE'
+  ) {
+    return 'تعذر اعتماد اكتمال البيانات المحلية بأمان. لم يتم فتح نقطة البيع دون اتصال.'
+  }
   return 'تعذر إكمال تجهيز نقطة البيع. تحقق من الاتصال ثم أعد المحاولة.'
 }
 

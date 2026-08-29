@@ -6,6 +6,7 @@ import { readActivePosEmployee } from '@/lib/pos-employee-session'
 import {
   createProtectedResourceAuthError,
   isClientResourceFresh,
+  isProtectedResourceAuthError,
   loadClientResource,
   markProtectedResourcesUnauthorized,
   peekClientResource,
@@ -96,6 +97,16 @@ export function useSystemSettings(enabled = true): SystemSettingsHookResult {
     setError('')
 
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        const { readOfflineSystemSettings } = await import(
+          '@/lib/offline/complete-runtime'
+        )
+        const offlineSettings =
+          (await readOfflineSystemSettings()) as unknown as SystemSettings
+        setSettings(offlineSettings)
+        setLoading(false)
+        return
+      }
       const nextSettings = await loadClientResource(
         SYSTEM_SETTINGS_CACHE_KEY,
         async () => {
@@ -133,10 +144,38 @@ export function useSystemSettings(enabled = true): SystemSettingsHookResult {
       setSettings(nextSettings)
       setLoading(false)
     } catch (fetchError) {
+      const mayUseOfflineSnapshot =
+        !isProtectedResourceAuthError(fetchError) &&
+        (typeof navigator === 'undefined' ||
+          navigator.onLine === false ||
+          fetchError instanceof TypeError ||
+          (fetchError instanceof Error &&
+            /fetch|network|load failed/i.test(fetchError.message)))
+      if (mayUseOfflineSnapshot) {
+        try {
+          const { readOfflineSystemSettings } = await import(
+            '@/lib/offline/complete-runtime'
+          )
+          setSettings(
+            (await readOfflineSystemSettings()) as unknown as SystemSettings
+          )
+          setError('')
+          setLoading(false)
+          return
+        } catch (offlineError) {
+          setSettings(null)
+          setError(
+            offlineError instanceof Error &&
+              offlineError.message.includes('INTEGRITY')
+              ? 'تعذر التحقق من سلامة إعدادات نقطة البيع المحلية.'
+              : 'بيانات إعدادات نقطة البيع المحلية غير مكتملة.'
+          )
+          setLoading(false)
+          return
+        }
+      }
       setSettings(cachedSettings || null)
-      setError(
-        fetchError instanceof Error ? fetchError.message : 'فشل تحميل إعدادات النظام'
-      )
+      setError('تعذر تحميل إعدادات نقطة البيع.')
       setLoading(false)
     }
   }, [pathname, shouldFetch])

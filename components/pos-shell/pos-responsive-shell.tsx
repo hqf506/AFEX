@@ -79,13 +79,13 @@ export function PosResponsiveShell({ children }: { children: React.ReactNode }) 
 
   const openLogoutDialog = useCallback((intent: 'logout' | 'switch') => {
     setLogoutIntent(intent)
-    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.localStorage))
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.sessionStorage))
     setDrawerOpen(false)
     setConfirmOpen(true)
   }, [])
 
   const returnToPosHome = useCallback(() => {
-    if (hasPersistedInvoiceSaleDraft(window.localStorage)) {
+    if (hasPersistedInvoiceSaleDraft(window.sessionStorage)) {
       setSaleHomeConfirmOpen(true)
       return
     }
