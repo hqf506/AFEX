@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { jsonWithAuthCookies } from '@/lib/api/responses'
 import { requireApiAuth } from '@/lib/api-auth'
 import { buildSelectedCustomerProfile } from '@/lib/customers'
+import { getCanonicalPosPaymentConfiguration } from '@/lib/invoices/payment-method'
 import { applyTenantFilter } from '@/lib/tenant-filter'
 
 const CUSTOMER_PAGE_SIZE = 500
@@ -124,6 +125,7 @@ export async function GET(request: NextRequest) {
     contractVersion: 'afex-pos-offline-read-snapshot.v1',
     confirmedAt: new Date().toISOString(),
     customers,
+    paymentConfiguration: getCanonicalPosPaymentConfiguration(),
     settings: {
       ...(sanitizePosSettings(settingsResult.data) || {}),
       store_name: tenantResult.data?.name || null,

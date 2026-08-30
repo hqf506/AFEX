@@ -21,14 +21,15 @@ test('the same authoritative final total is rendered in summary, due amount, pay
   assert.match(component, /إنشاء الفاتورة — \$\{formatCurrency\(props\.finalTotal\)\}/)
 })
 
-test('all four existing payment methods remain available without changing their internal values', () => {
+test('the workspace renders only the verified payment configuration supplied by the page', () => {
   for (const method of ["'mada'", "'cash'", "'visa'", "'cod'"]) {
     assert.match(paymentContract, new RegExp(`id: ${method}`))
   }
-  assert.match(component, /PAYMENT_METHODS\.map/)
+  assert.match(component, /props\.paymentMethods\.map/)
   assert.match(component, /onPaymentChange\(method\.id\)/)
   assert.match(component, /aria-pressed=\{selected\}/)
-  assert.match(page, /checkout\.setPaymentMethod\('mada'\)/)
+  assert.match(page, /parsePosPaymentConfiguration/)
+  assert.match(page, /availablePaymentMethods\[0\]\.id/)
 })
 
 test('cash state preserves received, change, and remaining values from the checkout hook', () => {

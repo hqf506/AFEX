@@ -207,9 +207,9 @@ assert.ok(
   'POS checkout must keep one mobile scroll surface and accessible payment controls'
 )
 assert.equal(
-  (interactiveCheckoutLayout.match(/PAYMENT_METHODS\.map\(/g) || []).length,
+  (interactiveCheckoutLayout.match(/availablePaymentMethods\.map\(/g) || []).length,
   2,
-  'Interactive POS checkout must keep one mobile and one desktop payment-method control'
+  'Interactive POS checkout must keep one verified mobile and one verified desktop payment-method control'
 )
 assert.equal(
   (interactiveCheckoutLayout.match(/invoiceItems\.map\(/g) || []).length,

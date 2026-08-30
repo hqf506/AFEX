@@ -9,6 +9,7 @@ import {
   POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
 import { createServerTiming } from '@/lib/performance/server-timing'
+import { getCanonicalPosPaymentConfiguration } from '@/lib/invoices/payment-method'
 
 export async function GET(request: NextRequest) {
   const timing = createServerTiming()
@@ -97,6 +98,7 @@ export async function GET(request: NextRequest) {
     runtime: {
       discounts: (discountsResult.data || []).map((row) => ({ ...row, value: Number(row.value) || 0 })),
       vat: { ...vat, rate: Number(vat.rate) || 0 },
+      paymentConfiguration: getCanonicalPosPaymentConfiguration(),
     },
   }))
   return timing.finish(response)

@@ -473,7 +473,7 @@ assert(!paymentMethods.isReceivedAmountEditable('visa'), 'Visa received must be 
 assert(!paymentMethods.isReceivedAmountEditable('cod'), 'On Delivery received must be readonly.')
 assert(
   checkoutHook.includes("if (normalizeUiPaymentMethod(paymentMethod) !== 'cash') return") &&
-    /if \(safePaymentMethod === 'cod'\) \{\s+return '0'/.test(checkoutHook),
+    /if \(safePaymentMethod === 'cod' \|\| safePaymentMethod === 'on_delivery'\) \{\s+return '0'/.test(checkoutHook),
   'Checkout must reject non-cash manual input and reset On Delivery to zero.'
 )
 

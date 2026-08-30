@@ -4,7 +4,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { InvoiceLineItem } from '@/lib/invoices/items'
 import type { CheckoutDiscountOption } from '@/hooks/use-invoice-checkout'
 import { formatCurrency } from '@/lib/orders/format'
-import { PAYMENT_METHODS, type PosPaymentMethod } from '@/lib/invoices/payment-method'
+import type {
+  PosPaymentMethod,
+  PosPaymentMethodOption,
+} from '@/lib/invoices/payment-method'
 import styles from './pos-checkout-workspace.module.css'
 
 type Props = {
@@ -17,6 +20,7 @@ type Props = {
   discountAmount: number
   finalTotal: number
   paymentMethod: PosPaymentMethod
+  paymentMethods: readonly PosPaymentMethodOption[]
   cashReceived: string
   cashChange: number
   remainingFromCustomer: number
@@ -121,7 +125,9 @@ export function PosCheckoutWorkspace(props: Props) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const summaryTriggerRef = useRef<HTMLButtonElement | null>(null)
-  const selectedPayment = PAYMENT_METHODS.find((method) => method.id === props.paymentMethod)
+  const selectedPayment = props.paymentMethods.find(
+    (method) => method.id === props.paymentMethod
+  )
   const isCash = props.paymentMethod === 'cash'
   const selectedDiscountLabel = props.selectedDiscount
     ? props.selectedDiscount.type === 'percentage'
@@ -178,7 +184,7 @@ export function PosCheckoutWorkspace(props: Props) {
             <section className={styles.methodSection}>
               <h2>طريقة الدفع</h2>
               <div className={styles.methods} data-checkout-payment-grid>
-                {PAYMENT_METHODS.map((method) => {
+                {props.paymentMethods.map((method) => {
                   const selected = props.paymentMethod === method.id
                   return (
                     <button key={method.id} type="button" aria-pressed={selected} className={selected ? styles.selectedMethod : undefined} disabled={props.loading} onClick={() => props.onPaymentChange(method.id)}>

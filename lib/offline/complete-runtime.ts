@@ -2,7 +2,9 @@
 
 import type { InvoiceLineItem } from '@/lib/invoices/items'
 import {
-  PAYMENT_METHODS,
+  migrateLegacyPosPaymentConfiguration,
+  parsePosPaymentConfiguration,
+  type PosPaymentConfiguration,
   type PosPaymentMethod,
 } from '@/lib/invoices/payment-method'
 import {
@@ -1132,9 +1134,19 @@ async function fetchRequiredReadDatasets(context: PrePinContext) {
         : 'offlineReadSnapshot'
     throw new Error(`OFFLINE_REQUIRED_DATASET_MISSING:${classification}`)
   }
+  const runtimePaymentConfiguration = parsePosPaymentConfiguration(
+    runtime.runtime.paymentConfiguration
+  )
+  const snapshotPaymentConfiguration = parsePosPaymentConfiguration(
+    readSnapshot.paymentConfiguration
+  )
+  if (!runtimePaymentConfiguration || !snapshotPaymentConfiguration) {
+    throw new Error('OFFLINE_REQUIRED_DATASET_INVALID:paymentConfiguration')
+  }
   return {
     catalog,
     runtime: runtime.runtime,
+    paymentConfiguration: runtimePaymentConfiguration,
     customers: readSnapshot.customers.map(offlineCustomerSnapshot),
     systemSettings: readSnapshot.settings,
     confirmedAt: readSnapshot.confirmedAt,
@@ -1219,6 +1231,7 @@ async function doPrepare(
     runtime,
     customers,
     systemSettings,
+    paymentConfiguration,
     confirmedAt,
     recentOrders,
   } =
@@ -1375,7 +1388,7 @@ async function doPrepare(
       branchInventory: inventory.items.length,
       posSettings: 1,
       receiptSettings: 1,
-      paymentConfiguration: PAYMENT_METHODS.length,
+      paymentConfiguration: paymentConfiguration.methods.length,
       recentOrders: recentOrders.length,
     }),
     complete: true,
@@ -1390,7 +1403,10 @@ async function doPrepare(
     [
       { recordKey: 'pos-runtime', value: runtime },
       { recordKey: SYSTEM_SETTINGS_RECORD_KEY, value: systemSettings },
-      { recordKey: PAYMENT_CONFIGURATION_RECORD_KEY, value: PAYMENT_METHODS },
+      {
+        recordKey: PAYMENT_CONFIGURATION_RECORD_KEY,
+        value: paymentConfiguration,
+      },
       { recordKey: CATEGORIES_RECORD_KEY, value: [...categories] },
       { recordKey: VARIANTS_RECORD_KEY, value: variants },
       { recordKey: INVENTORY_SNAPSHOT_RECORD_KEY, value: inventory },
@@ -1730,13 +1746,110 @@ function requireOfflineReadCompleteness(
         !Number.isSafeInteger(counts[datasetId]) ||
         Number(counts[datasetId]) < 0
     ) ||
-    Number(counts.applicationShell) !==
-      AFEX_OFFLINE_POS_SHELL_ROUTES.length ||
-    Number(counts.paymentConfiguration) !== PAYMENT_METHODS.length
+    Number(counts.applicationShell) !== AFEX_OFFLINE_POS_SHELL_ROUTES.length
   ) {
     throw new Error('OFFLINE_READ_COMPLETENESS_INVALID')
   }
   return value as unknown as OfflineReadCompletenessManifest
+}
+
+async function migrateLegacyOfflinePaymentSnapshot(input: Readonly<{
+  runtime: PreparedOfflineRuntime
+  manifest: OfflineReadCompletenessManifest
+  paymentConfiguration: PosPaymentConfiguration
+  catalogRecords: readonly Readonly<{ recordKey: string; value: JsonRecord }>[]
+  customerRecords: readonly Readonly<{
+    recordKey: string
+    value: OfflineCustomerSnapshot
+  }>[]
+  orderRecords: readonly Readonly<{ recordKey: string; value: JsonRecord }>[]
+  runtimeSettingRecords: readonly Readonly<{
+    recordKey: string
+    value: JsonRecord
+  }>[]
+}>) {
+  const namespaceId = input.runtime.descriptor.namespaceId
+  const migratedSnapshotVersion = `payment-authority-v2-${crypto.randomUUID()}`
+  const retainedSnapshotVersions = [input.manifest.snapshotVersion]
+  const repository = new Phase2DatasetRepository()
+  const migratedRuntimeSettings = input.runtimeSettingRecords.map((record) => {
+    if (record.recordKey === PAYMENT_CONFIGURATION_RECORD_KEY) {
+      return { ...record, value: input.paymentConfiguration }
+    }
+    if (record.recordKey === 'pos-runtime' && isRecord(record.value)) {
+      return {
+        ...record,
+        value: {
+          ...record.value,
+          paymentConfiguration: input.paymentConfiguration,
+        },
+      }
+    }
+    return record
+  })
+
+  await persistDataset(
+    repository,
+    namespaceId,
+    'catalog',
+    migratedSnapshotVersion,
+    input.manifest.confirmedAt,
+    input.catalogRecords,
+    retainedSnapshotVersions
+  )
+  await persistDataset(
+    repository,
+    namespaceId,
+    'customers',
+    migratedSnapshotVersion,
+    input.manifest.confirmedAt,
+    input.customerRecords,
+    retainedSnapshotVersions
+  )
+  await persistDataset(
+    repository,
+    namespaceId,
+    'orders',
+    migratedSnapshotVersion,
+    input.manifest.confirmedAt,
+    input.orderRecords,
+    retainedSnapshotVersions
+  )
+  await persistDataset(
+    repository,
+    namespaceId,
+    'runtimeSettings',
+    migratedSnapshotVersion,
+    input.manifest.confirmedAt,
+    migratedRuntimeSettings,
+    retainedSnapshotVersions
+  )
+
+  const migratedManifest: OfflineReadCompletenessManifest = Object.freeze({
+    ...input.manifest,
+    snapshotVersion: migratedSnapshotVersion,
+    datasetVersions: Object.freeze({
+      catalog: migratedSnapshotVersion,
+      customers: migratedSnapshotVersion,
+      orders: migratedSnapshotVersion,
+      runtimeSettings: migratedSnapshotVersion,
+    }),
+    counts: Object.freeze({
+      ...input.manifest.counts,
+      paymentConfiguration: input.paymentConfiguration.methods.length,
+    }),
+  })
+  const encrypted = new EncryptedOfflineRepository({
+    allowPersistentWrites: true,
+  })
+  await encrypted.initialize()
+  await encrypted.putEncryptedDraft(
+    namespaceId,
+    READ_COMPLETENESS_RECORD_KEY,
+    migratedManifest,
+    'pos-read-completeness-pivot'
+  )
+  currentReadCompleteness = null
 }
 
 async function readOfflineReadCompleteness(runtime: PreparedOfflineRuntime) {
@@ -1808,6 +1921,33 @@ async function readOfflineReadCompleteness(runtime: PreparedOfflineRuntime) {
   const variants = runtimeSettingRecords.find(
     (record) => record.recordKey === VARIANTS_RECORD_KEY
   )?.value
+  const storedPaymentConfiguration = runtimeSettingRecords.find(
+    (record) => record.recordKey === PAYMENT_CONFIGURATION_RECORD_KEY
+  )?.value
+  const paymentConfiguration = parsePosPaymentConfiguration(
+    storedPaymentConfiguration
+  )
+  if (!paymentConfiguration) {
+    const migratedPaymentConfiguration = migrateLegacyPosPaymentConfiguration(
+      storedPaymentConfiguration
+    )
+    if (
+      !migratedPaymentConfiguration ||
+      manifest.counts.paymentConfiguration !== 8
+    ) {
+      throw new Error('OFFLINE_PAYMENT_CONFIGURATION_INVALID')
+    }
+    await migrateLegacyOfflinePaymentSnapshot({
+      runtime,
+      manifest,
+      paymentConfiguration: migratedPaymentConfiguration,
+      catalogRecords,
+      customerRecords,
+      orderRecords,
+      runtimeSettingRecords,
+    })
+    return readOfflineReadCompleteness(runtime)
+  }
   if (
     catalogAvailability.status !== 'complete' ||
     customerAvailability.status !== 'complete' ||
@@ -1818,6 +1958,8 @@ async function readOfflineReadCompleteness(runtime: PreparedOfflineRuntime) {
     orderRecords.length !== manifest.counts.recentOrders ||
     manifest.counts.employeeRoster !== runtime.roster.length ||
     manifest.counts.branchInventory !== runtime.inventory.items.length ||
+    manifest.counts.paymentConfiguration !==
+      paymentConfiguration.methods.length ||
     !Array.isArray(categories) ||
     categories.length !== manifest.counts.categories ||
     !Array.isArray(variants) ||
@@ -1942,6 +2084,25 @@ export async function readOfflineRuntimeSettings() {
   const settings = records.find((record) => record.recordKey === 'pos-runtime')
   if (!settings) throw new Error('OFFLINE_RUNTIME_SETTINGS_NOT_READY')
   return settings.value
+}
+
+export async function readOfflinePaymentConfiguration() {
+  const runtime = await restorePreparedOfflineRuntime()
+  const completeness = await readOfflineReadCompleteness(runtime)
+  const records = await readCompleteDataset<JsonRecord>(
+    runtime.descriptor.namespaceId,
+    'runtimeSettings',
+    completeness.datasetVersions.runtimeSettings
+  )
+  const configuration = parsePosPaymentConfiguration(
+    records.find(
+      (record) => record.recordKey === PAYMENT_CONFIGURATION_RECORD_KEY
+    )?.value
+  )
+  if (!configuration) {
+    throw new Error('OFFLINE_PAYMENT_CONFIGURATION_INVALID')
+  }
+  return configuration
 }
 
 export async function readOfflineSystemSettings() {

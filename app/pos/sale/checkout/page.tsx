@@ -33,9 +33,9 @@ import {
 } from '@/lib/invoices/success'
 import { clearCompletedInvoiceDraftState } from '@/lib/invoices/sale-reset'
 import {
-  getPaymentMethodLabel,
   normalizeUiPaymentMethod,
-  PAYMENT_METHODS,
+  parsePosPaymentConfiguration,
+  type PosPaymentMethodOption,
 } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 import { formatPosGregorianDate, formatPosTime } from '@/lib/pos/date-format'
@@ -108,6 +108,9 @@ function triggerCheckoutHaptic(style: 'LIGHT' | 'MEDIUM') {
 type PosRuntime = {
   discounts: CheckoutDiscountOption[]
   vat: CheckoutVatSetting | null
+  paymentConfiguration: {
+    methods: readonly PosPaymentMethodOption[]
+  }
 }
 
 function getPosRuntimeCacheKey(tenantId: string | null, branchId: string | null) {
@@ -208,6 +211,11 @@ export default function PosSaleCheckoutPage() {
     null
   )
   const [loadingVat, setLoadingVat] = useState(false)
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<
+    readonly PosPaymentMethodOption[]
+  >([])
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false)
+  const [paymentConfigurationError, setPaymentConfigurationError] = useState('')
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showInvoiceConfirmation, setShowInvoiceConfirmation] = useState(false)
   const [showCashAmountDialog, setShowCashAmountDialog] = useState(false)
@@ -275,20 +283,29 @@ export default function PosSaleCheckoutPage() {
     let cancelled = false
 
     async function loadRuntime() {
+      setLoadingPaymentMethods(true)
+      setPaymentConfigurationError('')
       try {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-          const { readOfflineRuntimeSettings } = await import(
+          const {
+            readOfflinePaymentConfiguration,
+            readOfflineRuntimeSettings,
+          } = await import(
             '@/lib/offline/complete-runtime'
           )
-          const offlineRuntime = (await readOfflineRuntimeSettings()) as {
-            discounts?: CheckoutDiscountOption[]
-            vat?: CheckoutVatSetting | null
-          }
+          const [offlineRuntime, paymentConfiguration] = await Promise.all([
+            readOfflineRuntimeSettings() as Promise<{
+              discounts?: CheckoutDiscountOption[]
+              vat?: CheckoutVatSetting | null
+            }>,
+            readOfflinePaymentConfiguration(),
+          ])
           if (!cancelled) {
             setAvailableDiscounts(
               Array.isArray(offlineRuntime.discounts) ? offlineRuntime.discounts : []
             )
             setAvailableVatSetting(offlineRuntime.vat ?? null)
+            setAvailablePaymentMethods(paymentConfiguration.methods)
           }
           return
         }
@@ -298,6 +315,7 @@ export default function PosSaleCheckoutPage() {
         if (!cancelled && cachedRuntime) {
           setAvailableDiscounts(cachedRuntime.discounts)
           setAvailableVatSetting(cachedRuntime.vat)
+          setAvailablePaymentMethods(cachedRuntime.paymentConfiguration.methods)
           setLoadingDiscounts(false)
           setLoadingVat(false)
         } else {
@@ -329,11 +347,19 @@ export default function PosSaleCheckoutPage() {
               throw new Error(getClientErrorMessage(result, 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
             }
 
+            const paymentConfiguration = parsePosPaymentConfiguration(
+              result.runtime?.paymentConfiguration
+            )
+            if (!paymentConfiguration) {
+              throw new Error('POS_PAYMENT_CONFIGURATION_INVALID')
+            }
+
             return {
               discounts: Array.isArray(result.runtime?.discounts)
                 ? result.runtime.discounts
                 : [],
               vat: (result.runtime?.vat as CheckoutVatSetting | null) || null,
+              paymentConfiguration,
             }
           },
           {
@@ -345,37 +371,54 @@ export default function PosSaleCheckoutPage() {
         if (!cancelled) {
           setAvailableDiscounts(runtime.discounts)
           setAvailableVatSetting(runtime.vat)
+          setAvailablePaymentMethods(runtime.paymentConfiguration.methods)
         }
       } catch (runtimeError) {
         if (!cancelled) {
           if (shouldUseOfflineReadFallback(runtimeError)) {
             try {
-              const { readOfflineRuntimeSettings } = await import(
+              const {
+                readOfflinePaymentConfiguration,
+                readOfflineRuntimeSettings,
+              } = await import(
                 '@/lib/offline/complete-runtime'
               )
-              const offlineRuntime = (await readOfflineRuntimeSettings()) as {
-                discounts?: CheckoutDiscountOption[]
-                vat?: CheckoutVatSetting | null
-              }
+              const [offlineRuntime, paymentConfiguration] = await Promise.all([
+                readOfflineRuntimeSettings() as Promise<{
+                  discounts?: CheckoutDiscountOption[]
+                  vat?: CheckoutVatSetting | null
+                }>,
+                readOfflinePaymentConfiguration(),
+              ])
               setAvailableDiscounts(
                 Array.isArray(offlineRuntime.discounts)
                   ? offlineRuntime.discounts
                   : []
               )
               setAvailableVatSetting(offlineRuntime.vat ?? null)
+              setAvailablePaymentMethods(paymentConfiguration.methods)
             } catch {
               setAvailableDiscounts([])
               setAvailableVatSetting(null)
+              setAvailablePaymentMethods([])
+              setPaymentConfigurationError(
+                'تعذر التحقق من طرق الدفع المعتمدة. يلزم الاتصال وتحديث لقطة كاملة.'
+              )
             }
           } else {
             setAvailableDiscounts([])
             setAvailableVatSetting(null)
+            setAvailablePaymentMethods([])
+            setPaymentConfigurationError(
+              'تعذر التحقق من طرق الدفع المعتمدة. أعد المحاولة عند توفر الاتصال.'
+            )
           }
         }
       } finally {
         if (!cancelled) {
           setLoadingDiscounts(false)
           setLoadingVat(false)
+          setLoadingPaymentMethods(false)
         }
       }
     }
@@ -416,8 +459,11 @@ export default function PosSaleCheckoutPage() {
   })
 
   const selectedPaymentLabel = useMemo(
-    () => getPaymentMethodLabel(checkout.paymentMethod),
-    [checkout.paymentMethod]
+    () =>
+      availablePaymentMethods.find(
+        (method) => method.id === checkout.paymentMethod
+      )?.label || 'طريقة الدفع غير متاحة',
+    [availablePaymentMethods, checkout.paymentMethod]
   )
   const normalizedPaymentMethod = useMemo(
     () => normalizeUiPaymentMethod(checkout.paymentMethod),
@@ -463,7 +509,15 @@ export default function PosSaleCheckoutPage() {
       return false
     }
 
-    if (loadingDiscounts || loadingVat) {
+    if (
+      loadingDiscounts ||
+      loadingVat ||
+      loadingPaymentMethods ||
+      paymentConfigurationError ||
+      !availablePaymentMethods.some(
+        (method) => method.id === normalizedPaymentMethod
+      )
+    ) {
       return false
     }
 
@@ -483,8 +537,11 @@ export default function PosSaleCheckoutPage() {
     invoiceItems.length,
     isOffline,
     loadingDiscounts,
+    loadingPaymentMethods,
     loadingVat,
     normalizedPaymentMethod,
+    paymentConfigurationError,
+    availablePaymentMethods,
   ])
 
   const cashWarningMessage = useMemo(() => {
@@ -495,7 +552,7 @@ export default function PosSaleCheckoutPage() {
     return `المبلغ المستلم أقل من الإجمالي. المتبقي سيظهر على الفاتورة: ${formatCurrency(checkout.remainingFromCustomer)}`
   }, [checkout.remainingFromCustomer, normalizedPaymentMethod])
 
-  const handleSelectPayment = (option: (typeof PAYMENT_METHODS)[number]) => {
+  const handleSelectPayment = (option: PosPaymentMethodOption) => {
     checkout.setPaymentMethod(option.id)
     triggerCheckoutHaptic('LIGHT')
   }
@@ -581,11 +638,24 @@ export default function PosSaleCheckoutPage() {
   }, [checkout.loading, isMobileViewport, showInvoiceConfirmation])
 
   useEffect(() => {
-    if (!ready || initializedDefaultPayment.current) return
+    if (
+      !ready ||
+      loadingPaymentMethods ||
+      availablePaymentMethods.length === 0 ||
+      initializedDefaultPayment.current
+    ) {
+      return
+    }
 
     initializedDefaultPayment.current = true
-    checkout.setPaymentMethod('mada')
-  }, [checkout, ready])
+    if (
+      !availablePaymentMethods.some(
+        (method) => method.id === checkout.paymentMethod
+      )
+    ) {
+      checkout.setPaymentMethod(availablePaymentMethods[0].id)
+    }
+  }, [availablePaymentMethods, checkout, loadingPaymentMethods, ready])
 
   useEffect(() => {
     if (!ready || !checkout.isReceivedAmountEditable) {
@@ -688,6 +758,7 @@ export default function PosSaleCheckoutPage() {
           discountAmount={checkout.discountAmount}
           finalTotal={checkout.finalTotal}
           paymentMethod={checkout.paymentMethod}
+          paymentMethods={availablePaymentMethods}
           cashReceived={checkout.cashReceived}
           cashChange={checkout.cashChange}
           remainingFromCustomer={checkout.remainingFromCustomer}
@@ -702,12 +773,17 @@ export default function PosSaleCheckoutPage() {
               ? 'لا يمكن إنشاء فاتورة لأن حسابك غير مرتبط بفرع صالح.'
               : hasAmbiguousAdminBranchContext
                 ? 'اختر فرعًا محددًا قبل استخدام شاشة الدفع.'
-                : checkout.errorMessage
+                : paymentConfigurationError || checkout.errorMessage
           }
           offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'يمكنك مراجعة السلة دون اتصال، لكن إتمام البيع يتطلب الاتصال حاليًا.' : '')}
           cashWarning={cashWarningMessage}
           onPreview={() => setShowThermalPreview(true)}
-          onPaymentChange={(method) => handleSelectPayment({ id: method, label: getPaymentMethodLabel(method) })}
+          onPaymentChange={(method) => {
+            const option = availablePaymentMethods.find(
+              (candidate) => candidate.id === method
+            )
+            if (option) handleSelectPayment(option)
+          }}
           onCashReceivedChange={checkout.setCashReceived}
           onDiscountChange={checkout.setSelectedDiscount}
           onNoteChange={checkout.setNote}
@@ -872,7 +948,7 @@ export default function PosSaleCheckoutPage() {
             <section data-checkout-section="payment" className="mt-3">
               <h2 className="mb-3 text-base font-black text-white">طريقة الدفع</h2>
               <div className="afex-mobile-payment-grid grid grid-cols-2 gap-2.5">
-                {PAYMENT_METHODS.map((option) => {
+                {availablePaymentMethods.map((option) => {
                   const selected = checkout.paymentMethod === option.id
                   return (
                     <button
@@ -1033,7 +1109,7 @@ export default function PosSaleCheckoutPage() {
 
               <div className="min-h-0 flex-1 space-y-3 overflow-visible md:overflow-y-auto md:pr-1">
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  {PAYMENT_METHODS.map((option) => {
+                  {availablePaymentMethods.map((option) => {
                     const selected = checkout.paymentMethod === option.id
 
                     return (
@@ -1737,7 +1813,7 @@ function CalculationCard({
 function PaymentMethodIcon({
   method,
 }: {
-  method: (typeof PAYMENT_METHODS)[number]['id']
+  method: PosPaymentMethodOption['id']
 }) {
   if (method === 'cash') {
     return (
@@ -1767,7 +1843,7 @@ function PaymentMethodIcon({
     )
   }
 
-  if (method === 'cod' || method === 'on_delivery') {
+  if (method === 'cod') {
     return (
       <svg viewBox="0 0 24 24" fill="none" className="h-10 w-10" aria-hidden="true">
         <path
