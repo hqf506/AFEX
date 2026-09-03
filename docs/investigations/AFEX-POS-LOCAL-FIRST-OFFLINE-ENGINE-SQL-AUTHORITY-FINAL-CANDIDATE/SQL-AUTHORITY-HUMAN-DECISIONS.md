@@ -1,0 +1,24 @@
+# Human Decisions Preserved
+
+- `MODE_A_MANAGED_PWA_CONTINUOUS_OFFLINE`.
+- The establishment account must authenticate Online through existing verified Auth before any Offline bootstrap; Offline cannot establish or restore a logged-out account.
+- The employee PIN selects one pre-enrolled employee only. It never authenticates the account, changes account/tenant/branch/device, or derives/wraps/unwraps a DEK.
+- Device-bound local encryption is independent of the PIN. Exact client ciphertext/key-handle representation remains a later disabled runtime contract.
+- No time-based Offline authority expiry; synchronization age is informational only.
+- Restart without explicit logout requires employee PIN re-entry but not Internet and reconstructs pending commands/inventory commitments deterministically.
+- Explicit logout disables Offline PIN, reads, switching, and order creation. Pending commands remain encrypted and inaccessible until same-account Online recovery; cross-scope recovery is rejected.
+- Original Auth-session expiry alone does not invalidate a retained Offline command.
+- Replay and every receipt require a current verified uploader Auth session and POS actor session.
+- Device, enrollment and key revocation/replacement generations fail closed.
+- Core V2 remains the sole order/invoice/inventory mutation authority.
+- All eight payment methods remain distinct; provider state is unverified and no provider action occurs.
+- Seven non-pilot commands remain Shadow Mode and dispatch-blocked.
+- PUBLIC, anon, authenticated and service_role receive no provenance-function EXECUTE.
+- All twelve sensitive/transactional flags remain immutable false.
+- The database employee allowlist is exactly `ARRAY['order.create']::text[]`; maximum active enrolled employees is 25 per managed branch device.
+- Provisioning and acquisition use separate private NOLOGIN roles; the foundation grants no direct browser, PUBLIC, anon, authenticated, or service-role execution.
+- The proven installer is `CURRENT_USER=postgres`, `SESSION_USER=postgres`, database `postgres`, PostgreSQL `170006`; bounded owner DDL may temporarily use `SET LOCAL ROLE` while preserving `SESSION_USER=postgres`.
+- Existing owner memberships must be `ADMIN=true`, `INHERIT=false`, `SET=false` at rest. Only `SET` may be enabled temporarily inside the dependent transaction and it must be restored before commit.
+- `auth` remains owned by `supabase_admin`; postgres receives no `CREATE` on `auth`, no Auth ownership/ACL change, and no function is created there.
+- The separately frozen service facade activation and legacy closure are later human tasks. Activation is excluded from the 22-wave foundation order and remains inactive.
+- This package authorizes no SQL, DB, Production, network, business or Git execution.

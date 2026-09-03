@@ -28,7 +28,7 @@ const checks = [
   ['components/mobile/mobile-overlays.tsx', 'returnFocus?.focus()', 'Mobile overlay focus restoration'],
   ['components/mobile/mobile-primitives.tsx', 'MobileStickyActionBar', 'Mobile sticky action foundation'],
   ['components/mobile/mobile-primitives.tsx', 'bottom-[calc(4.75rem+env(safe-area-inset-bottom))]', 'Sticky action and bottom navigation spacing'],
-  ['components/pos-shell-layout.tsx', 'w-full max-w-full overflow-hidden bg-slate-950', 'Dark POS viewport without w-screen overflow'],
+  ['components/pos-shell-layout.tsx', 'w-full max-w-full overflow-hidden', 'Semantic POS viewport without w-screen overflow'],
   ['app/admin/orders/page.tsx', 'max-h-[calc(100dvh-1.5rem)]', 'Invoice preview viewport maximum'],
   ['app/admin/orders/page.tsx', 'sticky left-0 bg-[#07111d]', 'Orders action access'],
   ['app/admin/inventory/page.tsx', 'min-w-[820px] table-fixed', 'Inventory table overflow boundary'],

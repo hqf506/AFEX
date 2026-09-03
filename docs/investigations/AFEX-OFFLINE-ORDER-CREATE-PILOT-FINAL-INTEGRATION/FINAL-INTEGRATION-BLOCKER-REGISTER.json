@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "functionalBlockers": [],
+  "finiteReviewGates": [
+    {
+      "id":"GATE-PG-PARSER",
+      "status":"POSTGRESQL_COMPATIBLE_PARSER_UNAVAILABLE",
+      "blockingSourceIntegration":false,
+      "reason":"No existing parser was available and installing one is prohibited."
+    },
+    {
+      "id":"GATE-ACTIVATION",
+      "status":"ACTIVATION_EXECUTED_AND_ATTESTED_BY_HUMAN_FLAGS_FALSE",
+      "blockingSourceIntegration":false
+    },
+    {
+      "id":"GATE-MANUAL-QUALIFICATION",
+      "status":"PENDING_AFTER_ACTIVATION",
+      "blockingSourceIntegration":false
+    }
+  ],
+  "sqlExecutedDuringTask":0,
+  "productionContact":0
+}

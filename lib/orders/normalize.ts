@@ -76,6 +76,10 @@ export type OrderSummary = {
   cashReceived: number
   remainingFromCustomer: number
   cashChange: number
+  cashReceivedAvailable: boolean
+  appliedAmountAvailable: boolean
+  remainingFromCustomerAvailable: boolean
+  cashChangeAvailable: boolean
   items: OrderLineItemSummary[]
 }
 
@@ -114,6 +118,11 @@ export function readOrderNumberValue(...values: unknown[]): number {
   }
 
   return 0
+}
+
+export function hasOrderNumberValue(value: unknown): boolean {
+  return (typeof value === 'number' && Number.isFinite(value)) ||
+    (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)))
 }
 
 export function getPrimaryOrderInvoice(invoices: OrderSourceRow['invoices']): OrderInvoiceSource | null {
@@ -224,6 +233,10 @@ export function normalizeOrderRecord(
       primaryInvoice?.remaining_from_customer
     ),
     cashChange: readOrderNumberValue(primaryInvoice?.cash_change),
+    cashReceivedAvailable: hasOrderNumberValue(primaryInvoice?.cash_received),
+    appliedAmountAvailable: hasOrderNumberValue(primaryInvoice?.total),
+    remainingFromCustomerAvailable: hasOrderNumberValue(primaryInvoice?.remaining_from_customer),
+    cashChangeAvailable: hasOrderNumberValue(primaryInvoice?.cash_change),
     items: normalizeOrderItems(primaryInvoice?.invoice_items),
   }
 }

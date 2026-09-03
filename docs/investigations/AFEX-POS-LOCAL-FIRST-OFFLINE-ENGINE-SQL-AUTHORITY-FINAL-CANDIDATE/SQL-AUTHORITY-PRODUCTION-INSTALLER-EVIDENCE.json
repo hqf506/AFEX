@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "classification": "HUMAN_ATTESTED_PRODUCTION_CATALOG_FACTS_NO_QUERY_EXECUTED_DURING_CONSTRUCTION",
+  "session": {"currentUser":"postgres","sessionUser":"postgres","database":"postgres","serverVersionNum":"170006"},
+  "database": {"owner":"postgres","postgresCreate":true,"postgresConnect":true},
+  "installerRole": {
+    "name":"postgres",
+    "superuser":false,
+    "createRole":true,
+    "evidenceSource":"../AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PROMPT-10-FINAL-PRODUCTION-ATTESTATION/PROMPT-10-ROLE-AND-MEMBERSHIP-MATRIX.json",
+    "evidenceSha256":"86d5f58824490f39f3aabb08be6778065a8a63ffaa8b4a749cd46afbffe6c775",
+    "classification":"INHERITED_PRODUCTION_CATALOG_PROOF"
+  },
+  "schemas": [
+    {"name":"public","owner":"pg_database_owner","postgresCreate":true},
+    {"name":"afex_core_private","owner":"afex_function_owner"},
+    {"name":"afex_pos_authority","owner":"afex_pos_session_owner"},
+    {"name":"auth","owner":"supabase_admin","postgresCreate":false}
+  ],
+  "existingObjects": [
+    {"object":"public.branches","owner":"postgres"},
+    {"object":"public.catalog_items","owner":"postgres"},
+    {"object":"public.profiles","owner":"postgres"},
+    {"object":"public.atomic_authorization_contexts","owner":"afex_core_owner"},
+    {"object":"public.atomic_order_commands","owner":"afex_core_owner"},
+    {"object":"afex_pos_authority.actor_sessions","owner":"afex_pos_session_owner"}
+  ],
+  "postgresMemberships": [
+    {"role":"afex_context_issuer","admin":true,"inherit":false,"set":false},
+    {"role":"afex_core_owner","admin":true,"inherit":false,"set":false},
+    {"role":"afex_function_owner","admin":true,"inherit":false,"set":false},
+    {"role":"afex_pos_session_owner","admin":true,"inherit":false,"set":false}
+  ],
+  "authorizedTemporaryMutation": {
+    "grantForm":"GRANT exact_owner_role TO postgres WITH ADMIN FALSE, INHERIT FALSE, SET TRUE GRANTED BY CURRENT_USER",
+    "revokeForm":"REVOKE exact_owner_role FROM postgres GRANTED BY CURRENT_USER",
+    "grantSetFalseForbidden":true,
+    "transactionBound":true,"adminUnchanged":true,"inheritRemainsFalse":true,
+    "resetBeforeRevoke":true,"revokeBeforeCommit":true
+  },
+  "foundationExecution": {
+    "status":"FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN",
+    "wavesComplete":22,
+    "wavesExpected":22,
+    "receiptFunction":"afex_offline_authority.lookup_offline_order_create_receipts_v2(uuid,uuid,uuid,jsonb)",
+    "receiptOwner":"afex_function_owner",
+    "receiptAcquisitionExecute":true,
+    "receiptPublicExecute":false,
+    "privateRelationCount":11,
+    "invalidOwnerMembershipCount":0,
+    "publicPrivateTableAclCount":0,
+    "browserPrivateTableAccessCount":0,
+    "inactiveServiceFacadeCount":0
+  },
+  "activation": {
+    "status":"ACTIVATION_EXECUTED_AND_ATTESTED_BY_HUMAN_FLAGS_FALSE",
+    "authorized":true,
+    "facadeCount":13,
+    "publicExecuteCount":0,
+    "activationFlagsChanged":false,
+    "contextServiceRoleExecute":false,
+    "functionOwnerPublicCreate":false,
+    "invalidOwnerMembershipCount":0,
+    "serviceRoleFacadeExecuteCount":12,
+    "serviceRolePrivateTableAccessCount":0,
+    "businessCallerIntegrationAuthorized":false,
+    "legacyClosureAuthorized":false
+  },
+  "source":"human-provided final production evidence",
+  "productionQueriesExecutedByConstruction":0
+}

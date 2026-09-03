@@ -1,3 +1,5 @@
+import { createSecureUuidV4 } from '@/lib/offline/phase1'
+
 export const POS_CHECKOUT_IDENTITY_STORAGE_KEY = 'afex_pos_checkout_identity_v1'
 
 export type PosCheckoutIdentityRecord = {
@@ -76,7 +78,7 @@ export async function acquirePosCheckoutIdentity(draft: unknown) {
 
   const created: PosCheckoutIdentityRecord = {
     version: 1,
-    requestId: crypto.randomUUID(),
+    requestId: createSecureUuidV4(),
     fingerprint,
     state: 'pending',
   }

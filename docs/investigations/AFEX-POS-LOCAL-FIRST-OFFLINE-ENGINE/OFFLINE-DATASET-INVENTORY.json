@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "namespace": ["primarySubjectId", "tenantId", "branchId", "deviceCacheId"],
+  "datasets": [
+    {
+      "id": "catalog.categories",
+      "source": "GET /api/invoice/catalog and GET /api/admin/categories",
+      "scope": "tenant",
+      "sensitivity": "LOW",
+      "retention": "until signed manifest replacement or 30 days",
+      "freshness": "refresh after primary auth; unlock after POS actor",
+      "integrity": "signed dataset version plus per-record AES-GCM AAD",
+      "offlineUse": "ALLOW_READ",
+      "conflictKey": "id+updated_at",
+      "evictionPriority": 4
+    },
+    {
+      "id": "catalog.items",
+      "source": "GET /api/invoice/catalog",
+      "scope": "tenant+branch",
+      "sensitivity": "LOW",
+      "retention": "latest two complete versions",
+      "freshness": "server version/ETag; full snapshot fallback",
+      "integrity": "manifest count/hash and record AAD",
+      "offlineUse": "ALLOW_READ_WITH_STALE_LABEL",
+      "conflictKey": "item_id+branch_override_updated_at",
+      "evictionPriority": 2
+    },
+    {
+      "id": "catalog.media",
+      "source": "catalog image_url resources",
+      "scope": "tenant+branch reference set",
+      "sensitivity": "LOW",
+      "retention": "LRU with pinned current catalog references",
+      "freshness": "content URL/hash when available",
+      "integrity": "content-type, size cap, digest when supplied",
+      "offlineUse": "ALLOW_READ",
+      "conflictKey": "normalized URL+version",
+      "evictionPriority": 1
+    },
+    {
+      "id": "catalog.inventory_snapshot",
+      "source": "GET /api/invoice/catalog",
+      "scope": "tenant+branch",
+      "sensitivity": "MEDIUM",
+      "retention": "last confirmed snapshot only",
+      "freshness": "short TTL and lastConfirmedAt",
+      "integrity": "signed manifest",
+      "offlineUse": "DISPLAY_ESTIMATE_ONLY",
+      "conflictKey": "catalog_item_id+snapshot_version",
+      "evictionPriority": 6
+    },
+    {
+      "id": "customers.search_index",
+      "source": "GET /api/customers",
+      "scope": "tenant-wide current contract",
+      "sensitivity": "HIGH_PII",
+      "retention": "policy decision; recommended 7 days rolling and explicit cap",
+      "freshness": "delta/version required before broad preload",
+      "integrity": "encrypted records and signed scope manifest",
+      "offlineUse": "ALLOW_READ_AFTER_POS_UNLOCK",
+      "conflictKey": "customer_id+updated_at+normalized_phone",
+      "evictionPriority": 7
+    },
+    {
+      "id": "customers.profile_activity",
+      "source": "GET /api/customers/:id",
+      "scope": "tenant",
+      "sensitivity": "HIGH_PII",
+      "retention": "selected/recent customers only; 48 hours recommended",
+      "freshness": "per-customer version",
+      "integrity": "encrypted record and relation checks",
+      "offlineUse": "ALLOW_READ_AFTER_POS_UNLOCK",
+      "conflictKey": "customer_id+updated_at",
+      "evictionPriority": 5
+    },
+    {
+      "id": "orders.operational",
+      "source": "GET /api/orders?mode=full",
+      "scope": "tenant+branch",
+      "sensitivity": "HIGH",
+      "retention": "active orders plus 48-hour terminal window",
+      "freshness": "server cursor and status version",
+      "integrity": "signed page/delta manifest",
+      "offlineUse": "ALLOW_READ; MUTATION_SEPARATE",
+      "conflictKey": "order_id+status+updated_at",
+      "evictionPriority": 9
+    },
+    {
+      "id": "orders.history48h",
+      "source": "GET /api/orders?recentHours=48",
+      "scope": "tenant+branch",
+      "sensitivity": "HIGH",
+      "retention": "server-created-at > server cutoff only",
+      "freshness": "server clock anchor and cursor",
+      "integrity": "encrypted page plus server time anchor",
+      "offlineUse": "ALLOW_READ_WITH_AS_OF_TIME",
+      "conflictKey": "order_id+updated_at",
+      "evictionPriority": 8
+    },
+    {
+      "id": "invoices.history",
+      "source": "GET /api/orders modes full/details",
+      "scope": "tenant+branch",
+      "sensitivity": "HIGH_FINANCIAL_PII",
+      "retention": "product decision; recommend recent 48 hours initially",
+      "freshness": "server cursor and immutable confirmed snapshot",
+      "integrity": "encrypted record, relation and total checks",
+      "offlineUse": "ALLOW_CONFIRMED_READ_ONLY",
+      "conflictKey": "invoice_id+updated_at",
+      "evictionPriority": 10
+    },
+    {
+      "id": "orders.status_history",
+      "source": "audit-derived order status history",
+      "scope": "tenant+branch",
+      "sensitivity": "MEDIUM",
+      "retention": "with retained operational order",
+      "freshness": "append cursor",
+      "integrity": "event id/order id monotonic cursor",
+      "offlineUse": "ALLOW_READ",
+      "conflictKey": "audit_event_id",
+      "evictionPriority": 8
+    },
+    {
+      "id": "pos.runtime_settings",
+      "source": "GET /api/pos/runtime and system settings",
+      "scope": "tenant+branch",
+      "sensitivity": "MEDIUM",
+      "retention": "last confirmed version; short business TTL",
+      "freshness": "version required",
+      "integrity": "signed settings manifest",
+      "offlineUse": "ALLOW_READ_BUT_REVALIDATE_FOR_FINANCIAL_COMMAND",
+      "conflictKey": "setting_id+updated_at",
+      "evictionPriority": 11
+    },
+    {
+      "id": "sale.local_draft",
+      "source": "customer/items/checkout UI",
+      "scope": "tenant+branch+device+saleCycle",
+      "sensitivity": "HIGH_FINANCIAL_PII",
+      "retention": "until success, explicit cancel, scoped purge, or policy expiry",
+      "freshness": "local revision",
+      "integrity": "encrypted transaction with checksum and revision",
+      "offlineUse": "ALLOW_READ_WRITE",
+      "conflictKey": "local_sale_id+revision",
+      "evictionPriority": 12
+    },
+    {
+      "id": "sync.command_outbox",
+      "source": "authorized POS actions",
+      "scope": "tenant+branch+device+effectiveActor",
+      "sensitivity": "CRITICAL",
+      "retention": "until server receipt plus tombstone retention; never quota-evict pending",
+      "freshness": "append-only local sequence",
+      "integrity": "encrypted immutable payload, hash chain, stable idempotency key",
+      "offlineUse": "ALLOW_ONLY_COMMAND_TYPES_WITH_SERVER_CONTRACT",
+      "conflictKey": "command_id/idempotency_key",
+      "evictionPriority": 100
+    },
+    {
+      "id": "sync.receipts_conflicts",
+      "source": "server sync responses",
+      "scope": "same as command",
+      "sensitivity": "HIGH",
+      "retention": "support policy; minimum until reconciliation",
+      "freshness": "server response version",
+      "integrity": "response hash and command link",
+      "offlineUse": "ALLOW_READ",
+      "conflictKey": "command_id+response_version",
+      "evictionPriority": 100
+    }
+  ],
+  "quotaPolicy": {
+    "requestPersistentStorage": true,
+    "warningAtUsageRatio": 0.7,
+    "hardStopAtUsageRatio": 0.9,
+    "neverEvict": ["sync.command_outbox pending/syncing/failed/conflict/blocked", "sale.local_draft", "unacknowledged receipts"],
+    "evictionOrder": ["unreferenced media", "old catalog versions", "expired customer activity", "expired history pages"],
+    "hardStopBehavior": "block new offline financial commands; preserve existing outbox; require online sync or explicit scoped export/support flow"
+  }
+}

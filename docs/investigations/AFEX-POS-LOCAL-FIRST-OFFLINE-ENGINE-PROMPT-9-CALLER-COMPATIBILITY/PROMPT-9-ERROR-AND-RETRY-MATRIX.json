@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceClass": "STATIC_SOURCE_COMPATIBILITY",
+  "cases": [
+    {
+      "id": "ERR-001",
+      "flow": "profile trusted route",
+      "current": "browser Supabase error may propagate through auth-state loading/error",
+      "target": "401 unauthenticated; 403 authority mismatch; bounded 5xx; exact seven-field success",
+      "retry": "no automatic authorization retry",
+      "cancellation": "component unmount must not publish stale state",
+      "race": "auth transition generation",
+      "arabicMessage": "human decision required",
+      "evidenceStatus": "STATIC_INFERENCE",
+      "blockers": [
+        "route absent"
+      ]
+    },
+    {
+      "id": "ERR-002",
+      "flow": "inventory history",
+      "current": "route 403/500; UI request-sequence stale guard",
+      "target": "400 invalid window/cursor; 403 branch denial; bounded 5xx",
+      "retry": "safe GET retry only; retain deterministic cursor",
+      "cancellation": "add AbortController or retain request sequence",
+      "race": "filter/page changes",
+      "arabicMessage": "must freeze",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "contract absent"
+      ]
+    },
+    {
+      "id": "ERR-003",
+      "flow": "customer lookup",
+      "current": "loading/empty/error states, abort and stale response suppression",
+      "target": "preserve",
+      "retry": "safe GET only",
+      "cancellation": "AbortController present",
+      "race": "request ID present",
+      "arabicMessage": "safe lookup message",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "ERR-004",
+      "flow": "customer creation validation",
+      "current": "400 with safe Arabic validation",
+      "target": "preserve",
+      "retry": "no blind retry",
+      "cancellation": "not after accepted mutation",
+      "race": "saving guard",
+      "arabicMessage": "useful, no internal detail",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "ERR-005",
+      "flow": "customer duplicate",
+      "current": "409 phone/conflict classification",
+      "target": "preserve database-authoritative duplicate",
+      "retry": "user correction or re-lookup; no duplicate create retry",
+      "cancellation": "not applicable",
+      "race": "identity registry/advisory lock",
+      "arabicMessage": "safe duplicate message",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "ERR-006",
+      "flow": "customer persistence/auth/network",
+      "current": "403/500 safe classifications and correlation ID",
+      "target": "preserve; never log phone/payload",
+      "retry": "manual unless request outcome is proven absent",
+      "cancellation": "UI remains unselected on failure",
+      "race": "selection only after valid success",
+      "arabicMessage": "safe persistence message",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "runtime negative tests"
+      ]
+    },
+    {
+      "id": "ERR-007",
+      "flow": "Core acquire/claim/execute/replay",
+      "current": "idempotency and replay classifications",
+      "target": "preserve primary error separately from authority/reconciliation state",
+      "retry": "only Core-governed retry/replay",
+      "cancellation": "client cancellation cannot imply business cancellation",
+      "race": "command claim and payload fingerprint",
+      "arabicMessage": "route maps bounded failure",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "versioned authority bridge"
+      ]
+    },
+    {
+      "id": "ERR-008",
+      "flow": "review CAS",
+      "current": "not implemented",
+      "target": "explicit expected-version conflict versus authorization versus persistence",
+      "retry": "read latest then intentional retry",
+      "cancellation": "not applicable",
+      "race": "serialized row lock and unique resulting version",
+      "arabicMessage": "human decision required",
+      "evidenceStatus": "APPROVED_DESIGN_ONLY",
+      "blockers": [
+        "CA-005"
+      ]
+    },
+    {
+      "id": "ERR-009",
+      "flow": "payment reconciliation",
+      "current": "writer separation absent",
+      "target": "employee cannot assert provider truth; ambiguous provider result remains explicit",
+      "retry": "provider-idempotent only",
+      "cancellation": "does not erase employee attestation",
+      "race": "separate provider CAS",
+      "arabicMessage": "human decision required",
+      "evidenceStatus": "APPROVED_DESIGN_ONLY",
+      "blockers": [
+        "CA-006"
+      ]
+    },
+    {
+      "id": "ERR-010",
+      "flow": "effect dispatch",
+      "current": "post-Core application effects without atomic ledger",
+      "target": "claim/lease/complete/fail/ambiguous/terminal/suppressed states",
+      "retry": "semantic-key provider idempotency",
+      "cancellation": "suppression is explicit state",
+      "race": "claim version/lease",
+      "arabicMessage": "not user-facing by default",
+      "evidenceStatus": "APPROVED_DESIGN_ONLY",
+      "blockers": [
+        "CA-007"
+      ]
+    }
+  ],
+  "blockers": [
+    "Runtime status/message snapshots are required before access removal.",
+    "No error evidence may contain credentials, SQL text, or customer PII."
+  ]
+}
+
+

@@ -2,6 +2,7 @@ export const INVOICE_CUSTOMER_STORAGE_KEY = 'invoice_customer'
 
 export type InvoiceCustomerDraft = {
   customerId: string | null
+  customerRecordVersion: number | null
   name: string
   phone: string
 }
@@ -13,6 +14,7 @@ export function isInvoiceCustomerDraftValid(name: string, phone: string) {
 export function serializeInvoiceCustomerDraft(customer: InvoiceCustomerDraft) {
   return JSON.stringify({
     customerId: customer.customerId,
+    customerRecordVersion: customer.customerRecordVersion,
     name: customer.name,
     phone: customer.phone,
   })
@@ -32,6 +34,12 @@ export function parseStoredInvoiceCustomerDraft(raw: string | null) {
       customerId:
         typeof parsed.customerId === 'string' && parsed.customerId.trim()
           ? parsed.customerId.trim()
+          : null,
+      customerRecordVersion:
+        typeof parsed.customerRecordVersion === 'number' &&
+        Number.isSafeInteger(parsed.customerRecordVersion) &&
+        parsed.customerRecordVersion >= 1
+          ? parsed.customerRecordVersion
           : null,
       name: parsed.name,
       phone: parsed.phone,

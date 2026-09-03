@@ -1,0 +1,108 @@
+{
+  "contractVersion": "afex-multi-device-concurrent-w1-function-inventory.v2-live-w0",
+  "functionCount": 7,
+  "functions": [
+    {
+      "identity": "afex_offline_authority.register_offline_device_v2(uuid,uuid,uuid,uuid,uuid,text,jsonb,jsonb,text)",
+      "scope": "private",
+      "owner": "afex_offline_authority_owner",
+      "returns": "jsonb",
+      "volatility": "VOLATILE",
+      "securityDefiner": true,
+      "strict": true,
+      "searchPath": ["pg_catalog"],
+      "executeGrantees": ["afex_offline_authority_owner", "afex_function_owner"],
+      "purpose": "Register one independent pending device without inspecting or mutating sibling devices."
+    },
+    {
+      "identity": "afex_offline_authority.activate_offline_device_v2(uuid,uuid,uuid,uuid,uuid,bigint,text)",
+      "scope": "private",
+      "owner": "afex_offline_authority_owner",
+      "returns": "jsonb",
+      "volatility": "VOLATILE",
+      "securityDefiner": true,
+      "strict": true,
+      "searchPath": ["pg_catalog"],
+      "executeGrantees": ["afex_offline_authority_owner", "afex_function_owner"],
+      "purpose": "Activate exactly the requested device; no branch-wide singleton assertion."
+    },
+    {
+      "identity": "afex_offline_authority.provision_pre_pin_device_v3(uuid,uuid,uuid,uuid,uuid,text,jsonb,jsonb,uuid,text,text,text,text,text)",
+      "scope": "private",
+      "owner": "afex_offline_authority_owner",
+      "returns": "jsonb",
+      "volatility": "VOLATILE",
+      "securityDefiner": true,
+      "strict": true,
+      "searchPath": ["pg_catalog"],
+      "executeGrantees": ["afex_offline_authority_owner", "afex_function_owner"],
+      "purpose": "Create or validate an independent per-device key envelope and active device authority."
+    },
+    {
+      "identity": "public.afex_offline_server_pre_pin_provision_device_v3(uuid,uuid,uuid,uuid,uuid,uuid,text,jsonb,jsonb,uuid,text,text,text,text,text)",
+      "scope": "server_facade",
+      "owner": "afex_function_owner",
+      "returns": "jsonb",
+      "volatility": "VOLATILE",
+      "securityDefiner": true,
+      "strict": true,
+      "searchPath": ["pg_catalog"],
+      "executeGrantees": ["afex_function_owner", "service_role"],
+      "purpose": "Verified server-only facade for independent device provisioning."
+    },
+    {
+      "identity": "public.afex_offline_server_pre_pin_employee_roster_v3(uuid,uuid,uuid,uuid,uuid)",
+      "scope": "server_facade",
+      "owner": "afex_function_owner",
+      "returns": "jsonb",
+      "volatility": "STABLE",
+      "securityDefiner": true,
+      "strict": true,
+      "searchPath": ["pg_catalog"],
+      "executeGrantees": ["afex_function_owner", "service_role"],
+      "purpose": "Versioned roster facade delegating to the frozen V2 per-device roster authority."
+    },
+    {
+      "identity": "public.afex_offline_server_pre_pin_publish_inventory_v3(uuid,uuid,uuid,uuid,uuid,uuid,text,timestamp with time zone,jsonb)",
+      "scope": "server_facade",
+      "owner": "afex_function_owner",
+      "returns": "jsonb",
+      "volatility": "VOLATILE",
+      "securityDefiner": true,
+      "strict": true,
+      "searchPath": ["pg_catalog"],
+      "executeGrantees": ["afex_function_owner", "service_role"],
+      "purpose": "Versioned inventory facade that proves the requesting device is independently active."
+    },
+    {
+      "identity": "public.afex_offline_server_pre_pin_bootstrap_v3(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bigint,uuid,text,text)",
+      "scope": "server_facade",
+      "owner": "afex_function_owner",
+      "returns": "jsonb",
+      "volatility": "VOLATILE",
+      "securityDefiner": true,
+      "strict": true,
+      "searchPath": ["pg_catalog"],
+      "executeGrantees": ["afex_function_owner", "service_role"],
+      "purpose": "Versioned bootstrap facade retaining device, branch and envelope binding."
+    }
+  ],
+  "liveW0DependencyCount": 13,
+  "liveW0Dependencies": [
+    {"identity":"afex_offline_authority.register_offline_device_v1(uuid,uuid,uuid,uuid,uuid,text,jsonb,jsonb,text)","normalizedBodyMd5":"2d70f2fb4a7f1eeb165eb26db0b5913c","normalizedBodyOctets":4596},
+    {"identity":"afex_offline_authority.activate_offline_device_v1(uuid,uuid,uuid,uuid,uuid,bigint,text)","normalizedBodyMd5":"b4bcb6995834452b08278c4bfc1a00e7","normalizedBodyOctets":3140},
+    {"identity":"afex_offline_authority.replace_offline_device_v1(uuid,uuid,uuid,uuid,uuid,uuid,bigint,text)","normalizedBodyMd5":"68748a011e0faffff40b4d2e14c8b401","normalizedBodyOctets":3788},
+    {"identity":"afex_offline_authority.transition_offline_device_v1(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text)","normalizedBodyMd5":"7c5fdbab14c6b50fb6d0702de2637ce9","normalizedBodyOctets":3320},
+    {"identity":"afex_offline_authority.pre_pin_context_matches_v2(uuid,uuid,uuid,uuid)","normalizedBodyMd5":"d77ed7ac6872ef688030703d047e4842","normalizedBodyOctets":515},
+    {"identity":"afex_offline_authority.provision_pre_pin_device_v2(uuid,uuid,uuid,uuid,uuid,text,jsonb,jsonb,uuid,text,text,text,text,text)","normalizedBodyMd5":"e5bfbd02831e2b5ffe45fd9a6f676592","normalizedBodyOctets":4921},
+    {"identity":"afex_offline_authority.read_pre_pin_employee_roster_v2(uuid,uuid,uuid,uuid)","normalizedBodyMd5":"cfa803fca6d0acddcb7ebb510d0dbcc2","normalizedBodyOctets":3535},
+    {"identity":"afex_offline_authority.publish_pre_pin_account_bootstrap_v2(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bigint,uuid,text,text)","normalizedBodyMd5":"56ed9074b3774d5316de0696bd76c1ff","normalizedBodyOctets":7038},
+    {"identity":"afex_offline_authority.publish_branch_inventory_snapshot_v1(uuid,uuid,uuid,uuid,text,timestamp with time zone,jsonb)","normalizedBodyMd5":"70ab26e8e7da135ce15ae9440e8120c4","normalizedBodyOctets":5660},
+    {"identity":"public.afex_offline_server_pre_pin_provision_device_v2(uuid,uuid,uuid,uuid,uuid,uuid,text,jsonb,jsonb,uuid,text,text,text,text,text)","normalizedBodyMd5":"c4560e06cccf2be80fc6a10b81f5229e","normalizedBodyOctets":569},
+    {"identity":"public.afex_offline_server_pre_pin_employee_roster_v2(uuid,uuid,uuid,uuid,uuid)","normalizedBodyMd5":"708f4885bcf9b398535ef54938bd9788","normalizedBodyOctets":363},
+    {"identity":"public.afex_offline_server_pre_pin_publish_inventory_v2(uuid,uuid,uuid,uuid,uuid,uuid,text,timestamp with time zone,jsonb)","normalizedBodyMd5":"c822bd17379dbd73196e3eecb19ead4a","normalizedBodyOctets":922},
+    {"identity":"public.afex_offline_server_pre_pin_bootstrap_v2(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bigint,uuid,text,text)","normalizedBodyMd5":"89f5a7d95b85e41bf9a0a4ec2b6f533c","normalizedBodyOctets":543}
+  ],
+  "browserExecuteGrantees": [],
+  "fixedUuidAllowlistCount": 0
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "publicPrivileges":"NONE on AFEX schemas, tables, sequences, views and sensitive functions; language/platform defaults outside AFEX scope remain platform-managed.",
+  "schemas": [
+    {"schema":"public","anon":"no AFEX object privilege","authenticated":"USAGE only where Data API requires it; object grants enumerated below","service_role":"USAGE plus exact wrapper execution","CREATE":"owner/migration authority only"},
+    {"schema":"afex_core_private","access":"afex_core_owner and exact internal runtime only","CREATE":"afex_core_owner only"},
+    {"schema":"afex_pos_authority","access":"afex_pos_session_owner only","CREATE":"owner only"},
+    {"schema":"afex_offline_authority","access":"afex_offline_authority_owner and narrow internal runtime","CREATE":"owner only"},
+    {"schema":"afex_review_private","access":"afex_review_owner and review runtime","CREATE":"owner only"},
+    {"schema":"afex_effect_private","access":"afex_effect_owner and dispatcher","CREATE":"owner only"}
+  ],
+  "authenticatedDirectAccess": {
+    "retainedReads":["catalog_items: active rows in trusted tenant","branch_catalog_items: rows in trusted authorized branch","vat_settings: current trusted tenant setting"],
+    "retainedFunctions":["lookup_customer_phone_identity_v1 exact signature only"],
+    "retainedWrites":[],
+    "removedTables":["profiles","customers","orders","invoices","invoice_items","order_status_logs","pos_profiles full row","inventory_stock","inventory_movements","inventory_movements_view","audit_logs","branch_whatsapp_configs","order_number_sequences","customer phone identity base tables","atomic_*","offline/review/effect tables"],
+    "removedFunctions":["all invoice create overloads","adjust_inventory_stock","restore_inventory_for_cancelled_invoice","number allocation helpers","PIN set/hash/verify","customer create helper","Core/POS session wrappers"]
+  },
+  "profilesPresentationModel": {
+    "selectedOption":"C_TRUSTED_NEXTJS_SERVER_ROUTE",
+    "browserDatabasePrivileges":{"PUBLIC":"NONE","anon":"NONE","authenticated":"NONE on public.profiles and any profile view"},
+    "caller":"verified authenticated browser session through one shared trusted authorization/account context; no per-page profile lookup",
+    "serverAuthoritySource":"full public.profiles row may be read only through an exact server-only gateway/wrapper inside the existing trusted authorization/account route boundary; a user-bound authenticated Supabase server client is not sufficient",
+    "returnedFields":["username","full_name","contact_email","phone","tenant_name","branch_name","ui_capabilities"],
+    "uiCapabilityAllowlist":["admin:full","orders:read","orders:write","pos:access","reports:read","support:access"],
+    "excludedFields":["profile-row id","tenant_id","branch_id","role","is_active","scope assignments","credential/security state","generation state","internal metadata"],
+    "subjectIdentity":"verified Auth session only; not projected from profiles",
+    "writeRule":"all profile self-service writes remain denied",
+    "authorizationRule":"browser projection and ui_capabilities are presentation only; every protected route re-resolves full trusted authority server-side",
+    "columnSecrecy":"enforced by trusted server serialization allowlist, never by RLS",
+    "underlyingPrivileges":{"PUBLIC":"NONE","anon":"NONE","authenticated":"NONE","trustedServerGateway":"exact SELECT needed by the full authorization-context lookup; never returned directly and never inherited by browser roles"}
+  },
+  "inventoryMovementAccessModel": {
+    "selectedOption":"D_TRUSTED_NEXTJS_SERVER_ROUTE",
+    "browserCaller":"verified active admin via GET /api/admin/inventory-movements",
+    "databaseCaller":"trusted server gateway only; never shipped to the browser",
+    "returnedColumns":["id","branch_id","catalog_item_id","movement_type","quantity_delta","source_type","notes","created_at","item_name","branch_name","resolved_employee_name","created_by_name","actor_name","actor_type"],
+    "tenantPredicate":"tenant_id equals the trusted server authorization-context tenant",
+    "branchPredicate":"assigned scope is pinned to its trusted branch; tenant-wide admin may request a branch only inside the trusted tenant",
+    "pagination":{"defaultPageSize":10,"maximumPageSize":50,"mode":"page-number plus deterministic range"},
+    "timeRange":{"defaultDays":30,"maximumSpanDays":366,"timezone":"UTC","invalidOrOversized":"reject before database query"},
+    "ordering":["created_at DESC","id DESC"],
+    "underlyingPrivileges":{"PUBLIC":"NONE","anon":"NONE","authenticated":"NONE on public.inventory_movements, public.inventory_movements_view and the view's dependency closure","trustedServerGateway":{"inventory_movements":["id","tenant_id","branch_id","catalog_item_id","movement_type","quantity_delta","source_type","source_id","notes","created_by","created_at"],"catalog_items":["id","tenant_id","name"],"branches":["id","tenant_id","name"],"profiles":["id","tenant_id","full_name","username","role"],"pos_profiles":["id","tenant_id","full_name","username"],"invoice_items":["id","tenant_id","invoice_id"],"invoices":["id","tenant_id","branch_id","order_id"],"orders":["id","tenant_id","branch_id","created_by_employee_id"],"view":["SELECT on public.inventory_movements_view"],"rule":"exact server-side reachability only; no browser membership; future view definition must remove whole-row to_jsonb references so this column list is complete and enforceable before ACL closure"}},
+    "rlsBehavior":"base RLS remains forced/closed for browser roles; trusted server gateway bypass is not treated as authorization and the route must apply trusted tenant/branch predicates",
+    "dataApiExposure":"base table and view are unreachable to browser roles; only the Next.js response is browser-visible",
+    "performanceIndexes":["tenant_id,branch_id,created_at DESC,id DESC","tenant_id,branch_id,catalog_item_id,created_at DESC,id DESC"],
+    "negativeTests":["cross-tenant","cross-branch","direct base Data API","direct view Data API","pageSize above 50","time window above 366 days"],
+    "rollback":"disable the route or serve the last safely cached page; never restore browser base/view privileges",
+    "compatibility":"preserve the existing response allowlist and filters; initialize a 30-day window and allow bounded historical windows before privilege closure"
+  },
+  "sequences":{"rule":"function-only; no PUBLIC/anon/authenticated or direct service-role privilege","objects":["official order/invoice sequences and order_number_sequences backing identities"]},
+  "views":[{"view":"inventory_movements_view","mode":"security_invoker retained only as a server-side implementation detail","caller":"trusted Next.js inventory-history route through the trusted server gateway","browserPrivileges":"NONE for PUBLIC, anon and authenticated","columns":["id","branch_id","catalog_item_id","movement_type","quantity_delta","source_type","notes","created_at","item_name","branch_name","resolved_employee_name","created_by_name","actor_name","actor_type"],"baseRelations":["inventory_movements","catalog_items","branches","profiles","pos_profiles","invoice_items","invoices","orders"],"underlyingPrivilegeRule":"the trusted server gateway has the exact per-relation column reachability enumerated in inventoryMovementAccessModel; authenticated has neither view nor base privileges; whole-row expressions must be removed before exact column grants are applied"},{"view":"future safe employee directory","mode":"server projection after proof","caller":"trusted server only; no full pos_profiles exposure"}],
+  "functionExecution": [
+    {"class":"browser lookup","caller":"authenticated","functions":["lookup_customer_phone_identity_v1 exact signature"]},
+    {"class":"trusted server","caller":"service_role through exact wrappers","functions":["customer create","Core acquire/claim/execute/replay/receipt","POS actor issuance/validation/revocation","device/enrollment","inventory snapshot","cancellation"]},
+    {"class":"maintenance","caller":"exact NOLOGIN maintenance role","functions":["POS session cleanup","effect claim","review resolution"]},
+    {"class":"trigger-only","caller":"table trigger machinery","functions":["customer identity sync","branch/number derivation during compatibility","inventory deduction"]}
+  ],
+  "defaultPrivileges":[{"ownerClass":"every AFEX owner","tables":"no PUBLIC/anon/authenticated grants","sequences":"no PUBLIC/anon/authenticated grants","functions":"no PUBLIC execution; later grants exact signature only","types":"no browser use unless explicitly required"}],
+  "serviceRoleRule":"RLS bypass is assumed; each wrapper or route must independently validate trusted tenant/branch/actor/device/generations. service_role receives no blanket base-table ACL as an authority shortcut. The inventory-history route receives only its exact reviewed server-side read reachability.",
+  "columnSecrecyRule":"RLS is row authorization only. Browser-visible columns are limited by trusted server serialization or an independently reviewed exact column grant; no target claim relies on RLS to hide columns.",
+  "postChangeProof":["raw ACL","effective ACL including PUBLIC","default privileges per owner/schema","sequence reachability","function overload reachability","profiles direct table/view denial","inventory base/view direct denial","server response allowlists","view grants and security_invoker underlying reachability"]
+}

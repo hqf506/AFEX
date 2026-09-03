@@ -724,3 +724,51 @@ export function renderThermalShopCopyHtml(
 </html>
 `
 }
+
+function extractThermalHtmlTagContent(html: string, tagName: string) {
+  const match = html.match(
+    new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)</${tagName}>`, 'i')
+  )
+
+  return match?.[1]?.trim() ?? ''
+}
+
+function extractThermalPrintableBody(html: string) {
+  const bodyContent = extractThermalHtmlTagContent(html, 'body')
+
+  if (bodyContent) return bodyContent
+
+  return html
+    .replace(/<!DOCTYPE[^>]*>/gi, '')
+    .replace(/<html[^>]*>/gi, '')
+    .replace(/<\/html>/gi, '')
+    .replace(/<head[\s\S]*?<\/head>/gi, '')
+    .replace(/<body[^>]*>/gi, '')
+    .replace(/<\/body>/gi, '')
+    .trim()
+}
+
+export function buildCombinedThermalPrintHtml(
+  customerReceiptHtml: string,
+  shopCopyHtml: string
+) {
+  const styles = customerReceiptHtml.match(/<style[^>]*>[\s\S]*?<\/style>/gi)?.join('\n') ?? ''
+  const customerBody = extractThermalPrintableBody(customerReceiptHtml)
+  const shopBody = extractThermalPrintableBody(shopCopyHtml)
+
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thermal Print Bundle</title>
+  ${styles}
+  <style>.print-page-break { page-break-after: always; break-after: page; height: 0; }</style>
+</head>
+<body style="background: #ffffff; margin: 0;">
+  ${customerBody}
+  <div class="print-page-break"></div>
+  ${shopBody}
+</body>
+</html>`
+}

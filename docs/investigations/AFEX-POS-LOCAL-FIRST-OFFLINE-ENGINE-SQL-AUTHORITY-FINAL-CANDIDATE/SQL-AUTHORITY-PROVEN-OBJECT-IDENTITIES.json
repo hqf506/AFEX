@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 2,
+  "packageDecision": "PRODUCTION_IDENTITIES_PRESERVED_ADDITIVE_CANDIDATE_REVIEW_ONLY",
+  "source": {
+    "path": "../AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PROMPT-10-FINAL-PRODUCTION-ATTESTATION/PROMPT-10-PRODUCTION-OBJECT-INVENTORY.json",
+    "sha256": "ebebbcf03e6bd40681698e56f0b2093086350315dfd862cd0dacf44038f31733",
+    "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+  },
+  "catalogCounts": {"curatedObjects": 31, "roles": 14, "memberships": 11, "policies": 99, "functions": 36, "constraints": 206, "indexes": 113},
+  "curatedObjects": [
+    {"id":"OBJ-001","identity":"afex_pos_authority.actor_sessions","owner":"afex_pos_session_owner"},
+    {"id":"OBJ-002","identity":"afex_pos_authority.auth_session_locks","owner":"afex_pos_session_owner"},
+    {"id":"OBJ-003","identity":"public.profiles","owner":"postgres"},
+    {"id":"OBJ-004","identity":"public.pos_profiles","owner":"postgres"},
+    {"id":"OBJ-005","identity":"public.tenants","owner":"postgres"},
+    {"id":"OBJ-006","identity":"public.branches","owner":"postgres"},
+    {"id":"OBJ-007","identity":"public.customers","owner":"postgres"},
+    {"id":"OBJ-008","identity":"public.customer_phone_identities","owner":"postgres"},
+    {"id":"OBJ-009","identity":"public.customer_phone_identity_members","owner":"postgres"},
+    {"id":"OBJ-010","identity":"public.catalog_items","owner":"postgres"},
+    {"id":"OBJ-011","identity":"public.branch_catalog_items","owner":"postgres"},
+    {"id":"OBJ-012","identity":"public.inventory_stock","owner":"postgres"},
+    {"id":"OBJ-013","identity":"public.inventory_movements","owner":"postgres"},
+    {"id":"OBJ-014","identity":"public.inventory_movements_view","owner":"postgres"},
+    {"id":"OBJ-015","identity":"public.orders","owner":"postgres"},
+    {"id":"OBJ-016","identity":"public.invoices","owner":"postgres"},
+    {"id":"OBJ-017","identity":"public.invoice_items","owner":"postgres"},
+    {"id":"OBJ-018","identity":"public.order_status_logs","owner":"postgres"},
+    {"id":"OBJ-019","identity":"public.audit_logs","owner":"postgres"},
+    {"id":"OBJ-020","identity":"public.vat_settings","owner":"postgres"},
+    {"id":"OBJ-021","identity":"public.branch_whatsapp_configs","owner":"postgres"},
+    {"id":"OBJ-022","identity":"public.atomic_authorization_contexts","owner":"afex_core_owner"},
+    {"id":"OBJ-023","identity":"public.atomic_order_commands","owner":"afex_core_owner"},
+    {"id":"OBJ-024","identity":"public.atomic_order_command_payloads","owner":"afex_core_owner"},
+    {"id":"OBJ-025","identity":"public.atomic_order_claims","owner":"afex_core_owner"},
+    {"id":"OBJ-026","identity":"public.atomic_order_retry_authorizations","owner":"afex_core_owner"},
+    {"id":"OBJ-027","identity":"public.atomic_order_business_links","owner":"afex_core_owner"},
+    {"id":"OBJ-028","identity":"public.atomic_order_line_links","owner":"afex_core_owner"},
+    {"id":"OBJ-029","identity":"public.atomic_order_audit","owner":"afex_core_owner"},
+    {"id":"OBJ-030","identity":"public.atomic_order_diagnostics","owner":"afex_core_owner"},
+    {"id":"OBJ-031","identity":"public.order_number_sequences","owner":"postgres"}
+  ],
+  "provenAbsences": [
+    "offline device authority relations/functions",
+    "inventory snapshot/frontier relations/functions",
+    "serialized review CAS relations",
+    "separated payment authority relations",
+    "atomic effect-intent ledger"
+  ],
+  "proposedNewObjectAuthority": {
+    "acceptedIdentities": 15,
+    "acceptedRoleDesigns": 11,
+    "acceptedSchemaDesigns": 3,
+    "executionAuthorized": false,
+    "reason": "New authority identities may be defined without evidence that they already exist. Execution remains blocked by the exact Core contracts listed in SQL-AUTHORITY-EXACT-MISSING-SIGNATURES.json."
+  },
+  "rules": [
+    "Absence is not a blocker for a NEW AUTHORITY OBJECT; its exact design identity is frozen in SQL-AUTHORITY-NEW-OBJECT-IDENTITY-MATRIX.json.",
+    "public.branches has only PRIMARY KEY(id); UNIQUE(id,tenant_id) is absent.",
+    "Existing object mutations require fresh identity and caller compatibility gates.",
+    "Absence in Production is not authority to create an object."
+  ]
+}

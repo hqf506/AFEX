@@ -1,0 +1,36 @@
+{
+  "authorityClassification": "B",
+  "globalBehavior": {
+    "repositoryReadAdaptersEnabled": false,
+    "existingOnlineFallbackPreserved": true,
+    "authenticatedJsonCache": false,
+    "offlineBusinessMutation": false,
+    "reason": "PERSISTENT_UNWRAP_AUTHORITY_REQUIRED"
+  },
+  "routes": [
+    { "route": "/pos", "currentOnlineContract": "categories and recent orders", "localRead": "disabled", "offlineBehavior": "static lock shell only" },
+    { "route": "/pos/sale/customer", "currentOnlineContract": "authorized customer search and profile", "localRead": "disabled", "offlineBehavior": "static lock shell only" },
+    { "route": "/pos/sale/items", "currentOnlineContract": "POS runtime and catalog reads", "localRead": "disabled", "offlineBehavior": "static lock shell only" },
+    { "route": "/pos/sale/checkout", "currentOnlineContract": "POS runtime/settings plus online checkout", "localRead": "disabled", "offlineBehavior": "static lock shell only; no completion" },
+    { "route": "/pos/sale/success", "currentOnlineContract": "confirmed receipt and thermal settings", "localRead": "disabled", "offlineBehavior": "static lock shell only; no print or WhatsApp replay" },
+    { "route": "/pos/order-status", "currentOnlineContract": "orders plus authorized online status mutation", "localRead": "disabled", "offlineBehavior": "static lock shell only; no optimistic mutation" },
+    { "route": "/pos/order-history", "currentOnlineContract": "server-owned bounded order window", "localRead": "disabled", "offlineBehavior": "static lock shell only" },
+    { "route": "/pos/invoices", "currentOnlineContract": "orders and invoice details", "localRead": "disabled", "offlineBehavior": "static lock shell only" },
+    { "route": "/pos/settings", "currentOnlineContract": "existing online settings", "localRead": "disabled", "offlineBehavior": "static lock shell only" }
+  ],
+  "apiReview": {
+    "existingFamiliesInspected": [
+      "/api/pos/offline-context",
+      "/api/pos/runtime",
+      "/api/invoice/catalog",
+      "/api/customers",
+      "/api/orders",
+      "/api/admin/system-settings",
+      "/api/invoices/thermal-settings"
+    ],
+    "newEndpoints": 0,
+    "modifiedEndpoints": 0,
+    "deltaSyncClaimed": false,
+    "cursorOrTombstoneAuthorityAdded": false
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "baselineHead": "37331390ec00bee507f88701365bfebb944db675",
+  "authorityConflict": false,
+  "facts": [
+    {"id":"EA-001","identity":"lib/verified-auth-context.ts::requireVerifiedAuthContext","status":"REPOSITORY_PROVEN","fact":"Verifies access-token claims, current user equality and UUID session_id on the server."},
+    {"id":"EA-002","identity":"lib/pos-actor-session-server.ts::resolvePosActorSession","status":"REPOSITORY_PROVEN","fact":"Resolves an opaque POS credential server-side to immutable EffectivePosActor.sessionId, subject/session, actor and tenant/branch scope."},
+    {"id":"EA-003","identity":"afex_pos_authority.actor_sessions","status":"PRODUCTION_ATTESTATION_PROVEN","owner":"afex_pos_session_owner","fact":"Forced-RLS online session relation with exact subject/session/actor/scope, expiry and revocation columns."},
+    {"id":"EA-004","identity":"auth.sessions","status":"PRODUCTION_ATTESTATION_PROVEN_MINIMUM","owner":"supabase_auth_admin","fact":"Platform-owned current Auth-session reference. The review SQL preflight requires id and user_id UUID columns; no broader column claim is made."},
+    {"id":"EA-005","identity":"public.atomic_authorization_contexts","status":"PRODUCTION_ATTESTATION_PROVEN","owner":"afex_core_owner","fact":"Current order.create-only Core context lacks Auth-session, POS-session and Offline origin generation bindings."},
+    {"id":"EA-006","identity":"public.acquire_atomic_order_command_result_v1","status":"PRODUCTION_ATTESTATION_PROVEN","owner":"afex_function_owner","fact":"Existing sole Core V2 acquisition result function remains unchanged and is called only inside the future versioned atomic wrapper."},
+    {"id":"EA-007","identity":"Offline device/enrollment/key relations","status":"APPROVED_NEW_NOT_CURRENTLY_PRESENT","fact":"Exact additive definitions are supplied by the inactive SQL candidate; they are not claimed to exist."},
+    {"id":"EA-008","identity":"AuthorizationContext actor propagation","status":"SOURCE_IMPLEMENTED_SHADOW_ONLY","fact":"EffectivePosActor.sessionId is preserved in a server-only non-serializable context with immutable false activation."}
+  ],
+  "sources": [
+    "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PRODUCTION-READ-ONLY-ATTESTATION/PROD-RO-OBJECT-INVENTORY.json",
+    "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-SECURITY-AUTHORITY-INVESTIGATION/SECURITY-AUTHORITY-TABLE-RLS-MATRIX.json",
+    "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PHASE-4/PHASE-4-ACTOR-AUTHORITY-CONTRACT.md",
+    "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PHASE-4/PHASE-4-DEVICE-REGISTRATION-CONTRACT.md",
+    "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PHASE-4/PHASE-4-PERSISTENT-UNWRAP-CONTRACT.md"
+  ],
+  "productionQueryPerformedInThisTask": false
+}

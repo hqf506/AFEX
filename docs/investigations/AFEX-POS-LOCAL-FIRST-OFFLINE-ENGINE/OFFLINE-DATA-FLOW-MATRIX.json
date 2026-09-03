@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "repositoryHead": "37331390ec00bee507f88701365bfebb944db675",
+  "flows": [
+    {
+      "route": "/pos",
+      "readSources": ["GET /api/admin/categories", "GET /api/orders?recentHours=48&pageSize=6"],
+      "serverAuthority": ["trusted tenant", "trusted branch", "server UTC clock"],
+      "clientState": ["module-memory resource cache"],
+      "sensitive": false,
+      "currentOffline": "STALE_UI_ONLY",
+      "proposedOffline": "ENCRYPTED_READ_CACHE_AFTER_POS_UNLOCK",
+      "evidence": ["app/pos/page.tsx:626", "app/pos/page.tsx:716", "lib/orders/recent-window.ts:1"]
+    },
+    {
+      "route": "/pos/sale/customer",
+      "readSources": ["GET /api/customers", "GET /api/customers/:id"],
+      "writeSources": ["POST /api/customers"],
+      "serverAuthority": ["tenant from verified session", "creator branch from verified session"],
+      "clientState": ["invoice_customer in localStorage", "component request cache", "AbortController/request sequence"],
+      "sensitive": true,
+      "currentOffline": "SELECTED_DRAFT_ONLY",
+      "proposedOffline": "AUTHORIZED_CUSTOMER_INDEX_READ_ONLY",
+      "writeDecision": "BLOCK_UNTIL_CUSTOMER_COMMAND_CONTRACT",
+      "evidence": ["components/invoice-customer-step.tsx:600", "components/invoice-customer-step.tsx:672", "app/api/customers/route.ts:566"]
+    },
+    {
+      "route": "/pos/sale/items",
+      "readSources": ["GET /api/invoice/catalog", "GET /api/admin/categories", "GET /api/admin/system-settings"],
+      "serverAuthority": ["tenant catalog", "branch price override", "branch inventory snapshot"],
+      "clientState": ["invoice_sale_items in localStorage", "module-memory catalog cache"],
+      "sensitive": false,
+      "currentOffline": "CART_ONLY_IF_ALREADY_LOADED",
+      "proposedOffline": "VERSIONED_CATALOG_AND_MEDIA_CACHE",
+      "evidence": ["components/invoice-items-step.tsx:581", "components/invoice-items-step.tsx:1004", "app/api/invoice/catalog/route.ts:204"]
+    },
+    {
+      "route": "/pos/sale/checkout",
+      "readSources": ["GET /api/pos/runtime"],
+      "writeSources": ["POST /api/orders", "POST /api/invoices/cost-snapshot"],
+      "serverAuthority": ["POS actor cookie", "trusted tenant/branch", "catalog pricing", "VAT/discount", "inventory", "DB numbering"],
+      "clientState": ["invoice_sale_checkout in localStorage", "checkout identity in sessionStorage", "offline drafts in localStorage"],
+      "sensitive": true,
+      "currentOffline": "PLAINTEXT_DRAFT_QUEUE",
+      "proposedOffline": "DURABLE_ORDER_CREATE_COMMAND_AFTER_CORE_GATE",
+      "writeDecision": "ONLINE_ONLY_UNTIL_SERVER_COMMAND_AND_ACTOR_LEASE",
+      "evidence": ["hooks/use-invoice-checkout.ts:303", "hooks/use-invoice-checkout.ts:367", "lib/pos-offline-draft.ts:249"]
+    },
+    {
+      "route": "/pos/sale/success",
+      "readSources": ["session success snapshot", "GET /api/invoices/thermal-settings", "invoice PDF routes"],
+      "writeSources": ["print", "WhatsApp handoff"],
+      "serverAuthority": ["confirmed order response", "official invoice number"],
+      "clientState": ["invoice_success_snapshot in sessionStorage"],
+      "sensitive": true,
+      "currentOffline": "CONFIRMED_SNAPSHOT_ONLY",
+      "proposedOffline": "DISPLAY_CONFIRMED_RECEIPT_ONLY",
+      "writeDecision": "EXTERNAL_EFFECTS_ONLINE_ONLY",
+      "evidence": ["app/pos/sale/success/page.tsx:189", "app/pos/sale/success/page.tsx:224"]
+    },
+    {
+      "route": "/pos/order-status",
+      "readSources": ["GET /api/orders?mode=full", "GET /api/orders?mode=details"],
+      "writeSources": ["PATCH /api/pos/orders/:id/status"],
+      "serverAuthority": ["effective POS actor", "branch", "current authoritative state", "legal transition"],
+      "clientState": [],
+      "sensitive": true,
+      "currentOffline": "NONE",
+      "proposedOffline": "CACHED_READ; COMMAND_BLOCKED_UNTIL_CAS_LEDGER",
+      "writeDecision": "BLOCK_UNTIL_STATUS_COMMAND_IDEMPOTENCY_AND_CONFLICT_UI",
+      "evidence": ["app/pos/order-status/page.tsx:399", "app/pos/order-status/page.tsx:555", "app/api/pos/orders/[id]/status/route.ts:139"]
+    },
+    {
+      "route": "/pos/order-history",
+      "readSources": ["GET /api/orders?recentHours=48", "GET /api/orders?mode=details"],
+      "serverAuthority": ["tenant/branch", "server 48-hour cutoff", "audit-derived history"],
+      "clientState": [],
+      "sensitive": true,
+      "currentOffline": "NONE",
+      "proposedOffline": "BOUNDED_ENCRYPTED_READ_CACHE",
+      "evidence": ["app/pos/order-history/page.tsx:73", "lib/orders/recent-window.ts:5"]
+    },
+    {
+      "route": "/pos/invoices",
+      "readSources": ["GET /api/orders", "GET /api/orders?mode=details"],
+      "serverAuthority": ["tenant/branch", "invoice/order relation", "payment snapshot"],
+      "clientState": [],
+      "sensitive": true,
+      "currentOffline": "NONE",
+      "proposedOffline": "BOUNDED_ENCRYPTED_READ_CACHE",
+      "evidence": ["app/pos/invoices/page.tsx:122", "app/pos/invoices/page.tsx:196"]
+    },
+    {
+      "route": "/pos/settings",
+      "readSources": ["active employee sessionStorage"],
+      "writeSources": ["POST /api/pos/end-actor-session", "Supabase local sign-out", "theme localStorage"],
+      "serverAuthority": ["verified organization session", "POS actor token digest"],
+      "clientState": ["theme", "draft retention"],
+      "sensitive": true,
+      "currentOffline": "LOCAL_UI_ONLY",
+      "proposedOffline": "SCOPED_RETENTION_CHECKBOX_AND_CRYPTOGRAPHIC_LOCK",
+      "writeDecision": "REVOCATION_REQUIRES_NETWORK_OR_DEFERRED_REVOCATION_STATE",
+      "evidence": ["app/pos/settings/page.tsx:29", "lib/pos-employee-session.ts:104"]
+    }
+  ]
+}
+

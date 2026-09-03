@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "states": ["pending", "syncing", "synced", "failed", "conflict", "blocked"],
+  "commands": [
+    {
+      "type": "sale.draft.upsert",
+      "currentPath": "localStorage customer/items/checkout keys",
+      "businessWrite": false,
+      "offlineDecision": "ALLOW_NOW_AFTER_ENCRYPTED_STORE",
+      "serverContract": "none",
+      "idempotency": "local_sale_id + monotonic revision",
+      "actorRequirement": "POS unlock for namespace",
+      "dependencies": [],
+      "conflicts": ["local concurrent tab revision"],
+      "externalEffects": []
+    },
+    {
+      "type": "sale.draft.delete",
+      "currentPath": "sale-reset and UI cancel",
+      "businessWrite": false,
+      "offlineDecision": "ALLOW_NOW_AFTER_ENCRYPTED_STORE",
+      "serverContract": "none",
+      "idempotency": "tombstone local_sale_id",
+      "actorRequirement": "POS unlock for namespace",
+      "dependencies": [],
+      "conflicts": ["pending order.create must prevent destructive delete"],
+      "externalEffects": []
+    },
+    {
+      "type": "order.create",
+      "currentPath": "POST /api/orders; legacy RPC or Core V2",
+      "businessWrite": true,
+      "offlineDecision": "BLOCK_UNTIL_CORE_AND_ACTOR_LEASE_GATES",
+      "serverContract": "Core V2 supports stable idempotency/fingerprint/replay for order.create when enabled",
+      "idempotency": "stable command UUID generated once and canonical payload fingerprint",
+      "actorRequirement": "server-validated organization subject plus effective POS actor lease",
+      "dependencies": ["catalog snapshot", "price/VAT/discount version", "customer reference or canonical customer identity", "branch authority"],
+      "conflicts": ["price_changed", "tax_changed", "discount_invalid", "inventory_insufficient", "customer_identity_conflict", "actor_expired", "branch_disabled"],
+      "externalEffects": ["official numbering", "inventory movement", "audit", "cost snapshot", "invoice notification"],
+      "notes": "Device must not claim success until a terminal server response snapshot is persisted locally."
+    },
+    {
+      "type": "customer.create",
+      "currentPath": "POST /api/customers -> create_customer_with_phone_identity_v1",
+      "businessWrite": true,
+      "offlineDecision": "BLOCK_UNTIL_CUSTOMER_COMMAND_LEDGER",
+      "serverContract": "atomic phone identity RPC exists but no client command idempotency/replay ledger",
+      "idempotency": "required new stable command ID plus normalized-phone fingerprint",
+      "actorRequirement": "effective POS actor if product permits employee creation",
+      "dependencies": ["tenant authority", "creator branch", "phone normalization version"],
+      "conflicts": ["duplicate_phone_same_tenant", "existing_customer_changed", "validation", "authority"],
+      "externalEffects": ["audit"],
+      "notes": "Prefer embedding customer identity resolution inside order.create when sale-only creation is intended."
+    },
+    {
+      "type": "customer.update",
+      "currentPath": "no approved POS offline path identified",
+      "businessWrite": true,
+      "offlineDecision": "BLOCK_OFFLINE",
+      "serverContract": "versioned compare-and-set absent",
+      "idempotency": "not defined",
+      "actorRequirement": "explicit customer write capability",
+      "dependencies": ["base customer version"],
+      "conflicts": ["field-level concurrent edit", "phone identity collision", "authority"],
+      "externalEffects": ["audit"]
+    },
+    {
+      "type": "order.status.transition",
+      "currentPath": "PATCH /api/pos/orders/:id/status",
+      "businessWrite": true,
+      "offlineDecision": "BLOCK_UNTIL_VERSIONED_CAS_COMMAND_LEDGER",
+      "serverContract": "legal transition and compare-and-set exist; stable command idempotency and durable receipt do not",
+      "idempotency": "required command ID + order ID + expected status/version + target status",
+      "actorRequirement": "effective POS actor, branch and orders:write",
+      "dependencies": ["authoritative base status/version", "prior transition command for same order"],
+      "conflicts": ["stale_status", "already_applied", "illegal_transition", "order_out_of_scope"],
+      "externalEffects": ["audit", "WhatsApp for ready/closed"],
+      "notes": "External notification must be server-outbox keyed by transition command, never replayed by the device."
+    },
+    {
+      "type": "payment.capture_or_adjust",
+      "currentPath": "payment snapshot is embedded in order creation",
+      "businessWrite": true,
+      "offlineDecision": "BLOCK_AS_STANDALONE_COMMAND",
+      "serverContract": "no independently attested offline payment command",
+      "idempotency": "not defined",
+      "actorRequirement": "financial authority",
+      "dependencies": ["order.create", "provider availability if applicable"],
+      "conflicts": ["amount", "method", "provider state"],
+      "externalEffects": ["financial provider", "audit"]
+    },
+    {
+      "type": "inventory.adjust",
+      "currentPath": "server order execution and inventory movements",
+      "businessWrite": true,
+      "offlineDecision": "BLOCK_OFFLINE_DIRECT_WRITE",
+      "serverContract": "inventory effect belongs to atomic order execution",
+      "idempotency": "derived from order command/business link",
+      "actorRequirement": "server command authority",
+      "dependencies": ["order.create"],
+      "conflicts": ["insufficient_stock", "concurrent_sale"],
+      "externalEffects": []
+    },
+    {
+      "type": "invoice.cost_snapshot",
+      "currentPath": "POST /api/invoices/cost-snapshot and scheduled server task",
+      "businessWrite": true,
+      "offlineDecision": "BLOCK_DEVICE_REPLAY",
+      "serverContract": "must become a server-derived idempotent effect of order.create",
+      "idempotency": "invoice ID plus order command business link",
+      "actorRequirement": "server-only",
+      "dependencies": ["confirmed invoice"],
+      "conflicts": ["missing invoice", "duplicate post-commit execution"],
+      "externalEffects": []
+    },
+    {
+      "type": "notification.whatsapp",
+      "currentPath": "server follow-up after order create/status transition",
+      "businessWrite": true,
+      "offlineDecision": "ONLINE_SERVER_OUTBOX_ONLY",
+      "serverContract": "durable external-effect outbox missing",
+      "idempotency": "business event ID + destination + template/version",
+      "actorRequirement": "server provider authority",
+      "dependencies": ["confirmed business event"],
+      "conflicts": ["provider timeout with unknown delivery", "duplicate replay"],
+      "externalEffects": ["WhatsApp provider"]
+    },
+    {
+      "type": "receipt.print",
+      "currentPath": "success-page user action",
+      "businessWrite": false,
+      "offlineDecision": "ALLOW_ONLY_FOR_CONFIRMED_SNAPSHOT_AND_EXPLICIT_USER_ACTION",
+      "serverContract": "none for local browser/native print",
+      "idempotency": "not automatic; UI records local attempt only",
+      "actorRequirement": "POS unlock and confirmed invoice",
+      "dependencies": ["confirmed invoice snapshot"],
+      "conflicts": ["stale/unconfirmed receipt"],
+      "externalEffects": ["printer"]
+    },
+    {
+      "type": "settings.business_update",
+      "currentPath": "server settings routes",
+      "businessWrite": true,
+      "offlineDecision": "BLOCK_OFFLINE",
+      "serverContract": "not part of POS offline authority",
+      "idempotency": "not defined",
+      "actorRequirement": "administrative authority",
+      "dependencies": [],
+      "conflicts": ["policy/version", "authority"],
+      "externalEffects": []
+    }
+  ]
+}
+

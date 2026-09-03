@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   calculateInvoiceSubtotal,
   parseCashReceivedAmount,
@@ -17,7 +17,6 @@ import {
   type InvoiceSuccessSnapshot,
 } from '@/lib/invoices/success'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
-import { savePosOfflineInvoiceDraft } from '@/lib/pos-offline-draft'
 import {
   acquirePosCheckoutIdentity,
   clearPosCheckoutIdentity,
@@ -25,6 +24,7 @@ import {
 } from '@/lib/pos-checkout-identity'
 import { readActivePosEmployee } from '@/lib/pos-employee-session'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
+import { INVOICE_SALE_CHECKOUT_STORAGE_KEY, parseStoredInvoiceSaleCheckoutDraft, serializeInvoiceSaleCheckoutDraft } from '@/lib/invoices/sale-navigation'
 
 export type CheckoutDiscountOption = {
   id: string
@@ -44,6 +44,7 @@ export type CheckoutVatSetting = {
 
 type UseInvoiceCheckoutOptions = {
   customerId: string | null
+  customerRecordVersion: number | null
   customerName: string
   customerPhone: string
   invoiceItems: InvoiceLineItem[]
@@ -55,6 +56,7 @@ type UseInvoiceCheckoutOptions = {
     result: CreatedInvoiceRecord,
     successSnapshot: InvoiceSuccessSnapshot
   ) => void
+  persistSaleDraft?: boolean
 }
 
 export function useInvoiceCheckout({
@@ -67,6 +69,7 @@ export function useInvoiceCheckout({
   branchId,
   vatSetting = null,
   onInvoiceCreated,
+  persistSaleDraft = false,
 }: UseInvoiceCheckoutOptions) {
   const [paymentMethod, setPaymentMethodState] =
     useState<PosPaymentMethod>('mada')
@@ -80,6 +83,29 @@ export function useInvoiceCheckout({
   const [offlineDraftMessage, setOfflineDraftMessage] = useState('')
   const [lastInvoiceNumber, setLastInvoiceNumber] = useState('')
   const [lastOrderNumber, setLastOrderNumber] = useState('')
+  const saleDraftHydratedRef = useRef(!persistSaleDraft)
+
+  useEffect(() => {
+    if (!persistSaleDraft) return
+    const stored = parseStoredInvoiceSaleCheckoutDraft(window.sessionStorage.getItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY))
+    if (!stored) {
+      saleDraftHydratedRef.current = true
+      return
+    }
+    const timer = window.setTimeout(() => {
+      saleDraftHydratedRef.current = true
+      setPaymentMethodState(stored.paymentMethod)
+      setSelectedDiscountState(stored.selectedDiscount)
+      setNote(stored.note)
+      setCashReceivedInput(stored.cashReceivedInput)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [persistSaleDraft])
+
+  useEffect(() => {
+    if (!persistSaleDraft || !saleDraftHydratedRef.current) return
+    window.sessionStorage.setItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY, serializeInvoiceSaleCheckoutDraft({ paymentMethod, selectedDiscount, note, cashReceivedInput }))
+  }, [cashReceivedInput, note, paymentMethod, persistSaleDraft, selectedDiscount])
 
   const subtotal = useMemo(() => {
     return calculateInvoiceSubtotal(invoiceItems)
@@ -122,11 +148,15 @@ export function useInvoiceCheckout({
   const cashReceived = useMemo(() => {
     const safePaymentMethod = normalizeUiPaymentMethod(paymentMethod)
 
-    if (safePaymentMethod === 'mada' || safePaymentMethod === 'visa') {
+    if (
+      ['mada', 'visa', 'card', 'bank_transfer', 'transfer'].includes(
+        safePaymentMethod
+      )
+    ) {
       return finalTotal.toFixed(2)
     }
 
-    if (safePaymentMethod === 'cod') {
+    if (safePaymentMethod === 'cod' || safePaymentMethod === 'on_delivery') {
       return Math.min(
         Math.max(parseCashReceivedAmount(cashReceivedInput), 0),
         finalTotal
@@ -139,11 +169,15 @@ export function useInvoiceCheckout({
   const numericCashReceived = useMemo(() => {
     const safePaymentMethod = normalizeUiPaymentMethod(paymentMethod)
 
-    if (safePaymentMethod === 'mada' || safePaymentMethod === 'visa') {
+    if (
+      ['mada', 'visa', 'card', 'bank_transfer', 'transfer'].includes(
+        safePaymentMethod
+      )
+    ) {
       return finalTotal
     }
 
-    if (safePaymentMethod === 'cod') {
+    if (safePaymentMethod === 'cod' || safePaymentMethod === 'on_delivery') {
       return Math.min(
         Math.max(parseCashReceivedAmount(cashReceivedInput), 0),
         finalTotal
@@ -156,7 +190,11 @@ export function useInvoiceCheckout({
   const remainingFromCustomer = useMemo(() => {
     const safePaymentMethod = normalizeUiPaymentMethod(paymentMethod)
 
-    if (safePaymentMethod !== 'cash' && safePaymentMethod !== 'cod') {
+    if (
+      safePaymentMethod !== 'cash' &&
+      safePaymentMethod !== 'cod' &&
+      safePaymentMethod !== 'on_delivery'
+    ) {
       return 0
     }
 
@@ -181,18 +219,20 @@ export function useInvoiceCheckout({
     const safePaymentMethod = normalizeUiPaymentMethod(value)
 
     setPaymentMethodState(safePaymentMethod)
-    setCashReceivedInput((currentValue) => {
-      if (safePaymentMethod === 'mada' || safePaymentMethod === 'visa') {
+    setCashReceivedInput(() => {
+      if (
+        ['mada', 'visa', 'card', 'bank_transfer', 'transfer'].includes(
+          safePaymentMethod
+        )
+      ) {
         return finalTotal.toFixed(2)
       }
 
-      if (safePaymentMethod === 'cod') {
+      if (safePaymentMethod === 'cod' || safePaymentMethod === 'on_delivery') {
         return '0'
       }
 
-      return parseCashReceivedAmount(currentValue) > 0
-        ? currentValue
-        : finalTotal.toFixed(2)
+      return ''
     })
   }
 
@@ -212,6 +252,7 @@ export function useInvoiceCheckout({
     setPaymentMethodState('mada')
     setCashReceivedInput('')
     clearPosCheckoutIdentity()
+    if (persistSaleDraft && typeof window !== 'undefined') window.sessionStorage.removeItem(INVOICE_SALE_CHECKOUT_STORAGE_KEY)
   }
 
   const createInvoice = async () => {
@@ -274,6 +315,14 @@ export function useInvoiceCheckout({
       return
     }
 
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setLoading(false)
+      setErrorMessage(
+        'يمكنك تجهيز السلة وحساب الإجمالي دون اتصال، لكن إتمام البيع والدفع غير متاح حتى مراجعة عقد W2 والاتصال بالإنترنت.'
+      )
+      return
+    }
+
     const activePosEmployee = readActivePosEmployee()
     let clientIdempotencyKey: string
 
@@ -300,40 +349,6 @@ export function useInvoiceCheckout({
     } catch {
       setLoading(false)
       setErrorMessage(POS_UX_MESSAGES.uncertainSubmission)
-      return
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      try {
-        savePosOfflineInvoiceDraft({
-          clientIdempotencyKey,
-          customerId,
-          customerName,
-          customerPhone,
-          paymentMethod: safePaymentMethod,
-          note,
-          items: validItems,
-          totalsSnapshot: {
-            subtotal,
-            discountAmount,
-            taxAmount,
-            finalTotal,
-            cashReceived,
-            numericCashReceived,
-            remainingFromCustomer,
-            cashChange,
-          },
-          employee: activePosEmployee,
-        })
-
-        setOfflineDraftMessage(POS_UX_MESSAGES.draftSaved)
-      } catch (error) {
-        console.error('[POS OFFLINE] Failed to save checkout draft.', error)
-        setErrorMessage(POS_UX_MESSAGES.draftSaveFailure)
-      } finally {
-        setLoading(false)
-      }
-
       return
     }
 

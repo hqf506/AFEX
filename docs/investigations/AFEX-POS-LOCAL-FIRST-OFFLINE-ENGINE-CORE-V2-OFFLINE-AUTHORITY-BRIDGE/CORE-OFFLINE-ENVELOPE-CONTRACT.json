@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "unknownFields": "reject",
+  "supportedSchemaVersions": [1],
+  "requiredFields": [
+    "localCommandId",
+    "idempotencyKey",
+    "commandType",
+    "schemaVersion",
+    "primaryAuthenticatedUserId",
+    "tenantId",
+    "branchId",
+    "actualPosEmployeeId",
+    "deviceId",
+    "deviceGeneration",
+    "employeeEnrollmentGeneration",
+    "commandGeneration",
+    "aggregateType",
+    "aggregateId",
+    "localAggregateReference",
+    "localCreatedAt",
+    "payload",
+    "payloadCanonicalHash",
+    "dependencyReferences",
+    "paymentAttestation",
+    "inventoryFrontierReference",
+    "clientApplicationVersion"
+  ],
+  "aggregateIdentityRule": "exactly one of aggregateId or localAggregateReference",
+  "identifierPolicy": "authority and server identities are UUIDs; stable local references use bounded safe identifiers",
+  "payload": {
+    "shape": "exact command-specific allowlist for all eight registered command types",
+    "canonicalization": "recursive key order plus NFC strings plus finite numbers",
+    "hash": "lowercase SHA-256 hexadecimal",
+    "maximumBytes": 262144,
+    "maximumCommandBytes": 65536,
+    "maximumDepth": 32,
+    "maximumNodes": 10000,
+    "forbiddenFields": [
+      "password",
+      "secret",
+      "authorization",
+      "card number",
+      "CVV/CVC",
+      "payment PIN",
+      "provider token"
+    ]
+  },
+  "limits": {
+    "maximumCommandBatch": 1000,
+    "maximumDependenciesPerCommand": 64,
+    "maximumOrderItems": 200,
+    "maximumCatalogItemsPerFrontierReference": 200
+  },
+  "commandAggregateMapping": {
+    "order.create": "order",
+    "order.status.change": "order",
+    "customer.create": "customer",
+    "customer.update": "customer",
+    "payment.employee_attestation": "payment",
+    "audit.event.append": "audit",
+    "order.cancel": "order",
+    "payment.refund": "payment"
+  },
+  "orderCreate": {
+    "items": "non-empty, bounded, stable UUID catalog identities, positive safe-integer quantities, unique and canonically sorted",
+    "money": "canonical non-negative decimal strings with exactly two fractional digits",
+    "totals": "line totals, subtotal, discount, tax and total must reconcile exactly in minor units",
+    "frontier": "normalized inventory item set must match the reference exactly",
+    "payment": "attestation command, order identity, method, amount and currency must match the normalized payload"
+  },
+  "rejections": [
+    "unknown or missing field",
+    "malformed identifier",
+    "unsupported schema",
+    "unregistered command",
+    "unrecognized payment method",
+    "provider authority claim",
+    "cross-command or unknown payload field",
+    "empty, ambiguous, duplicate or monetarily inconsistent order",
+    "command aggregate mismatch",
+    "irrelevant payment attestation or inventory frontier",
+    "payload/hash mismatch",
+    "tenant branch actor or device ambiguity"
+  ]
+}

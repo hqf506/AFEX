@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "version": "afex-sync-uploader-context.v1",
+  "classification": "SHADOW_PROVENANCE_NOT_ACTIVE",
+  "constructionBoundary": "server-only",
+  "requiredEvidence": [
+    "verified access-token signature and claims",
+    "exact access-token sub",
+    "verified current-user identity equals sub",
+    "verified current Auth session_id",
+    "active account",
+    "server-resolved active POS actor session bound to the same subject and session"
+  ],
+  "immutableFields": ["authenticatedSubjectId","authenticatedSessionId","posActorSessionId","actualPosEmployeeId","tenantId","branchId"],
+  "databaseReferences": [
+    {"schema":"auth","relation":"sessions","primaryIdentity":"id","ownerRole":"supabase_auth_admin","immutableColumns":["id","user_id"],"revocationAndExpiry":"current token signature/expiry verified server-side; database helper requires the current id/user row correspondence","bindings":["authenticated subject","Auth session"],"lookupIndex":"platform primary/unique identity on id; preflight required","allowedWriter":"Supabase Auth subsystem only","allowedReader":"supabase_auth_admin-owned bounded helper; afex_function_owner receives helper EXECUTE only","browserVisibility":false,"deletionRetention":"platform governed; a missing row fails closed"},
+    {"schema":"afex_pos_authority","relation":"actor_sessions","primaryIdentity":"session_id","ownerRole":"afex_pos_session_owner","immutableColumns":["session_id","authenticated_subject_id","authenticated_session_id","tenant_id","branch_id","actor_id","actor_role","session_version","issued_at"],"revocationColumns":["expires_at","revoked_at"],"bindings":["Auth subject/session","tenant","branch","actual POS employee"],"lookupIndex":"existing session_id identity and attested actor-session indexes","allowedWriter":"existing POS session owner/maintenance functions only","allowedReader":"afex_function_owner exact non-secret columns through forced-RLS policy","browserVisibility":false,"deletionRetention":"existing session retention; missing/expired/revoked row fails closed"}
+  ],
+  "browserJsonConstructible": false,
+  "jsonSerializable": false,
+  "loggable": false,
+  "opaquePosCredentialPropagated": false,
+  "serviceRoleEqualityIsAuthentication": false,
+  "twoMatchingCallerUuidsAreAuthority": false,
+  "validUploaderReplacement": "Allowed only for a freshly verified Auth session and POS actor session matching the retained origin account, tenant, branch and actual employee. The replacement does not mutate origin identity.",
+  "activation": false
+}

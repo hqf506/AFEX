@@ -7,6 +7,10 @@ import {
   buildSaudiPhoneCandidatePattern,
   buildCustomerSearchFilter,
   CUSTOMER_PHONE_ERRORS,
+  CUSTOMER_CREATE_FAILURE_MESSAGES,
+  buildSelectedCustomerProfile,
+  type CustomerCreateFailureCode,
+  type CustomerProfileBaseSource,
   isMissingCustomerIdentityColumnError,
   normalizeCustomerSearchTerm,
   normalizeSaudiCustomerPhone,
@@ -112,12 +116,14 @@ async function findCustomersByNormalizedIdentity(
 }
 
 function logCustomerDatabaseFailure(
-  stage: 'lookup' | 'insert',
+  stage: 'lookup' | 'insert' | 'hydrate',
   error: CustomerDatabaseError,
-  httpStatus: number
+  httpStatus: number,
+  options: {
+    classification?: string
+    correlationId?: string
+  } = {}
 ) {
-  if (process.env.NODE_ENV !== 'development') return
-
   const code = typeof error.code === 'string' ? error.code : 'UNKNOWN'
   const constraint = resolveCustomerConstraint(error)
   const category =
@@ -138,8 +144,43 @@ function logCustomerDatabaseFailure(
     httpStatus,
     code,
     constraint,
-    category,
+    classification: options.classification || category,
+    correlationId: options.correlationId || null,
   })
+}
+
+function resolveCustomerPersistenceFailure(error: CustomerDatabaseError): {
+  code: CustomerCreateFailureCode
+  status: number
+} {
+  const constraint = resolveCustomerConstraint(error)
+  const isRegistryConflict =
+    error.code === 'P0001' && error.message === 'CUSTOMER_SCOPE_CONFLICT'
+  const isUniqueConflict = error.code === '23505' || isRegistryConflict
+  const isPhoneConflict =
+    isUniqueConflict &&
+    (constraint === 'customers_phone_key' ||
+      constraint === 'customers_tenant_phone_normalized_key' ||
+      constraint === 'customers_tenant_phone_normalized_uidx' ||
+      isRegistryConflict)
+
+  if (isPhoneConflict) {
+    return { code: 'CUSTOMER_PHONE_CONFLICT', status: 409 }
+  }
+
+  if (isUniqueConflict) {
+    return { code: 'CUSTOMER_CONFLICT', status: 409 }
+  }
+
+  if (error.code === '42501') {
+    return { code: 'CUSTOMER_AUTHORIZATION_FAILED', status: 403 }
+  }
+
+  if (error.code === '22023' || error.code === '23503' || error.code === '23514') {
+    return { code: 'CUSTOMER_VALIDATION_FAILED', status: 400 }
+  }
+
+  return { code: 'CUSTOMER_PERSISTENCE_FAILED', status: 500 }
 }
 
 function positiveInteger(value: string | null, fallback: number) {
@@ -157,6 +198,8 @@ type InvoiceCustomerActivityRow = {
 }
 
 const FULL_PHONE_CANDIDATE_LIMIT = 100
+const CUSTOMER_PROFILE_SELECT =
+  'id, customer_code, name, phone, display_phone, email, city, address, notes, created_at'
 
 function readNumber(value: number | string | null | undefined) {
   const numericValue =
@@ -311,8 +354,9 @@ export async function GET(request: NextRequest) {
 
     if (activityError) {
       console.warn('[api/customers] unable to load customer activity', {
-        tenant_id: auth.profile.tenant_id,
-        error: activityError.message,
+        classification: 'CUSTOMER_ACTIVITY_LOAD_FAILED',
+        upstreamCode: activityError.code || 'UNCLASSIFIED',
+        correlationId: auth.context.correlationId,
       })
     } else {
       const activityRows = Array.isArray(activityData)
@@ -385,8 +429,8 @@ export async function GET(request: NextRequest) {
       lastPurchaseAmount: activity?.lastPurchaseAmount ?? null,
       firstVisitAt: activity?.firstVisitAt ?? null,
       lastActivityAt: activity?.lastActivityAt ?? null,
-      visitsCount: activity?.visitsCount ?? 0,
-      totalSpent: activity?.totalSpent ?? 0,
+      visitsCount: normalizedFullPhone ? null : activity?.visitsCount ?? 0,
+      totalSpent: normalizedFullPhone ? null : activity?.totalSpent ?? 0,
     }
   }))
 
@@ -530,34 +574,19 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) {
-    const constraint = resolveCustomerConstraint(error)
-    const isRegistryConflict =
-      error.code === 'P0001' && error.message === 'CUSTOMER_SCOPE_CONFLICT'
-    const isUniqueConflict = error.code === '23505' || isRegistryConflict
-    const isPhoneConflict =
-      isUniqueConflict &&
-      (constraint === 'customers_phone_key' ||
-        constraint === 'customers_tenant_phone_normalized_key' ||
-        constraint === 'customers_tenant_phone_normalized_uidx' ||
-        isRegistryConflict)
-    const status = isUniqueConflict ? 409 : 500
-    logCustomerDatabaseFailure('insert', error, status)
+    const failure = resolveCustomerPersistenceFailure(error)
+    logCustomerDatabaseFailure('insert', error, failure.status, {
+      classification: failure.code,
+      correlationId: auth.context.correlationId,
+    })
     return jsonWithAuthCookies(
       auth.response,
       {
         success: false,
-        error: isPhoneConflict
-          ? CUSTOMER_PHONE_ERRORS.duplicate
-          : isUniqueConflict
-            ? 'Customer already exists'
-            : 'Failed to create customer',
-        code: isUniqueConflict
-          ? isPhoneConflict
-            ? 'CUSTOMER_PHONE_CONFLICT'
-            : 'CUSTOMER_CONFLICT'
-          : 'CUSTOMER_PERSISTENCE_FAILED',
+        error: CUSTOMER_CREATE_FAILURE_MESSAGES[failure.code],
+        code: failure.code,
       },
-      status
+      failure.status
     )
   }
 
@@ -567,15 +596,93 @@ export async function POST(request: NextRequest) {
     phone: string
   }
 
+  const createdVersionResult = await auth.supabase.rpc(
+    'lookup_customer_phone_identity_v1',
+    {
+      p_tenant_id: auth.profile.tenant_id,
+      p_normalized_phone: customerIdentity.identity.phoneNormalized,
+      p_branch_id: branchId,
+    }
+  )
+  const createdVersionRow = Array.isArray(createdVersionResult.data)
+    ? createdVersionResult.data.find(
+        (candidate) =>
+          candidate &&
+          typeof candidate === 'object' &&
+          'customer_id' in candidate &&
+          candidate.customer_id === createdCustomer.id
+      )
+    : null
+  const createdRecordVersion = Number(
+    createdVersionRow &&
+      typeof createdVersionRow === 'object' &&
+      'record_version' in createdVersionRow
+      ? createdVersionRow.record_version
+      : NaN
+  )
+  const trustedCreatedRecordVersion =
+    Number.isSafeInteger(createdRecordVersion) && createdRecordVersion >= 1
+      ? createdRecordVersion
+      : null
+  if (createdVersionResult.error) {
+    logCustomerDatabaseFailure('hydrate', createdVersionResult.error, 200, {
+      classification: 'CUSTOMER_RECORD_VERSION_LOAD_FAILED',
+      correlationId: auth.context.correlationId,
+    })
+  }
+
+  let createdProfileQuery = auth.supabase
+    .from('customers')
+    .select(CUSTOMER_PROFILE_SELECT)
+    .eq('id', createdCustomer.id)
+    .limit(1)
+  createdProfileQuery = applyTenantFilter(
+    createdProfileQuery,
+    auth.profile.tenant_id
+  )
+  const createdProfileResult = await createdProfileQuery.maybeSingle()
+
+  if (createdProfileResult.error) {
+    logCustomerDatabaseFailure('hydrate', createdProfileResult.error, 200, {
+      classification: 'CUSTOMER_PROFILE_HYDRATION_FAILED',
+      correlationId: auth.context.correlationId,
+    })
+  }
+
+  const createdProfile = buildSelectedCustomerProfile(
+    (createdProfileResult.data || {
+      ...createdCustomer,
+      email,
+      notes,
+    }) as CustomerProfileBaseSource & { record_version?: number | null },
+    {
+      visitCount: 0,
+      totalSpending: 0,
+      lastOrderNumber: null,
+      lastOrderAt: null,
+    }
+  )
+
+  const createdProfileWithVersion = createdProfile
+    ? { ...createdProfile, recordVersion: trustedCreatedRecordVersion }
+    : null
+
   return jsonWithAuthCookies(auth.response, {
     success: true,
-    customer: {
-      ...createdCustomer,
-      lastPurchaseAmount: null,
-      firstVisitAt: null,
-      lastActivityAt: null,
-      visitsCount: 0,
-      totalSpent: 0,
-    },
+    customer:
+      createdProfileWithVersion || {
+        ...createdCustomer,
+        recordVersion: trustedCreatedRecordVersion,
+        customerNumber: null,
+        email,
+        city: null,
+        address: null,
+        notes,
+        createdAt: null,
+        visitCount: 0,
+        totalSpending: 0,
+        lastOrderNumber: null,
+        lastOrderAt: null,
+      },
   })
 }

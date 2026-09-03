@@ -1,0 +1,432 @@
+.inlineDetails {
+  display: none !important;
+}
+
+.desktopDetails {
+  min-width: 0;
+}
+
+.resultDialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: grid;
+  box-sizing: border-box;
+  place-items: center;
+  overflow: hidden;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  background: rgb(25 16 8 / 58%);
+  backdrop-filter: blur(3px);
+}
+
+.resultDialog {
+  display: grid;
+  width: min(430px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 46%, var(--afex-pos-border));
+  border-radius: 22px;
+  outline: none;
+  background: var(--afex-pos-panel);
+  color: var(--afex-pos-text);
+  box-shadow: 0 28px 80px rgb(35 20 6 / 28%);
+  text-align: center;
+}
+
+.resultDialog[data-result-kind='warning'] {
+  border-color: color-mix(in srgb, #b97922 62%, var(--afex-pos-border));
+}
+
+.resultDialogIcon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-self: center;
+  place-items: center;
+  border: 2px solid var(--afex-pos-emerald);
+  border-radius: 50%;
+  color: var(--afex-pos-emerald);
+  background: color-mix(in srgb, var(--afex-pos-emerald) 9%, var(--afex-pos-panel));
+}
+
+.resultDialog[data-result-kind='warning'] .resultDialogIcon {
+  border-color: #b97922;
+  color: #b97922;
+  background: color-mix(in srgb, #b97922 10%, var(--afex-pos-panel));
+}
+
+.resultDialogIcon svg {
+  width: 31px;
+  height: 31px;
+}
+
+.resultDialogCopy {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.resultDialogCopy h2,
+.resultDialogCopy p {
+  margin: 0;
+}
+
+.resultDialogCopy h2 {
+  font-size: clamp(20px, 2.4vw, 25px);
+  font-weight: 950;
+  line-height: 1.35;
+}
+
+.resultDialogCopy > p {
+  color: var(--afex-pos-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.resultDialogCopy .resultDialogOrder {
+  margin-top: 3px;
+  color: var(--afex-pos-text);
+  font-size: 15px;
+}
+
+.resultDialogOrder b {
+  color: var(--afex-pos-emerald);
+  font-weight: 950;
+  unicode-bidi: isolate;
+}
+
+.resultDialogButton {
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 76%, #3a210c);
+  border-radius: 13px;
+  background: var(--afex-pos-emerald-strong);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.resultDialogButton:hover {
+  filter: brightness(1.06);
+}
+
+.resultDialogButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--afex-pos-emerald) 42%, #fff);
+  outline-offset: 3px;
+}
+
+.resultDialogButton:active {
+  transform: translateY(1px);
+  filter: brightness(.9);
+}
+
+@media (max-width: 767.98px) {
+  .resultDialog {
+    width: min(380px, calc(100vw - 32px));
+    padding: 21px;
+    border-radius: 19px;
+  }
+}
+
+.orderStatusPage .historyList {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.orderStatusPage .historyList li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-inline-start: 2px solid var(--afex-pos-border);
+  border-radius: 8px;
+}
+
+.orderStatusPage .historyList li[data-current='true'] {
+  border-inline-start-color: var(--afex-pos-emerald);
+  background: color-mix(in srgb, var(--afex-pos-emerald) 9%, transparent);
+}
+
+.orderStatusPage .historyList li div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.orderStatusPage .historyList strong,
+.orderStatusPage .historyList small,
+.orderStatusPage .historyList time {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.orderStatusPage .historyList small,
+.orderStatusPage .historyList time {
+  color: var(--afex-pos-text-secondary);
+  font-size: 10px;
+}
+
+.orderStatusPage .detailsReadError {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.orderStatusPage .detailsReadError p {
+  margin: 0;
+}
+
+.orderStatusPage .detailsReadError button {
+  min-height: 44px;
+  border: 1px solid var(--afex-pos-border);
+  border-radius: 9px;
+  background: var(--afex-pos-raised);
+  color: var(--afex-pos-text);
+  font: inherit;
+  font-weight: 800;
+}
+
+@media (max-width: 767.98px), (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .orderStatusPage .desktopDetails {
+    display: none !important;
+  }
+
+  .orderStatusPage :global(.pos-status-workspace) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .orderStatusPage .inlineDetails {
+    display: grid !important;
+    width: 100%;
+    max-height: none;
+    grid-template-rows: auto auto auto;
+    margin: -1px 0 0;
+    overflow: visible;
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 68%, var(--afex-pos-border));
+    border-top-color: transparent;
+    border-radius: 0 0 14px 14px;
+    background: color-mix(in srgb, var(--afex-pos-emerald) 4%, var(--afex-pos-panel));
+    box-shadow: none;
+    scroll-margin-top: 8px;
+  }
+
+  .orderStatusPage .mobileOrderRow {
+    position: relative;
+    scroll-margin-top: 8px;
+    transition: transform 90ms ease, background-color 90ms ease, border-color 90ms ease;
+    touch-action: manipulation;
+  }
+
+  .orderStatusPage .mobileOrderRow:active {
+    transform: scale(.99);
+    border-color: color-mix(in srgb, var(--afex-pos-emerald) 62%, var(--afex-pos-border));
+    background: color-mix(in srgb, var(--afex-pos-emerald) 10%, var(--afex-pos-panel));
+  }
+
+  .orderStatusPage .mobileOrderRow:focus-visible {
+    outline: 2px solid var(--afex-pos-emerald);
+    outline-offset: -3px;
+  }
+
+  .orderStatusPage .mobileOrderRow[data-mobile-expanded='true'] {
+    z-index: 1;
+    overflow: visible;
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 74%, var(--afex-pos-border));
+    border-bottom-color: transparent;
+    border-radius: 14px 14px 0 0;
+    background: color-mix(in srgb, var(--afex-pos-emerald) 11%, var(--afex-pos-raised));
+  }
+
+  .orderStatusPage .mobileOrderRow[data-mobile-expanded='true'] + .inlineDetails {
+    border-inline-color: color-mix(in srgb, var(--afex-pos-emerald) 74%, var(--afex-pos-border));
+    border-bottom-color: color-mix(in srgb, var(--afex-pos-emerald) 74%, var(--afex-pos-border));
+  }
+
+  .orderStatusPage .inlineDetailsHeader {
+    min-height: 60px;
+    border-bottom-color: color-mix(in srgb, var(--afex-pos-emerald) 25%, var(--afex-pos-border));
+    background: color-mix(in srgb, var(--afex-pos-emerald) 8%, var(--afex-pos-panel));
+  }
+
+  .orderStatusPage .inlineDetailsHeader small {
+    color: var(--afex-pos-text-secondary);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .orderStatusPage .inlineDetailsHeader h2 {
+    margin-top: 3px;
+    color: var(--afex-pos-text);
+    font-size: 16px;
+    font-weight: 900;
+  }
+
+  .orderStatusPage .inlineDetailsStatus {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .orderStatusPage .collapseChevron {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 42%, var(--afex-pos-border));
+    border-radius: 50%;
+    color: var(--afex-pos-emerald);
+  }
+
+  .orderStatusPage .collapseChevron svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .orderStatusPage .inlineDetails :global(.pos-status-details-body) {
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    background: color-mix(in srgb, var(--afex-pos-emerald) 2%, var(--afex-pos-panel));
+  }
+
+  .orderStatusPage .inlineDetails :global(.pos-status-details-meta),
+  .orderStatusPage .inlineDetails :global(.pos-status-totals) {
+    gap: 7px;
+  }
+
+  .orderStatusPage .inlineDetails :global(.pos-status-details-meta) > div,
+  .orderStatusPage .inlineDetails :global(.pos-status-totals) > div,
+  .orderStatusPage .inlineDetails :global(.pos-status-history) {
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 10%, var(--afex-pos-border));
+    background: color-mix(in srgb, var(--afex-pos-emerald) 4%, var(--afex-pos-raised));
+  }
+
+  .orderStatusPage .inlineDetails dt,
+  .orderStatusPage .inlineDetails :global(.pos-status-history) > span {
+    color: var(--afex-pos-text-secondary);
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .orderStatusPage .inlineDetails :global(.pos-status-details-items) {
+    border-block: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 14%, var(--afex-pos-border));
+    padding-block: 9px;
+  }
+
+  .orderStatusPage .inlineDetails h2,
+  .orderStatusPage .inlineDetails dd,
+  .orderStatusPage .inlineDetails b,
+  .orderStatusPage .inlineDetails small {
+    unicode-bidi: isolate;
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] {
+    padding-bottom: 10px;
+    background: color-mix(in srgb, var(--afex-pos-emerald) 5%, var(--afex-pos-panel));
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] button {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid color-mix(in srgb, var(--afex-pos-emerald) 78%, #2f1a08);
+    border-radius: 11px;
+    background-color: color-mix(in srgb, var(--afex-pos-emerald-strong) 90%, #2f1a08);
+    color: #fff;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 900;
+    opacity: 1;
+    transition: filter 90ms ease, transform 90ms ease;
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] button:focus-visible {
+    outline: 2px solid var(--afex-pos-text);
+    outline-offset: 2px;
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] button:active:not(:disabled) {
+    transform: translateY(1px);
+    filter: brightness(.9);
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] button:disabled {
+    background-color: color-mix(in srgb, var(--afex-pos-emerald) 70%, var(--afex-pos-panel));
+    color: #fff;
+    cursor: not-allowed;
+    opacity: .72;
+  }
+}
+
+@media (max-width: 767.98px) and (max-height: 500px) {
+  .orderStatusPage > main {
+    gap: 5px;
+  }
+
+  .orderStatusPage :global(.pos-status-header) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 7px;
+  }
+
+  .orderStatusPage :global(.pos-status-header-actions) {
+    grid-template-columns: repeat(2, 44px);
+  }
+
+  .orderStatusPage :global(.pos-status-header-actions button) {
+    width: 44px;
+    padding: 0;
+  }
+
+  .orderStatusPage :global(.pos-status-header-actions button span) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resultDialogButton {
+    transition: none;
+  }
+
+  .resultDialogButton:active {
+    transform: none;
+  }
+
+  .orderStatusPage .mobileOrderRow {
+    transition: none;
+  }
+
+  .orderStatusPage .mobileOrderRow:active {
+    transform: none;
+  }
+
+  .orderStatusPage .inlineDetails [data-order-status-action] button {
+    transition: none;
+  }
+}

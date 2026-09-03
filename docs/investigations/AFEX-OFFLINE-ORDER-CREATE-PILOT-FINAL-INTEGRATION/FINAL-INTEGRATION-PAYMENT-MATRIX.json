@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "methods": [
+    {"method":"mada","offlineMeaning":"employee_attestation","providerStatus":"unverified"},
+    {"method":"cash","offlineMeaning":"employee_attestation","providerStatus":"unverified"},
+    {"method":"visa","offlineMeaning":"employee_attestation","providerStatus":"unverified"},
+    {"method":"cod","offlineMeaning":"employee_attestation","providerStatus":"unverified"},
+    {"method":"card","offlineMeaning":"employee_attestation","providerStatus":"unverified"},
+    {"method":"bank_transfer","offlineMeaning":"employee_attestation","providerStatus":"unverified"},
+    {"method":"transfer","offlineMeaning":"employee_attestation","providerStatus":"unverified"},
+    {"method":"on_delivery","offlineMeaning":"employee_attestation","providerStatus":"unverified"}
+  ],
+  "distinctCount": 8,
+  "providerActions": 0,
+  "externalEffects": 0,
+  "forbiddenPayloadSecrets": ["CVV", "card PIN", "provider token"]
+}

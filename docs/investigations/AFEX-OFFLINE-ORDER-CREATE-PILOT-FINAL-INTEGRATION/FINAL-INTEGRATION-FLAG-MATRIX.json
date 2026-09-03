@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 3,
+  "sensitiveFlags": [
+    {"name":"authorityPersistence","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
+    {"name":"persistentUnwrap","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
+    {"name":"trustedSnapshotIngestion","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
+    {"name":"productionOutboxPersistence","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
+    {"name":"dispatch","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
+    {"name":"replay","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
+    {"name":"offlineOrderInterception","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
+    {"name":"offlineOrderCreate","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"must remain disabled"},
+    {"name":"paymentProviderAction","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"provider remains unverified and uninvoked"},
+    {"name":"externalEffects","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"no WhatsApp notification email or print dispatch"},
+    {"name":"cancellationReplay","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"order.cancel remains dispatch-blocked"},
+    {"name":"refundReplay","location":"lib/offline/core-v2-offline-authority-bridge.ts","environmentVariable":null,"default":false,"requiredPilotValue":false,"scope":"global immutable safety gate","dependencyOrder":0,"disableValue":false,"expectedEffect":"payment.refund remains dispatch-blocked"}
+  ],
+  "pilotServerActivation": [
+    {"variableName":"AFEX_OFFLINE_ORDER_CREATE_PILOT_ENABLED","currentDefaultValue":false,"requiredPilotValue":true,"scope":"global server feature availability for any valid authenticated establishment","dependencyOrder":1,"disableValue":false,"expectedEffect":"expose only the bounded POS server transport; authority is re-derived from verified Auth and POS actor state for every request and revalidated by the database facades"}
+  ],
+  "staticUuidScopeVariablesRequired": false,
+  "dynamicAuthorityRequiredForEveryRequest": true,
+  "missingGlobalKillSwitchFailsClosed": true,
+  "broadEnableSwitch": false,
+  "adminDashboardOffline": false,
+  "disablePreservesPendingEncryptedCommands": true
+}

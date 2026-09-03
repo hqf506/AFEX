@@ -1,16 +1,17 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { PosStepIndicator } from '@/components/pos-step-indicator'
 import { useMobileViewport } from '@/hooks/use-mobile-viewport'
-import { getClientCaughtErrorMessage, getClientErrorMessage } from '@/lib/api/client-error'
+import { getClientErrorMessage } from '@/lib/api/client-error'
 import {
   isClientResourceFresh,
   loadClientResource,
   peekClientResource,
   prefetchClientResource,
+  writeClientResource,
 } from '@/lib/client-resource-cache'
 import {
   clearAllInvoiceCatalogCache,
@@ -34,16 +35,27 @@ import {
 import { getRoleLabel } from '@/lib/app-roles'
 import { usePageAccess, type UsePageAccessOptions } from '@/hooks/use-page-access'
 import { formatPosGregorianDate } from '@/lib/pos/date-format'
-import { normalizeSaudiCustomerPhone } from '@/lib/customers'
-import { supabase } from '@/lib/supabase/client'
+import {
+  PosCustomerWorkspace,
+  type PosCustomerRecord,
+} from '@/components/pos-customer-workspace'
+import {
+  getCustomerPhoneSearchInput,
+  isCurrentCustomerProfileResponse,
+  isCurrentCustomerSearchResponse,
+  isSelectedCustomerProfile,
+  type SelectedCustomerProfile,
+} from '@/lib/customers'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 
-type ExistingCustomer = CreatedPosCustomer
+type ExistingCustomer = PosCustomerRecord
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
 const CUSTOMER_SEARCH_CACHE_TTL_MS = 30_000
 const CUSTOMER_SEARCH_DEBOUNCE_MS = 300
 const RECENT_CUSTOMERS_CACHE_TTL_MS = 30_000
+const CUSTOMER_PROFILE_CACHE_TTL_MS = 60_000
 
 const posSidebarItems = [
   { id: 'home', label: 'الرئيسية', href: '/pos', icon: 'home' as const },
@@ -73,15 +85,16 @@ function normalizeCustomerLookup(
   name: string,
   branchKey: string | null
 ) {
-  const normalizedPhone = phone.trim()
-  const phoneDigits = normalizedPhone.replace(/\D/g, '')
+  const phoneSearch = getCustomerPhoneSearchInput(phone)
+  const normalizedPhone = phoneSearch.displayValue
+  const phoneDigits = phoneSearch.digits
   const normalizedName = name.trim()
   const cacheBranchKey = branchKey || 'all'
 
   if (phoneDigits.length >= 3) {
     return {
       query: normalizedPhone,
-      cacheKey: `customer-search:${cacheBranchKey}:phone:${phoneDigits}`,
+      cacheKey: `customer-search:${cacheBranchKey}:phone:${phoneSearch.normalizedPhone || phoneDigits}`,
       active: true,
     } as const
   }
@@ -99,6 +112,26 @@ function normalizeCustomerLookup(
     cacheKey: '',
     active: false,
   } as const
+}
+
+async function loadOfflinePosCustomers(input: {
+  query?: string
+  recent?: boolean
+  limit?: number
+}) {
+  const { searchOfflineCustomers } = await import(
+    '@/lib/offline/complete-runtime'
+  )
+  return (await searchOfflineCustomers(input)).map((customer) => ({
+    id: customer.id,
+    name: customer.name,
+    phone: customer.phone,
+    lastPurchaseAmount: customer.lastPurchaseAmount,
+    firstVisitAt: customer.firstVisitAt,
+    lastActivityAt: customer.lastActivityAt,
+    visitsCount: customer.visitsCount,
+    totalSpent: customer.totalSpent,
+  })) satisfies ExistingCustomer[]
 }
 
 export function InvoiceCustomerStep({
@@ -143,15 +176,27 @@ export function InvoiceCustomerStep({
   const [recentCustomers, setRecentCustomers] = useState<ExistingCustomer[]>([])
   const [recentCustomersLoading, setRecentCustomersLoading] = useState(false)
   const [recentCustomersError, setRecentCustomersError] = useState('')
+  const [customerSearchRetryGeneration, setCustomerSearchRetryGeneration] = useState(0)
+  const [recentCustomersRetryGeneration, setRecentCustomersRetryGeneration] = useState(0)
   const [customerListLimit, setCustomerListLimit] = useState(6)
   const [addCustomerOpen, setAddCustomerOpen] = useState(false)
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
+  const [selectedCustomerProfile, setSelectedCustomerProfile] =
+    useState<SelectedCustomerProfile | null>(null)
+  const [selectedCustomerRecordVersion, setSelectedCustomerRecordVersion] =
+    useState<number | null>(null)
+  const [customerProfileLoading, setCustomerProfileLoading] = useState(false)
+  const [customerProfileError, setCustomerProfileError] = useState('')
   const customerSearchRequestIdRef = useRef(0)
+  const customerProfileRequestIdRef = useRef(0)
+  const customerProfileAbortRef = useRef<AbortController | null>(null)
+  const selectedCustomerIdRef = useRef<string | null>(null)
   const customerPhoneInputRef = useRef<HTMLInputElement | null>(null)
   const addCustomerButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  const normalizedCustomerPhone = customerPhone.replace(/[\s()-]/g, '')
-  const isValidSaudiPhone = /^(?:\+?966|0)?5\d{8}$/.test(normalizedCustomerPhone)
+  const isValidSaudiPhone = Boolean(
+    getCustomerPhoneSearchInput(customerPhone).normalizedPhone
+  )
   const isValid =
     isInvoiceCustomerDraftValid(customerName, customerPhone) && isValidSaudiPhone
   const activePosEmployee = variant === 'pos' ? readActivePosEmployee() : null
@@ -181,6 +226,169 @@ export function InvoiceCustomerStep({
     : recentCustomersError
   const canLoadMoreCustomers = visibleCustomerCards.length > customerListLimit
   const isMobileViewport = useMobileViewport()
+
+  const clearSelectedCustomerProfileState = useCallback(() => {
+    customerProfileAbortRef.current?.abort()
+    customerProfileAbortRef.current = null
+    customerProfileRequestIdRef.current += 1
+    selectedCustomerIdRef.current = null
+    setSelectedCustomerProfile(null)
+    setSelectedCustomerRecordVersion(null)
+    setCustomerProfileLoading(false)
+    setCustomerProfileError('')
+  }, [])
+
+  const loadSelectedCustomerProfile = useCallback(
+    async (customer: ExistingCustomer, force = false) => {
+      const hadActiveProfileRequest = Boolean(customerProfileAbortRef.current)
+      customerProfileAbortRef.current?.abort()
+      customerProfileAbortRef.current = null
+
+      const requestId = customerProfileRequestIdRef.current + 1
+      customerProfileRequestIdRef.current = requestId
+      const cacheKey = `customer-profile:${tenantId || 'tenant'}:${customer.id}`
+      const cachedProfile = peekClientResource<SelectedCustomerProfile>(cacheKey)
+
+      if (
+        !force &&
+        cachedProfile &&
+        isSelectedCustomerProfile(cachedProfile) &&
+        isClientResourceFresh(cacheKey, CUSTOMER_PROFILE_CACHE_TTL_MS)
+      ) {
+        setSelectedCustomerProfile(cachedProfile)
+        setSelectedCustomerRecordVersion(cachedProfile.recordVersion)
+        setCustomerProfileLoading(false)
+        setCustomerProfileError('')
+        return
+      }
+
+      const controller = new AbortController()
+      customerProfileAbortRef.current = controller
+      setSelectedCustomerProfile(null)
+      setCustomerProfileLoading(true)
+      setCustomerProfileError('')
+
+      try {
+        const profile = await loadClientResource(
+          cacheKey,
+          async () => {
+            if (
+              variant === 'pos' &&
+              typeof navigator !== 'undefined' &&
+              navigator.onLine === false
+            ) {
+              const { readOfflineCustomerProfile } = await import(
+                '@/lib/offline/complete-runtime'
+              )
+              return readOfflineCustomerProfile(customer.id)
+            }
+            const response = await fetch(
+              `/api/customers/${encodeURIComponent(customer.id)}`,
+              {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-store',
+                signal: controller.signal,
+              }
+            )
+            const result = await response.json().catch(() => null)
+
+            if (
+              !response.ok ||
+              result?.success !== true ||
+              !isSelectedCustomerProfile(result.profile)
+            ) {
+              throw new Error('CUSTOMER_PROFILE_LOAD_FAILED')
+            }
+
+            return result.profile
+          },
+          {
+            ttlMs: CUSTOMER_PROFILE_CACHE_TTL_MS,
+            force: force || hadActiveProfileRequest,
+            protectedResource: true,
+          }
+        )
+
+        if (
+          !isCurrentCustomerProfileResponse(
+            requestId,
+            customerProfileRequestIdRef.current
+          ) ||
+          selectedCustomerIdRef.current !== customer.id
+        ) {
+          return
+        }
+
+        setSelectedCustomerProfile(profile)
+        setSelectedCustomerRecordVersion(profile.recordVersion)
+        setCustomerProfileError('')
+      } catch (profileError) {
+        if (
+          controller.signal.aborted ||
+          !isCurrentCustomerProfileResponse(
+            requestId,
+            customerProfileRequestIdRef.current
+          ) ||
+          selectedCustomerIdRef.current !== customer.id
+        ) {
+          return
+        }
+
+        if (variant === 'pos' && shouldUseOfflineReadFallback(profileError)) {
+          try {
+            const { readOfflineCustomerProfile } = await import(
+              '@/lib/offline/complete-runtime'
+            )
+            const offlineProfile = await readOfflineCustomerProfile(customer.id)
+            if (
+              isCurrentCustomerProfileResponse(
+                requestId,
+                customerProfileRequestIdRef.current
+              ) &&
+              selectedCustomerIdRef.current === customer.id
+            ) {
+              setSelectedCustomerProfile(offlineProfile)
+              setSelectedCustomerRecordVersion(offlineProfile.recordVersion)
+              setCustomerProfileError('')
+            }
+            return
+          } catch (offlineError) {
+            setCustomerProfileError(
+              offlineError instanceof Error &&
+                offlineError.message.includes('INTEGRITY')
+                ? 'تعذر التحقق من سلامة بيانات العميل المحلية'
+                : 'بيانات العميل المحلية غير مكتملة'
+            )
+            return
+          }
+        }
+
+        setCustomerProfileError('تعذر تحميل تفاصيل العميل')
+      } finally {
+        if (customerProfileAbortRef.current === controller) {
+          customerProfileAbortRef.current = null
+        }
+        if (
+          isCurrentCustomerProfileResponse(
+            requestId,
+            customerProfileRequestIdRef.current
+          ) &&
+          selectedCustomerIdRef.current === customer.id
+        ) {
+          setCustomerProfileLoading(false)
+        }
+      }
+    },
+    [tenantId, variant]
+  )
+
+  useEffect(
+    () => () => {
+      customerProfileAbortRef.current?.abort()
+    },
+    []
+  )
 
   useEffect(() => {
     if (!allowed) return
@@ -240,24 +448,16 @@ export function InvoiceCustomerStep({
         const nextMatches = await loadClientResource(
           customerSearch.cacheKey,
           async () => {
-            const exactPhone = normalizeSaudiCustomerPhone(customerSearch.query)
-            if (exactPhone && tenantId) {
-              const { data, error } = await supabase.rpc(
-                'lookup_customer_phone_identity_v1',
-                {
-                  p_tenant_id: tenantId,
-                  p_normalized_phone: exactPhone,
-                  p_branch_id: customerSearchBranchId,
-                }
-              )
-              if (error) throw error
-              return (Array.isArray(data) ? data : []).map((row) => ({
-                id: row.customer_id,
-                name: row.customer_name,
-                phone: row.display_phone,
-              })) as ExistingCustomer[]
+            if (
+              variant === 'pos' &&
+              typeof navigator !== 'undefined' &&
+              navigator.onLine === false
+            ) {
+              return loadOfflinePosCustomers({
+                query: customerSearch.query,
+                limit: 100,
+              })
             }
-
             const searchParams = new URLSearchParams({
               q: customerSearch.query,
             })
@@ -265,10 +465,7 @@ export function InvoiceCustomerStep({
             if (customerSearchBranchId) {
               searchParams.set('branchId', customerSearchBranchId)
             } else if (variant === 'pos') {
-              console.warn('[POS CUSTOMER] missing branch context for customer search', {
-                authBranchId: branchId,
-                activePosEmployeeBranchId: activePosEmployee?.branch_id || null,
-              })
+              console.warn('[POS CUSTOMER] customer search branch context unavailable.')
             }
 
             const response = await fetch(
@@ -293,34 +490,64 @@ export function InvoiceCustomerStep({
           {
             ttlMs: CUSTOMER_SEARCH_CACHE_TTL_MS,
             logLabel: 'fetch customers',
+            force: customerSearchRetryGeneration > 0,
           }
         )
 
-        if (customerSearchRequestIdRef.current !== requestId) {
+        if (
+          !isCurrentCustomerSearchResponse(
+            requestId,
+            customerSearchRequestIdRef.current
+          )
+        ) {
           return
         }
 
         setCustomerMatches(nextMatches)
         setCustomerSearchError('')
         setCustomerSearchLoading(false)
-      } catch (error) {
-        if (controller.signal.aborted || customerSearchRequestIdRef.current !== requestId) {
+      } catch (searchError) {
+        if (
+          controller.signal.aborted ||
+          !isCurrentCustomerSearchResponse(
+            requestId,
+            customerSearchRequestIdRef.current
+          )
+        ) {
           return
         }
 
-        setCustomerMatches(
-          peekClientResource<ExistingCustomer[]>(customerSearch.cacheKey) || []
-        )
-        setCustomerSearchError(
-          getClientCaughtErrorMessage(error, 'فشل البحث عن العملاء')
-        )
+        if (variant === 'pos' && shouldUseOfflineReadFallback(searchError)) {
+          try {
+            setCustomerMatches(
+              await loadOfflinePosCustomers({
+                query: customerSearch.query,
+                limit: 100,
+              })
+            )
+            setCustomerSearchError('')
+          } catch (offlineError) {
+            setCustomerMatches([])
+            setCustomerSearchError(
+              offlineError instanceof Error &&
+                offlineError.message.includes('INTEGRITY')
+                ? 'تعذر التحقق من سلامة لقطة العملاء المحلية.'
+                : 'لقطة العملاء المحلية غير مكتملة. أكمل التجهيز أثناء الاتصال.'
+            )
+          }
+        } else {
+          setCustomerMatches(
+            peekClientResource<ExistingCustomer[]>(customerSearch.cacheKey) || []
+          )
+          setCustomerSearchError('تعذر البحث عن العملاء حاليًا. حاول مرة أخرى.')
+        }
         setCustomerSearchLoading(false)
       } finally {
         if (process.env.NODE_ENV === 'development') {
           console.timeEnd('customer search')
         }
       }
-    }, normalizeSaudiCustomerPhone(customerSearch.query) ? 0 : CUSTOMER_SEARCH_DEBOUNCE_MS)
+    }, getCustomerPhoneSearchInput(customerSearch.query).normalizedPhone ? 0 : CUSTOMER_SEARCH_DEBOUNCE_MS)
 
     return () => {
       customerSearchRequestIdRef.current += 1
@@ -337,8 +564,8 @@ export function InvoiceCustomerStep({
     customerSearch.active,
     customerSearch.cacheKey,
     customerSearch.query,
+    customerSearchRetryGeneration,
     customerSearchBranchId,
-    tenantId,
     variant,
   ])
 
@@ -358,6 +585,12 @@ export function InvoiceCustomerStep({
     void loadClientResource(
       cacheKey,
       async () => {
+        if (
+          typeof navigator !== 'undefined' &&
+          navigator.onLine === false
+        ) {
+          return loadOfflinePosCustomers({ recent: true, limit: 100 })
+        }
         const searchParams = new URLSearchParams({
           recent: '1',
         })
@@ -388,6 +621,7 @@ export function InvoiceCustomerStep({
       {
         ttlMs: RECENT_CUSTOMERS_CACHE_TTL_MS,
         logLabel: 'fetch recent customers',
+        force: recentCustomersRetryGeneration > 0,
       }
     )
       .then((customers) => {
@@ -398,16 +632,34 @@ export function InvoiceCustomerStep({
           setRecentCustomersLoading(false)
         }
       })
-      .catch((error) => {
+      .catch(async (recentCustomersError) => {
         window.clearTimeout(loadingTimeoutId)
         if (controller.signal.aborted) {
           return
         }
 
-        setRecentCustomers([])
-        setRecentCustomersError(
-          getClientCaughtErrorMessage(error, 'فشل تحميل العملاء')
-        )
+        if (
+          variant === 'pos' &&
+          shouldUseOfflineReadFallback(recentCustomersError)
+        ) {
+          try {
+            setRecentCustomers(
+              await loadOfflinePosCustomers({ recent: true, limit: 100 })
+            )
+            setRecentCustomersError('')
+          } catch (offlineError) {
+            setRecentCustomers([])
+            setRecentCustomersError(
+              offlineError instanceof Error &&
+                offlineError.message.includes('INTEGRITY')
+                ? 'تعذر التحقق من سلامة لقطة العملاء المحلية.'
+                : 'لقطة العملاء المحلية غير مكتملة. أكمل التجهيز أثناء الاتصال.'
+            )
+          }
+        } else {
+          setRecentCustomers([])
+          setRecentCustomersError('تعذر تحميل العملاء حاليًا. حاول مرة أخرى.')
+        }
         setRecentCustomersLoading(false)
       })
 
@@ -415,10 +667,14 @@ export function InvoiceCustomerStep({
       controller.abort()
       window.clearTimeout(loadingTimeoutId)
     }
-  }, [allowed, customerSearchBranchId, variant])
+  }, [allowed, customerSearchBranchId, recentCustomersRetryGeneration, variant])
 
   useEffect(() => {
     if (!allowed || variant !== 'pos') {
+      return
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       return
     }
 
@@ -463,20 +719,30 @@ export function InvoiceCustomerStep({
     }
 
     const storedCustomer = parseStoredInvoiceCustomerDraft(
-      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
+      sessionStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
     )
 
     const timeoutId = window.setTimeout(() => {
       if (storedCustomer) {
+        const restoredCustomer: ExistingCustomer = {
+          id: storedCustomer.customerId || '',
+          name: storedCustomer.name,
+          phone: storedCustomer.phone,
+        }
         setSelectedCustomerId(storedCustomer.customerId)
+        setSelectedCustomerRecordVersion(storedCustomer.customerRecordVersion)
+        selectedCustomerIdRef.current = storedCustomer.customerId
         setCustomerName(storedCustomer.name)
         setCustomerPhone(storedCustomer.phone)
+        if (restoredCustomer.id) {
+          void loadSelectedCustomerProfile(restoredCustomer)
+        }
       }
       customerPhoneInputRef.current?.focus({ preventScroll: true })
     }, 150)
 
     return () => window.clearTimeout(timeoutId)
-  }, [allowed, variant])
+  }, [allowed, loadSelectedCustomerProfile, variant])
 
   const handleNext = () => {
     if (!isValid) {
@@ -488,10 +754,12 @@ export function InvoiceCustomerStep({
       return
     }
 
-    localStorage.setItem(
+    const storage = variant === 'pos' ? sessionStorage : localStorage
+    storage.setItem(
       INVOICE_CUSTOMER_STORAGE_KEY,
       serializeInvoiceCustomerDraft({
         customerId: selectedCustomerId,
+        customerRecordVersion: selectedCustomerRecordVersion,
         name: customerName,
         phone: customerPhone,
       })
@@ -504,18 +772,41 @@ export function InvoiceCustomerStep({
     setCustomerName('')
     setCustomerPhone('')
     setSelectedCustomerId(null)
+    clearSelectedCustomerProfileState()
     setCustomerMatches([])
     setCustomerSearchError('')
+    if (variant === 'pos') sessionStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
+  }
+
+  const handleCustomerRetry = () => {
+    if (customerSearch.active) {
+      setCustomerSearchRetryGeneration((generation) => generation + 1)
+      return
+    }
+
+    setRecentCustomersRetryGeneration((generation) => generation + 1)
   }
 
   const selectExistingCustomer = (customer: ExistingCustomer) => {
     setCustomerName(customer.name)
     setCustomerPhone(customer.phone)
     setSelectedCustomerId(customer.id)
+    setSelectedCustomerRecordVersion(null)
+    selectedCustomerIdRef.current = customer.id
     setCustomerSearchError('')
+    void loadSelectedCustomerProfile(customer)
+    if (variant === 'pos') sessionStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: customer.id, customerRecordVersion: null, name: customer.name, phone: customer.phone }))
   }
 
   const openAddCustomerModal = () => {
+    if (
+      variant === 'pos' &&
+      typeof navigator !== 'undefined' &&
+      navigator.onLine === false
+    ) {
+      setCustomerSearchError('إضافة عميل جديد تتطلب اتصالًا بالإنترنت. لم تُغيّر أي بيانات.')
+      return
+    }
     setAddCustomerOpen(true)
   }
 
@@ -528,15 +819,28 @@ export function InvoiceCustomerStep({
 
   const changeSelectedCustomer = () => {
     setSelectedCustomerId(null)
+    clearSelectedCustomerProfileState()
     window.setTimeout(() => {
       customerPhoneInputRef.current?.focus({ preventScroll: true })
     }, 0)
   }
 
-  const handleCustomerCreated = (createdCustomer: ExistingCustomer) => {
+  const handleCustomerCreated = (createdCustomer: CreatedPosCustomer) => {
+    customerProfileAbortRef.current?.abort()
+    customerProfileAbortRef.current = null
+    customerProfileRequestIdRef.current += 1
+    selectedCustomerIdRef.current = createdCustomer.id
     setCustomerName(createdCustomer.name)
     setCustomerPhone(createdCustomer.phone)
     setSelectedCustomerId(createdCustomer.id)
+    setSelectedCustomerProfile(createdCustomer)
+    setSelectedCustomerRecordVersion(createdCustomer.recordVersion)
+    setCustomerProfileLoading(false)
+    setCustomerProfileError('')
+    writeClientResource(
+      `customer-profile:${tenantId || 'tenant'}:${createdCustomer.id}`,
+      createdCustomer
+    )
     setCustomerSearchError('')
     setCustomerMatches((currentMatches) => [
       createdCustomer,
@@ -547,6 +851,19 @@ export function InvoiceCustomerStep({
       ...currentCustomers.filter((customer) => customer.id !== createdCustomer.id),
     ])
     setAddCustomerOpen(false)
+    if (variant === 'pos') sessionStorage.setItem(INVOICE_CUSTOMER_STORAGE_KEY, serializeInvoiceCustomerDraft({ customerId: createdCustomer.id, customerRecordVersion: createdCustomer.recordVersion, name: createdCustomer.name, phone: createdCustomer.phone }))
+  }
+
+  const retrySelectedCustomerProfile = () => {
+    if (!selectedCustomerId) return
+    const selectedCustomer =
+      visibleCustomerCards.find((customer) => customer.id === selectedCustomerId) ||
+      {
+        id: selectedCustomerId,
+        name: customerName,
+        phone: customerPhone,
+      }
+    void loadSelectedCustomerProfile(selectedCustomer, true)
   }
 
   const handlePosLogout = () => {
@@ -561,10 +878,11 @@ export function InvoiceCustomerStep({
     }
 
     if (hasActiveSale) {
-      localStorage.setItem(
+      sessionStorage.setItem(
         INVOICE_CUSTOMER_STORAGE_KEY,
         serializeInvoiceCustomerDraft({
           customerId: selectedCustomerId,
+          customerRecordVersion: selectedCustomerRecordVersion,
           name: customerName,
           phone: customerPhone,
         })
@@ -607,6 +925,42 @@ export function InvoiceCustomerStep({
   }
 
   if (variant === 'pos') {
+    return (
+      <>
+        <PosCustomerWorkspace
+          customers={visibleCustomerCards.slice(0, customerListLimit)}
+          loading={customerCardsLoading}
+          error={customerCardsError}
+          searchActive={customerSearch.active}
+          selectedCustomerId={selectedCustomerId}
+          selectedCustomerProfile={selectedCustomerProfile}
+          profileLoading={customerProfileLoading}
+          profileError={customerProfileError}
+          customerName={customerName}
+          customerPhone={customerPhone}
+          canLoadMore={canLoadMoreCustomers}
+          backHref={backHref}
+          phoneInputRef={customerPhoneInputRef}
+          addButtonRef={addCustomerButtonRef}
+          onNameChange={(value) => { setCustomerName(value); setSelectedCustomerId(null); clearSelectedCustomerProfileState() }}
+          onPhoneChange={(value) => { setCustomerPhone(value); setSelectedCustomerId(null); clearSelectedCustomerProfileState() }}
+          onSelect={selectExistingCustomer}
+          onChangeCustomer={changeSelectedCustomer}
+          onRemoveCustomer={handleReset}
+          onAddCustomer={openAddCustomerModal}
+          onLoadMore={() => setCustomerListLimit((currentLimit) => currentLimit + 6)}
+          onRetry={handleCustomerRetry}
+          onProfileRetry={retrySelectedCustomerProfile}
+          onContinue={handleNext}
+        />
+        {addCustomerOpen ? (
+          <PosAddCustomerModal branchId={customerSearchBranchId} initialName={customerName} initialPhone={customerPhone} onClose={closeAddCustomerModal} onCreated={handleCustomerCreated} />
+        ) : null}
+      </>
+    )
+  }
+
+  if (false) {
     return (
       <div className="pos-customer-motion fixed inset-0 z-[60] flex h-[100svh] w-screen min-w-0 overflow-hidden bg-[#020817] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-white [direction:ltr] sm:p-5 xl:p-7">
         <style jsx global>{`

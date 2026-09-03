@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.1.0",
+  "baselineHead": "37331390ec00bee507f88701365bfebb944db675",
+  "modified": [
+    {"path":"app/admin/inventory/movements/page.tsx","bytes":43100,"sha256":"1cd8366916322cf1f8cf9ab08a749ef7b8d2629bb28a98f047ae6bd2fba286ac","reason":"abort prior inventory request and retain stale-response guard"},
+    {"path":"app/layout.tsx","bytes":2316,"sha256":"bfa6c64f63284e4244226cd0b64169fc5a955c22d2eb8f54570cf6836cad6992","reason":"single shared presentation provider"},
+    {"path":"app/page.tsx","bytes":37115,"sha256":"ad0181429cadce6ae76a39d0861af02a6eec06bf5cd815a13ad750c95acdee98","reason":"presentation-only full-name consumer behind provider fallback"},
+    {"path":"components/admin-shell-layout.tsx","bytes":32332,"sha256":"216b79804435081555f1f12bc6d09aa832d66d957ca0c26dccf204058cc38590","reason":"presentation-only greeting consumer behind provider fallback"},
+    {"path":"components/pos-shell-layout.tsx","bytes":9844,"sha256":"083017e1ce8508c93937d2916124271a08639ff7050a215e7b2d5bab35c09ebb","reason":"dormant diagnostic sync status integration"},
+    {"path":"lib/pos-employee-session.ts","bytes":5712,"sha256":"b68576db308dd44300902c06f2077a81a1f4dfa2ced0e4fbc82c2ab78f0f1e51","reason":"trusted POS actor lifecycle event and in-memory presentation generation"}
+  ],
+  "added": [
+    {"path":"app/api/account/profile-presentation/route.ts","bytes":3200,"sha256":"3b91226a96dbd6aadf2a78e55a1787edcd3e064abb68590365a966be3fd82a17","reason":"trusted exact seven-field presentation boundary"},
+    {"path":"app/api/admin/inventory-movements/v2/route.ts","bytes":7527,"sha256":"5774249bab7347fefe2de6d9fbd59bf15219f5aa0eb1a0bc739b1a2dcd4d05d8","reason":"dedicated disabled v2 endpoint isolated from the legacy response contract"},
+    {"path":"components/pos-offline-sync-status.tsx","bytes":3734,"sha256":"c30228a1f9bfe9240e1aeaf289de07a9d363c2cfbf678ab4230545435077b7d1","reason":"event-driven local metadata status UI"},
+    {"path":"components/profile-presentation-provider.tsx","bytes":6386,"sha256":"128e814d5b9012c53942093e0b5825f08674e6594b3988090453ae8bc12debf6","reason":"authority-scope provider, POS lifecycle observation, abort and stale state protection"},
+    {"path":"lib/account/profile-presentation-client.ts","bytes":2178,"sha256":"6ac7de74c7feb4861a3380948ed21c9a3d95324eee323e841f0dff062f3c7aa1","reason":"in-memory request deduplication and complete scope isolation"},
+    {"path":"lib/account/profile-presentation-scope.ts","bytes":757,"sha256":"d14bd70b2f999909c7574e3f24a4516bb376916077af62f2589f5eb481279454","reason":"immutable account tenant branch and POS authority scope identity"},
+    {"path":"lib/account/profile-presentation.ts","bytes":3246,"sha256":"c8f9b967471d708b85a8181915e70efcdc7fe9b972c259699349feb47c4f26eb","reason":"exact serializer/parser and frozen capability vocabulary"},
+    {"path":"lib/admin/inventory-movements-contract.ts","bytes":8409,"sha256":"a3c31ffd4b57145a3bfea844b34d12c3947bf92f24258d8079101317cc140e5e","reason":"strict UTC, input bounds, trusted branch, scope-bound cursor and response contracts"},
+    {"path":"lib/offline/application-compatibility.ts","bytes":7520,"sha256":"f1f09df62518f9a00fff7c8df3d6107863c211af64f92b4aeca5fdb147cab71f","reason":"disabled flags, pure sync and local inventory projection"},
+    {"path":"tests/pos-offline-app-compat.test.mjs","bytes":25562,"sha256":"169ded5067868f312be855a9b3f9689f0794a68787d9a435d1b6d387ba9ac5f5","reason":"runtime scope isolation, legacy/v2 separation, cursor abuse and regression tests"}
+  ],
+  "restoredToBaseline": [
+    {"path":"app/api/admin/inventory-movements/route.ts","gitBlob":"e27dd89a2572f2bbf0c8d6e6f137932c4f6ec1d8","reason":"legacy page-number response is byte-compatible with the baseline Git object"}
+  ],
+  "deleted": [],
+  "historicalOrUnrelatedFilesModifiedByThisPhase": 0
+}

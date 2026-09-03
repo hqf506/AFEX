@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "gateName": "PROMPT_9_REQUIRED_BEFORE_WAVE_1",
+  "status": "BLOCKED_PENDING_PROMPT_9_AND_INDEPENDENT_SQL_APPROVAL",
+  "wave1Executable": false,
+  "checks": [
+    {"id":"CG-01","requirement":"Every current direct browser read/write proposed for removal is inventoried.","satisfied":false,"requiredEvidence":"caller inventory by route/component/database identity"},
+    {"id":"CG-02","requirement":"Every affected caller has a deployed and tested trusted replacement.","satisfied":false,"requiredEvidence":"replacement deployment and positive/negative contract tests"},
+    {"id":"CG-03","requirement":"Profile presentation uses one trusted route with exactly seven approved fields.","satisfied":false,"requiredEvidence":"username, full_name, contact_email, phone, tenant_name, branch_name, ui_capabilities serializer proof"},
+    {"id":"CG-04","requirement":"Profile lookup no longer uses a user-bound authenticated database client.","satisfied":false,"requiredEvidence":"exact server-only database gateway identity and hostile subject test"},
+    {"id":"CG-05","requirement":"Inventory history uses only GET /api/admin/inventory-movements.","satisfied":false,"requiredEvidence":"repository caller scan and runtime route trace"},
+    {"id":"CG-06","requirement":"Inventory history enforces trusted tenant/branch, page 10 default/50 max, 30-day default/366-day max UTC and created_at DESC,id DESC.","satisfied":false,"requiredEvidence":"route contract and boundary tests"},
+    {"id":"CG-07","requirement":"Customer, history and status callers remain compatible.","satisfied":false,"requiredEvidence":"response-shape and authorization regression"},
+    {"id":"CG-08","requirement":"No page depends on removed table/view/function access.","satisfied":false,"requiredEvidence":"repository-wide caller and runtime denial proof"},
+    {"id":"CG-09","requirement":"All browser/server response shapes are verified.","satisfied":false,"requiredEvidence":"consumer schema inventory and contract snapshots"},
+    {"id":"CG-10","requirement":"Rollback uses already qualified trusted routes and never broad privilege restoration.","satisfied":false,"requiredEvidence":"rollback drill and deny-list ACL attestation"},
+    {"id":"CG-11","requirement":"Branch authority exposes an exact validated composite identity for branch_id plus tenant_id.","satisfied":false,"requiredEvidence":"relation, ordered columns/types, unique constraint, owner and lifecycle attestation"},
+    {"id":"CG-12","requirement":"Employee authority exposes one immutable composite identity for employee, subject, device, scope and all acquisition generations.","satisfied":false,"requiredEvidence":"ordered unique key, dependent foreign-key design and hostile tuple tests"},
+    {"id":"CG-13","requirement":"Core V2 command identity binds command_id to trusted tenant and branch without speculative historical alteration.","satisfied":false,"requiredEvidence":"exact current relation/columns/unique constraint/owner plus acquisition and receipt body compatibility"},
+    {"id":"CG-14","requirement":"Snapshot header binds branch to tenant and items bind snapshot_id plus tenant_id plus branch_id to the same header.","satisfied":false,"requiredEvidence":"composite keys or a complete header-derived-scope contract with query/hash/purge parity"},
+    {"id":"CG-15","requirement":"Review transitions use one trusted serialized compare-and-set writer.","satisfied":false,"requiredEvidence":"function/role/grants, row-lock order and duplicate/concurrent version tests"},
+    {"id":"CG-16","requirement":"Employee payment writers force employee_attested plus unverified and provider transitions use a separate trusted writer.","satisfied":false,"requiredEvidence":"exact roles/functions/grants and eight-method hostile provider-state tests"},
+    {"id":"CG-17","requirement":"Effect claim, complete and fail transitions enforce the full state shape and atomic Core intent insertion.","satisfied":false,"requiredEvidence":"exact functions/roles/grants, state transition matrix, provider idempotency and concurrency tests"},
+    {"id":"CG-18","requirement":"Every current CREATE privilege on public has a caller-by-caller compatibility decision before revocation.","satisfied":false,"requiredEvidence":"Supabase, migration, extension, maintenance and application caller inventory with negative regression"}
+  ],
+  "sqlFilesBlockedUntilPass": [
+    "01-ROLE-AND-SCHEMA-FOUNDATION.sql: existing public-schema ACL block only",
+    "02-LEGACY-ACL-AND-DEFAULT-PRIVILEGE-CLOSURE.sql",
+    "03-RLS-REPLACEMENT.sql",
+    "04-SECURITY-DEFINER-RETIREMENT-AND-HARDENING.sql",
+    "05-OFFLINE-DEVICE-AND-EMPLOYEE-AUTHORITY.sql",
+    "06-PERSISTENT-UNWRAP-METADATA.sql",
+    "07-CORE-V2-ACTOR-DEVICE-BRIDGE.sql",
+    "08-REVIEW-PAYMENT-INVENTORY-EFFECT-AUTHORITY.sql",
+    "09-CANCELLATION-AND-REFUND-AUTHORITY.sql",
+    "10-INDEXES-CONSTRAINTS-AND-INVARIANTS.sql"
+  ],
+  "firstExistingObjectMutationStop": "Wave 1 stops before the first unresolved ACL, default-privilege, policy, function or existing index/constraint mutation.",
+  "operatorRule": "A textual approval or session setting is not compatibility evidence. All eighteen checks require returned artifacts and independent human acceptance."
+}

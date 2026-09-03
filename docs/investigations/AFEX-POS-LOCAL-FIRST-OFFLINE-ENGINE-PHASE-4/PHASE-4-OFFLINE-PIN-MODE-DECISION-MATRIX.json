@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 2,
+  "status": "human_selected_design_only",
+  "selectedMode": "MODE_A_MANAGED_PWA_CONTINUOUS_OFFLINE",
+  "timeExpiryPolicy": "NO_TIME_BASED_OFFLINE_AUTHORITY_EXPIRY",
+  "connectivityPolicy": "OPPORTUNISTIC_NOT_MANDATORY",
+  "revocationDiscovery": "ON_TRUSTED_RECONNECT_OR_AUTHORIZED_LOCAL_LOCK",
+  "residualRiskAcceptance": "HUMAN_APPROVED",
+  "selectedModeImplemented": false,
+  "phase5Authorized": false,
+  "modes": [
+    {
+      "choice": 1,
+      "id": "MODE_A_MANAGED_PWA_CONTINUOUS_OFFLINE",
+      "decision": "selected",
+      "productCapability": "One managed Offline-authorized device per tenant branch, one shared encrypted branch namespace, continuous Offline reads and durable command creation, and PIN switching for employees enrolled Online on the exact account/tenant/branch/device namespace.",
+      "authorityLifetime": "Event-driven validity with no time-based Offline employee, read, or command disablement. Old synchronization age is visibility and risk evidence only.",
+      "connectivity": "Required for initial enrollment/bootstrap and used opportunistically thereafter for revalidation and synchronization; not a periodic operating prerequisite.",
+      "securityLevel": "Human-accepted managed-PWA residual-risk model. Device-bound encryption is independent of employee PIN selection; no hardware, trusted-clock, or tamper-proof-counter guarantee.",
+      "implementationEffort": "High: verified Online account bootstrap, device authority, structured employee selector enrollment, device-bound protected local state, durable command pipeline, Core employee/device binding, inventory frontier, eight-payment parity, effect ledger, security review, and qualification.",
+      "operationalBurden": "Dedicated managed OS account/device, full-disk encryption, screen lock, kiosk browser, restricted DevTools/profile/software, Online enrollment/removal administration, warnings and synchronization monitoring, incident/loss process.",
+      "residualRisk": [
+        "Four-digit PIN has only 10000 possibilities.",
+        "Compromised same-origin code may invoke non-extractable WebCrypto keys.",
+        "Browser-local attempt counters and clocks are not tamper-proof.",
+        "An unlocked or privileged compromised device is outside the Mode A guarantee.",
+        "Remote employee, permission, PIN-generation, branch, or device revocation is not discovered during a long outage until trusted reconnect."
+      ],
+      "satisfiesStatedProductRequirement": true,
+      "supportsAllAuthorizedEmployeesAfterRestart": "All previously enrolled employees whose exact namespace package and protected state remain valid; newly authorized or never-enrolled employees require Online enrollment.",
+      "permitsDurableOfflineCommands": "Design intent yes, but implementation remains blocked by the enumerated server/Core/inventory/effect/security prerequisites.",
+      "humanApproval": "recorded"
+    },
+    {
+      "choice": 2,
+      "id": "MODE_B_NATIVE_OPTIONAL_HARDENING",
+      "decision": "not_selected_optional_future_hardening",
+      "productCapability": "Native Keychain/Keystore and platform protections may harden the same continuous Offline model where capabilities are proven.",
+      "securityLevel": "Potentially stronger device custody, but capability is device/platform dependent and not assumed universally.",
+      "implementationEffort": "Very high native platform work in addition to Mode A server/Core prerequisites.",
+      "operationalBurden": "Supported-device matrix, app signing, MDM, platform attestation and replacement processes.",
+      "residualRisk": ["Weak business PIN", "running-app compromise", "platform variance", "privileged OS compromise"],
+      "satisfiesStatedProductRequirement": true,
+      "supportsAllAuthorizedEmployeesAfterRestart": "If enrolled and platform policy passes.",
+      "permitsDurableOfflineCommands": "Only after the same missing server/Core prerequisites.",
+      "humanApproval": "not_required_for_selected_mode"
+    },
+    {
+      "choice": 3,
+      "id": "MODE_C_CURRENT_ACTOR_ONLY_OFFLINE",
+      "decision": "rejected",
+      "reason": "Does not support multiple enrolled employees switching Offline on the shared branch device.",
+      "satisfiesStatedProductRequirement": false
+    },
+    {
+      "choice": 4,
+      "id": "MODE_D_ONLINE_PIN_REQUIRED_AFTER_RESTART_SWITCH_OR_AUTHORITY_CHANGE",
+      "decision": "rejected",
+      "reason": "Creates a connectivity prerequisite and does not support continuous Offline restart, reboot, or employee switching.",
+      "satisfiesStatedProductRequirement": false
+    }
+  ],
+  "selectedValidityEvents": [
+    "trusted reconnect discovers server revocation, deactivation, permission change, PIN generation change, branch transfer, or device replacement",
+    "authorized local employee removal or governed local administrative lock",
+    "successful exact-scope purge",
+    "namespace, schema, signature, key, binding, integrity, or protected-state validation failure",
+    "registered device identity or account/tenant/branch binding mismatch"
+  ],
+  "nonBlockingFacts": [
+    "age of last synchronization",
+    "application or browser restart",
+    "device reboot",
+    "inactivity screen lock",
+    "employee switching",
+    "temporary Online Auth token expiry during an outage while explicit logout has not occurred"
+  ],
+  "decisionRules": [
+    "Mode A is selected as a product/security decision, not implemented by documentation.",
+    "No hidden absolute, sliding, grace, or periodic-connectivity expiry may disable otherwise valid Offline employee/read/command authority.",
+    "Primary Auth alone never unlocks sensitive data or supplies the acting employee.",
+    "Explicit establishment logout disables Offline PIN entry and requires same-account Online authentication before recovery.",
+    "Restart without explicit logout requires employee PIN selection again but does not require Internet.",
+    "Employee PIN never derives, wraps or unwraps the business-data DEK.",
+    "Trusted reconnect revalidates before synchronization or new server acquisition.",
+    "Mode B remains optional future hardening; Modes C and D remain rejected.",
+    "Phase 5 remains blocked."
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "nodes": [
+    {"id":"APP-AUTH","kind":"application","label":"requireApiAuth/requireAuthorizationContext"},
+    {"id":"APP-PIN","kind":"application","label":"POST /api/pos/identify-employee-by-pin"},
+    {"id":"APP-CUSTOMER","kind":"application","label":"/api/customers and Core customer resolution"},
+    {"id":"APP-ORDER","kind":"application","label":"POST /api/orders"},
+    {"id":"APP-STATUS","kind":"application","label":"POST /api/pos/orders/[id]/status"},
+    {"id":"APP-CANCEL","kind":"application","label":"POST /api/admin/receipts/[id]/cancel"},
+    {"id":"POS-ISSUE","kind":"function","label":"issue_pos_actor_session_v1"},
+    {"id":"POS-VERIFY","kind":"function","label":"verify_pos_pin_for_actor"},
+    {"id":"POS-VALIDATE","kind":"function","label":"validate_pos_actor_session_v1"},
+    {"id":"PHONE-LOOKUP","kind":"function","label":"lookup_customer_phone_identity_v1"},
+    {"id":"PHONE-CREATE","kind":"function","label":"create_customer_with_phone_identity_v1"},
+    {"id":"CORE-ACQUIRE","kind":"function","label":"acquire_atomic_order_command_result_v1"},
+    {"id":"CORE-INTERNAL","kind":"function","label":"afex_core_private.acquire_atomic_order_command_internal_v1"},
+    {"id":"CORE-CLAIM","kind":"function","label":"claim_atomic_order_command_v1"},
+    {"id":"CORE-EXECUTE","kind":"function","label":"execute_atomic_order_command_v1"},
+    {"id":"CORE-PERSIST","kind":"function","label":"afex_core_private.persist_atomic_order_business_v1"},
+    {"id":"CORE-REPLAY","kind":"function","label":"replay_atomic_order_command_v1"},
+    {"id":"INV-TRIGGER","kind":"trigger","label":"deduct_inventory_on_invoice_item_insert"},
+    {"id":"LEGACY-INVOICE","kind":"function","label":"create_invoice_with_items_safe"},
+    {"id":"LEGACY-CANCEL","kind":"function","label":"restore_inventory_for_cancelled_invoice"},
+    {"id":"WHATSAPP","kind":"external","label":"best-effort WhatsApp after persisted result"}
+  ],
+  "edges": [
+    {"from":"APP-AUTH","to":"POS-VALIDATE","authority":"service_role server RPC","effect":"validates HttpOnly actor token against tenant/Primary Auth"},
+    {"from":"APP-PIN","to":"POS-VERIFY","authority":"service_role legacy verifier","effect":"tenant/branch/PIN-scoped employee lookup"},
+    {"from":"APP-PIN","to":"POS-ISSUE","authority":"service_role narrow RPC","effect":"creates revocable online actor session"},
+    {"from":"POS-ISSUE","to":"POS-VERIFY","authority":"function owner","effect":"rechecks employee and scope"},
+    {"from":"APP-CUSTOMER","to":"PHONE-LOOKUP","authority":"authenticated/server","effect":"tenant-aware phone resolution"},
+    {"from":"APP-CUSTOMER","to":"PHONE-CREATE","authority":"authenticated/server","effect":"tenant/branch-aware customer creation"},
+    {"from":"APP-ORDER","to":"PHONE-LOOKUP","authority":"service_role","effect":"resolve customer"},
+    {"from":"APP-ORDER","to":"PHONE-CREATE","authority":"service_role","effect":"create missing customer"},
+    {"from":"APP-ORDER","to":"CORE-ACQUIRE","authority":"service_role","effect":"passes Primary Auth actor, tenant, branch, canonical payload"},
+    {"from":"CORE-ACQUIRE","to":"CORE-INTERNAL","authority":"function owner/private schema","effect":"reserve or classify duplicate/conflict"},
+    {"from":"APP-ORDER","to":"CORE-CLAIM","authority":"service_role","effect":"claim bounded execution lease"},
+    {"from":"APP-ORDER","to":"CORE-EXECUTE","authority":"service_role plus claim token","effect":"execute atomic command"},
+    {"from":"CORE-EXECUTE","to":"CORE-PERSIST","authority":"function owner/private schema","effect":"orders, invoices, lines, inventory, links, receipt"},
+    {"from":"CORE-PERSIST","to":"INV-TRIGGER","authority":"invoice_items insert trigger","effect":"locked stock decrement and movement"},
+    {"from":"APP-ORDER","to":"CORE-REPLAY","authority":"service_role","effect":"recover stable response"},
+    {"from":"APP-ORDER","to":"WHATSAPP","authority":"server post-result callback","effect":"non-transactional external effect"},
+    {"from":"APP-STATUS","to":"WHATSAPP","authority":"trusted POS actor after compare-and-set","effect":"non-transactional status notification"},
+    {"from":"APP-CANCEL","to":"LEGACY-CANCEL","authority":"service_role broad legacy RPC","effect":"inventory restoration after invoice status update"},
+    {"from":"LEGACY-INVOICE","to":"INV-TRIGGER","authority":"postgres definer","effect":"legacy invoice insert invokes stock trigger"}
+  ],
+  "criticalBreaks": [
+    {"at":"APP-ORDER -> CORE-ACQUIRE","finding":"Actual POS employee/device generation not in Core authority."},
+    {"at":"APP-ORDER/APP-STATUS -> WHATSAPP","finding":"No transactional durable effect identity/claim."},
+    {"at":"APP-CANCEL -> LEGACY-CANCEL","finding":"Production function body/result is drifted and broadly executable."}
+  ]
+}

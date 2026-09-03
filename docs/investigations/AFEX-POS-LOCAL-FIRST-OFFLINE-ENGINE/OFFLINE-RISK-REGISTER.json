@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "scale": { "likelihood": "1 rare - 5 likely", "impact": "1 low - 5 critical" },
+  "risks": [
+    {
+      "id": "R-001",
+      "title": "Cross-tenant or cross-branch cache disclosure",
+      "likelihood": 3,
+      "impact": 5,
+      "score": 15,
+      "owner": "Security/Frontend",
+      "mitigation": "opaque namespace, wrapped DEK, signed scope manifest, exact unlock checks and purge tests",
+      "gate": "Phase 1",
+      "residual": "compromised unlocked origin"
+    },
+    {
+      "id": "R-002",
+      "title": "Primary auth bypasses POS actor cache lock",
+      "likelihood": 3,
+      "impact": 5,
+      "score": 15,
+      "owner": "Security/Auth",
+      "mitigation": "sealed pre-PIN ingestion and actor-bound unwrap; native secure key option",
+      "gate": "Phase 0/1",
+      "residual": "pure PWA application-layer boundary"
+    },
+    {
+      "id": "R-003",
+      "title": "Duplicate order/invoice/inventory effect after replay",
+      "likelihood": 4,
+      "impact": 5,
+      "score": 20,
+      "owner": "Core V2/Backend",
+      "mitigation": "stable immutable command, server fingerprint acquisition, claim, durable receipt/business links",
+      "gate": "Phase 4",
+      "residual": "commands outside Core remain blocked"
+    },
+    {
+      "id": "R-004",
+      "title": "Wrong employee attribution",
+      "likelihood": 4,
+      "impact": 5,
+      "score": 20,
+      "owner": "Auth/Core",
+      "mitigation": "persist primary subject plus effective POS actor/lease in trusted command context",
+      "gate": "Phase 4",
+      "residual": "offline revocation delay"
+    },
+    {
+      "id": "R-005",
+      "title": "Duplicate or ambiguous WhatsApp/provider side effect",
+      "likelihood": 4,
+      "impact": 4,
+      "score": 16,
+      "owner": "Backend/Integrations",
+      "mitigation": "transactional server event outbox, unique effect key, provider receipt/reconciliation",
+      "gate": "Phase 4/6",
+      "residual": "provider limitations"
+    },
+    {
+      "id": "R-006",
+      "title": "Stale price, VAT or discount accepted silently",
+      "likelihood": 4,
+      "impact": 4,
+      "score": 16,
+      "owner": "Product/Finance/Core",
+      "mitigation": "versioned quote, server validation, explicit conflict re-confirmation",
+      "gate": "Phase 0/4",
+      "residual": "offline promise cannot guarantee current price"
+    },
+    {
+      "id": "R-007",
+      "title": "Oversell from stale inventory",
+      "likelihood": 4,
+      "impact": 4,
+      "score": 16,
+      "owner": "Operations/Core",
+      "mitigation": "cached stock labelled estimate; server atomic stock check; value/item policy",
+      "gate": "Phase 4",
+      "residual": "conflicts require employee resolution"
+    },
+    {
+      "id": "R-008",
+      "title": "Browser quota eviction loses unsynced command",
+      "likelihood": 3,
+      "impact": 5,
+      "score": 15,
+      "owner": "Frontend/Platform",
+      "mitigation": "persistent storage request, quota guards, non-evictable policy, block new commands, native option",
+      "gate": "Phase 1",
+      "residual": "user/OS can clear site data"
+    },
+    {
+      "id": "R-009",
+      "title": "Service worker/page concurrent dispatch",
+      "likelihood": 3,
+      "impact": 4,
+      "score": 12,
+      "owner": "Frontend/PWA",
+      "mitigation": "IndexedDB CAS leases plus server command claim",
+      "gate": "Phase 3",
+      "residual": "temporary delayed recovery after crash"
+    },
+    {
+      "id": "R-010",
+      "title": "Local schema upgrade or application rollback orphans commands",
+      "likelihood": 3,
+      "impact": 5,
+      "score": 15,
+      "owner": "Frontend/Release",
+      "mitigation": "restartable migrations, minimum readable version, rollback compatibility and quarantine",
+      "gate": "Every phase",
+      "residual": "manual recovery for corrupted device"
+    },
+    {
+      "id": "R-011",
+      "title": "Official number fabricated or duplicated offline",
+      "likelihood": 2,
+      "impact": 5,
+      "score": 10,
+      "owner": "Product/Core",
+      "mitigation": "local reference only; database official sequence",
+      "gate": "Phase 4",
+      "residual": "official receipt delayed until sync"
+    },
+    {
+      "id": "R-012",
+      "title": "Logout purge deletes another scope or unresolved evidence",
+      "likelihood": 2,
+      "impact": 5,
+      "score": 10,
+      "owner": "Frontend/Security",
+      "mitigation": "exact namespace tombstone, second confirmation, zero-residue and unaffected-namespace tests",
+      "gate": "Phase 5",
+      "residual": "user can clear all browser data outside app"
+    },
+    {
+      "id": "R-013",
+      "title": "Offline actor remains usable after server revocation",
+      "likelihood": 3,
+      "impact": 5,
+      "score": 15,
+      "owner": "Security/Product",
+      "mitigation": "short absolute lease, device binding, revocation epoch, financial caps",
+      "gate": "Phase 0/4",
+      "residual": "revocation is unknowable while disconnected"
+    },
+    {
+      "id": "R-014",
+      "title": "Customer PII retention exceeds legitimate need",
+      "likelihood": 3,
+      "impact": 4,
+      "score": 12,
+      "owner": "Privacy/Product",
+      "mitigation": "bounded index, retention policy, encryption, access/purge telemetry without PII",
+      "gate": "Phase 0/2",
+      "residual": "operational search needs local subset"
+    },
+    {
+      "id": "R-015",
+      "title": "Current 24-hour Core retention shorter than offline delay",
+      "likelihood": 4,
+      "impact": 5,
+      "score": 20,
+      "owner": "Core/Operations",
+      "mitigation": "approved maximum offline duration plus command/effect retention and cleanup policy",
+      "gate": "Phase 4",
+      "residual": "long-isolated devices must block/reauthorize"
+    },
+    {
+      "id": "R-016",
+      "title": "PWA encryption overstated as compromised-device protection",
+      "likelihood": 3,
+      "impact": 4,
+      "score": 12,
+      "owner": "Security/Architecture",
+      "mitigation": "explicit risk acceptance; native Keychain/Keystore option",
+      "gate": "Phase 0",
+      "residual": "web runtime trust"
+    }
+  ]
+}
+

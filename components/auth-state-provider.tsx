@@ -20,6 +20,13 @@ import {
 } from '@/lib/auth'
 import { resetProtectedResourceUnauthorized } from '@/lib/client-resource-cache'
 import { supabase } from '@/lib/supabase/client'
+import {
+  clearActiveOfflineNamespace,
+  hasOfflineBootstrapReadyMarker,
+  lockOfflineRuntime,
+} from '@/lib/offline/phase1'
+import { hasPosLoggedOut } from '@/lib/pos-employee-session'
+import { restoreOfflinePrimaryAuthProfile } from '@/lib/offline/complete-runtime'
 
 type SharedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -42,12 +49,29 @@ type CachedAuthProfile = {
   userId: string
 }
 
+function canUsePosOfflineAuthRecovery() {
+  return (
+    typeof window !== 'undefined' &&
+    window.location.pathname.startsWith('/pos') &&
+    !window.location.pathname.startsWith('/pos/login') &&
+    window.navigator.onLine === false &&
+    hasOfflineBootstrapReadyMarker() &&
+    !hasPosLoggedOut()
+  )
+}
+
 function redirectToPosLoginIfNeeded() {
   if (typeof window === 'undefined') {
     return
   }
 
   const pathname = window.location.pathname
+
+  if (
+    canUsePosOfflineAuthRecovery()
+  ) {
+    return
+  }
 
   if (pathname.startsWith('/pos') && !pathname.startsWith('/pos/login')) {
     window.location.href = '/pos/login'
@@ -214,6 +238,20 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   const setUnauthenticatedState = useCallback((nextError: string | null = null) => {
+    const preserveApprovedOfflineRecovery =
+      canUsePosOfflineAuthRecovery()
+    if (!preserveApprovedOfflineRecovery) {
+      lockOfflineRuntime('primary-auth-unavailable')
+      clearActiveOfflineNamespace()
+    }
+    if (preserveApprovedOfflineRecovery && profileRef.current) {
+      primeCurrentUserProfileCache(profileRef.current)
+      statusRef.current = 'authenticated'
+      setProfile(profileRef.current)
+      setStatus('authenticated')
+      setError(null)
+      return
+    }
     profileRef.current = null
     clearCurrentUserProfileCache()
     statusRef.current = 'unauthenticated'
@@ -245,6 +283,17 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        const previousProfile = profileRef.current
+        if (
+          !nextProfile ||
+          !previousProfile ||
+          previousProfile.id !== nextProfile.id ||
+          previousProfile.tenant_id !== nextProfile.tenant_id ||
+          previousProfile.branch_id !== nextProfile.branch_id
+        ) {
+          lockOfflineRuntime('primary-scope-change')
+          clearActiveOfflineNamespace()
+        }
         profileRef.current = nextProfile
         lockRetryCountRef.current = 0
         primeCurrentUserProfileCache(nextProfile)
@@ -354,6 +403,23 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const cachedProfileEntry = readCachedAuthProfile()
 
+      const restoreOfflineProfile = async () => {
+        if (!canUsePosOfflineAuthRecovery()) return false
+        try {
+          const offlineProfile = await restoreOfflinePrimaryAuthProfile()
+          if (cancelled || !mountedRef.current) return true
+          profileRef.current = offlineProfile
+          primeCurrentUserProfileCache(offlineProfile)
+          statusRef.current = 'authenticated'
+          setProfile(offlineProfile)
+          setStatus('authenticated')
+          setError(null)
+          return true
+        } catch {
+          return false
+        }
+      }
+
       try {
         const sessionResponse = await withAuthTimeout<
           Awaited<ReturnType<typeof supabase.auth.getSession>>
@@ -368,6 +434,19 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
         }
 
         if (!session) {
+          if (
+            canUsePosOfflineAuthRecovery() &&
+            cachedProfileEntry
+          ) {
+            profileRef.current = cachedProfileEntry.profile
+            primeCurrentUserProfileCache(cachedProfileEntry.profile)
+            statusRef.current = 'authenticated'
+            setProfile(cachedProfileEntry.profile)
+            setStatus('authenticated')
+            setError(null)
+            return
+          }
+          if (await restoreOfflineProfile()) return
           requestIdRef.current += 1
           lockRetryCountRef.current = 0
           setUnauthenticatedState(null)
@@ -379,6 +458,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           cachedProfileEntry &&
           cachedProfileEntry.userId === session.user.id
         ) {
+          lockOfflineRuntime('primary-auth-only')
           profileRef.current = cachedProfileEntry.profile
           primeCurrentUserProfileCache(cachedProfileEntry.profile)
           statusRef.current = 'authenticated'
@@ -388,6 +468,8 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        if (await restoreOfflineProfile()) return
+
         void refreshAuthState(latestSessionUserRef.current)
       } catch (error) {
         if (cancelled || !mountedRef.current) {
@@ -395,6 +477,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
         }
 
         if (isAuthTimeoutError(error)) {
+          if (await restoreOfflineProfile()) return
           setUnauthenticatedState('timeout')
           redirectToPosLoginIfNeeded()
           return

@@ -1,0 +1,18 @@
+-- REVIEW ONLY — POST-ACTIVATION CLOSURE — NOT AUTHORIZED FOR EXECUTION
+-- classification: BLOCKED_WITH_EXACT_FINITE_LIST / ACTIVATION_GATED
+-- active mutating SQL statements: 0
+--
+-- Corrected Prompt 10 freezes all 99 existing policy identities. The target is exact:
+-- zero browser policies on server-only relations; one scoped authenticated SELECT policy
+-- per retained catalog purpose; no auth.role(); no raw_user_meta_data; no permissive
+-- authenticated writes; and no claim that RLS provides column secrecy.
+--
+-- profiles and inventory history remain trusted-server serialized. catalog_items,
+-- branch_catalog_items and vat_settings may retain one database-derived tenant/branch
+-- read path only after the helper identity, owner, fixed pg_catalog search_path, exact
+-- execute grant and hostile cross-tenant/branch plan are bound by activation evidence.
+--
+-- New private authority relations use ENABLE + FORCE RLS and zero browser policies;
+-- trusted writes occur only through exact owner functions. This closure SQL cannot be
+-- finalized while MS-010 (resolver) and the eight Core writers are unspecified.
+

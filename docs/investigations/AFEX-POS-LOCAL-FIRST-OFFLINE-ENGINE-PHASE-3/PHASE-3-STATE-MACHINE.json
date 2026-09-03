@@ -1,0 +1,30 @@
+{
+  "states": ["pending", "syncing", "synced", "failed", "conflict", "blocked"],
+  "legalTransitions": {
+    "pending": ["syncing", "failed", "blocked"],
+    "syncing": ["pending", "synced", "failed", "conflict", "blocked"],
+    "synced": [],
+    "failed": ["pending", "blocked"],
+    "conflict": [],
+    "blocked": ["pending", "failed"]
+  },
+  "phase3ProductionReachability": {
+    "initial": "pending",
+    "syncing": false,
+    "synced": false,
+    "conflictFabrication": false,
+    "dispatch": false
+  },
+  "localShadowActions": {
+    "nonRetryableValidationFailure": "pending -> failed",
+    "invalidDependencies": "pending -> blocked",
+    "abandonedSyncingQualificationRecovery": "syncing -> pending",
+    "abandonedClassification": "ABANDONED_SYNCING_RECOVERED_NO_DISPATCH"
+  },
+  "retention": {
+    "automaticDeleteSynced": false,
+    "automaticDeleteFailed": false,
+    "automaticDeleteConflict": false
+  }
+}
+

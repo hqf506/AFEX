@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
@@ -33,16 +33,20 @@ import {
 } from '@/lib/invoices/success'
 import { clearCompletedInvoiceDraftState } from '@/lib/invoices/sale-reset'
 import {
-  getPaymentMethodLabel,
   normalizeUiPaymentMethod,
-  PAYMENT_METHODS,
+  parsePosPaymentConfiguration,
+  type PosPaymentMethodOption,
 } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
 import { formatPosGregorianDate, formatPosTime } from '@/lib/pos/date-format'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 import {
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
+import { PosCheckoutWorkspace } from '@/components/pos-checkout-workspace'
+import checkoutStyles from '@/components/pos-checkout-workspace.module.css'
+import { PosThermalDraftPreview } from '@/components/pos-thermal-draft-preview'
 
 type ThermalReceiptSettings = {
   showQRCode: boolean
@@ -104,6 +108,9 @@ function triggerCheckoutHaptic(style: 'LIGHT' | 'MEDIUM') {
 type PosRuntime = {
   discounts: CheckoutDiscountOption[]
   vat: CheckoutVatSetting | null
+  paymentConfiguration: {
+    methods: readonly PosPaymentMethodOption[]
+  }
 }
 
 function getPosRuntimeCacheKey(tenantId: string | null, branchId: string | null) {
@@ -192,6 +199,9 @@ export default function PosSaleCheckoutPage() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerId, setCustomerId] = useState<string | null>(null)
+  const [customerRecordVersion, setCustomerRecordVersion] = useState<
+    number | null
+  >(null)
   const [invoiceItems, setInvoiceItems] = useState<InvoiceLineItem[]>([])
   const [availableDiscounts, setAvailableDiscounts] = useState<
     CheckoutDiscountOption[]
@@ -201,8 +211,16 @@ export default function PosSaleCheckoutPage() {
     null
   )
   const [loadingVat, setLoadingVat] = useState(false)
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<
+    readonly PosPaymentMethodOption[]
+  >([])
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false)
+  const [paymentConfigurationError, setPaymentConfigurationError] = useState('')
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showInvoiceConfirmation, setShowInvoiceConfirmation] = useState(false)
+  const [showCashAmountDialog, setShowCashAmountDialog] = useState(false)
+  const [showThermalPreview, setShowThermalPreview] = useState(false)
+  const closeThermalPreview = useCallback(() => setShowThermalPreview(false), [])
   const [isOffline, setIsOffline] = useState(false)
   const cashReceivedInputRef = useRef<HTMLInputElement | null>(null)
   const submitLockedRef = useRef(false)
@@ -234,10 +252,10 @@ export default function PosSaleCheckoutPage() {
     if (!allowed) return
 
     const parsedCustomer = parseStoredInvoiceCustomerDraft(
-      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
+      sessionStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
     )
     const parsedItems = parseStoredInvoiceSaleItemsDraft(
-      localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      sessionStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
     )
 
     if (!parsedCustomer || !parsedItems || parsedItems.items.length === 0) {
@@ -253,6 +271,7 @@ export default function PosSaleCheckoutPage() {
       setCustomerName(parsedCustomer.name)
       setCustomerPhone(parsedCustomer.phone)
       setCustomerId(parsedCustomer.customerId)
+      setCustomerRecordVersion(parsedCustomer.customerRecordVersion)
       setInvoiceItems(parsedItems.items)
       setReady(true)
     }, 0)
@@ -264,13 +283,39 @@ export default function PosSaleCheckoutPage() {
     let cancelled = false
 
     async function loadRuntime() {
+      setLoadingPaymentMethods(true)
+      setPaymentConfigurationError('')
       try {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          const {
+            readOfflinePaymentConfiguration,
+            readOfflineRuntimeSettings,
+          } = await import(
+            '@/lib/offline/complete-runtime'
+          )
+          const [offlineRuntime, paymentConfiguration] = await Promise.all([
+            readOfflineRuntimeSettings() as Promise<{
+              discounts?: CheckoutDiscountOption[]
+              vat?: CheckoutVatSetting | null
+            }>,
+            readOfflinePaymentConfiguration(),
+          ])
+          if (!cancelled) {
+            setAvailableDiscounts(
+              Array.isArray(offlineRuntime.discounts) ? offlineRuntime.discounts : []
+            )
+            setAvailableVatSetting(offlineRuntime.vat ?? null)
+            setAvailablePaymentMethods(paymentConfiguration.methods)
+          }
+          return
+        }
         const runtimeCacheKey = getPosRuntimeCacheKey(tenantId, checkoutBranchId)
         const cachedRuntime = peekClientResource<PosRuntime>(runtimeCacheKey)
 
         if (!cancelled && cachedRuntime) {
           setAvailableDiscounts(cachedRuntime.discounts)
           setAvailableVatSetting(cachedRuntime.vat)
+          setAvailablePaymentMethods(cachedRuntime.paymentConfiguration.methods)
           setLoadingDiscounts(false)
           setLoadingVat(false)
         } else {
@@ -302,11 +347,19 @@ export default function PosSaleCheckoutPage() {
               throw new Error(getClientErrorMessage(result, 'تعذر تحميل الخصومات حاليًا. تحقق من الاتصال ثم حاول مرة أخرى.'))
             }
 
+            const paymentConfiguration = parsePosPaymentConfiguration(
+              result.runtime?.paymentConfiguration
+            )
+            if (!paymentConfiguration) {
+              throw new Error('POS_PAYMENT_CONFIGURATION_INVALID')
+            }
+
             return {
               discounts: Array.isArray(result.runtime?.discounts)
                 ? result.runtime.discounts
                 : [],
               vat: (result.runtime?.vat as CheckoutVatSetting | null) || null,
+              paymentConfiguration,
             }
           },
           {
@@ -318,16 +371,54 @@ export default function PosSaleCheckoutPage() {
         if (!cancelled) {
           setAvailableDiscounts(runtime.discounts)
           setAvailableVatSetting(runtime.vat)
+          setAvailablePaymentMethods(runtime.paymentConfiguration.methods)
         }
-      } catch {
+      } catch (runtimeError) {
         if (!cancelled) {
-          setAvailableDiscounts([])
-          setAvailableVatSetting(null)
+          if (shouldUseOfflineReadFallback(runtimeError)) {
+            try {
+              const {
+                readOfflinePaymentConfiguration,
+                readOfflineRuntimeSettings,
+              } = await import(
+                '@/lib/offline/complete-runtime'
+              )
+              const [offlineRuntime, paymentConfiguration] = await Promise.all([
+                readOfflineRuntimeSettings() as Promise<{
+                  discounts?: CheckoutDiscountOption[]
+                  vat?: CheckoutVatSetting | null
+                }>,
+                readOfflinePaymentConfiguration(),
+              ])
+              setAvailableDiscounts(
+                Array.isArray(offlineRuntime.discounts)
+                  ? offlineRuntime.discounts
+                  : []
+              )
+              setAvailableVatSetting(offlineRuntime.vat ?? null)
+              setAvailablePaymentMethods(paymentConfiguration.methods)
+            } catch {
+              setAvailableDiscounts([])
+              setAvailableVatSetting(null)
+              setAvailablePaymentMethods([])
+              setPaymentConfigurationError(
+                'تعذر التحقق من طرق الدفع المعتمدة. يلزم الاتصال وتحديث لقطة كاملة.'
+              )
+            }
+          } else {
+            setAvailableDiscounts([])
+            setAvailableVatSetting(null)
+            setAvailablePaymentMethods([])
+            setPaymentConfigurationError(
+              'تعذر التحقق من طرق الدفع المعتمدة. أعد المحاولة عند توفر الاتصال.'
+            )
+          }
         }
       } finally {
         if (!cancelled) {
           setLoadingDiscounts(false)
           setLoadingVat(false)
+          setLoadingPaymentMethods(false)
         }
       }
     }
@@ -341,6 +432,7 @@ export default function PosSaleCheckoutPage() {
 
   const checkout = useInvoiceCheckout({
     customerId,
+    customerRecordVersion,
     customerName,
     customerPhone,
     invoiceItems,
@@ -348,6 +440,7 @@ export default function PosSaleCheckoutPage() {
     hasAmbiguousAdminBranchContext,
     branchId: checkoutBranchId,
     vatSetting: availableVatSetting,
+    persistSaleDraft: true,
     onInvoiceCreated: (_, successSnapshot) => {
       const nextSnapshot = {
         ...successSnapshot,
@@ -366,8 +459,11 @@ export default function PosSaleCheckoutPage() {
   })
 
   const selectedPaymentLabel = useMemo(
-    () => getPaymentMethodLabel(checkout.paymentMethod),
-    [checkout.paymentMethod]
+    () =>
+      availablePaymentMethods.find(
+        (method) => method.id === checkout.paymentMethod
+      )?.label || 'طريقة الدفع غير متاحة',
+    [availablePaymentMethods, checkout.paymentMethod]
   )
   const normalizedPaymentMethod = useMemo(
     () => normalizeUiPaymentMethod(checkout.paymentMethod),
@@ -375,7 +471,8 @@ export default function PosSaleCheckoutPage() {
   )
 
   const isCashOnDelivery =
-    normalizedPaymentMethod === 'cod'
+    normalizedPaymentMethod === 'cod' ||
+    normalizedPaymentMethod === 'on_delivery'
 
   const printPaymentMethodLabel = useMemo(
     () => (isCashOnDelivery ? 'عند الاستلام' : selectedPaymentLabel),
@@ -396,6 +493,10 @@ export default function PosSaleCheckoutPage() {
       return false
     }
 
+    if (isOffline) {
+      return false
+    }
+
     if (!customerName.trim() && !customerPhone.trim()) {
       return false
     }
@@ -408,26 +509,39 @@ export default function PosSaleCheckoutPage() {
       return false
     }
 
-    if (loadingDiscounts || loadingVat) {
+    if (
+      loadingDiscounts ||
+      loadingVat ||
+      loadingPaymentMethods ||
+      paymentConfigurationError ||
+      !availablePaymentMethods.some(
+        (method) => method.id === normalizedPaymentMethod
+      )
+    ) {
       return false
     }
 
-    if (normalizedPaymentMethod === 'cash' && checkout.numericCashReceived <= 0) {
+    if (normalizedPaymentMethod === 'cash' && checkout.numericCashReceived < checkout.finalTotal) {
       return false
     }
 
     return true
   }, [
     checkout.loading,
+    checkout.finalTotal,
     checkout.numericCashReceived,
     customerName,
     customerPhone,
     hasAmbiguousAdminBranchContext,
     hasInvalidBranchContext,
     invoiceItems.length,
+    isOffline,
     loadingDiscounts,
+    loadingPaymentMethods,
     loadingVat,
     normalizedPaymentMethod,
+    paymentConfigurationError,
+    availablePaymentMethods,
   ])
 
   const cashWarningMessage = useMemo(() => {
@@ -438,7 +552,7 @@ export default function PosSaleCheckoutPage() {
     return `المبلغ المستلم أقل من الإجمالي. المتبقي سيظهر على الفاتورة: ${formatCurrency(checkout.remainingFromCustomer)}`
   }, [checkout.remainingFromCustomer, normalizedPaymentMethod])
 
-  const handleSelectPayment = (option: (typeof PAYMENT_METHODS)[number]) => {
+  const handleSelectPayment = (option: PosPaymentMethodOption) => {
     checkout.setPaymentMethod(option.id)
     triggerCheckoutHaptic('LIGHT')
   }
@@ -475,8 +589,8 @@ export default function PosSaleCheckoutPage() {
   const confirmCancelInvoice = () => {
     setShowCancelModal(false)
     checkout.clearCheckout()
-    localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
-    localStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
+    sessionStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+    sessionStorage.removeItem(INVOICE_CUSTOMER_STORAGE_KEY)
     sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
     window.location.href = '/pos'
   }
@@ -524,11 +638,24 @@ export default function PosSaleCheckoutPage() {
   }, [checkout.loading, isMobileViewport, showInvoiceConfirmation])
 
   useEffect(() => {
-    if (!ready || initializedDefaultPayment.current) return
+    if (
+      !ready ||
+      loadingPaymentMethods ||
+      availablePaymentMethods.length === 0 ||
+      initializedDefaultPayment.current
+    ) {
+      return
+    }
 
     initializedDefaultPayment.current = true
-    checkout.setPaymentMethod('mada')
-  }, [checkout, ready])
+    if (
+      !availablePaymentMethods.some(
+        (method) => method.id === checkout.paymentMethod
+      )
+    ) {
+      checkout.setPaymentMethod(availablePaymentMethods[0].id)
+    }
+  }, [availablePaymentMethods, checkout, loadingPaymentMethods, ready])
 
   useEffect(() => {
     if (!ready || !checkout.isReceivedAmountEditable) {
@@ -547,11 +674,11 @@ export default function PosSaleCheckoutPage() {
     if (!ready) return
 
     if (invoiceItems.length === 0) {
-      localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      sessionStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
       return
     }
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       INVOICE_SALE_ITEMS_STORAGE_KEY,
       serializeInvoiceSaleItemsDraft({ items: invoiceItems })
     )
@@ -560,19 +687,18 @@ export default function PosSaleCheckoutPage() {
   if (authError === 'timeout') {
     console.warn('[POS CHECKOUT] auth timeout', currentPathname, authStatus)
     return (
-      <div className="fixed inset-0 flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#020817] p-5 text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-        <div className="relative w-full max-w-md space-y-4 rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 p-5 text-right shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+      <div className={checkoutStyles.statePage}>
+        <div className={checkoutStyles.stateCard}>
           <div>
-            <h2 className="text-lg font-black text-white">تعذر تجهيز نقطة البيع</h2>
-            <p className="mt-1 text-sm font-bold text-slate-400">تحقق من تسجيل الدخول أو أعد المحاولة</p>
+            <h2>تعذر تجهيز نقطة البيع</h2>
+            <p>تحقق من تسجيل الدخول أو أعد المحاولة</p>
           </div>
           <button
             type="button"
             onClick={() => {
               window.location.href = '/pos/login'
             }}
-            className="rounded-2xl bg-cyan-300 px-4 py-2 text-sm font-black text-[#02101c]"
+            className={checkoutStyles.stateButton}
           >
             تسجيل الدخول
           </button>
@@ -583,9 +709,8 @@ export default function PosSaleCheckoutPage() {
 
   if (authLoading || !allowed || !ready) {
     return (
-      <div className="fixed inset-0 flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#020817] p-5 text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-        <div className="relative rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 px-6 py-4 text-sm font-black text-cyan-100 shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+      <div className={checkoutStyles.statePage}>
+        <div className={checkoutStyles.stateCard} role="status">
           جارٍ تحميل بيانات الفاتورة...
         </div>
       </div>
@@ -594,34 +719,93 @@ export default function PosSaleCheckoutPage() {
 
   if (missingCheckoutData) {
     return (
-      <div className="pos-checkout-page">
-        <style jsx global>{`
-          body:has(.pos-checkout-page) .app-shell .page-wrap main.text-right {
-            margin-top: 0 !important;
-          }
-
-          body:has(.pos-checkout-page) .app-shell .page-wrap main > .space-y-5,
-          body:has(.pos-checkout-page) .app-shell .page-wrap main > .md\\:space-y-6 {
-            margin-top: 0 !important;
-          }
-        `}</style>
-
-        <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] p-5 text-white">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(135deg,#020817_0%,#061426_52%,#020817_100%)]" />
-          <div className="relative rounded-[28px] border border-cyan-300/12 bg-[#020817]/72 p-5 text-right shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
-            <p className="text-sm font-bold text-slate-300">
+      <div className={checkoutStyles.statePage}>
+          <div className={`${checkoutStyles.stateCard} ${checkoutStyles.stateError}`} role="alert">
+            <p>
               لا يمكن إتمام الفاتورة حالياً لأن بيانات العميل أو العناصر غير متوفرة بشكل صحيح.
             </p>
             <button
               type="button"
               onClick={() => router.push('/pos/sale/items')}
-              className="mt-4 flex h-[48px] items-center justify-center rounded-2xl border border-cyan-300/18 bg-cyan-400/10 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15"
+              className={checkoutStyles.stateButton}
             >
               العودة إلى العناصر
             </button>
           </div>
-        </div>
       </div>
+    )
+  }
+
+  const handleInvoiceAction = () => {
+    if (normalizedPaymentMethod === 'cash' && checkout.numericCashReceived < checkout.finalTotal) {
+      setShowCashAmountDialog(true)
+      window.setTimeout(() => cashReceivedInputRef.current?.focus(), 0)
+      return
+    }
+    setShowInvoiceConfirmation(true)
+  }
+
+  if (!missingCheckoutData) {
+    return (
+      <>
+        <PosCheckoutWorkspace
+          customerName={customerName}
+          customerPhone={customerPhone}
+          customerId={customerId}
+          items={invoiceItems}
+          subtotal={checkout.subtotal}
+          taxAmount={checkout.taxAmount}
+          discountAmount={checkout.discountAmount}
+          finalTotal={checkout.finalTotal}
+          paymentMethod={checkout.paymentMethod}
+          paymentMethods={availablePaymentMethods}
+          cashReceived={checkout.cashReceived}
+          cashChange={checkout.cashChange}
+          remainingFromCustomer={checkout.remainingFromCustomer}
+          note={checkout.note}
+          discounts={availableDiscounts}
+          selectedDiscount={checkout.selectedDiscount}
+          loadingDiscounts={loadingDiscounts}
+          loading={checkout.loading}
+          canSubmit={canSubmitInvoice}
+          errorMessage={
+            hasInvalidBranchContext
+              ? 'لا يمكن إنشاء فاتورة لأن حسابك غير مرتبط بفرع صالح.'
+              : hasAmbiguousAdminBranchContext
+                ? 'اختر فرعًا محددًا قبل استخدام شاشة الدفع.'
+                : paymentConfigurationError || checkout.errorMessage
+          }
+          offlineMessage={checkout.offlineDraftMessage || (isOffline ? 'يمكنك مراجعة السلة دون اتصال، لكن إتمام البيع يتطلب الاتصال حاليًا.' : '')}
+          cashWarning={cashWarningMessage}
+          onPreview={() => setShowThermalPreview(true)}
+          onPaymentChange={(method) => {
+            const option = availablePaymentMethods.find(
+              (candidate) => candidate.id === method
+            )
+            if (option) handleSelectPayment(option)
+          }}
+          onCashReceivedChange={checkout.setCashReceived}
+          onDiscountChange={checkout.setSelectedDiscount}
+          onNoteChange={checkout.setNote}
+          onSubmit={handleCreateInvoice}
+        />
+        <PosThermalDraftPreview
+          open={showThermalPreview}
+          onClose={closeThermalPreview}
+          customerName={customerName}
+          customerPhone={customerPhone}
+          items={invoiceItems}
+          subtotal={checkout.subtotal}
+          taxAmount={checkout.taxAmount}
+          discountAmount={checkout.discountAmount}
+          finalTotal={checkout.finalTotal}
+          paymentMethod={checkout.paymentMethod}
+          cashReceived={checkout.cashReceived}
+          cashChange={checkout.cashChange}
+          remainingFromCustomer={checkout.remainingFromCustomer}
+          note={checkout.note}
+        />
+      </>
     )
   }
 
@@ -689,10 +873,10 @@ export default function PosSaleCheckoutPage() {
       ) : null}
 
       {isMobileViewport ? (
-        <div className="fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white [direction:rtl]">
+        <div className="afex-mobile-checkout relative h-full min-h-0 w-full overflow-hidden bg-[#020817] text-white [direction:rtl]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(34,211,238,0.11),transparent_30%),linear-gradient(180deg,#020817_0%,#041224_54%,#020817_100%)]" />
-          <div className="pos-checkout-enter relative h-full overflow-y-auto overscroll-contain px-4 pb-48 pt-[max(1rem,env(safe-area-inset-top))]">
-            <header className="mb-6 flex items-start justify-between gap-4">
+          <div className="afex-mobile-checkout-content pos-checkout-enter relative h-full overflow-y-auto overscroll-contain px-4 pb-[calc(11rem+env(safe-area-inset-bottom))] pt-3">
+            <header className="afex-mobile-checkout-heading mb-3 flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-black tracking-[0.24em] text-cyan-300">CHECKOUT</p>
                 <h1 className="mt-1 text-[28px] font-black leading-tight text-white">ملخص الفاتورة</h1>
@@ -718,10 +902,10 @@ export default function PosSaleCheckoutPage() {
               <div className="mb-3 rounded-[18px] bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.20)]">{checkout.offlineDraftMessage}</div>
             ) : null}
             {isOffline ? (
-              <div className="mb-3 rounded-[18px] bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.18)]">أنت غير متصل، سيتم حفظ الفاتورة كمسودة فقط</div>
+              <div className="mb-3 rounded-[18px] bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.18)]">يمكنك مراجعة السلة دون اتصال، ويتطلب إتمام البيع الاتصال.</div>
             ) : null}
 
-            <section className="flex items-center gap-3 rounded-[22px] bg-white/[0.035] p-3.5 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+            <section data-checkout-section="customer" className="flex items-center gap-3 rounded-[18px] bg-white/[0.035] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-base font-black text-cyan-100">
                 {(customerName.trim().charAt(0) || 'ع').toUpperCase()}
               </span>
@@ -732,7 +916,9 @@ export default function PosSaleCheckoutPage() {
               </div>
             </section>
 
-            <section className="mt-6">
+            <details data-checkout-section="items" className="afex-mobile-order-details mt-3 rounded-[18px] bg-white/[0.025] p-3">
+              <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-sm font-black text-white"><span>تفاصيل الطلب</span><span className="text-xs text-cyan-100">{invoiceItems.length} عنصر</span></summary>
+              <section className="mt-2">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-base font-black text-white">العناصر</h2>
                 <span className="text-xs font-black text-cyan-100">{invoiceItems.length} عنصر</span>
@@ -756,12 +942,13 @@ export default function PosSaleCheckoutPage() {
                   </div>
                 ))}
               </div>
-            </section>
+              </section>
+            </details>
 
-            <section className="mt-6">
+            <section data-checkout-section="payment" className="mt-3">
               <h2 className="mb-3 text-base font-black text-white">طريقة الدفع</h2>
-              <div className="grid grid-cols-2 gap-2.5">
-                {PAYMENT_METHODS.map((option) => {
+              <div className="afex-mobile-payment-grid grid grid-cols-2 gap-2.5">
+                {availablePaymentMethods.map((option) => {
                   const selected = checkout.paymentMethod === option.id
                   return (
                     <button
@@ -832,7 +1019,7 @@ export default function PosSaleCheckoutPage() {
               </section>
             ) : null}
 
-            <section className="mt-4 rounded-[22px] bg-white/[0.035] p-4 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
+            <section data-checkout-section="totals" className="mt-3 rounded-[18px] bg-white/[0.035] p-3 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)]">
               <div className="space-y-2.5">
                 <SummaryMetric label="المجموع الفرعي" value={formatCurrency(checkout.subtotal)} />
                 <SummaryMetric label="الخصم" value={formatCurrency(checkout.discountAmount)} />
@@ -844,7 +1031,7 @@ export default function PosSaleCheckoutPage() {
               </div>
             </section>
 
-            <section className="mt-4">
+            <section data-checkout-section="note" className="mt-3">
               <label className="mb-2 block text-xs font-black text-slate-400">ملاحظة</label>
               <textarea value={checkout.note} onChange={(event) => checkout.setNote(event.target.value)} placeholder="اكتب ملاحظة..." className="min-h-[86px] w-full resize-none rounded-[20px] border-0 bg-white/[0.035] px-4 py-3 text-right text-sm font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.12)] outline-none placeholder:text-slate-600 focus:shadow-[0_0_18px_rgba(34,211,238,0.10),inset_0_0_0_1px_rgba(34,211,238,0.36)]" />
             </section>
@@ -854,16 +1041,13 @@ export default function PosSaleCheckoutPage() {
             </button>
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-20 border-t border-cyan-300/10 bg-[#020817]/94 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-2xl">
+          <div data-checkout-submit-bar className="absolute inset-x-0 bottom-0 z-20 border-t border-cyan-300/20 bg-[#020817] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <span className="text-xs font-black text-slate-400">المبلغ المطلوب</span>
               <span className="text-lg font-black text-white">{formatCurrency(checkout.finalTotal)}</span>
             </div>
-            <button type="button" onClick={() => setShowInvoiceConfirmation(true)} disabled={!canSubmitInvoice} className="flex min-h-[60px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-base font-black text-[#020817] shadow-[0_0_28px_rgba(34,211,238,0.22)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none">
-              إنشاء الفاتورة
-            </button>
-            <button type="button" onClick={() => router.push('/pos/sale/items')} className="mt-2 flex min-h-11 w-full items-center justify-center text-sm font-black text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70">
-              الرجوع إلى العناصر
+            <button type="button" onClick={handleInvoiceAction} disabled={!canSubmitInvoice} className="afex-mobile-checkout-submit flex min-h-[56px] w-full items-center justify-center rounded-[18px] px-5 text-base font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:shadow-none">
+              {isOffline ? 'الإتمام غير متاح دون اتصال' : `إنشاء الفاتورة — ${formatCurrency(checkout.finalTotal)}`}
             </button>
           </div>
         </div>
@@ -889,7 +1073,7 @@ export default function PosSaleCheckoutPage() {
             ) : null}
             {isOffline ? (
               <div className="rounded-[22px] border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
-                أنت غير متصل، سيتم حفظ الفاتورة كمسودة فقط
+                يمكنك مراجعة السلة دون اتصال، ويتطلب إتمام البيع الاتصال.
               </div>
             ) : null}
 
@@ -925,7 +1109,7 @@ export default function PosSaleCheckoutPage() {
 
               <div className="min-h-0 flex-1 space-y-3 overflow-visible md:overflow-y-auto md:pr-1">
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  {PAYMENT_METHODS.map((option) => {
+                  {availablePaymentMethods.map((option) => {
                     const selected = checkout.paymentMethod === option.id
 
                     return (
@@ -1077,7 +1261,11 @@ export default function PosSaleCheckoutPage() {
                   disabled={!canSubmitInvoice}
                   className="flex min-h-16 w-full flex-1 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#14B8A6,#06B6D4)] text-lg font-black text-[#020817] shadow-[0_0_34px_rgba(20,184,166,0.28)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
                 >
-                  {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
+                  {isOffline
+                    ? 'الإتمام غير متاح دون اتصال'
+                    : checkout.loading
+                      ? 'جارٍ إنشاء الفاتورة...'
+                      : 'إنشاء الفاتورة'}
                 </button>
 
                 <button
@@ -1200,6 +1388,21 @@ export default function PosSaleCheckoutPage() {
       </div>
       )}
 
+      {isMobileViewport && showCashAmountDialog ? (
+        <div className="fixed inset-0 z-[95] grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="cash-amount-title">
+          <section className="w-full max-w-sm rounded-[22px] bg-[#061426] p-4 text-right text-white shadow-2xl">
+            <h2 id="cash-amount-title" className="text-lg font-black">أدخل المبلغ المستلم من العميل</h2>
+            <p className="mt-2 text-sm text-slate-300">الإجمالي المستحق: {formatCurrency(checkout.finalTotal)}</p>
+            <input ref={cashReceivedInputRef} type="number" inputMode="decimal" value={checkout.cashReceived} onChange={(event) => checkout.setCashReceived(event.target.value)} className="mt-4 h-14 w-full rounded-[16px] bg-[#020817] px-4 text-right text-base font-black" />
+            <p className="mt-2 text-sm text-slate-300">{checkout.numericCashReceived >= checkout.finalTotal ? `الباقي: ${formatCurrency(checkout.cashChange)}` : `المتبقي: ${formatCurrency(checkout.remainingFromCustomer)}`}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" className="min-h-11 rounded-[14px] bg-slate-700 font-black" onClick={() => setShowCashAmountDialog(false)}>إلغاء</button>
+              <button type="button" className="min-h-11 rounded-[14px] bg-[#8a6537] font-black text-white disabled:opacity-50" disabled={checkout.numericCashReceived < checkout.finalTotal} onClick={() => { setShowCashAmountDialog(false); setShowInvoiceConfirmation(true) }}>تأكيد المبلغ</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {isMobileViewport && showInvoiceConfirmation ? (
         <div className="fixed inset-0 z-[90] h-[100svh] overflow-hidden bg-[#020817] [direction:rtl]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_8%,rgba(34,211,238,0.13),transparent_30%),linear-gradient(180deg,#020817_0%,#041224_56%,#020817_100%)]" />
@@ -1268,7 +1471,11 @@ export default function PosSaleCheckoutPage() {
               disabled={!canSubmitInvoice}
               className="mt-6 flex min-h-[64px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14B8A6,#22D3EE)] px-5 text-lg font-black text-[#020817] shadow-[0_0_30px_rgba(34,211,238,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
             >
-              {checkout.loading ? 'جارٍ إنشاء الفاتورة...' : 'إنشاء الفاتورة'}
+              {isOffline
+                ? 'الإتمام غير متاح دون اتصال'
+                : checkout.loading
+                  ? 'جارٍ إنشاء الفاتورة...'
+                  : 'إنشاء الفاتورة'}
             </button>
             <button
               type="button"
@@ -1282,7 +1489,8 @@ export default function PosSaleCheckoutPage() {
         </div>
       ) : null}
 
-      <div id="print-area" dir="rtl" className="hidden print:block">
+      <div id="print-area" dir="rtl" role={showThermalPreview ? 'dialog' : undefined} aria-modal={showThermalPreview ? true : undefined} aria-label={showThermalPreview ? 'معاينة قبل الإنشاء' : undefined} className={showThermalPreview ? 'afex-thermal-curtain' : 'hidden print:block'}>
+        {showThermalPreview ? <button type="button" className="afex-thermal-curtain-close" aria-label="إغلاق معاينة الإيصال" onClick={() => setShowThermalPreview(false)}>×</button> : null}
         <div
           className="mx-auto w-full max-w-[280px] p-3 text-[13px] leading-6 text-black"
           style={{ fontFamily: 'monospace' }}
@@ -1605,7 +1813,7 @@ function CalculationCard({
 function PaymentMethodIcon({
   method,
 }: {
-  method: (typeof PAYMENT_METHODS)[number]['id']
+  method: PosPaymentMethodOption['id']
 }) {
   if (method === 'cash') {
     return (

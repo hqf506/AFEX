@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 4,
+  "rows": [
+    {"role":"afex_offline_authority_owner","login":false,"purpose":"owns additive device employee-selector encryption inventory bootstrap and provenance relations plus provisioning functions and immutable triggers","tableWrite":"owner maintenance only through SECURITY DEFINER; no application membership","functionExecute":["auth.afex_current_session_matches_v1"]},
+    {"role":"afex_function_owner","login":false,"purpose":"owns four public contracts and private validators","schemaUsage":["afex_offline_authority","auth (USAGE only)"],"tableWrite":["offline_command_bindings INSERT through definer only"],"tableRead":["private provenance relations","bounded actor-session columns","profiles id/is_active","existing Core scope rows"],"functionExecute":["auth.afex_current_session_matches_v1"]},
+    {"role":"afex_offline_acquisition_runtime","login":false,"purpose":"future exact execution surface","tablePrivileges":[],"functionExecute":["acquire_offline_order_create_v2","resolve_offline_order_create_authority_batch_v2","lookup_offline_order_create_receipts_v2","read_branch_inventory_frontier_v2"]},
+    {"role":"afex_offline_provisioning_runtime","login":false,"purpose":"future exact trusted server provisioning and bootstrap surface","tablePrivileges":[],"functionExecute":["five device lifecycle contracts","five employee selector contracts","one inventory publication contract","four account bootstrap/logout/recovery contracts"]},
+    {"role":"service_role","login":"existing","purpose":"transport is not authentication","newTablePrivileges":[],"newFunctionExecute":[],"membershipActivation":"none in this package"},
+    {"role":"PUBLIC/anon/authenticated","newSchemaCreate":false,"newTables":[],"newFunctions":[]}
+  ],
+  "runtimeRoleTableWriteBeyondFunctions": false,
+  "runtimeRoleMembershipGranted": false,
+  "crossRuntimeExecuteGranted": false,
+  "defaultPrivilegesClosed": true,
+  "installer": {"currentUser":"supabase_admin","sessionUser":"supabase_admin","setRole":false},
+  "activation": false
+}

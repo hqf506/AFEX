@@ -1,0 +1,25 @@
+-- REVIEW ONLY — POST-ACTIVATION CLOSURE — NOT AUTHORIZED FOR EXECUTION
+-- classification: BLOCKED_WITH_EXACT_FINITE_LIST / ACTIVATION_GATED
+-- active mutating SQL statements: 0
+--
+-- This closure wave is intentionally after application/Core activation. It must stop
+-- unless the independently approved activation record binds the exact Application
+-- Compatibility manifest, Core bridge manifest, caller inventory and controlled
+-- Production qualification evidence while all twelve sensitive flags remain false.
+--
+-- Exact target closure after that gate:
+-- * PUBLIC/anon/authenticated: no privileges on profiles, customers, orders, invoices,
+--   invoice_items, order_status_logs, pos_profiles, inventory_stock,
+--   inventory_movements, inventory_movements_view, audit_logs,
+--   branch_whatsapp_configs, order_number_sequences, customer identity base tables,
+--   Core tables or any Offline/review/effect table.
+-- * authenticated retains only scoped SELECT on catalog_items, branch_catalog_items and
+--   vat_settings plus exact lookup_customer_phone_identity_v1 execution.
+-- * service_role receives exact wrapper execution and only the proven column reachability
+--   needed by the trusted profile and inventory serializers; it receives no owner role.
+-- * every AFEX owner gets closed default privileges in its exact schema.
+--
+-- Existing raw ACL identities are frozen by corrected Prompt 10. No revocation can be
+-- emitted until the Core signatures MS-001..MS-013 make the full forward/rollback package
+-- reviewable and the activation gate is later satisfied.
+

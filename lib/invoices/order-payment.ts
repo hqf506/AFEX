@@ -19,6 +19,22 @@ export type PersistedInvoicePaymentSnapshot = {
   cashChange: number
 }
 
+export type InvoicePaymentDisplay =
+  | { kind: 'non-cash' }
+  | { kind: 'cash-details-available'; received: number; change: number }
+  | { kind: 'cash-details-unavailable' }
+  | { kind: 'deferred-balance-available'; outstanding: number }
+  | { kind: 'deferred-balance-unavailable' }
+  | { kind: 'refunded-without-refund-amount' }
+
+export type InvoicePaymentDisplayInput = {
+  paymentMethod: unknown
+  paymentStatus: unknown
+  total: unknown
+  cashReceived: unknown
+  remainingFromCustomer: unknown
+}
+
 const ORDER_PAYMENT_METHODS = new Set<OrderPaymentMethod>([
   'cash',
   'card',
@@ -88,4 +104,22 @@ export function buildPersistedInvoicePaymentSnapshot({
 
 export function roundCurrency(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+export function resolveInvoicePaymentDisplay(input: InvoicePaymentDisplayInput): InvoicePaymentDisplay {
+  const status = typeof input.paymentStatus === 'string' ? input.paymentStatus.trim().toLowerCase() : ''
+  if (status === 'refunded') return { kind: 'refunded-without-refund-amount' }
+  const method = normalizeOrderPaymentMethod(input.paymentMethod)
+  if (method === 'cash') {
+    const received = typeof input.cashReceived === 'number' && Number.isFinite(input.cashReceived) ? input.cashReceived : 0
+    const total = typeof input.total === 'number' && Number.isFinite(input.total) ? input.total : 0
+    if (received <= 0 || total <= 0) return { kind: 'cash-details-unavailable' }
+    const snapshot = buildPersistedInvoicePaymentSnapshot({ paymentMethod: method, invoiceTotal: total, cashReceived: received })
+    return { kind: 'cash-details-available', received: snapshot.cashReceived, change: snapshot.cashChange }
+  }
+  if (method === 'cod' || method === 'on_delivery') {
+    const outstanding = typeof input.remainingFromCustomer === 'number' && Number.isFinite(input.remainingFromCustomer) ? input.remainingFromCustomer : 0
+    return outstanding > 0 ? { kind: 'deferred-balance-available', outstanding } : { kind: 'deferred-balance-unavailable' }
+  }
+  return { kind: 'non-cash' }
 }

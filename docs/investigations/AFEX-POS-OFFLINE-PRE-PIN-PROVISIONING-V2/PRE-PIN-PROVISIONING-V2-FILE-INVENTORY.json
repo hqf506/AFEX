@@ -1,0 +1,245 @@
+{
+  "schemaVersion": 1,
+  "baselineHead": "3edfc8b10b1b793001012342605628d4746d6a9f",
+  "fileCount": 34,
+  "files": [
+    {
+      "path": "app/api/customers/[customerId]/route.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 8157,
+      "sha256": "c48213a9839b89f8e13ae2eb7615fbd391bca9c865b618678e029ca1a0abe6ae"
+    },
+    {
+      "path": "app/api/customers/route.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 20209,
+      "sha256": "0ebd13386d101a1dad19dfc5060ae8984f39f01468bfb73391f3ed88e5928e3a"
+    },
+    {
+      "path": "app/api/pos/offline-preparation/route.ts",
+      "status": "untracked-new",
+      "classification": "application",
+      "bytes": 386,
+      "sha256": "fc9cc822fd20427aa80a5bd446fc032b5c29498c0f42df2b22d56029c38d076a"
+    },
+    {
+      "path": "app/pos/employee-pin/page.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 28565,
+      "sha256": "198e40b0dad6ca22fc2e79b4278b1c0a692f7febc6708422129aa7a31f67d23c"
+    },
+    {
+      "path": "app/pos/login/page.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 30323,
+      "sha256": "4a5c12564d0364ab7177b26962e5c0d068591f3f827ab3a7f58ba507d626ffab"
+    },
+    {
+      "path": "app/pos/offline-preparation/page.tsx",
+      "status": "untracked-new",
+      "classification": "application",
+      "bytes": 7151,
+      "sha256": "a23d902a4019152cfc56a268044be488dd39d9b594261efa84eca39235057ecf"
+    },
+    {
+      "path": "app/pos/sale/checkout/page.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 82346,
+      "sha256": "0137e58c9d702931661ee2c296edb38a1aaa7ea568e0d9706a205ee93d97de31"
+    },
+    {
+      "path": "components/auth-state-provider.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 15038,
+      "sha256": "3a39d3878eb8ddd139d18f0bc70f81056c0ccaf3d31253683fb6eebea39f115f"
+    },
+    {
+      "path": "components/invoice-customer-step.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 76826,
+      "sha256": "5fa55e7bfc9be3ee0e66d66570f0ad631a5534f9f974f6853b6658b0381ab2d1"
+    },
+    {
+      "path": "components/invoice-items-step.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 123908,
+      "sha256": "43bcfcee28f0c244b2796b8250f14d5cf585bd9a680c7ffdbeef5e60fbe687ef"
+    },
+    {
+      "path": "components/pos-checkout-workspace.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 13736,
+      "sha256": "1a77aa51b8fbef56bec7f2e038e254565b2fdfa79454e2cf5c4c3ba0db9cfc51"
+    },
+    {
+      "path": "components/pos-offline-shell-registration.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 2808,
+      "sha256": "da8f90181d62f1828c99695a786a479b0b3a68f00853f40b5a7b9ed8f1b607f6"
+    },
+    {
+      "path": "components/pos-shell-layout.tsx",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 11293,
+      "sha256": "52f35291997865cfab4fd129e2826c7190e2c5aa4eef2a84ff37e652274ab2a7"
+    },
+    {
+      "path": "hooks/use-invoice-checkout.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 16271,
+      "sha256": "48cf97a74899dc55cc0066884506b6b836b9fa8bd33771169bb81e43b8bdeb8d"
+    },
+    {
+      "path": "lib/customers.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 13417,
+      "sha256": "5fb12ae72b8b10675d3cff5d90698aeca9f5ed4b15b041aa926aef69300a656b"
+    },
+    {
+      "path": "lib/invoices/customer.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 1388,
+      "sha256": "a4598979c6866b5a90cd7f2f5c3ff5efb9ec936acea7aaa11044c41ce35f0b4f"
+    },
+    {
+      "path": "lib/invoices/payment-method.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 1927,
+      "sha256": "557c5c244bb36a626f17c38aeb018e57917d4795a194dee66eb5a654459ced8a"
+    },
+    {
+      "path": "lib/offline/application-compatibility.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 7514,
+      "sha256": "ed3c3bde3f3b90826584d20c4c4725973842d229f30a35d927633b58e40e1ba1"
+    },
+    {
+      "path": "lib/offline/complete-runtime.ts",
+      "status": "untracked-new",
+      "classification": "application",
+      "bytes": 68047,
+      "sha256": "553419dc715c0a4250203d8e2221daf72a06b3bd21e550927a561439d5859d43"
+    },
+    {
+      "path": "lib/offline/order-create-pilot-pos-integration.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 3281,
+      "sha256": "4bee66731fc0cf5010770dc4a709386812627c2f45f7b415a1e3b7928f3cdfd4"
+    },
+    {
+      "path": "lib/offline/phase1.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 81249,
+      "sha256": "f2fc4c3c2e33fd10b35b1b5f199202c84bbc36fea09dabc590eb783356e4d54c"
+    },
+    {
+      "path": "lib/offline/phase2.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 36147,
+      "sha256": "6d9295f9b86a1671d826801c08944735c5050a38c2284133d9be08227b87069b"
+    },
+    {
+      "path": "lib/offline/phase3.ts",
+      "status": "tracked-modified",
+      "classification": "application",
+      "bytes": 67176,
+      "sha256": "cda5cf82c71d7fe69a3329f4bdc957e0c9d5bcec643352432ad479077f30b9fe"
+    },
+    {
+      "path": "lib/server/offline/pre-pin-provisioning.ts",
+      "status": "untracked-new",
+      "classification": "application",
+      "bytes": 13548,
+      "sha256": "6acb2f54a518cc25cd5552b857c5bc0e8cb658e86487154739f8267eaba21bcf"
+    },
+    {
+      "path": "public/sw.js",
+      "status": "tracked-modified",
+      "classification": "service-worker",
+      "bytes": 3001,
+      "sha256": "d3bf88e7b4fa21cc7429370d47bf9033b0cf53f1dc995a81b7c7d5b017fac6f9"
+    },
+    {
+      "path": "tests/pos-offline-app-compat.test.mjs",
+      "status": "tracked-modified",
+      "classification": "test",
+      "bytes": 25576,
+      "sha256": "9fc072b30507599a21ec1d2d7b4864a3c1ac4b7f069715a2cf9612aa06fdc005"
+    },
+    {
+      "path": "tests/pos-offline-complete-runtime.test.mjs",
+      "status": "untracked-new",
+      "classification": "test",
+      "bytes": 19981,
+      "sha256": "4c8e88a6d94530a6c827b63a19d992be443632996ebd3cd4b156bd300cc107e3"
+    },
+    {
+      "path": "tests/pos-offline-final-pilot-integration.test.mjs",
+      "status": "tracked-modified",
+      "classification": "test",
+      "bytes": 15963,
+      "sha256": "b6ba54b11b8727efb56ad6f7ab032d78a1caf8695aabe5211a7e66f9faff2ebd"
+    },
+    {
+      "path": "tests/pos-offline-phase2.test.mjs",
+      "status": "tracked-modified",
+      "classification": "test",
+      "bytes": 37556,
+      "sha256": "b2d0b2e4f5a945bfe646fdf9c83d99e479491b240828b7b218b0992a55200604"
+    },
+    {
+      "path": "tests/pos-offline-phase3.test.mjs",
+      "status": "tracked-modified",
+      "classification": "test",
+      "bytes": 53477,
+      "sha256": "2a25d6692785dda14389dfd0834455050bacfc496fd13ae2012087258ef6ddbb"
+    },
+    {
+      "path": "docs/investigations/AFEX-POS-OFFLINE-PRE-PIN-PROVISIONING-V2/00-READ-ONLY-PREFLIGHT.sql",
+      "status": "untracked-new",
+      "classification": "sql-review",
+      "bytes": 10355,
+      "sha256": "6079dd6751d60a3d19911a5b88769894763869c79602aed81656b467b698d7bb"
+    },
+    {
+      "path": "docs/investigations/AFEX-POS-OFFLINE-PRE-PIN-PROVISIONING-V2/01-ADD-PRE-PIN-PROVISIONING-V2.sql",
+      "status": "untracked-new",
+      "classification": "sql-review",
+      "bytes": 46669,
+      "sha256": "f36d18366ecc5d6c0217c8cbe855a1c99415a56cf7ba5a407522eb32f24fde7e"
+    },
+    {
+      "path": "docs/investigations/AFEX-POS-OFFLINE-PRE-PIN-PROVISIONING-V2/90-DEACTIVATE-PRE-PIN-PROVISIONING-V2.sql",
+      "status": "untracked-new",
+      "classification": "sql-review",
+      "bytes": 6028,
+      "sha256": "a9678e7bc80ab2da56a5b473dd78f2f28441b0d73b05c758105342627fd9ef4a"
+    },
+    {
+      "path": "docs/investigations/AFEX-POS-OFFLINE-PRE-PIN-PROVISIONING-V2/PRE-PIN-PROVISIONING-V2-MANUAL-RUNBOOK.md",
+      "status": "untracked-new",
+      "classification": "sql-review",
+      "bytes": 4401,
+      "sha256": "a7a95bc2b0427931ca1900cac36a5497f2b4fb1bd8cf173926327fc73c20f6d5"
+    }
+  ]
+}

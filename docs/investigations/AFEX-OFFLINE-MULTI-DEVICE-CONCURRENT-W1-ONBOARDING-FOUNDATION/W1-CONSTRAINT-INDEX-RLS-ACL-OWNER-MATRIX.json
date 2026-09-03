@@ -1,0 +1,141 @@
+{
+  "contractVersion": "afex-multi-device-concurrent-w1-authority-matrix.v2-live-w0",
+  "singletonIndex": {
+    "identity": "afex_offline_authority.offline_devices_one_active_branch_uidx",
+    "disposition": "DROP_ONLY_AFTER_W1_GUARDS_AND_FUNCTIONS_EXIST",
+    "restoredByDeactivation": false
+  },
+  "newIndexes": [
+    {
+      "identity": "afex_offline_authority.offline_devices_active_device_identity_v2_uidx",
+      "unique": true,
+      "keys": ["tenant_id", "branch_id", "device_id"],
+      "predicate": "status='active' AND revoked_at IS NULL",
+      "purpose": "Explicit active-device identity guard; no branch cardinality limit."
+    },
+    {
+      "identity": "afex_offline_authority.offline_devices_active_branch_lookup_v2_idx",
+      "unique": false,
+      "keys": ["tenant_id", "branch_id", "status", "device_id", "device_generation"],
+      "predicate": "status='active' AND revoked_at IS NULL",
+      "purpose": "Branch/device lookup support without singleton semantics."
+    }
+  ],
+  "unchangedRelations": [
+    "afex_offline_authority.offline_devices",
+    "afex_offline_authority.offline_key_envelopes",
+    "afex_offline_authority.offline_device_events",
+    "afex_offline_authority.offline_pre_pin_bootstrap_authorities_v2",
+    "afex_offline_authority.offline_pre_pin_bootstrap_events_v2",
+    "afex_offline_authority.offline_employee_authorities",
+    "afex_offline_authority.offline_command_bindings"
+  ],
+  "liveBootstrapContract": {
+    "relation": "afex_offline_authority.offline_pre_pin_bootstrap_authorities_v2",
+    "activeStatus": "active",
+    "countClassification": "activeV2BootstrapCount",
+    "orphanClassification": "orphanActiveV2BootstrapCount"
+  },
+  "relationOwner": "afex_offline_authority_owner",
+  "postgres17RelationOwnerPrivilegesExact": [
+    "DELETE",
+    "INSERT",
+    "MAINTAIN",
+    "REFERENCES",
+    "SELECT",
+    "TRIGGER",
+    "TRUNCATE",
+    "UPDATE"
+  ],
+  "maintainPrivilegeDisposition": "ATTEST_EXISTING_POSTGRESQL17_OWNER_ACL_ONLY_NO_GRANT_OR_REVOKE",
+  "aclCatalogTypeNormalization": {
+    "sourceBoundaries": "7/7",
+    "granteeExpression": "CASE WHEN a.grantee=0 THEN 'PUBLIC'::text ELSE grantee.rolname::text END",
+    "granteeArrayAggregates": "3/3_EXPLICIT_TEXT_ARRAY",
+    "purpose": "Prevent PostgreSQL 42883 name[] versus text[] equality failure without changing any ACL row or privilege."
+  },
+  "liveTriggerInventoryExact": {
+    "setEquality": "BIDIRECTIONAL_EXACT",
+    "triggerCount": 4,
+    "triggerMutationStatements": 0,
+    "rows": [
+      {
+        "relation": "afex_offline_authority.offline_device_events",
+        "trigger": "offline_device_events_immutable_guard",
+        "function": "afex_offline_authority.reject_immutable_offline_evidence_v1()"
+      },
+      {
+        "relation": "afex_offline_authority.offline_pre_pin_bootstrap_events_v2",
+        "trigger": "offline_pre_pin_bootstrap_events_immutable_v2",
+        "function": "afex_offline_authority.reject_immutable_offline_evidence_v1()"
+      },
+      {
+        "relation": "afex_offline_authority.offline_command_bindings",
+        "trigger": "offline_command_bindings_immutable_guard",
+        "function": "afex_offline_authority.reject_offline_command_binding_mutation_v1()"
+      },
+      {
+        "relation": "afex_offline_authority.offline_employee_authorities",
+        "trigger": "offline_employee_authorities_capacity_guard",
+        "function": "afex_offline_authority.enforce_enrollment_capacity_v1()"
+      }
+    ]
+  },
+  "rlsEnabled": true,
+  "rlsForced": true,
+  "rlsPolicyChanges": 0,
+  "foreignKeyPostAttestation": {
+    "expectedCount": 21,
+    "setEquality": "BIDIRECTIONAL_EXACT",
+    "requiredType": "f",
+    "validated": true,
+    "actionsComparedToExpectedRow": true,
+    "actionDistribution": {
+      "restrictUpdateRestrictDelete": 20,
+      "noActionUpdateNoActionDelete": 1
+    },
+    "deferredNoActionIdentity": {
+      "relation": "afex_offline_authority.offline_employee_authorities",
+      "constraint": "offline_employee_authorities_device_envelope_scope_fk",
+      "deferrable": true,
+      "initiallyDeferred": true,
+      "updateAction": "a",
+      "deleteAction": "a"
+    },
+    "deferrabilityComparedToExpectedRow": true,
+    "initiallyDeferredComparedToExpectedRow": true
+  },
+  "foreignKeyChanges": 0,
+  "tableAclChanges": 0,
+  "privateFunctionAcl": {
+    "owner": "afex_offline_authority_owner",
+    "executeGrantees": ["afex_offline_authority_owner", "afex_function_owner"],
+    "browserExecuteGrants": 0
+  },
+  "publicFacadeAcl": {
+    "owner": "afex_function_owner",
+    "executeGrantees": ["afex_function_owner", "service_role"],
+    "browserExecuteGrants": 0
+  },
+  "installerMembershipRestoration": "BIDIRECTIONAL_EXACT_SNAPSHOT",
+  "postgres17LiveMembershipBaseline": [
+    {
+      "role": "afex_function_owner",
+      "member": "postgres",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    },
+    {
+      "role": "afex_offline_authority_owner",
+      "member": "postgres",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    }
+  ],
+  "publicCreateRestoration": "EXACT_BASELINE",
+  "semanticDeviceLimit": null
+}

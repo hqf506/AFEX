@@ -1,0 +1,177 @@
+{
+  "contractVersion": "afex-multi-device-concurrent-w1-static-validation.v2-live-w0",
+  "decision": "PASS_WITH_POSTGRESQL_PARSER_NOT_AVAILABLE",
+  "installedProductionDatabaseIdentity": {
+    "decision": "AFEX_MULTI_DEVICE_W1_POST_ATTESTATION_PASS",
+    "ready": true,
+    "failureClassifications": [],
+    "failedChecks": 0,
+    "source": "HUMAN_SUPPLIED_AUTHORITATIVE_02_RESULT",
+    "sqlExecutedByCodex": false
+  },
+  "sqlFiles": 4,
+  "sqlStructure": {
+    "balancedParentheses": "4/4",
+    "balancedDollarQuotes": "4/4",
+    "readOnlyPreflightBeginsRepeatableRead": true,
+    "readOnlyPreflightEndsRollback": true,
+    "readOnlyPostBeginsRepeatableRead": true,
+    "readOnlyPostEndsRollback": true,
+    "preflightForbiddenWriteStatements": 0,
+    "postAttestationForbiddenWriteStatements": 0,
+    "reservedCteOrAliasIdentifierCollisions": 0,
+    "forbiddenDeferrableDeferredCtePatterns": 0
+  },
+  "liveW0Alignment": {
+    "acceptedW0Decision": "AFEX_MULTI_DEVICE_W0_LIVE_CATALOG_ATTESTATION_PASS",
+    "liveRelationNames": {
+      "employee": "afex_offline_authority.offline_employee_authorities",
+      "command": "afex_offline_authority.offline_command_bindings"
+    },
+    "activeV2BootstrapStatus": "active",
+    "postgres17RelationOwnerPrivilegesExact": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "relationAclAttestationBoundaries": "3/3",
+    "relationAclMaintainMutationStatements": 0,
+    "aclGranteeTextSourceBoundaries": "7/7",
+    "aclGranteeTextArrayAggregates": "3/3",
+    "untypedAclGranteeCases": 0,
+    "untypedAclGranteeArrayAggregates": 0,
+    "catalogTypeComparisonAudit": {
+      "nameArrayVersusTextArray": "EXPLICIT_TEXT_NORMALIZATION",
+      "nameVersusText": "NO_UNSAFE_ARRAY_OR_SET_COMPARISON_REMAINING",
+      "charVersusText": "EXPLICIT_EXPECTATION_CASTS_OR_UNKNOWN_LITERALS",
+      "oidVersusName": "NONE"
+    },
+    "wrongHistoricalW1Terms": 0,
+    "preExistingSqlRelationsResolvedAgainstW0Catalog": "ALL",
+    "unresolvedPreExistingRelations": 0,
+    "exactLegacyAndDependencyFunctions": "13/13",
+    "legacyFunctionPreservationSets": "13/13/13",
+    "legacyFunctionSetEquality": true,
+    "finalLegacyNineElementLists": 0,
+    "finalFailureDiagnostic": {
+      "booleanFields": [
+        "functions_ok",
+        "acl_ok",
+        "data_ok",
+        "legacy_ok",
+        "memberships_ok",
+        "public_create_ok"
+      ],
+      "sensitiveFields": 0
+    },
+    "exactLiveTriggerIdentities": "4/4",
+    "triggerSetEquality": "BIDIRECTIONAL_EXACT",
+    "triggerMutationStatements": 0,
+    "foreignKeyExpectationRows": "21/21_AT_3/3_BOUNDARIES",
+    "foreignKeyActionExpectations": {
+      "restrictRestrict": "20/21",
+      "deferredNoActionNoAction": "1/21",
+      "deferredConstraint": "afex_offline_authority.offline_employee_authorities.offline_employee_authorities_device_envelope_scope_fk",
+      "globalRestrictAssumptions": 0,
+      "constraintMutationStatements": 0
+    },
+    "postAttestationForeignKeySetEquality": "BIDIRECTIONAL_EXACT",
+    "postAttestationForeignKeyProperties": [
+      "relation",
+      "constraintName",
+      "contype=f",
+      "validated=true",
+      "updateAction=expectedPerConstraint",
+      "deleteAction=expectedPerConstraint",
+      "deferrability",
+      "initiallyDeferred"
+    ],
+    "exactPostgresql17MembershipRows": "2/2",
+    "singletonDropAfterLiveIdentityGate": true,
+    "singletonDropAfterNewGuardValidation": true
+  },
+  "officialW0LiveCatalogComparison": {
+    "basis": "OFFICIAL_W0_LIVE_OUTPUT_ACCEPTED_BY_HUMAN_PLUS_POSTGRESQL17_MAINTAIN_CORRECTION",
+    "relationAclRows": "MATCH_AFTER_CORRECTION",
+    "functionAclRows": "MATCH_AFTER_NAME_TO_TEXT_BOUNDARY_CORRECTION",
+    "owners": "MATCH",
+    "policies": "MATCH",
+    "constraintsAndForeignKeys": "MATCH_AFTER_21_FK_PER_CONSTRAINT_ACTION_AND_DEFERRABILITY_CORRECTION",
+    "indexes": "MATCH",
+    "triggers": "MATCH_AFTER_LIVE_IDENTITY_CORRECTION",
+    "postgresql17MembershipRowsAndGrantors": "MATCH",
+    "functionBodyMd5AndUtf8Octets": "MATCH",
+    "remainingProvenMismatches": []
+  },
+  "contractChecks": {
+    "newFunctionSignatures": "7/7",
+    "privateFunctions": 3,
+    "publicServerFacades": 4,
+    "legacyV1V2FunctionsModified": 0,
+    "guardIndexesCreatedBeforeSingletonDrop": true,
+    "branchSingletonIndexesAfterForward": 0,
+    "fixedUuidLiterals": 0,
+    "fixedUuidScope": "W1_PACKAGE_AND_APPLICATION_TRANSPORT",
+    "diagnosticTestSyntheticUuidRedactionSentinels": 1,
+    "diagnosticSentinelIsAllowlistOrAuthorityInput": false,
+    "semanticDeviceLimit": null,
+    "replacementCallsInNormalOnboarding": 0,
+    "siblingDeviceMutationStatements": 0,
+    "existingDataDmlStatements": 0,
+    "browserExecuteGrants": 0,
+    "rlsPolicyChanges": 0,
+    "tableAclChanges": 0,
+    "foreignKeyChanges": 0,
+    "effectLedgerCreates": 0,
+    "providerOrExternalEffectEnables": 0,
+    "w2Changes": 0
+  },
+  "applicationRouting": {
+    "w1EnabledOnlyWhen": "VERCEL_ENV=preview_AND_AFEX_OFFLINE_MULTI_DEVICE_ONBOARDING_W1_ENABLED=true",
+    "invalidOrMissingFlagRoute": "V2",
+    "productionRoute": "V2",
+    "w1OperationsUsingSharedFacadeSelector": "4/4",
+    "operations": [
+      "device.provision",
+      "employee.roster",
+      "inventory.publish",
+      "bootstrap.publish"
+    ],
+    "attemptContractBinding": "HTTPONLY_STRICT_SAMESITE_SERVER_COOKIE",
+    "attemptContractMismatchFailsBeforePayload_AUTH_CONTEXT_OR_RPC": true,
+    "clientVisibleW1Flag": false,
+    "fixedAuthorityUuids": 0,
+    "replacementInvokedByW1Onboarding": false
+  },
+  "contextualExclusions": {
+    "historicalExplicitReplacementContract": "offline-pre-pin-device-retirement.v2",
+    "historicalCurrentBootstrapCountPreserved": true,
+    "reason": "It is a frozen explicit-replacement response field and is not read or emitted by W1 onboarding. Renaming it without a separately versioned database contract would break compatibility."
+  },
+  "securityScans": {
+    "secretFindings": 0,
+    "credentialFindings": 0,
+    "environmentFileChanges": 0,
+    "r8nReferences": 0
+  },
+  "installer": {
+    "expectedCurrentUser": "postgres",
+    "expectedSessionUser": "postgres",
+    "postgres17GrantorAware": true,
+    "liveGrantor": "supabase_admin",
+    "temporarySetMembershipTargeted": true,
+    "membershipSnapshotRestoredExactly": true,
+    "functionOwnerPublicCreateRestoredExactly": true
+  },
+  "postgresqlCompatibleParser": {
+    "available": false,
+    "executed": false,
+    "claim": "NOT_CLAIMED",
+    "fallback": "STRUCTURAL_SQL_VALIDATION_PLUS_DIRECT_W0_CATALOG_RELATION_RESOLUTION"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "executionAuthorized": false,
+  "waves": [
+    {"wave":0,"name":"verified backup/recovery point","forward":"read-only identity and recovery proof","rollback":"none","stop":"identity or recovery mismatch"},
+    {"wave":1,"name":"additive schemas roles and authority relations","files":["01","04A","05","06","07","09"],"rollback":"disable; drop only if read-only attestation proves every new relation empty and no dependencies","stop":"role/schema/object mismatch"},
+    {"wave":2,"name":"constraints indexes and device/employee/inventory provisioning","files":["13","05A","06A","09A"],"rollback":"revoke provisioning access and DROP FUNCTION/INDEX RESTRICT only","stop":"constraint, ACL, RLS, exact-set or dependency mismatch"},
+    {"wave":3,"name":"verified account bootstrap and versioned Core authorization companion","files":["10A","08A","08B"],"rollback":"retain immutable rows; disable provisioning/acquisition functions","stop":"Auth/POS/bootstrap/Core identity drift"},
+    {"wave":4,"name":"four Offline Pilot acquisition functions","files":["08C","08D","11"],"rollback":"15-SAFE-DISABLEMENT-AND-ROLLBACK.sql","stop":"any hostile or correspondence test failure"},
+    {"wave":5,"name":"read-only attestation","files":["14"],"rollback":"return to Wave 4 disablement on any mismatch","stop":"nonzero forbidden reachability"},
+    {"wave":6,"name":"later runtime activation","files":[],"separateTask":true,"rollback":"flags false and runtime membership/grants revoked","stop":"caller/qualification proof absent"},
+    {"wave":7,"name":"legacy closure and deferred command/provider surfaces","files":["02","03","04","10","12"],"separateTask":true,"rollback":"statement-specific closure rollback","stop":"activation proof absent"}
+  ],
+  "evidenceRetention": ["offline_command_bindings","offline_account_bootstrap_events","offline_bootstrap_employee_roster","offline_device_events","offline_employee_authority_events","inventory snapshots"],
+  "cascadeAllowed": false,
+  "forwardCoverage": "COMPLETE_8_OF_8_WAVES",
+  "rollbackCoverage": "COMPLETE_8_OF_8_WAVES"
+}

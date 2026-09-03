@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "principles": ["Owners are NOLOGIN and are never application identities.","Runtime roles are NOLOGIN capability roles with no inheritance into anon or authenticated.","service_role is a trusted gateway, not an object owner and not a substitute for internal validation.","PUBLIC, anon and authenticated never inherit privileged mutation roles."],
+  "roles": [
+    {"role":"postgres","class":"platform bootstrap/maintenance","loginRelevance":"administrative only","targetMembership":"no application runtime dependency","superuserRelevance":"never used by application","privileges":"catalog/migration administration only"},
+    {"role":"authenticator","class":"Supabase connection broker","loginRelevance":"platform managed","targetMembership":"platform roles only","privileges":"no direct AFEX ownership"},
+    {"role":"anon","class":"browser role","targetMembership":"PUBLIC only","privileges":"no AFEX business table/function access"},
+    {"role":"authenticated","class":"browser role","targetMembership":"PUBLIC only","privileges":"scoped catalog/branch-price/VAT reads and one customer lookup RPC; zero profiles or inventory-movement table/view access; zero direct writes"},
+    {"role":"service_role","class":"trusted server gateway","targetMembership":"no owner inheritance","privileges":"execute exact server wrapper signatures; exact server-side profile-context and inventory-history read reachability only where required; no blanket schema/table/function grants"},
+    {"role":"afex_identity_owner","class":"NOLOGIN owner","owns":["profiles and profile authority helpers"],"privileges":"owner only; full authority data is server-only and the browser presentation allowlist is serialized by the trusted route"},
+    {"role":"afex_business_owner","class":"NOLOGIN owner","owns":["retained business projection tables and triggers"],"privileges":"owner only; forced RLS where applicable"},
+    {"role":"afex_inventory_owner","class":"NOLOGIN owner","owns":["inventory_stock","inventory_movements","inventory trigger helpers","inventory views"],"privileges":"owner only; inventory_movements_view is a server-side implementation detail, never a browser capability"},
+    {"role":"afex_audit_owner","class":"NOLOGIN owner","owns":["audit relation and append helper"],"privileges":"owner only"},
+    {"role":"afex_core_owner","class":"existing NOLOGIN owner","owns":["atomic Core tables","numbering authority","Core companion bindings"],"privileges":"preserve forced-RLS domain"},
+    {"role":"afex_function_owner","class":"existing NOLOGIN owner","owns":["public narrow Core/customer wrappers"],"privileges":"execute internal Core/private objects; no browser membership"},
+    {"role":"afex_pos_session_owner","class":"existing NOLOGIN owner","owns":["POS actor tables/functions","PIN verification boundary"],"privileges":"preserve forced-RLS domain"},
+    {"role":"afex_offline_authority_owner","class":"new NOLOGIN owner","owns":["device, key-envelope and employee-authority relations/functions"],"privileges":"owner only"},
+    {"role":"afex_review_owner","class":"new NOLOGIN owner","owns":["business review container and resolution events"],"privileges":"owner only"},
+    {"role":"afex_effect_owner","class":"new NOLOGIN owner","owns":["effect-intent ledger and claim functions","branch provider configuration projection"],"privileges":"owner only"},
+    {"role":"afex_core_runtime","class":"existing NOLOGIN capability","members":["afex_function_owner only where already proven"],"privileges":"Core private acquisition/persistence; never browser"},
+    {"role":"afex_pos_session_maintenance","class":"existing NOLOGIN capability","privileges":"bounded expired-session maintenance"},
+    {"role":"afex_reconciliation_authority","class":"existing NOLOGIN capability","privileges":"technical Core hold/retry functions only"},
+    {"role":"afex_offline_enrollment_runtime","class":"new NOLOGIN capability","privileges":"device challenge, activation, replacement, employee package issuance/revocation"},
+    {"role":"afex_offline_acquisition_runtime","class":"new NOLOGIN capability","privileges":"generation revalidation, command acquisition and bounded receipt lookup"},
+    {"role":"afex_business_review_runtime","class":"new NOLOGIN capability","privileges":"open/read/resolve review under explicit operator authority"},
+    {"role":"afex_effect_dispatcher","class":"new NOLOGIN capability","privileges":"bounded claim/complete/fail effect state; no business mutation"}
+  ],
+  "membershipRules": [
+    {"from":"anon/authenticated/PUBLIC","to":"any afex_* owner/runtime role","allowed":false},
+    {"from":"anon/authenticated/PUBLIC","to":"profiles, inventory_movements or inventory_movements_view object privilege","allowed":false,"reason":"trusted server projection only; no RLS column-secrecy claim and no security-invoker base-access contradiction"},
+    {"from":"service_role","to":"owner roles","allowed":false,"reason":"call wrappers; do not inherit ownership"},
+    {"from":"owner roles","to":"LOGIN roles","allowed":false},
+    {"from":"afex_function_owner","to":"afex_core_runtime","allowed":"retain only the already proven bounded dependency"}
+  ],
+  "roleAttributes":{"ownerRoles":{"LOGIN":false,"SUPERUSER":false,"BYPASSRLS":false,"CREATEDB":false,"CREATEROLE":false},"runtimeRoles":{"LOGIN":false,"SUPERUSER":false,"BYPASSRLS":false,"CREATEDB":false,"CREATEROLE":false}},
+  "postChangeProof":["role attributes and memberships","owners by relation/function/view/sequence","SET reachability","effective privileges including PUBLIC inheritance","authenticated has no profiles or inventory movement base/view reachability","trusted server has only exact reviewed projection reachability","no unexpected default privilege propagation"]
+}

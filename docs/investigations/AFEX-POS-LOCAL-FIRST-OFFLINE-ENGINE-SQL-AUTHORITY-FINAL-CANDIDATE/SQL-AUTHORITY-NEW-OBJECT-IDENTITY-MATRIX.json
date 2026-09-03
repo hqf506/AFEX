@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 9,
+  "classification": "INACTIVE_REVIEW_SQL_IDENTITIES_NOT_PRODUCTION_FACTS",
+  "schema": {"identity":"afex_offline_authority","owner":"afex_offline_authority_owner","browserUsage":false},
+  "roles": [
+    {"identity":"afex_offline_authority_owner","login":false,"inherit":false,"bypassRls":false},
+    {"identity":"afex_function_owner","login":false,"inherit":false,"bypassRls":false},
+    {"identity":"afex_offline_provisioning_runtime","login":false,"inherit":false,"bypassRls":false},
+    {"identity":"afex_offline_acquisition_runtime","login":false,"inherit":false,"bypassRls":false}
+  ],
+  "relations": [
+    "offline_devices","offline_device_events","offline_employee_authorities",
+    "offline_employee_authority_events","offline_key_envelopes",
+    "branch_inventory_snapshot_headers","branch_inventory_snapshot_items",
+    "offline_account_bootstrap_authorities","offline_bootstrap_employee_roster",
+    "offline_account_bootstrap_events","offline_command_bindings"
+  ],
+  "immutableBindingIdentities": [
+    "offline_devices(device_id)",
+    "offline_employee_authorities(enrollment_id)",
+    "offline_key_envelopes(key_envelope_id,key_envelope_version)",
+    "offline_account_bootstrap_authorities(bootstrap_id,primary_authenticated_subject_id,tenant_id,branch_id,device_id)",
+    "branch_inventory_snapshot_headers(snapshot_id,tenant_id,branch_id)",
+    "atomic_authorization_contexts(id,authenticated_actor_id,tenant_id,branch_id,employee_source_id)",
+    "atomic_order_commands(id,authorization_context_id,authenticated_actor_id,tenant_id,branch_id)"
+  ],
+  "functionalScopeValidation": [
+    "account tenant branch device and generations are validated under deterministic locks before immutable row creation",
+    "mutable device or employee lifecycle generations are not foreign-key targets that would block revocation",
+    "command binding preserves historical generation values and stable identity foreign keys"
+  ],
+  "functionMatrixReference": "SQL-AUTHORITY-FUNCTION-MATRIX.json",
+  "foundationForbiddenExecuteRoles": ["PUBLIC","anon","authenticated","service_role"],
+  "inactiveActivationFacades": 6,
+  "activationIncludedInFoundation": false,
+  "status": "COMPLETE_INACTIVE_REVIEW_CANDIDATE",
+  "executionAuthorized": false
+}

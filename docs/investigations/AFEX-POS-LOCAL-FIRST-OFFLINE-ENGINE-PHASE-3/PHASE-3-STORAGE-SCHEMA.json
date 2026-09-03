@@ -1,0 +1,76 @@
+{
+  "database": "afex-pos-local-v1",
+  "previousDatabaseVersion": 2,
+  "databaseVersion": 3,
+  "encryptedEnvelopeSchemaVersion": 1,
+  "preservedStores": [
+    "meta",
+    "keyEnvelopes",
+    "drafts",
+    "quarantine",
+    "purgeTombstones",
+    "datasetManifests",
+    "catalog",
+    "customers",
+    "orders",
+    "invoices",
+    "events",
+    "runtimeSettings",
+    "mediaRefs"
+  ],
+  "addedStores": {
+    "commandOutbox": {
+      "keyPath": "id",
+      "purpose": "immutable encrypted command envelope plus separate operational state",
+      "indexes": [
+        { "name": "namespaceId", "keyPath": "namespaceId", "unique": false },
+        { "name": "localCommandId", "keyPath": "localCommandId", "unique": true },
+        { "name": "namespaceState", "keyPath": ["namespaceId", "state"], "unique": false },
+        { "name": "namespaceSequence", "keyPath": ["namespaceId", "localSequence"], "unique": true },
+        { "name": "namespaceIdempotency", "keyPath": ["namespaceId", "idempotencyKey"], "unique": true },
+        { "name": "namespaceStateCreatedAt", "keyPath": ["namespaceId", "state", "createdAtLocal"], "unique": false }
+      ]
+    },
+    "commandDependencies": {
+      "keyPath": "id",
+      "purpose": "immutable command dependency edges",
+      "indexes": [
+        { "name": "namespaceId", "keyPath": "namespaceId", "unique": false },
+        { "name": "namespaceCommand", "keyPath": ["namespaceId", "commandId"], "unique": false },
+        { "name": "namespaceDependency", "keyPath": ["namespaceId", "dependencyId"], "unique": false },
+        { "name": "namespaceCommandDependency", "keyPath": ["namespaceId", "commandId", "dependencyId"], "unique": true }
+      ]
+    }
+  },
+  "metaRecords": [
+    "phase3:sequence:<namespaceId>",
+    "phase3:dispatcher-lease:<namespaceId>"
+  ],
+  "migration": {
+    "source": "v2",
+    "target": "v3",
+    "restartable": true,
+    "destructiveDowngrade": false,
+    "preservationTest": "PASS",
+    "versionAwarePrerequisites": {
+      "oldVersion0": "create complete current schema",
+      "oldVersion1": "require complete Phase 1 store/index structure; allow Phase 2/3 creation",
+      "oldVersion2": "require complete Phase 1 and corrected Phase 2 store/index structure; allow Phase 3 creation",
+      "unsupportedOrigin": "OFFLINE_SCHEMA_UNSUPPORTED"
+    },
+    "structuralChecks": [
+      "object store keyPath",
+      "object store autoIncrement=false",
+      "required index keyPath",
+      "required index uniqueness"
+    ],
+    "corruptionPolicy": "abort as OFFLINE_SCHEMA_CORRUPT without empty-store recreation or destructive repair",
+    "postOpenV3Validation": true
+  },
+  "purge": {
+    "exactNamespaceOnly": true,
+    "commandStoresIncluded": true,
+    "namespaceMetaIncludedExceptActiveCoordinationLease": true,
+    "zeroResidueVerification": true
+  }
+}

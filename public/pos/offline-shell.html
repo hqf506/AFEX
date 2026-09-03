@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#8a5a24" />
+    <title>AFEX POS — غير متصل</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #f7f2e9; color: #211a14; padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); }
+      main { width: min(100%, 560px); border: 1px solid #d8c4a5; border-radius: 24px; background: #fffaf2; padding: 32px; text-align: center; box-shadow: 0 18px 50px rgb(78 54 29 / 12%); }
+      strong { display: block; color: #8a5a24; font-size: 1.5rem; margin-block-end: 12px; }
+      p { margin: 0; line-height: 1.8; }
+      @media (prefers-color-scheme: dark) { body { background: #17130f; color: #f7efe4; } main { background: #211a14; border-color: #6e512f; } strong { color: #d5a55f; } }
+    </style>
+  </head>
+  <body>
+    <main role="status" aria-live="polite">
+      <strong>AFEX POS غير متصل</strong>
+      <p>لا يمكن عرض بيانات نقطة البيع دون اتصال وصلاحية موظف فعّالة. أعد الاتصال ثم افتح نقطة البيع مجددًا.</p>
+    </main>
+  </body>
+</html>

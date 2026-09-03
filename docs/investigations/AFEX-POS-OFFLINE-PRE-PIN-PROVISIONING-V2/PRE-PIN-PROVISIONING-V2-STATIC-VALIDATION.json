@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "decision": "STATIC_REVIEW_PASS_HUMAN_SQL_EXECUTION_REQUIRED",
+  "targetPostgreSQL": "17.6",
+  "constructionSafety": {
+    "sqlExecutions": 0,
+    "databaseConnections": 0,
+    "productionAccesses": 0,
+    "providerEffects": 0,
+    "businessWrites": 0
+  },
+  "humanProductionExecution": {
+    "preflightDecision": "AFEX_PRE_PIN_V2_PREFLIGHT_PASS",
+    "forwardWaveStatus": "SUCCESS_COMMITTED_AFTER_EMBEDDED_POST_ATTESTATION",
+    "executedForwardSha256": "f36d18366ecc5d6c0217c8cbe855a1c99415a56cf7ba5a407522eb32f24fde7e",
+    "repositoryForwardSha256": "f36d18366ecc5d6c0217c8cbe855a1c99415a56cf7ba5a407522eb32f24fde7e",
+    "identityMatch": true,
+    "foundationRerunAuthorized": false,
+    "deactivationAuthorized": false
+  },
+  "preflight": {
+    "transactionReadOnly": true,
+    "endsInRollback": true,
+    "sha256Identity": "pg_catalog.sha256(bytea)",
+    "sha256IdentityAndExecuteCheck": "sha256_identity_and_execute_exact",
+    "sha256FailureClassification": "AFEX_PRE_PIN_V2_PREFLIGHT_SHA256_IDENTITY_AND_EXECUTE_EXACT",
+    "expectedDecision": "AFEX_PRE_PIN_V2_PREFLIGHT_PASS"
+  },
+  "forwardWave": {
+    "singleTransaction": true,
+    "additiveOnly": true,
+    "tables": 2,
+    "rlsPolicies": 3,
+    "immutableEvidenceTriggers": 1,
+    "securityDefinerFunctions": 8,
+    "fixedPgCatalogSearchPaths": 8,
+    "privateContextHelpers": 1,
+    "serviceRoleFacades": 4,
+    "browserExecuteGrants": 0,
+    "orderAcquisitionDefinitions": 0,
+    "destructiveDrops": 0,
+    "temporaryInstallerMembershipGrants": 2,
+    "temporaryInstallerMembershipRevokes": 2,
+    "temporaryPublicCreateGrants": 1,
+    "temporaryPublicCreateRevokes": 1,
+    "supportingIndexes": 6,
+    "stableEventDispositions": true,
+    "eligibleEnrolledRosterOnly": true,
+    "nativePgCatalogSha256ByteaCalls": 4,
+    "publicDigestOccurrences": 0,
+    "extensionsDigestOccurrences": 0,
+    "canonicalHashInputBytesChanged": false,
+    "pgCatalogCoalesceOccurrences": 0,
+    "acceptedButUnusedAuthorityInputs": 0,
+    "directServiceRolePrivateTableGrants": 0,
+    "expectedNoticePrefix": "AFEX_PRE_PIN_V2_POST_ATTESTATION_PASS:"
+  },
+  "deactivation": {
+    "singleTransaction": true,
+    "serviceFacadeRevokes": 4,
+    "ownerAware": true,
+    "baselineMembershipRestored": true,
+    "destructiveDrops": 0,
+    "retainsEvidence": true
+  },
+  "application": {
+    "inventoriedImplementationAndSqlFiles": 34,
+    "focusedPrePinTests": "31/31 PASS",
+    "offlineTests": "201/201 PASS",
+    "coreV2OrderIntegration": "37/37 PASS",
+    "coreV2AcquisitionObservability": "PASS",
+    "customerSelectionBinding": "26/26 PASS",
+    "posUx": "PASS",
+    "responsiveUx": "151/151 PASS",
+    "typescript": "PASS",
+    "eslintChangedFiles": "PASS",
+    "repositoryWideEslint": "BASELINE_FAIL_UNRELATED_PREFER_CONST_DATABASE_RECONCILIATION_CORE_V2_P2D_A2_4B_3",
+    "productionBuild": "PASS_WITH_NON_SECRET_LOCAL_BUILD_PLACEHOLDERS"
+  },
+  "claims": {
+    "postgresqlParserExecuted": false,
+    "postgresqlParserStatus": "POSTGRESQL_COMPATIBLE_PARSER_UNAVAILABLE",
+    "sqlExecutedByCodex": false,
+    "humanReportedProductionExecution": true,
+    "productionFoundationInstalled": true,
+    "productionAuthorized": false,
+    "remainingAction": "PREVIEW_DEPLOYMENT_AND_AUTHENTICATED_HUMAN_RUNTIME_QUALIFICATION"
+  }
+}

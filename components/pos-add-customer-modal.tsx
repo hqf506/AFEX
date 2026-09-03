@@ -2,18 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { clearClientResourcesByPrefix } from '@/lib/client-resource-cache'
-import { validateSaudiCustomerPhone } from '@/lib/customers'
+import {
+  prepareCustomerIdentity,
+  isSelectedCustomerProfile,
+  resolveCustomerCreateFailure,
+  resolveCustomerCreateResponse,
+  type SelectedCustomerProfile,
+  validateSaudiCustomerPhone,
+} from '@/lib/customers'
 
-export type CreatedPosCustomer = {
-  id: string
-  name: string
-  phone: string
-  lastPurchaseAmount?: number | null
-  firstVisitAt?: string | null
-  lastActivityAt?: string | null
-  visitsCount?: number | null
-  totalSpent?: number | null
-}
+export type CreatedPosCustomer = SelectedCustomerProfile
 
 type PosAddCustomerModalProps = {
   branchId: string | null
@@ -40,16 +38,22 @@ export function PosAddCustomerModal({
   const [error, setError] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const firstNameInputRef = useRef<HTMLInputElement | null>(null)
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
   const phoneValidation = validateSaudiCustomerPhone(phone)
   const displayedPhoneError =
     phoneError || (phoneValidation.valid ? '' : phoneValidation.message)
 
   useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null
     const focusTimeoutId = window.setTimeout(() => {
       firstNameInputRef.current?.focus({ preventScroll: true })
     }, 0)
 
-    return () => window.clearTimeout(focusTimeoutId)
+    return () => {
+      window.clearTimeout(focusTimeoutId)
+      previouslyFocusedRef.current?.focus({ preventScroll: true })
+    }
   }, [])
 
   useEffect(() => {
@@ -57,6 +61,22 @@ export function PosAddCustomerModal({
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !saving) {
         onClose()
+      }
+
+      if (event.key === 'Tab') {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+        )
+        if (!focusable?.length) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
 
@@ -91,9 +111,9 @@ export function PosAddCustomerModal({
       return
     }
 
-    const validation = validateSaudiCustomerPhone(normalizedPhone)
-    if (!validation.valid) {
-      setPhoneError(validation.message)
+    const customerIdentity = prepareCustomerIdentity(normalizedPhone)
+    if (!customerIdentity.ok) {
+      setPhoneError(customerIdentity.message)
       return
     }
 
@@ -108,7 +128,7 @@ export function PosAddCustomerModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          phone: normalizedPhone,
+          phone: customerIdentity.identity.phone,
           email: email.trim() || null,
           notes: notes.trim() || null,
           branchId,
@@ -116,24 +136,48 @@ export function PosAddCustomerModal({
       })
       const result = await response.json().catch(() => null)
 
-      if (!response.ok || !result?.success || !result.customer) {
-        if (
-          typeof result?.code === 'string' &&
-          result.code.startsWith('CUSTOMER_PHONE_') &&
-          typeof result?.error === 'string'
-        ) {
-          setPhoneError(result.error)
-          return
-        }
+      const creation = resolveCustomerCreateResponse<CreatedPosCustomer>({
+        httpStatus: response.status,
+        payload: result,
+      })
 
-        throw new Error('safe-customer-save-failure')
+      if (!creation.ok) {
+        const { failure } = creation
+        console.warn('[POS CUSTOMER] create customer failed', {
+          classification: failure.code,
+          httpStatus: response.status,
+        })
+        if (failure.phoneField) {
+          setPhoneError(failure.message)
+        } else {
+          setError(failure.message)
+        }
+        return
+      }
+
+      if (!isSelectedCustomerProfile(creation.customer)) {
+        const failure = resolveCustomerCreateFailure({
+          code: 'CUSTOMER_PERSISTENCE_FAILED',
+        })
+        console.warn('[POS CUSTOMER] create customer failed', {
+          classification: 'CUSTOMER_CREATE_RESPONSE_INVALID',
+          httpStatus: response.status,
+        })
+        setError(failure.message)
+        return
       }
 
       clearClientResourcesByPrefix('recent-customers:')
       clearClientResourcesByPrefix('customer-search:')
-      onCreated(result.customer as CreatedPosCustomer)
+      onCreated(creation.customer)
     } catch {
-      setError('تعذر حفظ بيانات العميل. لم يتم إنشاء الطلب بعد.')
+      const failure = resolveCustomerCreateFailure({
+        code: 'CUSTOMER_NETWORK_FAILED',
+      })
+      console.warn('[POS CUSTOMER] create customer failed', {
+        classification: failure.code,
+      })
+      setError(failure.message)
     } finally {
       setSaving(false)
     }
@@ -141,64 +185,65 @@ export function PosAddCustomerModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-[#020817]/75 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl [direction:rtl]"
+      className="pos-add-customer-backdrop"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) closeModal()
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-customer-title"
-        className="pos-customer-sheet-enter flex max-h-[calc(100dvh-2rem)] w-full max-w-[450px] flex-col overflow-hidden rounded-[30px] bg-[rgba(2,8,23,0.94)] text-right shadow-[0_0_42px_rgba(34,211,238,0.16),0_28px_90px_rgba(0,0,0,0.42),inset_0_0_0_1px_rgba(34,211,238,0.20)]"
+        className="pos-add-customer-dialog pos-customer-sheet-enter"
       >
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-cyan-300/10 p-4 sm:border-b-0 sm:pb-0 xl:px-5 xl:pt-5">
-          <h3 id="add-customer-title" className="text-[26px] font-black text-white">
+        <div className="pos-add-customer-header">
+          <h3 id="add-customer-title">
             إضافة عميل جديد
           </h3>
           <button
             type="button"
             onClick={closeModal}
             disabled={saving}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[rgba(6,20,38,0.70)] text-xl font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] transition hover:bg-red-400/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="pos-add-customer-close"
             aria-label="إغلاق"
           >
             ×
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-5 sm:overflow-visible sm:pb-0 xl:px-5">
+        <div className="pos-add-customer-body">
           <div className="grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-[13px] font-black text-slate-300">الاسم الأول</span>
-                <input ref={firstNameInputRef} type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} disabled={saving} placeholder="اكتب الاسم الأول" className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60" />
+                <span className="pos-add-customer-label">الاسم الأول</span>
+                <input ref={firstNameInputRef} type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} disabled={saving} placeholder="اكتب الاسم الأول" className="pos-add-customer-field" />
               </label>
               <label className="block">
-                <span className="mb-2 block text-[13px] font-black text-slate-300">الاسم الأخير</span>
-                <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} disabled={saving} placeholder="اكتب الاسم الأخير" className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60" />
+                <span className="pos-add-customer-label">الاسم الأخير</span>
+                <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} disabled={saving} placeholder="اكتب الاسم الأخير" className="pos-add-customer-field" />
               </label>
             </div>
             <label className="block">
-              <span className="mb-2 block text-[13px] font-black text-slate-300">رقم الجوال</span>
-              <input type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setPhoneError('') }} disabled={saving} placeholder="05xxxxxxxx" inputMode="tel" autoComplete="tel" aria-invalid={Boolean(displayedPhoneError)} aria-describedby="new-customer-phone-error" className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60" />
-              {displayedPhoneError ? <span id="new-customer-phone-error" className="mt-2 block break-words text-sm font-bold leading-6 text-red-200">{displayedPhoneError}</span> : null}
+              <span className="pos-add-customer-label">رقم الجوال</span>
+              <input type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setPhoneError('') }} disabled={saving} placeholder="05xxxxxxxx" inputMode="tel" autoComplete="tel" aria-invalid={Boolean(displayedPhoneError)} aria-describedby="new-customer-phone-error" className="pos-add-customer-field" />
+              {displayedPhoneError ? <span id="new-customer-phone-error" className="pos-add-customer-validation">{displayedPhoneError}</span> : null}
             </label>
             <label className="block">
-              <span className="mb-2 block text-[13px] font-black text-slate-300">البريد الإلكتروني <span className="mr-2 text-xs text-slate-500">اختياري</span></span>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={saving} placeholder="customer@example.com" autoComplete="email" className="h-[56px] w-full rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 text-right text-base font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60" />
+              <span className="pos-add-customer-label">البريد الإلكتروني <span>اختياري</span></span>
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={saving} placeholder="customer@example.com" autoComplete="email" className="pos-add-customer-field" />
             </label>
             <label className="block">
-              <span className="mb-2 block text-[13px] font-black text-slate-300">ملاحظات <span className="mr-2 text-xs text-slate-500">اختياري</span></span>
-              <textarea value={notes} onChange={(event) => setNotes(event.target.value)} disabled={saving} placeholder="أضف ملاحظة قصيرة" className="min-h-[80px] w-full resize-none rounded-[20px] border-0 bg-[rgba(6,20,38,0.78)] px-4 py-3 text-right text-[15px] font-bold text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] outline-none transition placeholder:text-slate-600 focus:shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_0_0_1px_rgba(34,211,238,0.34)] disabled:opacity-60" />
+              <span className="pos-add-customer-label">ملاحظات <span>اختياري</span></span>
+              <textarea value={notes} onChange={(event) => setNotes(event.target.value)} disabled={saving} placeholder="أضف ملاحظة قصيرة" className="pos-add-customer-field is-textarea" />
             </label>
           </div>
-          {error ? <div className="mt-3 rounded-[18px] border border-red-300/18 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">{error}</div> : null}
+          {error ? <div className="pos-add-customer-error" role="alert">{error}</div> : null}
         </div>
 
-        <div className="grid shrink-0 gap-3 border-t border-cyan-300/10 bg-[rgba(2,8,23,0.98)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:mt-5 sm:grid-cols-2 sm:border-t-0 sm:bg-transparent sm:pb-4 xl:px-5 xl:pb-5">
-          <button type="button" onClick={handleCreateCustomer} disabled={saving || !phoneValidation.valid} className="min-h-[52px] rounded-[18px] bg-[#22D3EE] px-5 text-[15px] font-black text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.18)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none active:scale-[0.98]">{saving ? 'جار الحفظ...' : 'حفظ العميل'}</button>
-          <button type="button" onClick={closeModal} disabled={saving} className="min-h-[52px] rounded-[18px] bg-[rgba(6,20,38,0.56)] px-5 text-[15px] font-black text-slate-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.10)] transition hover:bg-red-400/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]">إلغاء</button>
+        <div className="pos-add-customer-actions">
+          <button type="button" onClick={handleCreateCustomer} disabled={saving || !phoneValidation.valid} className="pos-add-customer-save">{saving ? 'جار الحفظ...' : 'حفظ العميل'}</button>
+          <button type="button" onClick={closeModal} disabled={saving} className="pos-add-customer-cancel">إلغاء</button>
         </div>
       </div>
     </div>

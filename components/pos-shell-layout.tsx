@@ -1,17 +1,34 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthState } from '@/components/auth-state-provider'
 import { FeatureDisabledState } from '@/components/feature-disabled-state'
 import { PosTabletFrame } from '@/components/pos-tablet-frame'
+import { PosResponsiveShell } from '@/components/pos-shell/pos-responsive-shell'
+import { PosPreparingScreen } from '@/components/pos-preparing-screen'
+import { PosOfflineShellRegistration } from '@/components/pos-offline-shell-registration'
+import { PosOfflineSyncStatus } from '@/components/pos-offline-sync-status'
 import { useSystemSettings } from '@/hooks/use-system-settings'
 import { canAccessPos } from '@/lib/permissions'
 import {
+  hasPosLoggedOut,
   readActivePosEmployee,
+  subscribeToPosEmployeeSessionChanges,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
 import { syncPosOfflineDrafts } from '@/lib/pos-offline-draft'
+import {
+  initializeOfflinePhase1Runtime,
+  hasOfflineBootstrapReadyMarker,
+  lockOfflineRuntime,
+} from '@/lib/offline/phase1'
+import { restorePreparedOfflineRuntime } from '@/lib/offline/complete-runtime'
+import {
+  reportPosRouteTransition,
+  resolveProtectedPosRoute,
+  type PosGuardRoute,
+} from '@/lib/pos-route-guard'
 
 type PosShellLayoutProps = {
   children: React.ReactNode
@@ -64,9 +81,10 @@ function PosShellViewport({
   }, [])
 
   return (
-    <div className="pos-shell-viewport h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-slate-900 xl:bg-black">
+    <div className="pos-shell-viewport h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden">
+      <PosOfflineShellRegistration />
       <div className="pos-shell-inner h-full min-h-0 w-full overflow-hidden px-0 py-0">
-        <PosTabletFrame isLoginPage={isLoginPage}>{children}</PosTabletFrame>
+        {isLoginPage ? <PosTabletFrame isLoginPage>{children}</PosTabletFrame> : children}
       </div>
     </div>
   )
@@ -77,15 +95,24 @@ export function PosShellLayout({ children }: PosShellLayoutProps) {
   const isPosLoginPage = pathname?.startsWith('/pos/login') ?? false
   const isPosEmployeePinPage =
     pathname?.startsWith('/pos/employee-pin') ?? false
+  const isPosOfflinePreparationPage =
+    pathname?.startsWith('/pos/offline-preparation') ?? false
+
+  useEffect(() => {
+    void initializeOfflinePhase1Runtime()
+    if (isPosLoginPage) {
+      lockOfflineRuntime('primary-login-page')
+    }
+  }, [isPosLoginPage])
 
   if (isPosLoginPage) {
     return <PosShellViewport isLoginPage>{children}</PosShellViewport>
   }
 
-  if (isPosEmployeePinPage) {
+  if (isPosEmployeePinPage || isPosOfflinePreparationPage) {
     return (
       <ProtectedPosShellLayout
-        key="pin-entry"
+        key={isPosEmployeePinPage ? 'pin-entry' : 'offline-preparation'}
         requireEmployee={false}
       >
         {children}
@@ -109,65 +136,102 @@ function ProtectedPosShellLayout({
 }: PosShellLayoutProps & { requireEmployee?: boolean }) {
   const router = useRouter()
   const authState = useAuthState()
+  const navigationInFlightRef = useRef<PosGuardRoute | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [employeeCheckReady, setEmployeeCheckReady] = useState(false)
   const [activeEmployee, setActiveEmployee] =
     useState<ActivePosEmployee | null>(null)
+  const [offlineRecoveryState, setOfflineRecoveryState] = useState<
+    'checking' | 'ready' | 'unavailable'
+  >('checking')
   const allowed = Boolean(
     authState.profile && canAccessPos(authState.profile.role)
   )
+  const offlineRecoveryReady = offlineRecoveryState === 'ready'
+  const effectivelyAllowed = allowed || offlineRecoveryReady
   const { settings, loading: settingsLoading } = useSystemSettings(
-    !authState.loading && allowed
+    !authState.loading && allowed && requireEmployee && Boolean(activeEmployee)
   )
   const hasAuthError = Boolean(authState.error)
   const isTimeoutError = authState.error === 'timeout'
   const isLockError = authState.error === 'auth-lock'
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (!requireEmployee) {
+    let cancelled = false
+    if (
+      typeof navigator === 'undefined' ||
+      navigator.onLine !== false ||
+      !hasOfflineBootstrapReadyMarker() ||
+      hasPosLoggedOut()
+    ) {
+      const unavailableTimer = window.setTimeout(() => {
+        if (!cancelled) setOfflineRecoveryState('unavailable')
+      }, 0)
+      return () => {
+        cancelled = true
+        window.clearTimeout(unavailableTimer)
+      }
+    }
+    void restorePreparedOfflineRuntime()
+      .then(() => {
+        if (!cancelled) setOfflineRecoveryState('ready')
+      })
+      .catch(() => {
+        if (!cancelled) setOfflineRecoveryState('unavailable')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!requireEmployee) {
+      const timer = window.setTimeout(() => {
         setActiveEmployee(null)
         setEmployeeCheckReady(true)
-        return
-      }
+      }, 0)
+      return () => window.clearTimeout(timer)
+    }
 
+    const synchronizeEmployee = () => {
       setActiveEmployee(readActivePosEmployee())
       setEmployeeCheckReady(true)
-    }, 0)
+    }
+    const timer = window.setTimeout(synchronizeEmployee, 0)
+    const unsubscribe = subscribeToPosEmployeeSessionChanges(
+      synchronizeEmployee
+    )
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      unsubscribe()
+    }
   }, [requireEmployee])
 
   useEffect(() => {
-    if (authState.loading || authState.error) {
-      return
-    }
+    const decision = resolveProtectedPosRoute({
+      authSettled: !authState.loading && !authState.error,
+      organizationAuthorized: allowed,
+      offlineRecoveryReady,
+      preparedDevice: hasOfflineBootstrapReadyMarker(),
+      explicitlyLoggedOut: hasPosLoggedOut(),
+      requiresEmployee: requireEmployee,
+      employeeCheckReady,
+      hasEmployeeActor: Boolean(activeEmployee),
+    })
 
-    if (!authState.profile || !allowed) {
-      router.replace('/pos/login')
-    }
-  }, [allowed, authState.error, authState.loading, authState.profile, router])
+    if (!decision || navigationInFlightRef.current) return
 
-  useEffect(() => {
-    if (
-      !requireEmployee ||
-      authState.loading ||
-      authState.error ||
-      !allowed ||
-      !employeeCheckReady
-    ) {
-      return
-    }
-
-    if (!activeEmployee) {
-      router.replace('/pos/employee-pin')
-    }
+    navigationInFlightRef.current = decision.route
+    reportPosRouteTransition(decision)
+    router.replace(decision.route)
   }, [
     activeEmployee,
     allowed,
     authState.error,
     authState.loading,
     employeeCheckReady,
+    offlineRecoveryReady,
     requireEmployee,
     router,
   ])
@@ -186,7 +250,7 @@ function ProtectedPosShellLayout({
       !requireEmployee ||
       authState.loading ||
       authState.error ||
-      !allowed ||
+      !effectivelyAllowed ||
       !employeeCheckReady ||
       !activeEmployee
     ) {
@@ -208,7 +272,7 @@ function ProtectedPosShellLayout({
     }
   }, [
     activeEmployee,
-    allowed,
+    effectivelyAllowed,
     authState.error,
     authState.loading,
     employeeCheckReady,
@@ -224,17 +288,19 @@ function ProtectedPosShellLayout({
     }
   }
 
-  if (authState.loading || (requireEmployee && allowed && !employeeCheckReady)) {
+  if (
+    (authState.loading && !offlineRecoveryReady) ||
+    offlineRecoveryState === 'checking' ||
+    (requireEmployee && effectivelyAllowed && !employeeCheckReady)
+  ) {
     return (
       <PosShellViewport>
-        <div className="page-wrap">
-          <div className="page-card">جار تجهيز نقطة البيع...</div>
-        </div>
+        <PosPreparingScreen />
       </PosShellViewport>
     )
   }
 
-  if (hasAuthError) {
+  if (hasAuthError && !offlineRecoveryReady) {
     return (
       <PosShellViewport>
         <div className="page-wrap">
@@ -276,7 +342,7 @@ function ProtectedPosShellLayout({
     )
   }
 
-  if (!allowed) {
+  if (!effectivelyAllowed) {
     return (
       <PosShellViewport>
         <div className="page-wrap">
@@ -286,7 +352,12 @@ function ProtectedPosShellLayout({
     )
   }
 
-  if (requireEmployee && allowed && employeeCheckReady && !activeEmployee) {
+  if (
+    requireEmployee &&
+    effectivelyAllowed &&
+    employeeCheckReady &&
+    !activeEmployee
+  ) {
     return (
       <PosShellViewport>
         <div className="page-wrap">
@@ -296,7 +367,7 @@ function ProtectedPosShellLayout({
     )
   }
 
-  if (!settingsLoading && settings?.enable_pos === false) {
+  if (allowed && !settingsLoading && settings?.enable_pos === false) {
     return (
       <PosShellViewport>
         <div className="page-wrap">
@@ -315,13 +386,8 @@ function ProtectedPosShellLayout({
 
   return (
     <PosShellViewport>
-      <div className="page-wrap flex h-full w-full min-h-0 flex-col overflow-y-auto overscroll-contain px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-[max(env(safe-area-inset-top),0.5rem)] sm:px-3 md:px-4 lg:overflow-hidden">
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col text-right">
-          <div className="space-y-3 md:space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
-            {children}
-          </div>
-        </main>
-      </div>
+      <PosResponsiveShell>{children}</PosResponsiveShell>
+      <PosOfflineSyncStatus />
     </PosShellViewport>
   )
 }

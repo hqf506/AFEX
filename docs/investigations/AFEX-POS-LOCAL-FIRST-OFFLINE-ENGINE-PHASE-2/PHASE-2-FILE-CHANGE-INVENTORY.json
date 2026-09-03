@@ -1,0 +1,30 @@
+{
+  "phase": "AFEX POS LOCAL-FIRST OFFLINE ENGINE PHASE 2 SAFE SUBSET",
+  "startingHead": "37331390ec00bee507f88701365bfebb944db675",
+  "authorityClassification": "B",
+  "applicationChanges": [
+    { "status": "modified", "path": "lib/offline/phase1.ts", "beforeSha256": "55867e81c718176b017ef78ddcb1f6eeb18fc16467161f5b0a708a6d4599e8f5", "afterSha256": "c18249ea8ac9afad34641ec4b50609b0205a2d349dee46b4cbb084cbd7c2d32b", "purpose": "database-v2 compatible store/index migration and exact-scope dataset purge extension" },
+    { "status": "added", "path": "lib/offline/phase2.ts", "beforeHumanReviewCorrectionSha256": "c3dac86e1300862134acb396ea5e47b7cbef89f159609a5b00a7afd809538784", "afterSha256": "179a17c8688d484286b857d30fa4e610be698ea35583c9095e4a4483cd4c67c9", "purpose": "disabled-by-default encrypted snapshot contracts with exact read-authority gating, strict recursive canonical hashing and owned-shell neutralization" },
+    { "status": "modified", "path": "public/sw.js", "beforeSha256": "ca1f594fddcd4e19a2c8619913a4b9ad69b1de67a02de850e39938b7c733725a", "beforeHumanReviewCorrectionSha256": "7a4f8ecfb463c62650fa74ea7c83843eef49d845c1412388793ac4fbe5d66f3c", "afterSha256": "eebdfef33c18547052c2ca623c4e9927356b588b574fbb11abaf825d30a17151", "purpose": "version-compatible AFEX-owned static shell with acknowledged disable handling and no authenticated JSON caching" },
+    { "status": "modified", "path": "components/dev-cache-reset.tsx", "beforeSha256": "05a5ae24ded86ad2ebf8ebdaf98a9a8fdb30ccad4286a924b1f86b975a2c9508", "afterSha256": "896801152d821cebe76ed3b8d003d451e9b98f49f2eea76495af18c5e1cbae6d", "purpose": "scope development cleanup to AFEX-owned worker and caches" },
+    { "status": "added", "path": "components/pos-offline-shell-registration.tsx", "beforeHumanReviewCorrectionSha256": "9d0df80e6d0dc340fd3f2d03f760acdaa5a920e555dcee95fc2a2b7fa72e94f8", "afterSha256": "2064bc8d8b2e5d5c2f8005c8fbaa557847c45adc2090dc5a09465badc5c03a18", "purpose": "fail-safe registration when enabled and verified owned-worker/cache neutralization with retries when disabled" },
+    { "status": "added", "path": "public/pos/offline-shell.html", "afterSha256": "cbbac7e4abb0c645945ee035c0549c1991de4b71431b10c5c0db6ec46f0252b8", "purpose": "PII-free Arabic offline lock shell" },
+    { "status": "modified", "path": "components/pos-shell-layout.tsx", "beforeSha256": "40e9e03266432cf5dd712c440e175083513653422be9129442acc0e835be28fa", "afterSha256": "0d4307976ebea340535a643c3a4776f5536aaafdda64524f48124e477e39b392", "purpose": "mount optional shell registration without route data integration" },
+    { "status": "modified", "path": "tests/pos-offline-phase1.test.mjs", "beforeSha256": "69df779c21bc798709c8f988cecf744cd1b39003b051a9d1dbcbc643d9cb5a83", "afterSha256": "6a6be7f0be53cf62ba14fb2cdae8a605267cb154447ac622ac54b2fa9d34a46f", "purpose": "accept the compatible complete store list while retaining all Phase 1 assertions" },
+    { "status": "added", "path": "tests/pos-offline-phase2.test.mjs", "beforeHumanReviewCorrectionSha256": "5beaae3d1096c9133b3f47be8b3fe0a4ae7f16c07c214aa2180d6a32e0e52f89", "afterSha256": "c832a59a7fc861ad64d85207d3e4add42d62215e58ffb06d1a627817c74ffb83", "purpose": "12 real Chromium IndexedDB, WebCrypto, authority, canonical-hash and Service Worker safe-subset tests" }
+  ],
+  "evidenceDirectory": "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PHASE-2",
+  "historicalPhase1FilesModifiedOnlyForCompatibleExtension": true,
+  "apiFilesModified": false,
+  "routePagesModifiedByPhase2": false,
+  "packageOrLockFilesModified": false,
+  "sqlOrMigrationFilesModified": false,
+  "coreV2FilesModified": false,
+  "runtimeIntegrationR8NModified": false,
+  "humanReviewCorrection": {
+    "blockingDefectsResolved": 3,
+    "correctedApplicationAndTestFiles": 4,
+    "phase3Started": false
+  },
+  "gitWritesPerformed": false
+}

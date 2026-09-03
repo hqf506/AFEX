@@ -1,85 +1,63 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
-import { INVOICE_CUSTOMER_STORAGE_KEY } from '@/lib/invoices/customer'
+import { PosThemeToggle } from '@/components/pos-theme-toggle'
+import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
-import { INVOICE_SALE_ITEMS_STORAGE_KEY } from '@/lib/invoices/sale-draft'
+import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
 import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
-import {
-  clearActivePosEmployee,
-  endPosActorSessionAndRequireReauthentication,
-  markPosLoggedOut,
-} from '@/lib/pos-employee-session'
+import { readActivePosEmployee } from '@/lib/pos-employee-session'
+
+function SettingsIcon({ name }: { name: 'sale' | 'orders' | 'invoice' | 'switch' | 'exit' }) {
+  const paths = { sale: 'M4 5h16v14H4z M8 9h8 M8 13h5', orders: 'M6 4h12v16H6z M9 8h6 M9 12h6 M9 16h4', invoice: 'M7 3h10v18l-2-1.5L13 21l-2-1.5L9 21l-2-1.5z M10 8h4 M10 12h4', switch: 'M7 7h11l-3-3 M18 7l-3 3 M17 17H6l3 3 M6 17l3-3', exit: 'M10 5H5v14h5 M14 8l4 4-4 4 M18 12H9' } as const
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>
+}
 
 export default function PosSettingsPage() {
   const router = useRouter()
-  const [loggingOut, setLoggingOut] = useState(false)
+  const [employee, setEmployee] = useState<ReturnType<typeof readActivePosEmployee>>(null)
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [logoutIntent, setLogoutIntent] = useState<'logout' | 'switch'>('logout')
+  const [hasActiveSale, setHasActiveSale] = useState(false)
 
-  const handleLogout = async () => {
-    const hasActiveSale = Boolean(
-      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY) ||
-        localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
-    )
-    const confirmationMessage = hasActiveSale
-      ? 'لديك عملية بيع غير مكتملة. هل تريد تسجيل الخروج وتركها محفوظة؟'
-      : 'هل تريد تسجيل الخروج من نقطة البيع؟'
+  useEffect(() => {
+    const timer = window.setTimeout(() => setEmployee(readActivePosEmployee()), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
 
-    if (!window.confirm(confirmationMessage)) return
-
-    try {
-      setLoggingOut(true)
-      clearAllInvoiceCatalogCache()
-      await endPosActorSessionAndRequireReauthentication()
-      sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
-      markPosLoggedOut()
-      router.push('/pos/login')
-    } finally {
-      clearActivePosEmployee()
-      setLoggingOut(false)
-    }
+  const openLogout = (intent: 'logout' | 'switch') => {
+    setLogoutIntent(intent)
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.sessionStorage))
+    setLogoutOpen(true)
   }
 
-  return (
-    <div className="flex min-h-full w-full flex-col bg-slate-50 p-3 text-right md:p-4">
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="border-b border-slate-100 pb-4">
-          <p className="text-xs font-bold tracking-[0.16em] text-slate-400">
-            AFEX POS
-          </p>
-          <h1 className="mt-1 text-2xl font-black text-slate-950">الإعدادات</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            إدارة خيارات جلسة نقطة البيع.
-          </p>
-        </div>
-
-        <div className="mt-4">
-          <Link
-            href="/pos/offline-drafts"
-            className="flex min-h-[52px] items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-800 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
-          >
-            <span>مسودات الفواتير غير المتصلة</span>
-            <span aria-hidden="true">←</span>
-          </Link>
-        </div>
-
-        <div className="mt-auto border-t border-red-200/70 pt-4">
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="min-h-[44px] rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loggingOut ? 'جارٍ تسجيل الخروج...' : 'تسجيل الخروج'}
-          </button>
-        </div>
-      </main>
-
-      <div className="mx-auto mt-3 w-full max-w-4xl pb-[max(0.25rem,env(safe-area-inset-bottom))]">
-        <PosMobileBottomNavigation />
-      </div>
-    </div>
-  )
+  return <div className="pos-settings-page" dir="rtl"><main className="pos-settings-panel">
+    <header className="pos-settings-header"><div><p>AFEX POS</p><h1>إعدادات نقطة البيع</h1><span>إدارة تجربة نقطة البيع والجلسة الحالية.</span></div><Link href="/pos" aria-label="العودة إلى نقطة البيع"><span aria-hidden="true">←</span><b>العودة إلى نقطة البيع</b></Link></header>
+    <section className="pos-settings-session" aria-labelledby="pos-settings-session-title"><div><p id="pos-settings-session-title">جلسة الموظف</p><strong>{employee?.full_name || 'موظف نقطة البيع'}</strong><span>{employee?.role || 'جلسة POS نشطة'}</span></div><span className="pos-settings-live"><i aria-hidden="true" />نشطة</span></section>
+    <section className="pos-settings-section" aria-labelledby="pos-settings-display-title"><div className="pos-settings-section-heading"><div><h2 id="pos-settings-display-title">المظهر</h2><p>بدّل بين الوضع الفاتح والداكن.</p></div><PosThemeToggle /></div></section>
+    <section className="pos-settings-section" aria-labelledby="pos-settings-work-title"><div className="pos-settings-section-heading"><div><h2 id="pos-settings-work-title">العمل اليومي</h2><p>انتقل إلى مسارات نقطة البيع المصرّح بها.</p></div></div><nav className="pos-settings-links" aria-label="روابط نقطة البيع">
+      <Link href="/pos/sale/customer"><SettingsIcon name="sale" /><span><b>عملية بيع جديدة</b><small>اختيار العميل وبدء البيع</small></span><i aria-hidden="true">←</i></Link>
+      <Link href="/pos/order-status"><SettingsIcon name="orders" /><span><b>حالة الطلبات</b><small>متابعة سير الطلبات التشغيلية</small></span><i aria-hidden="true">←</i></Link>
+      <Link href="/pos/order-history"><SettingsIcon name="orders" /><span><b>سجل العمليات</b><small>نشاط الطلبات والفواتير</small></span><i aria-hidden="true">←</i></Link>
+      <Link href="/pos/invoices"><SettingsIcon name="orders" /><span><b>الفواتير</b><small>السجل التاريخي الكامل</small></span><i aria-hidden="true">←</i></Link>
+      <Link href="/pos/offline-drafts"><SettingsIcon name="invoice" /><span><b>المسودات غير المتصلة</b><small>إدارة المسودات المحفوظة</small></span><i aria-hidden="true">←</i></Link>
+    </nav></section>
+    <section className="pos-settings-section is-danger" aria-labelledby="pos-settings-session-actions-title"><div className="pos-settings-section-heading"><div><h2 id="pos-settings-session-actions-title">إدارة الجلسة</h2><p>هذه الإجراءات تنهي صلاحية موظف POS الحالية.</p></div></div><div className="pos-settings-danger-actions">
+      <button type="button" onClick={() => openLogout('switch')}><SettingsIcon name="switch" /><span>تبديل الموظف</span></button>
+      <button type="button" onClick={() => openLogout('logout')}><SettingsIcon name="exit" /><span>إنهاء وضع POS</span></button>
+    </div></section>
+  </main><PosLogoutRetentionDialog
+    open={logoutOpen}
+    intent={logoutIntent}
+    hasActiveSale={hasActiveSale}
+    onCancel={() => setLogoutOpen(false)}
+    onComplete={({ intent, route }) => {
+      clearAllInvoiceCatalogCache()
+      sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
+      setLogoutOpen(false)
+      if (intent === 'logout') router.replace(route)
+    }}
+  /></div>
 }

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 9,
+  "packageDecision": "FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN_ACTIVATION_NOT_EXECUTED",
+  "postgresqlCompatibleParser": {
+    "available": false,
+    "status": "POSTGRESQL_COMPATIBLE_PARSER_UNAVAILABLE",
+    "postgresqlParseClaimed": false,
+    "consequence": "No dependency was installed and no SQL was executed. A PostgreSQL-compatible parser or a later controlled disposable-database review remains an independent execution gate."
+  },
+  "staticTests": [
+    {"id":"ST-001","requirement":"all package JSON parses","expected":"all JSON artifacts parse","status":"PASS"},
+    {"id":"ST-002","requirement":"review-only boundary","expected":"SQL, DB, Supabase CLI, Docker, network, Production and business executions equal zero","status":"PASS"},
+    {"id":"ST-003","requirement":"Production installer evidence","expected":"postgres/postgres, database postgres, server_version_num 170006, database owner postgres, postgres CREATE and CONNECT","status":"PASS"},
+    {"id":"ST-004","requirement":"auth boundary","expected":"auth owner supabase_admin, postgres auth CREATE false, no auth schema object or ACL mutation","status":"PASS"},
+    {"id":"ST-005","requirement":"installer identity","expected":"each wave begins and ends postgres/postgres; owner DDL uses SET LOCAL ROLE with SESSION_USER postgres","status":"PASS"},
+    {"id":"ST-006","requirement":"transactional membership safety","expected":"exact transaction-bounded GRANT with ADMIN false, INHERIT false, SET true GRANTED BY CURRENT_USER; RESET ROLE then exact REVOKE GRANTED BY CURRENT_USER before COMMIT; no GRANT SET false","status":"PASS"},
+    {"id":"ST-007","requirement":"split mixed-owner wave","expected":"01A, 01B and 01C are separate whole-file waves with no existing-owner transfer","status":"PASS"},
+    {"id":"ST-008","requirement":"direct owner creation","expected":"new Offline authority and function objects are created under their intended owner without avoidable ALTER OWNER","status":"PASS"},
+    {"id":"ST-009","requirement":"POS actor authority","expected":"actor_sessions policy and ACL mutation runs only as afex_pos_session_owner and preserves table ownership","status":"PASS"},
+    {"id":"ST-010","requirement":"bounded Auth helper","expected":"private postgres-owned helper only, exact MD5 and length, auth.sessions id/user_id read only, no function in auth","status":"PASS"},
+    {"id":"ST-011","requirement":"emergency membership cleanup","expected":"00Z revokes five exact transaction-bounded memberships GRANTED BY CURRENT_USER without object or data mutation","status":"PASS"},
+    {"id":"ST-012","requirement":"foundation DAG","expected":"22 whole-file ordered nodes, existing files only, no missing nodes, no cycles and activation excluded","status":"PASS"},
+    {"id":"ST-013","requirement":"read-only boundaries","expected":"00 and 14 begin READ ONLY and end ROLLBACK","status":"PASS"},
+    {"id":"ST-014","requirement":"activation separation","expected":"90 is classified post-application and excluded from foundation; 90Z is the exact emergency revoke","status":"PASS"},
+    {"id":"ST-015","requirement":"service facade boundary","expected":"service_role receives only twelve exact facade EXECUTEs; browser roles receive zero; no direct table or private context-helper grant","status":"PASS"},
+    {"id":"ST-016","requirement":"pilot scope","expected":"only order.create is pilot eligible; seven other commands remain Shadow Mode","status":"PASS"},
+    {"id":"ST-017","requirement":"payment methods","expected":"all eight approved methods remain distinct","status":"PASS"},
+    {"id":"ST-018","requirement":"exact payment validator","expected":"exact key set, order/idempotency binding, canonical-total equality, SAR, provider-unverified states and sensitive-field denial","status":"PASS"},
+    {"id":"ST-019","requirement":"exact inventory frontier","expected":"exact unique ordered item set, requested quantities, snapshot/frontier and pending/syncing commitment equality; no negative local inventory","status":"PASS"},
+    {"id":"ST-020","requirement":"total resolver","expected":"one typed positional output per server ordinal, maximum 1000, per-claim isolation and no secret output","status":"PASS"},
+    {"id":"ST-021","requirement":"full Offline/Core mapping","expected":"canonical Core payload, fingerprint, line economics, payment, inventory and idempotency semantics are equality-bound","status":"PASS"},
+    {"id":"ST-022","requirement":"composite relational integrity","expected":"account, tenant, branch, device, employee, envelope, snapshot and Core scopes are composite-bound","status":"PASS"},
+    {"id":"ST-023","requirement":"authority-first receipt","expected":"fresh Auth/POS/origin resolution occurs before binding or receipt read","status":"PASS"},
+    {"id":"ST-024","requirement":"runtime role separation","expected":"provisioning and acquisition are distinct NOLOGIN roles with exact private-function execute and no direct table privilege","status":"PASS"},
+    {"id":"ST-025","requirement":"forward disposition","expected":"every FWD identifier has one exact disablement or cleanup disposition","status":"PASS"},
+    {"id":"ST-026","requirement":"signature identity","expected":"CREATE, GRANT, REVOKE and DROP signatures match their matrices and counterparts","status":"PASS"},
+    {"id":"ST-027","requirement":"rollback safety","expected":"disablement is fail-closed and evidence-retaining; optional empty cleanup is RESTRICT-only and data-empty gated; no CASCADE","status":"PASS"},
+    {"id":"ST-028","requirement":"flags and integration","expected":"all twelve sensitive flags false; one disabled POS checkout integration; Admin/Dashboard Offline imports zero","status":"PASS"},
+    {"id":"ST-029","requirement":"manifest","expected":"complete SHA-256 coverage for every package file except the manifest itself","status":"PASS"},
+    {"id":"ST-030","requirement":"parser honesty","expected":"POSTGRESQL_COMPATIBLE_PARSER_UNAVAILABLE is reported and no parser PASS is claimed","status":"PASS"}
+  ],
+  "focusedTests": [
+    {"command":"node --test tests/pos-offline-transactional-owner-installer.test.mjs","expectedPassed":10,"expectedFailed":0,"status":"PASS"},
+    {"command":"node --test tests/pos-offline-order-create-sql-final-correction.test.mjs","expectedPassed":14,"expectedFailed":0,"status":"PASS"},
+    {"command":"node --test tests/pos-offline-account-bootstrap-provisioning.test.mjs","expectedPassed":24,"expectedFailed":0,"status":"PASS"},
+    {"command":"node --test tests/pos-offline-trusted-actor-provenance.test.mjs","expectedPassed":6,"expectedFailed":0,"status":"PASS"},
+    {"command":"node --test tests/pos-offline-core-v2-authority-bridge.test.mjs","expectedPassed":35,"expectedFailed":0,"status":"PASS"}
+  ],
+  "mandatoryLaterControlledQualificationTests": [
+    {"id":"NT-001","area":"PostgreSQL-compatible parse","status":"PARSER_NOT_INSTALLED"},
+    {"id":"NT-002","area":"manual transaction and catalog attestation","status":"DESIGNED_NOT_EXECUTED"},
+    {"id":"NT-003","area":"tenant/branch and revocation hostility","status":"DESIGNED_NOT_EXECUTED"},
+    {"id":"NT-004","area":"concurrent idempotency and stable receipt","status":"DESIGNED_NOT_EXECUTED"},
+    {"id":"NT-005","area":"eight payments and exact inventory frontier","status":"DESIGNED_NOT_EXECUTED"}
+  ],
+  "runtimeDatabaseTestsExecuted": 0,
+  "constructionSqlExecuted": 0,
+  "networkConnections": 0,
+  "productionTestsAuthorized": false,
+  "pilotDispatchAuthorized": false
+}

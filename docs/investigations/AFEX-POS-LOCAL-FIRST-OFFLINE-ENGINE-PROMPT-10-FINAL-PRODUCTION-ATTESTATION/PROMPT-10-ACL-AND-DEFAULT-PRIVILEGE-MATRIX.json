@@ -1,0 +1,1065 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceQueries": [
+    "P10-Q003",
+    "P10-Q009"
+  ],
+  "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+  "rawBusinessRowsReturned": 0,
+  "publicSchemaRawAcl": "{pg_database_owner=UC/pg_database_owner,=U/pg_database_owner,postgres=U/pg_database_owner,anon=U/pg_database_owner,authenticated=U/pg_database_owner,service_role=U/pg_database_owner,afex_function_owner=UC/pg_database_owner,afex_core_owner=U/pg_database_owner,afex_pos_session_owner=U/pg_database_owner,afex_pos_session_maintenance=U/pg_database_owner}",
+  "publicCreate": [
+    {
+      "id": "SCHEMA-ACL-001",
+      "can_usage": true,
+      "role_name": "afex_context_issuer",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-002",
+      "can_usage": true,
+      "role_name": "afex_core_owner",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-003",
+      "can_usage": true,
+      "role_name": "afex_core_runtime",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-004",
+      "can_usage": true,
+      "role_name": "afex_function_owner",
+      "can_create": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-005",
+      "can_usage": true,
+      "role_name": "afex_outbox_worker",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-006",
+      "can_usage": true,
+      "role_name": "afex_pos_session_maintenance",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-007",
+      "can_usage": true,
+      "role_name": "afex_pos_session_owner",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-008",
+      "can_usage": true,
+      "role_name": "afex_reconciliation_authority",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-009",
+      "can_usage": true,
+      "role_name": "anon",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-010",
+      "can_usage": true,
+      "role_name": "authenticated",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-011",
+      "can_usage": true,
+      "role_name": "authenticator",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-012",
+      "can_usage": true,
+      "role_name": "postgres",
+      "can_create": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-013",
+      "can_usage": true,
+      "role_name": "service_role",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-014",
+      "can_usage": true,
+      "role_name": "supabase_admin",
+      "can_create": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-015",
+      "can_usage": true,
+      "role_name": "supabase_auth_admin",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SCHEMA-ACL-016",
+      "can_usage": true,
+      "role_name": "supabase_storage_admin",
+      "can_create": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    }
+  ],
+  "directRelationReachability": [
+    {
+      "id": "REL-ACL-0001",
+      "relname": "actor_sessions",
+      "role_name": "anon",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "afex_pos_authority",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0002",
+      "relname": "atomic_order_commands",
+      "role_name": "anon",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0003",
+      "relname": "branches",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0004",
+      "relname": "customer_phone_identities",
+      "role_name": "anon",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0005",
+      "relname": "customers",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0006",
+      "relname": "inventory_movements",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0007",
+      "relname": "inventory_movements_view",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0008",
+      "relname": "inventory_stock",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0009",
+      "relname": "invoice_items",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0010",
+      "relname": "invoices",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0011",
+      "relname": "orders",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0012",
+      "relname": "pos_profiles",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0013",
+      "relname": "profiles",
+      "role_name": "anon",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0014",
+      "relname": "actor_sessions",
+      "role_name": "authenticated",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "afex_pos_authority",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0015",
+      "relname": "atomic_order_commands",
+      "role_name": "authenticated",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0016",
+      "relname": "branches",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0017",
+      "relname": "customer_phone_identities",
+      "role_name": "authenticated",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0018",
+      "relname": "customers",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0019",
+      "relname": "inventory_movements",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0020",
+      "relname": "inventory_movements_view",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0021",
+      "relname": "inventory_stock",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0022",
+      "relname": "invoice_items",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0023",
+      "relname": "invoices",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0024",
+      "relname": "orders",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0025",
+      "relname": "pos_profiles",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0026",
+      "relname": "profiles",
+      "role_name": "authenticated",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0027",
+      "relname": "actor_sessions",
+      "role_name": "service_role",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "afex_pos_authority",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0028",
+      "relname": "atomic_order_commands",
+      "role_name": "service_role",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0029",
+      "relname": "branches",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0030",
+      "relname": "customer_phone_identities",
+      "role_name": "service_role",
+      "can_delete": false,
+      "can_insert": false,
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0031",
+      "relname": "customers",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0032",
+      "relname": "inventory_movements",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0033",
+      "relname": "inventory_movements_view",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0034",
+      "relname": "inventory_stock",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0035",
+      "relname": "invoice_items",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0036",
+      "relname": "invoices",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0037",
+      "relname": "orders",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0038",
+      "relname": "pos_profiles",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "REL-ACL-0039",
+      "relname": "profiles",
+      "role_name": "service_role",
+      "can_delete": true,
+      "can_insert": true,
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    }
+  ],
+  "sensitiveFunctionReachability": [
+    {
+      "id": "FUNC-ACL-0001",
+      "proname": "acquire_atomic_order_command_v1",
+      "role_name": "anon",
+      "can_execute": false,
+      "schema_name": "public",
+      "identity_arguments": "p_authenticated_actor_id uuid, p_tenant_id uuid, p_branch_id uuid, p_idempotency_key text, p_correlation_reference text, p_canonical_payload text, p_fingerprint_projection text, p_retain_until timestamp with time zone",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0002",
+      "proname": "adjust_inventory_stock",
+      "role_name": "anon",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_tenant_id uuid, p_branch_id uuid, p_catalog_item_id uuid, p_quantity_delta numeric, p_movement_type text, p_notes text, p_created_by uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0003",
+      "proname": "create_invoice_with_items",
+      "role_name": "anon",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items json",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0004",
+      "proname": "create_invoice_with_items",
+      "role_name": "anon",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items jsonb",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0005",
+      "proname": "create_invoice_with_items",
+      "role_name": "anon",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_invoice jsonb, p_items jsonb",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0006",
+      "proname": "create_invoice_with_items_safe",
+      "role_name": "anon",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items jsonb, p_client_idempotency_key text, p_created_by_employee_id uuid, p_tenant_id uuid, p_branch_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0007",
+      "proname": "execute_atomic_order_command_v1",
+      "role_name": "anon",
+      "can_execute": false,
+      "schema_name": "public",
+      "identity_arguments": "p uuid, t uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0008",
+      "proname": "replay_atomic_order_command_v1",
+      "role_name": "anon",
+      "can_execute": false,
+      "schema_name": "public",
+      "identity_arguments": "p uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0009",
+      "proname": "restore_inventory_for_cancelled_invoice",
+      "role_name": "anon",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_invoice_id uuid, p_tenant_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0010",
+      "proname": "set_pos_pin",
+      "role_name": "anon",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "raw_pin text, user_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0011",
+      "proname": "verify_pos_pin_for_actor",
+      "role_name": "anon",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_raw_pin text, p_actor_user_id uuid, p_requested_branch_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0012",
+      "proname": "acquire_atomic_order_command_v1",
+      "role_name": "authenticated",
+      "can_execute": false,
+      "schema_name": "public",
+      "identity_arguments": "p_authenticated_actor_id uuid, p_tenant_id uuid, p_branch_id uuid, p_idempotency_key text, p_correlation_reference text, p_canonical_payload text, p_fingerprint_projection text, p_retain_until timestamp with time zone",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0013",
+      "proname": "adjust_inventory_stock",
+      "role_name": "authenticated",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_tenant_id uuid, p_branch_id uuid, p_catalog_item_id uuid, p_quantity_delta numeric, p_movement_type text, p_notes text, p_created_by uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0014",
+      "proname": "create_invoice_with_items",
+      "role_name": "authenticated",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items json",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0015",
+      "proname": "create_invoice_with_items",
+      "role_name": "authenticated",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items jsonb",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0016",
+      "proname": "create_invoice_with_items",
+      "role_name": "authenticated",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_invoice jsonb, p_items jsonb",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0017",
+      "proname": "create_invoice_with_items_safe",
+      "role_name": "authenticated",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items jsonb, p_client_idempotency_key text, p_created_by_employee_id uuid, p_tenant_id uuid, p_branch_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0018",
+      "proname": "execute_atomic_order_command_v1",
+      "role_name": "authenticated",
+      "can_execute": false,
+      "schema_name": "public",
+      "identity_arguments": "p uuid, t uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0019",
+      "proname": "replay_atomic_order_command_v1",
+      "role_name": "authenticated",
+      "can_execute": false,
+      "schema_name": "public",
+      "identity_arguments": "p uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0020",
+      "proname": "restore_inventory_for_cancelled_invoice",
+      "role_name": "authenticated",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_invoice_id uuid, p_tenant_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0021",
+      "proname": "set_pos_pin",
+      "role_name": "authenticated",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "raw_pin text, user_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0022",
+      "proname": "verify_pos_pin_for_actor",
+      "role_name": "authenticated",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_raw_pin text, p_actor_user_id uuid, p_requested_branch_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0023",
+      "proname": "acquire_atomic_order_command_v1",
+      "role_name": "service_role",
+      "can_execute": false,
+      "schema_name": "public",
+      "identity_arguments": "p_authenticated_actor_id uuid, p_tenant_id uuid, p_branch_id uuid, p_idempotency_key text, p_correlation_reference text, p_canonical_payload text, p_fingerprint_projection text, p_retain_until timestamp with time zone",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0024",
+      "proname": "adjust_inventory_stock",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_tenant_id uuid, p_branch_id uuid, p_catalog_item_id uuid, p_quantity_delta numeric, p_movement_type text, p_notes text, p_created_by uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0025",
+      "proname": "create_invoice_with_items",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items json",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0026",
+      "proname": "create_invoice_with_items",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items jsonb",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0027",
+      "proname": "create_invoice_with_items",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_invoice jsonb, p_items jsonb",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0028",
+      "proname": "create_invoice_with_items_safe",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_customer_name text, p_customer_phone text, p_customer_notes text, p_payment_method text, p_discount numeric, p_tax numeric, p_note text, p_items jsonb, p_client_idempotency_key text, p_created_by_employee_id uuid, p_tenant_id uuid, p_branch_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0029",
+      "proname": "execute_atomic_order_command_v1",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p uuid, t uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0030",
+      "proname": "replay_atomic_order_command_v1",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0031",
+      "proname": "restore_inventory_for_cancelled_invoice",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_invoice_id uuid, p_tenant_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0032",
+      "proname": "set_pos_pin",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "raw_pin text, user_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "FUNC-ACL-0033",
+      "proname": "verify_pos_pin_for_actor",
+      "role_name": "service_role",
+      "can_execute": true,
+      "schema_name": "public",
+      "identity_arguments": "p_raw_pin text, p_actor_user_id uuid, p_requested_branch_id uuid",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    }
+  ],
+  "sequenceReachability": [
+    {
+      "id": "SEQ-ACL-0001",
+      "relname": "atomic_order_audit_id_seq",
+      "can_usage": false,
+      "role_name": "anon",
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0002",
+      "relname": "atomic_order_diagnostics_id_seq",
+      "can_usage": false,
+      "role_name": "anon",
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0003",
+      "relname": "invoice_number_seq",
+      "can_usage": true,
+      "role_name": "anon",
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0004",
+      "relname": "order_number_seq",
+      "can_usage": true,
+      "role_name": "anon",
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0005",
+      "relname": "support_ticket_number_seq",
+      "can_usage": false,
+      "role_name": "anon",
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0006",
+      "relname": "atomic_order_audit_id_seq",
+      "can_usage": false,
+      "role_name": "authenticated",
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0007",
+      "relname": "atomic_order_diagnostics_id_seq",
+      "can_usage": false,
+      "role_name": "authenticated",
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0008",
+      "relname": "invoice_number_seq",
+      "can_usage": true,
+      "role_name": "authenticated",
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0009",
+      "relname": "order_number_seq",
+      "can_usage": true,
+      "role_name": "authenticated",
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0010",
+      "relname": "support_ticket_number_seq",
+      "can_usage": false,
+      "role_name": "authenticated",
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0011",
+      "relname": "atomic_order_audit_id_seq",
+      "can_usage": false,
+      "role_name": "service_role",
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0012",
+      "relname": "atomic_order_diagnostics_id_seq",
+      "can_usage": false,
+      "role_name": "service_role",
+      "can_select": false,
+      "can_update": false,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0013",
+      "relname": "invoice_number_seq",
+      "can_usage": true,
+      "role_name": "service_role",
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0014",
+      "relname": "order_number_seq",
+      "can_usage": true,
+      "role_name": "service_role",
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "SEQ-ACL-0015",
+      "relname": "support_ticket_number_seq",
+      "can_usage": true,
+      "role_name": "service_role",
+      "can_select": true,
+      "can_update": true,
+      "schema_name": "public",
+      "evidenceStatus": "PRODUCTION_CATALOG_PROOF"
+    }
+  ],
+  "relevantDefaultPrivileges": [
+    {
+      "id": "DEFACL-001",
+      "owner": "postgres",
+      "schema": "public",
+      "objectType": "relations",
+      "rawAcl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+    },
+    {
+      "id": "DEFACL-002",
+      "owner": "postgres",
+      "schema": "public",
+      "objectType": "functions",
+      "rawAcl": "{postgres=X/postgres}"
+    },
+    {
+      "id": "DEFACL-003",
+      "owner": "postgres",
+      "schema": "public",
+      "objectType": "sequences",
+      "rawAcl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "id": "DEFACL-004",
+      "owner": "supabase_admin",
+      "schema": "public",
+      "objectType": "relations",
+      "rawAcl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+    },
+    {
+      "id": "DEFACL-005",
+      "owner": "supabase_admin",
+      "schema": "public",
+      "objectType": "functions",
+      "rawAcl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    }
+  ],
+  "blockers": [
+    "Effective privilege does not prove an external workflow is unused.",
+    "RLS limits rows, not selected columns.",
+    "service_role bypasses RLS."
+  ]
+}
+

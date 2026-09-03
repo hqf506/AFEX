@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "migrationHistoryObserved": [
+    "20260814190000_core_v2_system_scope_authorization",
+    "20260814233000_pos_actor_sessions",
+    "20260815143000_pos_actor_session_source_rls"
+  ],
+  "classifications": [
+    {"object":"Core V2 system-scope authorization migration identity","classification":"MATCH","evidence":"Production migration version/name exists; repository file SHA-256 7ac762b0c4a9eeb850255496098facb8de4dfd796ea0e5fe640ea839eb3f30ea"},
+    {"object":"POS actor session migration identity","classification":"MATCH","evidence":"Production migration version/name exists; repository file SHA-256 c04fbef3d7741c91899fd857356744303cfc55dbf8f51307a7260a3f5d7bcfbc"},
+    {"object":"POS actor source RLS migration identity","classification":"MATCH","evidence":"Production migration version/name exists; repository file SHA-256 6fd51cbb78a1a0d6e4122a3fb126ec8db2b83b60c21e0fc463b770a0f1cc5c8a"},
+    {"object":"Core atomic order functions and tables","classification":"MATCH","evidence":"deployed signatures, owners, search paths, state constraints, indexes, and function hashes match the repository design behavior; migration checksum parity is not available from platform history"},
+    {"object":"restore_inventory_for_cancelled_invoice","classification":"DRIFTED","evidence":"Production result is void and MD5 is 71ca89c7e85e976071f4ae8a3aae96c8; repository later migration returns JSON and SHA-256 is 58cd9cb60355d52589c57c285de59f9532edc85b9b904205d44ef4350f004452"},
+    {"object":"tenant-isolated authenticated policies","classification":"DRIFTED","evidence":"tenant policies coexist with broad PUBLIC authenticated policies; permissive OR defeats the intended scoped-only assumption"},
+    {"object":"Core actor binding versus Phase 4 actor contract","classification":"DRIFTED","evidence":"online route passes Primary Auth user as Core actor; actual POS employee is optional attribution"},
+    {"object":"Phase 1-3 Local-First implementation","classification":"REPOSITORY_AHEAD","evidence":"uncommitted local implementation exists and has no Production deployment attestation"},
+    {"object":"device registration and credential generation","classification":"MISSING","evidence":"no Production relation or command authority column"},
+    {"object":"Server Review Container","classification":"MISSING","evidence":"no complete review state/object"},
+    {"object":"external effect ledger","classification":"MISSING","evidence":"no durable effect identity/state object"},
+    {"object":"eight-method payment contract","classification":"DRIFTED","evidence":"database accepts six canonical values, Core route accepts four inputs, offline model requires eight"},
+    {"object":"provider-side WhatsApp idempotency","classification":"UNVERIFIABLE","evidence":"no provider call or provider-secret inspection was authorized"},
+    {"object":"exact historical migration checksum parity","classification":"UNVERIFIABLE","evidence":"platform migration list supplies version/name, not stored source checksum"}
+  ]
+}

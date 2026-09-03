@@ -463,6 +463,7 @@ export default function InventoryMovementsPage() {
   const [movementTypeMenuOpen, setMovementTypeMenuOpen] = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const movementsRequestSeqRef = useRef(0)
+  const movementsAbortRef = useRef<AbortController | null>(null)
   const totalPages = Math.max(1, Math.ceil(totalMovements / PAGE_SIZE))
   const paginationItems = getPaginationItems(currentPage, totalPages)
   const selectedBranchLabel =
@@ -504,6 +505,7 @@ export default function InventoryMovementsPage() {
 
   const loadMovements = useCallback(async () => {
     if (!tenantId) {
+      movementsAbortRef.current?.abort()
       setMovements([])
       setTotalMovements(0)
       return
@@ -511,6 +513,9 @@ export default function InventoryMovementsPage() {
 
     const requestSeq = movementsRequestSeqRef.current + 1
     movementsRequestSeqRef.current = requestSeq
+    movementsAbortRef.current?.abort()
+    const controller = new AbortController()
+    movementsAbortRef.current = controller
 
     try {
       setLoadingMovements(true)
@@ -532,6 +537,7 @@ export default function InventoryMovementsPage() {
       const response = await fetch(`/api/admin/inventory-movements?${params}`, {
         method: 'GET',
         cache: 'no-store',
+        signal: controller.signal,
       })
       const result = await response.json().catch(() => null)
 
@@ -559,6 +565,7 @@ export default function InventoryMovementsPage() {
       setMovements(baseMovements)
     } catch (error) {
       if (movementsRequestSeqRef.current !== requestSeq) return
+      if (error instanceof Error && error.name === 'AbortError') return
       setMovements([])
       setTotalMovements(0)
       setErrorMessage(
@@ -567,6 +574,9 @@ export default function InventoryMovementsPage() {
     } finally {
       if (movementsRequestSeqRef.current === requestSeq) {
         setLoadingMovements(false)
+      }
+      if (movementsAbortRef.current === controller) {
+        movementsAbortRef.current = null
       }
     }
   }, [
@@ -595,7 +605,10 @@ export default function InventoryMovementsPage() {
         void loadMovements()
       }, 0)
 
-      return () => window.clearTimeout(timeoutId)
+      return () => {
+        window.clearTimeout(timeoutId)
+        movementsAbortRef.current?.abort()
+      }
     }
   }, [accessLoading, allowed, loadMovements])
 

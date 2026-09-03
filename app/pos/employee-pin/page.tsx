@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useAuthState } from '@/components/auth-state-provider'
@@ -12,21 +12,35 @@ import { formatPosGregorianDate, formatPosTime } from '@/lib/pos/date-format'
 import {
   hasPosLoggedOut,
   clearActivePosEmployee,
-  endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   writeActivePosEmployee,
-  markPosLoggedOut,
   clearPosLoggedOut,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
+import { getCurrentPosDeviceLabel } from '@/lib/pos/device-label'
+import { getPinIndicatorState } from '@/lib/pos/pin-indicators'
 import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
+import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
+import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
+import { completePosPinOfflineRecoveryGate } from '@/lib/offline/phase1'
+import {
+  enrollOnlineEmployeeForOffline,
+  restorePreparedOfflineRuntime,
+  verifyOfflineEmployeePin,
+  type PreparedOfflineRuntime,
+} from '@/lib/offline/complete-runtime'
+import { buildScopedOnlinePinIdentification } from '@/lib/offline/employee-pin-selection'
 
 const PIN_LENGTH = 4
 const PIN_LOCK_ATTEMPTS = 3
 const PIN_LOCK_MS = 5000
 const PIN_CLEAR_AFTER_ERROR_MS = 500
 const INVALID_PIN_MESSAGE = POS_UX_MESSAGES.wrongPin
+const OFFLINE_PREPARATION_ERROR_MESSAGE =
+  'تم التحقق من الرمز، لكن تعذر تجهيز وضع العمل دون اتصال. حاول مرة أخرى.'
+const OFFLINE_RECOVERY_ERROR_MESSAGE =
+  'تم التحقق من الرمز، لكن تعذر استعادة بيانات نقطة البيع المحلية بأمان. حاول مرة أخرى.'
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
 function EmployeeAvatarIcon() {
@@ -103,6 +117,8 @@ function SessionInfoRow({
 
 export default function PosEmployeePinPage() {
   const router = useRouter()
+  const redirectTargetRef =
+    useRef<'/pos/login' | '/pos/offline-preparation' | '/pos' | null>(null)
   const authState = useAuthState()
   const verifyingPinRef = useRef('')
   const clearPinTimeoutRef = useRef<number | null>(null)
@@ -115,15 +131,20 @@ export default function PosEmployeePinPage() {
   const [failedAttempts, setFailedAttempts] = useState(0)
   const [locked, setLocked] = useState(false)
   const [shakeCard, setShakeCard] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [hasActiveSale, setHasActiveSale] = useState(false)
   const [now, setNow] = useState(() => new Date())
+  const [offlineRuntime, setOfflineRuntime] =
+    useState<PreparedOfflineRuntime | null>(null)
+  const [offlineRuntimeChecked, setOfflineRuntimeChecked] = useState(false)
 
-  const allowed = Boolean(
+  const onlineAllowed = Boolean(
     authState.profile && canAccessPos(authState.profile.role)
   )
-  const { settings: systemSettings } = useSystemSettings(
-    !authState.loading && allowed
-  )
-  const currentBranchId = authState.profile?.branch_id ?? null
+  const allowed = onlineAllowed || Boolean(offlineRuntime)
+  const { settings: systemSettings } = useSystemSettings(false)
+  const currentBranchId =
+    authState.profile?.branch_id ?? offlineRuntime?.context.branchId ?? null
   const employeeName = authState.profile?.full_name || 'موظف AFEX'
   const employeeRole = getRoleLabel(authState.profile?.role) || 'موظف POS'
   const employeeId = authState.profile?.id
@@ -138,10 +159,28 @@ export default function PosEmployeePinPage() {
   const formattedTime = formatPosTime(now)
   const formattedDate = formatPosGregorianDate(now)
 
-  const dots = useMemo(
-    () => Array.from({ length: PIN_LENGTH }, (_, index) => index < pin.length),
-    [pin.length]
-  )
+  const dots = getPinIndicatorState(pin.length, PIN_LENGTH)
+  const [deviceLabel, setDeviceLabel] = useState('جهاز غير معروف')
+
+  useEffect(() => {
+    let cancelled = false
+    void restorePreparedOfflineRuntime()
+      .then((runtime) => {
+        if (!cancelled) setOfflineRuntime(runtime)
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setOfflineRuntimeChecked(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDeviceLabel(getCurrentPosDeviceLabel()), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
   const inputDisabled = loading || locked
 
   useEffect(() => {
@@ -169,17 +208,21 @@ export default function PosEmployeePinPage() {
   }, [])
 
   useEffect(() => {
-    if (authState.loading) {
+    if (authState.loading && !offlineRuntimeChecked) {
       return
     }
 
     if (hasPosLoggedOut()) {
-      router.replace('/pos/login')
+      if (!redirectTargetRef.current) {
+        redirectTargetRef.current = '/pos/login'
+        router.replace('/pos/login')
+      }
       return
     }
 
     if (!authState.profile) {
-      router.replace('/pos/login')
+      // The protected shell owns unauthenticated-route navigation. Keeping one
+      // redirect authority prevents duplicate replaces during auth hydration.
       return
     }
 
@@ -194,19 +237,28 @@ export default function PosEmployeePinPage() {
 
     if (activeEmployee) {
       if (activeEmployee.branch_id === currentBranchId) {
-        router.replace('/pos')
+        if (!redirectTargetRef.current) {
+          redirectTargetRef.current = '/pos'
+          router.replace('/pos')
+        }
         return
       }
 
       if (process.env.NODE_ENV === 'development') {
         console.warn('[POS PIN] Ignoring stale POS employee session.', {
-          currentBranchId,
-          employeeBranchId: activeEmployee.branch_id,
+          branchMismatch: true,
         })
       }
       clearActivePosEmployee()
     }
-  }, [allowed, authState.loading, authState.profile, currentBranchId, router])
+  }, [
+    allowed,
+    authState.loading,
+    authState.profile,
+    currentBranchId,
+    offlineRuntimeChecked,
+    router,
+  ])
 
   useEffect(() => {
     if (!allowed || !currentBranchId) {
@@ -215,7 +267,7 @@ export default function PosEmployeePinPage() {
 
     if (process.env.NODE_ENV === 'development') {
       console.info('[POS PIN] Client POS context.', {
-        branchId: currentBranchId,
+        branchAvailable: true,
         authRole: authState.profile?.role ?? null,
       })
     }
@@ -227,9 +279,8 @@ export default function PosEmployeePinPage() {
     }
 
     console.info('[POS PIN] Session organization context.', {
-      tenant_id: authState.profile?.tenant_id ?? null,
-      tenant_name: authState.profile?.tenant_name ?? null,
-      branch_id: currentBranchId,
+      tenantAvailable: Boolean(authState.profile?.tenant_id),
+      branchAvailable: Boolean(currentBranchId),
     })
   }, [authState.profile?.tenant_id, authState.profile?.tenant_name, currentBranchId])
 
@@ -238,6 +289,7 @@ export default function PosEmployeePinPage() {
       pin.length !== PIN_LENGTH ||
       inputDisabled ||
       !allowed ||
+      !currentBranchId ||
       verificationPausedRef.current
     ) {
       return
@@ -252,52 +304,98 @@ export default function PosEmployeePinPage() {
     verifyingPinRef.current = pinToVerify
 
     async function verifyPin() {
+      let failureStage: 'pin-verification' | 'offline-preparation' | 'offline-recovery' =
+        'pin-verification'
       try {
         setLoading(true)
         setError('')
 
-        const response = await fetch('/api/pos/identify-employee-by-pin', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            pin: pinToVerify,
-          }),
-        })
-
-        const result = await response.json().catch(() => null)
-        const resultBody =
-          result && typeof result === 'object'
-            ? (result as Record<string, unknown>)
-            : null
-
-        if (!response.ok || !result?.employee) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[POS PIN] Employee identification failed.', {
-              status: response.status,
-              ok: response.ok,
-              statusText: response.statusText,
-              error:
-                typeof resultBody?.error === 'string' ? resultBody.error : null,
+        let selectedEmployee: ActivePosEmployee | null = null
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)
+        } else {
+          let response: Response | null = null
+          try {
+            response = await fetch('/api/pos/identify-employee-by-pin', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(
+                buildScopedOnlinePinIdentification(pinToVerify, currentBranchId)
+              ),
             })
+          } catch (onlineError) {
+            if (!(onlineError instanceof TypeError)) throw onlineError
+            selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)
           }
-
-          throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
+          if (response) {
+            const result = await response.json().catch(() => null)
+            const resultBody =
+              result && typeof result === 'object'
+                ? (result as Record<string, unknown>)
+                : null
+            if (!response.ok || !result?.employee) {
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('[POS PIN] Employee identification failed.', {
+                  status: response.status,
+                  ok: response.ok,
+                  classified: typeof resultBody?.error === 'string',
+                })
+              }
+              throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
+            }
+            selectedEmployee = result.employee as ActivePosEmployee
+            failureStage = 'offline-preparation'
+            const enrollment = await enrollOnlineEmployeeForOffline(
+              pinToVerify,
+              selectedEmployee
+            )
+            if (enrollment.preparationResumeRequired) {
+              if (!redirectTargetRef.current) {
+                redirectTargetRef.current = '/pos/offline-preparation'
+                router.replace('/pos/offline-preparation')
+              }
+              return
+            }
+          }
         }
 
-        clearAllInvoiceCatalogCache()
-        writeActivePosEmployee(result.employee as ActivePosEmployee)
-        clearPosLoggedOut()
+        if (!selectedEmployee) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[POS PIN] Employee identification returned no actor.')
+          }
+          throw new Error(INVALID_PIN_MESSAGE)
+        }
+        const verifiedEmployee = selectedEmployee
+
+        failureStage = 'offline-recovery'
+        await completePosPinOfflineRecoveryGate(() => {
+          clearAllInvoiceCatalogCache()
+          writeActivePosEmployee(verifiedEmployee)
+          clearPosLoggedOut()
+        })
         setFailedAttempts(0)
-        router.replace('/pos')
+        if (!redirectTargetRef.current) {
+          redirectTargetRef.current = '/pos'
+          router.replace('/pos')
+        }
       } catch (verificationError) {
-        const nextFailedAttempts = failedAttempts + 1
-        const shouldLock = nextFailedAttempts >= PIN_LOCK_ATTEMPTS
-        setFailedAttempts(shouldLock ? 0 : nextFailedAttempts)
+        const postVerificationFailure = failureStage !== 'pin-verification'
+        const nextFailedAttempts = postVerificationFailure
+          ? failedAttempts
+          : failedAttempts + 1
+        const shouldLock = !postVerificationFailure && nextFailedAttempts >= PIN_LOCK_ATTEMPTS
+        if (!postVerificationFailure) {
+          setFailedAttempts(shouldLock ? 0 : nextFailedAttempts)
+        }
         setError(
-          shouldLock
+          failureStage === 'offline-preparation'
+            ? OFFLINE_PREPARATION_ERROR_MESSAGE
+            : failureStage === 'offline-recovery'
+              ? OFFLINE_RECOVERY_ERROR_MESSAGE
+              : shouldLock
             ? POS_UX_MESSAGES.pinRateLimit
             : verificationError instanceof TypeError
               ? POS_UX_MESSAGES.networkFailure
@@ -347,7 +445,14 @@ export default function PosEmployeePinPage() {
     }
 
     void verifyPin()
-  }, [allowed, failedAttempts, inputDisabled, pin, router])
+  }, [
+    allowed,
+    currentBranchId,
+    failedAttempts,
+    inputDisabled,
+    pin,
+    router,
+  ])
 
   const appendDigit = (digit: string) => {
     if (inputDisabled) {
@@ -383,13 +488,12 @@ export default function PosEmployeePinPage() {
     setPin('')
   }
 
-  const handleLogout = async () => {
-    clearAllInvoiceCatalogCache()
-    await endPosActorSessionAndRequireReauthentication()
-    router.replace('/pos/login')
+  const handleLogout = () => {
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.sessionStorage))
+    setLogoutOpen(true)
   }
 
-  if (authState.loading) {
+  if (authState.loading && !offlineRuntimeChecked) {
     return (
       <div className="flex h-[100svh] w-full items-center justify-center overflow-hidden bg-[#020817] p-4 text-white">
         <div className="rounded-2xl border border-cyan-300/25 bg-[rgba(2,8,23,0.72)] px-5 py-4 text-sm font-bold text-slate-200 shadow-[0_0_40px_rgba(34,211,238,0.14)]">
@@ -402,7 +506,7 @@ export default function PosEmployeePinPage() {
   return (
     <main
       dir="rtl"
-      className="relative flex h-[100svh] w-full items-center justify-center overflow-hidden bg-[#020817] text-white xl:h-full"
+      className="pos-entry-pin relative flex h-[100svh] w-full items-center justify-center overflow-hidden bg-[#071521] text-white xl:h-full"
     >
       <style jsx global>{`
         @keyframes pos-pin-shake {
@@ -491,7 +595,7 @@ export default function PosEmployeePinPage() {
                   <SessionInfoRow icon="branch" label="المنشأة" value={organizationLabel} />
                   <SessionInfoRow icon="date" label="التاريخ" value={formattedDate} />
                   <SessionInfoRow icon="time" label="الوقت" value={formattedTime} />
-                  <SessionInfoRow icon="device" label="الجهاز" value="AFEX Tablet POS" />
+                  <SessionInfoRow icon="device" label="الجهاز" value={deviceLabel} />
                 </div>
               </div>
 
@@ -526,11 +630,11 @@ export default function PosEmployeePinPage() {
                 أدخل رمز الموظف لفتح جلسة نقطة البيع.
               </p>
 
-              <div className="mt-6 flex justify-center gap-7" dir="ltr">
+              <div className={`pos-pin-indicators mt-6 flex justify-center gap-7 ${pin.length === PIN_LENGTH ? 'is-complete' : ''}`} dir="ltr" aria-label={`${pin.length} من ${PIN_LENGTH} أرقام مدخلة`}>
                 {dots.map((filled, index) => (
                   <span
                     key={`pin-dot-${index}`}
-                    className={`h-4 w-4 rounded-full border transition ${
+                    className={`pos-pin-indicator h-4 w-4 rounded-full border transition ${
                       filled
                         ? 'border-cyan-300 bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.65)]'
                         : 'border-cyan-300/70 bg-transparent shadow-[0_0_10px_rgba(34,211,238,0.10)] sm:border-cyan-200/25 sm:bg-[rgba(2,8,23,0.72)]'
@@ -605,6 +709,16 @@ export default function PosEmployeePinPage() {
           </div>
         </section>
       </div>
+      <PosLogoutRetentionDialog
+        open={logoutOpen}
+        hasActiveSale={hasActiveSale}
+        onCancel={() => setLogoutOpen(false)}
+        onComplete={({ route }) => {
+          clearAllInvoiceCatalogCache()
+          setLogoutOpen(false)
+          router.replace(route)
+        }}
+      />
     </main>
   )
 }

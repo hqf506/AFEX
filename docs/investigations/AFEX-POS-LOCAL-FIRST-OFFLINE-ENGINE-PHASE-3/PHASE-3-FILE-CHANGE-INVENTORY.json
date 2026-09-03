@@ -1,0 +1,75 @@
+{
+  "phase": "AFEX POS LOCAL-FIRST OFFLINE ENGINE PHASE 3 STRICT SHADOW MODE",
+  "startingHead": "37331390ec00bee507f88701365bfebb944db675",
+  "applicationAndTestChanges": [
+    {
+      "status": "compatible-extension",
+      "path": "lib/offline/phase1.ts",
+      "beforeSha256": "c18249ea8ac9afad34641ec4b50609b0205a2d349dee46b4cbb084cbd7c2d32b",
+      "afterSha256": "f9198bd7029a51c517ea37eb44f3c079a3269a199e7f606e248daa95476eccfd",
+      "purpose": "database v3 stores/indexes, exact-scope purge/fingerprint extension, separate unresolved command counts, and version-aware structural migration validation"
+    },
+    {
+      "status": "compatible-extension",
+      "path": "lib/offline/phase2.ts",
+      "beforeSha256": "179a17c8688d484286b857d30fa4e610be698ea35583c9095e4a4483cd4c67c9",
+      "afterSha256": "c376ee4a5000f5e2b8e24b1ced0758019fbf22352a469f778f9e30320084298b",
+      "purpose": "export the already reviewed strict canonical JSON implementation for Phase 3 reuse"
+    },
+    {
+      "status": "added",
+      "path": "lib/offline/phase3.ts",
+      "sha256": "68f3a8035c95061ec95eab883be403328f6bcaeb54419a15308e9a338cd23cb0",
+      "purpose": "strict-shadow encrypted command envelope, semantic/atomic dependency policy, employee-only provider authority, sequence, state, lease and safe counter contracts"
+    },
+    {
+      "status": "compatible-extension",
+      "path": "components/pos-logout-retention-dialog.tsx",
+      "beforeSha256": "288de660deede3b816c78c81146b8ab06314459ff94a8b0eacd1e01e55e800ae",
+      "afterSha256": "42d6f6ce3e3032f07cf0f961818903b76c590384f048e8662a2ecd2500473bd0",
+      "purpose": "display safe unresolved command count separately during already authorized logout purge review"
+    },
+    {
+      "status": "compatible-extension",
+      "path": "tests/pos-offline-phase2.test.mjs",
+      "beforeSha256": "c832a59a7fc861ad64d85207d3e4add42d62215e58ffb06d1a627817c74ffb83",
+      "afterSha256": "5645f1740cedf9b9719ae8157ddf10bf43e3bc155b7dbb2885e349153d28f7cb",
+      "purpose": "expect compatible database v3 and the two new stores while preserving all Phase 2 assertions"
+    },
+    {
+      "status": "added",
+      "path": "tests/pos-offline-phase3.test.mjs",
+      "sha256": "d0ce8f05acecfcd13161457b6f8d7f3bf4e4f9f066330155b090c10dbd76e665",
+      "purpose": "14 real Chromium IndexedDB/WebCrypto, migration-corruption, dependency-authority and static isolation contract tests"
+    }
+  ],
+  "evidenceDirectory": "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PHASE-3",
+  "deletedFiles": [],
+  "applicationRoutesIntegrated": [],
+  "packageOrLockFilesModified": false,
+  "sqlOrMigrationFilesModified": false,
+  "coreV2FilesModified": false,
+  "runtimeIntegrationR8NModified": false,
+  "humanReviewCorrection": {
+    "blockingDefectsResolved": 3,
+    "correctedSourceAndTestFiles": [
+      {
+        "path": "lib/offline/phase1.ts",
+        "beforeSha256": "221336520ab7a54f398c8095ddb1dddf9f1c3a0008f74bab80ca9727457fb9f3",
+        "afterSha256": "f9198bd7029a51c517ea37eb44f3c079a3269a199e7f606e248daa95476eccfd"
+      },
+      {
+        "path": "lib/offline/phase3.ts",
+        "beforeSha256": "f174394e30bc0831471599a88d7c036b54594fb8a858b7edfee0bdd8750f4008",
+        "afterSha256": "68f3a8035c95061ec95eab883be403328f6bcaeb54419a15308e9a338cd23cb0"
+      },
+      {
+        "path": "tests/pos-offline-phase3.test.mjs",
+        "beforeSha256": "c01c531a4b3700624e38abcfc463c601f999298e998d9d1034097edbd122a27e",
+        "afterSha256": "d0ce8f05acecfcd13161457b6f8d7f3bf4e4f9f066330155b090c10dbd76e665"
+      }
+    ],
+    "phase4Started": false
+  },
+  "gitWritesPerformed": false
+}

@@ -9,15 +9,22 @@ const messages = read('lib/pos-ux-messages.ts')
 const checkout = read('hooks/use-invoice-checkout.ts')
 const drafts = read('app/pos/offline-drafts/page.tsx')
 const pin = read('app/pos/employee-pin/page.tsx')
+const login = read('app/pos/login/page.tsx')
+const globalStyles = read('app/globals.css')
 const paymentMethods = read('lib/invoices/payment-method.ts')
 const tabletFrame = read('components/pos-tablet-frame.tsx')
 const posHome = read('app/pos/page.tsx')
 const customerStep = read('components/invoice-customer-step.tsx')
 const addCustomerModal = read('components/pos-add-customer-modal.tsx')
 const itemsStep = read('components/invoice-items-step.tsx')
+const posItemsModelOneStyles = read('components/pos-items-model-one.module.css')
 const checkoutStep = read('app/pos/sale/checkout/page.tsx')
 const saleReset = read('lib/invoices/sale-reset.ts')
 const successStep = read('app/pos/sale/success/page.tsx')
+const successWorkspace = read('components/pos-invoice-success-workspace.tsx')
+const successWorkspaceStyles = read('components/pos-invoice-success-workspace.module.css')
+const posLayout = read('app/pos/layout.tsx')
+const posThemeToggle = read('components/pos-theme-toggle.tsx')
 const activePosItemsLayout = itemsStep.slice(
   itemsStep.indexOf("if (variant === 'pos')"),
   itemsStep.indexOf('const renderLegacyPosItemsLayout')
@@ -45,9 +52,48 @@ assert.ok(
   'Separate mobile and desktop POS wrapper copies must not return'
 )
 assert.ok(
+  login.includes('pos-entry-login') &&
+    login.includes('autoComplete="username"') &&
+    login.includes('autoComplete="current-password"') &&
+    globalStyles.includes('.pos-entry-login form button[type=\'submit\']'),
+  'Organization login must preserve password-manager semantics and the flat AFEX entry surface'
+)
+assert.ok(
+  pin.includes('pos-entry-pin') &&
+    pin.includes('getPinIndicatorState(pin.length, PIN_LENGTH)') &&
+    pin.includes("const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']") &&
+    globalStyles.includes('.pos-entry-pin button'),
+  'Employee PIN must preserve four closed indicators, the complete keypad and responsive touch targets'
+)
+assert.ok(
+  posHome.includes('مرحباً بك، {employeeDisplayName}') &&
+    globalStyles.includes('.pos-home-legacy-root > section'),
+  'POS Home must use the effective employee identity inside the flat AFEX surface'
+)
+assert.ok(
+  posHome.includes('function PosOperationalHome') &&
+    posHome.includes('بدء عملية بيع') &&
+    posHome.includes('عرض سجل العمليات') &&
+    posHome.includes("searchParams.set('recentHours', '48')") &&
+    posHome.includes('orders={recentOrders}') &&
+    globalStyles.includes('.pos-operational-canvas') &&
+    globalStyles.includes('.pos-orders-list-head') &&
+    globalStyles.includes('@media (max-width: 767px)'),
+  'POS Home must expose the compact operational dashboard and responsive order list'
+)
+assert.equal(
+  (posHome.match(/fetch\(`\/api\/orders\?/g) || []).length,
+  1,
+  'POS Home redesign must retain exactly one recent-orders request owner'
+)
+assert.ok(
+  !posHome.toLowerCase().includes('leather fix'),
+  'POS Home must not contain legacy Leather Fix branding'
+)
+assert.ok(
   posHome.includes('flex-col items-stretch justify-between') &&
     posHome.includes('min-h-[44px] min-w-[44px]') &&
-    posHome.includes('className="min-h-[44px] rounded-2xl'),
+    posHome.includes('className="inline-flex min-h-[44px] items-center rounded-2xl'),
   'POS Home phone header and core touch targets must remain responsive'
 )
 assert.ok(
@@ -96,7 +142,8 @@ assert.ok(
     customerStep.includes('contents sm:order-2 sm:flex') &&
     addCustomerModal.includes('role="dialog"') &&
     addCustomerModal.includes('aria-modal="true"') &&
-    addCustomerModal.includes('items-center justify-center overflow-y-auto'),
+    addCustomerModal.includes('className="pos-add-customer-backdrop"') &&
+    addCustomerModal.includes('className="pos-add-customer-body"'),
   'Customer step must preserve one responsive tree and a keyboard-safe dialog'
 )
 assert.ok(
@@ -105,18 +152,18 @@ assert.ok(
 )
 assert.equal(
   (activePosItemsLayout.match(/paginatedProducts\.map\(/g) || []).length,
-  2,
-  'Active POS items layout must keep one mobile map and one desktop map'
+  1,
+  'Active POS items layout must keep one responsive product map'
 )
 assert.ok(
-  activePosItemsLayout.includes('{isMobileViewport ? (') &&
-    activePosItemsLayout.includes(') : ('),
-  'Active POS product variants must be mutually exclusive at runtime'
+  activePosItemsLayout.includes('className={modelOneStyles.productGrid}') &&
+    !activePosItemsLayout.includes('{isMobileViewport ? ('),
+  'Active POS product catalog must use one CSS-responsive tree'
 )
 assert.equal(
-  (activePosItemsLayout.match(/squarePosCategoryLabels\.map\(/g) || []).length,
+  (activePosItemsLayout.match(/posCategoryLabels\.map\(/g) || []).length,
   1,
-  'Active POS items layout must render categories from one shared map'
+  'Active POS items layout must render authoritative categories from one shared map'
 )
 assert.equal(
   (activePosItemsLayout.match(/placeholder="ابحث عن منتج أو خدمة"/g) || []).length,
@@ -130,19 +177,23 @@ assert.equal(
 )
 assert.ok(
   activePosItemsLayout.includes('aria-label="تصنيفات العناصر"') &&
-    activePosItemsLayout.includes('aria-pressed={active}') &&
+    activePosItemsLayout.includes('aria-pressed={activeFilter === filter}') &&
     activePosItemsLayout.includes('aria-controls="pos-cart-panel"') &&
-    activePosItemsLayout.includes('grid-cols-2') &&
+    activePosItemsLayout.includes('modelOneStyles.productGrid') &&
+    posItemsModelOneStyles.includes('grid-template-columns: repeat(5, minmax(0, 1fr))') &&
+    posItemsModelOneStyles.includes('@media (max-width: 767px)') &&
     !activePosItemsLayout.includes('window.innerWidth'),
   'POS product browsing must remain single-tree, touch-first, and CSS responsive'
 )
 assert.ok(
-  activePosItemsLayout.includes("'pos-mobile-sheet-enter fixed inset-0 z-50 flex'") &&
-    activePosItemsLayout.includes('overflow-y-auto overscroll-contain rounded-none') &&
-    activePosItemsLayout.includes('md:overflow-hidden md:rounded-[28px]') &&
-    activePosItemsLayout.includes('md:flex-1') &&
-    activePosItemsLayout.includes('md:overflow-y-auto') &&
-    (activePosItemsLayout.match(/className="flex h-11 w-11/g) || []).length >= 3,
+  activePosItemsLayout.includes('modelOneStyles.cartOpen') &&
+    activePosItemsLayout.includes('modelOneStyles.cart') &&
+    activePosItemsLayout.includes('modelOneStyles.mobileSummary') &&
+    activePosItemsLayout.includes('data-mobile-cart-scroll-body') &&
+    activePosItemsLayout.includes('data-mobile-cart-footer') &&
+    activePosItemsLayout.includes('modelOneStyles.quantityButton') &&
+    activePosItemsLayout.includes('modelOneStyles.deleteButton') &&
+    posItemsModelOneStyles.includes('min-height: 44px !important'),
   'Phone cart must use one full-width scroll surface with accessible item controls'
 )
 assert.ok(
@@ -156,9 +207,9 @@ assert.ok(
   'POS checkout must keep one mobile scroll surface and accessible payment controls'
 )
 assert.equal(
-  (interactiveCheckoutLayout.match(/PAYMENT_METHODS\.map\(/g) || []).length,
+  (interactiveCheckoutLayout.match(/availablePaymentMethods\.map\(/g) || []).length,
   2,
-  'Interactive POS checkout must keep one mobile and one desktop payment-method control'
+  'Interactive POS checkout must keep one verified mobile and one verified desktop payment-method control'
 )
 assert.equal(
   (interactiveCheckoutLayout.match(/invoiceItems\.map\(/g) || []).length,
@@ -180,26 +231,27 @@ assert.ok(
   'POS checkout responsive presentation must remain CSS-only'
 )
 assert.equal(
-  (successStep.match(/snapshot\.invoiceItems\.map\(/g) || []).length,
-  2,
-  'POS success receipt must keep one mobile and one desktop item list'
+  (successWorkspace.match(/snapshot\.invoiceItems\.map\(/g) || []).length,
+  1,
+  'POS success receipt must render one responsive order-item list'
 )
 assert.ok(
-  successStep.includes('{isMobileViewport ? (') && successStep.includes(') : ('),
-  'POS success receipt variants must be mutually exclusive at runtime'
+  successWorkspace.includes('data-success-primary-screen') &&
+    successWorkspace.includes('data-success-invoice-dialog') &&
+    successWorkspaceStyles.includes('max-height: calc(100dvh'),
+  'POS success workspace must expose the Model 4 primary surface and contained invoice dialog'
 )
 assert.equal(
-  (successStep.match(/onClick=\{handleNewSale\}/g) || []).length,
-  2,
-  'POS success page must keep one mobile and one desktop New Sale action'
+  (successWorkspace.match(/data-success-primary-action/g) || []).length,
+  1,
+  'POS success page must keep one guarded responsive New Sale action'
 )
 assert.ok(
-  successStep.includes("router.push('/admin/orders')") &&
-    successStep.includes('overflow-x-hidden overflow-y-auto overscroll-y-contain') &&
-    successStep.includes('env(safe-area-inset-bottom)') &&
-    successStep.includes('min-[390px]:grid-cols-2') &&
-    successStep.includes('focus-visible:ring-2'),
-  'POS success page must preserve safe mobile scrolling, actions, focus, and the Orders shortcut'
+  !successWorkspace.includes('/admin') &&
+    successWorkspace.includes('aria-expanded={detailsOpen}') &&
+    successWorkspace.includes('disabled={!whatsappAvailable || props.whatsappOpening}') &&
+    (successWorkspace.match(/data-success-secondary-action=/g) || []).length === 3,
+  'POS success page must preserve contained actions, disclosure semantics, and WhatsApp gating'
 )
 assert.ok(
   !successStep.includes('window.innerWidth'),
@@ -310,5 +362,33 @@ for (const label of ['نقدي', 'مدى', 'فيزا', 'الدفع عند الا
 for (const file of [messages, checkout, drafts, pin, paymentMethods]) {
   assert.ok(!/\b(?:Loading|Submitting|Try again|Something went wrong)\b/.test(file), 'English POS fallback remains')
 }
+
+for (const color of [
+  '#0d0e10', '#15171a', '#1b1d20', '#24262a', '#393a3d', '#f4f1ea',
+  '#a9a49b', '#b89a64', '#9a7540', '#c7aa72', '#fbf8f2', '#eee9e0',
+  '#e5ded2', '#d3c8b7', '#25221e', '#756f65', '#a6844f', '#8a6537', '#9b7440',
+]) {
+  assert.ok(globalStyles.toLowerCase().includes(color), `approved POS token is missing: ${color}`)
+}
+assert.ok(
+  posLayout.includes("matchMedia('(prefers-color-scheme: light)')") &&
+    posLayout.includes("localStorage.getItem(k)") &&
+    posLayout.includes('dataset.posTheme'),
+  'POS theme must initialize before hydration from persistence or system preference'
+)
+assert.ok(
+  posThemeToggle.includes("window.localStorage.setItem(STORAGE_KEY, nextTheme)") &&
+    posThemeToggle.includes("theme === 'light' ? 'تفعيل الوضع الليلي' : 'تفعيل الوضع النهاري'") &&
+    posThemeToggle.includes('aria-label={actionLabel}') &&
+    posThemeToggle.includes('type="button"'),
+  'POS theme toggle must be persistent and keyboard accessible'
+)
+assert.ok(
+  globalStyles.includes('grid-template-columns: minmax(0, 72fr) minmax(248px, 28fr)') &&
+    globalStyles.includes('grid-template-columns: minmax(280px, 32fr) minmax(0, 68fr)') &&
+    globalStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr))') &&
+    globalStyles.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'),
+  'POS catalog must preserve the approved desktop, tablet and mobile geometry'
+)
 
 console.log('POS UX recovery contract checks passed.')

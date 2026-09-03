@@ -11,6 +11,7 @@ import {
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { POS_UX_MESSAGES } from '@/lib/pos-ux-messages'
 import { formatPosGregorianDateTime } from '@/lib/pos/date-format'
+import { OFFLINE_CAPABILITIES } from '@/lib/offline/phase1'
 
 type CreateOrderResponse = {
   success?: boolean
@@ -79,6 +80,11 @@ export default function PosOfflineDraftsPage() {
   }
 
   const handleRetryDraft = async (draft: PosOfflineInvoiceDraft) => {
+    if (!OFFLINE_CAPABILITIES.businessCommandDispatch) {
+      setErrorMessage('إرسال المسودات غير مفعّل في هذه المرحلة.')
+      setMessage('')
+      return
+    }
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       setErrorMessage('لا يوجد اتصال')
       setMessage('')
@@ -166,49 +172,49 @@ export default function PosOfflineDraftsPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-col bg-slate-50 p-3 md:p-4">
-      <div className="flex min-h-0 flex-1 flex-col rounded-[24px] border border-slate-200 bg-white p-3 text-right shadow-sm md:p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+    <div className="pos-drafts-page">
+      <main className="pos-drafts-panel">
+        <header className="pos-drafts-header">
           <div>
-            <p className="text-xs font-bold tracking-[0.16em] text-slate-400">
+            <p className="pos-drafts-eyebrow">
               Offline POS
             </p>
-            <h1 className="mt-1 text-2xl font-black text-slate-950">
+            <h1>
               مسودات الفواتير
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="pos-drafts-description">
               أرسل المسودات يدويًا بعد عودة الاتصال.
             </p>
           </div>
 
           <Link
             href="/pos"
-            className="flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+            className="pos-drafts-back"
           >
             العودة إلى POS
           </Link>
-        </div>
+        </header>
 
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="text-xs font-bold text-slate-400">عدد المسودات</p>
-            <p className="mt-1 text-xl font-black text-slate-950">
+        <section className="pos-drafts-summary">
+          <div>
+            <p>عدد المسودات</p>
+            <strong>
               {draftsCount}
-            </p>
+            </strong>
           </div>
-          <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="text-xs font-bold text-slate-400">إجمالي المسودات</p>
-            <p className="mt-1 text-xl font-black text-slate-950">
+          <div>
+            <p>إجمالي المسودات</p>
+            <strong>
               {formatCurrency(totalDraftValue)}
-            </p>
+            </strong>
           </div>
-        </div>
+        </section>
 
         {message ? (
           <div
             role="status"
             aria-live="polite"
-            className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"
+            className="pos-drafts-notice is-success"
           >
             {message}
           </div>
@@ -217,103 +223,111 @@ export default function PosOfflineDraftsPage() {
         {errorMessage ? (
           <div
             role="alert"
-            className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-600"
+            className="pos-drafts-notice is-error"
           >
             {errorMessage}
           </div>
         ) : null}
 
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+        <section className="pos-drafts-content">
           {!draftsLoaded ? (
             <div
               role="status"
               aria-live="polite"
-              className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/70 p-6 text-center text-sm font-bold text-slate-500"
+              className="pos-drafts-state"
             >
               جارٍ تحميل المسودات...
             </div>
           ) : drafts.length === 0 ? (
-            <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-400 ring-1 ring-slate-100">
+            <div className="pos-drafts-state is-empty">
+              <div className="pos-drafts-empty-icon">
                 <span className="text-xl" aria-hidden="true">
                   □
                 </span>
               </div>
-              <p className="mt-3 text-sm font-black text-slate-700">
+              <p className="pos-drafts-empty-title">
                 لا توجد مسودات
               </p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="pos-drafts-empty-copy">
                 عند انقطاع الاتصال أثناء الدفع ستظهر الفواتير المحفوظة هنا.
               </p>
             </div>
           ) : (
-            <div className="grid gap-3">
+            <div className="pos-drafts-list">
               {drafts.map((draft) => {
                 const syncing = syncingDraftId === draft.localDraftId
 
                 return (
                   <article
                     key={draft.localDraftId}
-                    className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300"
+                    className="pos-draft-card"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="pos-draft-card-head">
                       <div className="min-w-0">
-                        <p className="text-sm font-black text-slate-950">
+                        <p className="pos-draft-customer">
                           {draft.customerName || 'عميل بدون اسم'}
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="pos-draft-date">
                           {formatDraftDate(draft.createdAt)}
                         </p>
                       </div>
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <span className="pos-draft-method">
                         {getPaymentMethodLabel(draft.paymentMethod)}
                       </span>
                     </div>
 
-                    <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
-                      <div className="rounded-xl bg-slate-50 p-2.5">
-                        <p className="text-xs font-bold text-slate-400">
+                    <dl className="pos-draft-facts">
+                      <div>
+                        <dt>
                           العناصر
-                        </p>
-                        <p className="mt-1 font-black text-slate-900">
+                        </dt>
+                        <dd>
                           {draft.items.length} عنصر
-                        </p>
+                        </dd>
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-2.5">
-                        <p className="text-xs font-bold text-slate-400">
+                      <div>
+                        <dt>
                           الإجمالي
-                        </p>
-                        <p className="mt-1 font-black text-slate-900">
+                        </dt>
+                        <dd>
                           {formatCurrency(draft.totalsSnapshot.finalTotal)}
-                        </p>
+                        </dd>
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-2.5">
-                        <p className="text-xs font-bold text-slate-400">
+                      <div>
+                        <dt>
                           حالة الدفع
-                        </p>
-                        <p className="mt-1 font-black text-slate-900">
+                        </dt>
+                        <dd>
                           {getDraftPaymentStatus(draft)}
-                        </p>
+                        </dd>
                       </div>
-                    </div>
+                    </dl>
 
-                    <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <div className="pos-draft-actions">
                       <button
                         type="button"
                         onClick={() => handleDeleteDraft(draft.localDraftId)}
                         disabled={syncing}
-                        className="min-h-[44px] rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="pos-draft-delete"
                       >
                         حذف
                       </button>
                       <button
                         type="button"
                         onClick={() => handleRetryDraft(draft)}
-                        disabled={syncing || Boolean(syncingDraftId)}
-                        className="min-h-[44px] rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                        disabled={
+                          !OFFLINE_CAPABILITIES.businessCommandDispatch ||
+                          syncing ||
+                          Boolean(syncingDraftId)
+                        }
+                        className="pos-draft-send"
                       >
-                        {syncing ? 'جارٍ إرسال المسودة...' : 'إرسال الآن'}
+                        {syncing
+                          ? 'جارٍ إرسال المسودة...'
+                          : OFFLINE_CAPABILITIES.businessCommandDispatch
+                            ? 'إرسال الآن'
+                            : 'الإرسال غير مفعّل'}
                       </button>
                     </div>
                   </article>
@@ -321,8 +335,8 @@ export default function PosOfflineDraftsPage() {
               })}
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   )
 }

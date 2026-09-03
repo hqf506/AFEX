@@ -1,8 +1,26 @@
 import type { AppRole } from '@/lib/app-roles'
 import { supabase } from '@/lib/supabase/client'
+import {
+  executeFullPosLogoutLifecycle,
+  executePosEmployeeSwitchLifecycle,
+  lockOfflineRuntime,
+} from '@/lib/offline/phase1'
+import { clearCurrentUserProfileCache } from '@/lib/auth'
+import {
+  clearProtectedClientResources,
+  resetProtectedResourceUnauthorized,
+} from '@/lib/client-resource-cache'
+import { clearAllInvoiceCatalogCache } from '@/lib/invoices/catalog'
+import { INVOICE_SUCCESS_STORAGE_KEY } from '@/lib/invoices/success'
 
 export const POS_EMPLOYEE_SESSION_KEY = 'leather_fix_pos_employee'
+export const POS_EMPLOYEE_SESSION_CHANGE_EVENT =
+  'afex:pos-employee-session-change'
 const POS_LOGGED_OUT_SESSION_KEY = 'leather_fix_pos_logged_out'
+const POS_ACTOR_REVOCATION_PENDING_KEY =
+  'afex_pos_actor_revocation_pending_v1'
+
+let posEmployeeSessionGeneration = 0
 
 export type ActivePosEmployee = {
   id: string
@@ -59,10 +77,13 @@ export function writeActivePosEmployee(employee: ActivePosEmployee) {
     return
   }
 
+  lockOfflineRuntime('pos-actor-change')
   window.sessionStorage.setItem(
     POS_EMPLOYEE_SESSION_KEY,
     JSON.stringify(employee)
   )
+  resetProtectedResourceUnauthorized()
+  emitPosEmployeeSessionChange()
 }
 
 export function clearActivePosEmployee() {
@@ -70,7 +91,25 @@ export function clearActivePosEmployee() {
     return
   }
 
+  lockOfflineRuntime('pos-actor-cleared')
   window.sessionStorage.removeItem(POS_EMPLOYEE_SESSION_KEY)
+  emitPosEmployeeSessionChange()
+}
+
+export function readPosEmployeePresentationScope(): PosEmployeePresentationScope {
+  const employee = readActivePosEmployee()
+  return Object.freeze({
+    employeeId: employee?.id ?? null,
+    branchId: employee?.branch_id ?? null,
+    generation: posEmployeeSessionGeneration,
+  })
+}
+
+export function subscribeToPosEmployeeSessionChanges(listener: () => void) {
+  if (typeof window === 'undefined') return () => undefined
+  window.addEventListener(POS_EMPLOYEE_SESSION_CHANGE_EVENT, listener)
+  return () =>
+    window.removeEventListener(POS_EMPLOYEE_SESSION_CHANGE_EVENT, listener)
 }
 
 export function markPosLoggedOut() {
@@ -97,12 +136,96 @@ export function hasPosLoggedOut() {
   return window.sessionStorage.getItem(POS_LOGGED_OUT_SESSION_KEY) === '1'
 }
 
-export async function endPosActorSessionAndRequireReauthentication() {
-  await fetch('/api/pos/end-actor-session', {
-    method: 'POST',
-    credentials: 'include',
-  }).catch(() => undefined)
+async function revokeCurrentPosActorSession() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    window.sessionStorage.setItem(POS_ACTOR_REVOCATION_PENDING_KEY, '1')
+    return
+  }
+  let response: Response
+  try {
+    response = await fetch('/api/pos/end-actor-session', {
+      method: 'POST',
+      credentials: 'include',
+    })
+  } catch {
+    throw new PosSessionEndError('POS_ACTOR_REVOCATION_UNAVAILABLE')
+  }
+  if (!response.ok) {
+    throw new PosSessionEndError('POS_ACTOR_REVOCATION_REJECTED')
+  }
+  window.sessionStorage.removeItem(POS_ACTOR_REVOCATION_PENDING_KEY)
+}
+
+export async function flushPendingPosActorRevocation() {
+  if (
+    typeof window === 'undefined' ||
+    typeof navigator === 'undefined' ||
+    navigator.onLine === false ||
+    window.sessionStorage.getItem(POS_ACTOR_REVOCATION_PENDING_KEY) !== '1'
+  ) {
+    return false
+  }
+  await revokeCurrentPosActorSession()
   clearActivePosEmployee()
-  markPosLoggedOut()
-  await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+  return true
+}
+
+export type PosEmployeePresentationScope = Readonly<{
+  employeeId: string | null
+  branchId: string | null
+  generation: number
+}>
+
+function emitPosEmployeeSessionChange() {
+  posEmployeeSessionGeneration += 1
+  window.dispatchEvent(new Event(POS_EMPLOYEE_SESSION_CHANGE_EVENT))
+}
+
+function clearPosEmployeePlaintextCaches() {
+  clearAllInvoiceCatalogCache()
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.removeItem(INVOICE_SUCCESS_STORAGE_KEY)
+  }
+}
+
+function clearFullPosSessionPlaintextCaches() {
+  clearPosEmployeePlaintextCaches()
+  clearProtectedClientResources()
+  clearCurrentUserProfileCache()
+}
+
+export async function switchPosEmployeeAndRequirePin() {
+  return executePosEmployeeSwitchLifecycle({
+    revokePosActor: revokeCurrentPosActorSession,
+    clearEmployeePresentation: clearActivePosEmployee,
+    clearPlaintextCaches: clearPosEmployeePlaintextCaches,
+  })
+}
+
+export async function endFullPosSessionAndRequireLogin() {
+  return executeFullPosLogoutLifecycle({
+    revokePosActor: revokeCurrentPosActorSession,
+    signOutPrimary: async () => {
+      const { error } = await supabase.auth.signOut({ scope: 'local' })
+      if (error) {
+        throw new PosSessionEndError('PRIMARY_LOGOUT_FAILED')
+      }
+    },
+    clearEmployeePresentation: clearActivePosEmployee,
+    clearPlaintextCaches: clearFullPosSessionPlaintextCaches,
+    markPrimaryLoggedOut: markPosLoggedOut,
+  })
+}
+
+export class PosSessionEndError extends Error {
+  readonly classification:
+    | 'POS_ACTOR_REVOCATION_UNAVAILABLE'
+    | 'POS_ACTOR_REVOCATION_REJECTED'
+    | 'PRIMARY_LOGOUT_FAILED'
+
+  constructor(classification: PosSessionEndError['classification']) {
+    super(classification)
+    this.name = 'PosSessionEndError'
+    this.classification = classification
+  }
 }

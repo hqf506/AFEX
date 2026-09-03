@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "signatureId":"DBSIG-RESOLVE-001",
+  "functionIdentity":"afex_offline_authority.resolve_offline_order_create_authority_batch_v2(uuid,uuid,uuid,jsonb)",
+  "maximumClaims":1000,
+  "serverOrdinal":"jsonb_array_elements WITH ORDINALITY; caller position is data only and cannot control output order",
+  "cardinality":"exactly one typed result per input ordinal, including malformed and unavailable claims",
+  "duplicateCallerPositions":"typed unavailable result",
+  "invalidUploader":"typed unavailable results, never an empty success array",
+  "malformedFieldIsolation":true,
+  "outputOrder":"input order",
+  "extraOrMissingResults":"REJECT",
+  "sensitiveKeyMaterialReturned":false,
+  "runtimeRole":"afex_offline_acquisition_runtime",
+  "browserAuthority":false,
+  "executed":false
+}

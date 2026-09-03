@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 3,
+  "pilotAllowlist": ["order.create"],
+  "classification": "DEFERRED_OUTSIDE_INITIAL_ORDER_CREATE_PILOT",
+  "commands": [
+    {"missingSignatureId":"MS-002","commandType":"order.status.change","typescriptContract":"SHADOW_MODE","offlineDispatch":"FORBIDDEN","implemented":false,"resolved":false,"trustedPath":"EXISTING_ONLINE_ONLY"},
+    {"missingSignatureId":"MS-003","commandType":"customer.create","typescriptContract":"SHADOW_MODE","offlineDispatch":"FORBIDDEN","implemented":false,"resolved":false,"trustedPath":"EXISTING_ONLINE_ONLY"},
+    {"missingSignatureId":"MS-004","commandType":"customer.update","typescriptContract":"SHADOW_MODE","offlineDispatch":"FORBIDDEN","implemented":false,"resolved":false,"trustedPath":"EXISTING_ONLINE_ONLY"},
+    {"missingSignatureId":"MS-005","commandType":"payment.employee_attestation","typescriptContract":"SHADOW_MODE","offlineDispatch":"FORBIDDEN","implemented":false,"resolved":false,"note":"independent command only; embedded order.create attestation is pilot scope"},
+    {"missingSignatureId":"MS-006","commandType":"audit.event.append","typescriptContract":"SHADOW_MODE","offlineDispatch":"FORBIDDEN","implemented":false,"resolved":false,"trustedPath":"EXISTING_ONLINE_ONLY"},
+    {"missingSignatureId":"MS-007","commandType":"order.cancel","typescriptContract":"SHADOW_MODE","offlineDispatch":"FORBIDDEN","implemented":false,"resolved":false,"trustedPath":"EXISTING_ONLINE_ONLY"},
+    {"missingSignatureId":"MS-008","commandType":"payment.refund","typescriptContract":"SHADOW_MODE","offlineDispatch":"FORBIDDEN","implemented":false,"resolved":false,"trustedPath":"EXISTING_ONLINE_ONLY"}
+  ],
+  "deferredBoundary": {"missingSignatureId":"MS-013","boundary":"provider reconciliation","implemented":false,"resolved":false,"initialAcceptanceDependency":false,"providerStatus":"unverified"},
+  "notRequiredBoundary": {"missingSignatureId":"MS-012","classification":"NOT_REQUIRED_INITIAL_PILOT_EXTERNAL_EFFECTS_DISABLED","externalEffectIntentsCreated":0,"externalEffectDispatch":false},
+  "databaseContractClassification": {
+    "requiredForEventualPilotOperation": 4,
+    "requiredContracts": ["DBSIG-ORDER-ACQUIRE-001", "DBSIG-RESOLVE-001", "DBSIG-RECEIPT-001", "DBSIG-INVENTORY-001"],
+    "implementedInThisTask": 4,
+    "executableForwardWaveFiles": 11,
+    "readOnlyAttestationFiles": 2,
+    "disablementFiles": 1,
+    "sqlStatementsExecuted": 0,
+    "deferredCommandWritersBlockingOrderCreatePilot": 0
+  }
+}

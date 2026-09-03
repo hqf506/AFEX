@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 4,
+  "baselineHead": "37331390ec00bee507f88701365bfebb944db675",
+  "branch": "codex/pos-responsive-redesign",
+  "sourceAndTestChanges": [
+    {"path":"lib/authorization-context.ts","bytes":11437,"sha256":"d24a19be239160aab034c26e42d53ce5e05f983e77aac4566b2d3830e99af269","classification":"SERVER_AUTHORIZATION_CONTEXT_EXTENSION"},
+    {"path":"lib/server/offline/trusted-actor-provenance.ts","bytes":2325,"sha256":"22a91eecf27f160162bcbdd88e1618be92e2adaaf0e42670727ffae2327d3bcd","classification":"SERVER_ONLY_TRUSTED_UPLOADER_CONTEXT"},
+    {"path":"lib/offline/core-v2-offline-authority-bridge.ts","bytes":121295,"sha256":"e1f0bdca9d98d6e0a30f0257a305116eaf01869d1a81504335ee45a136886ca5","classification":"INACTIVE_OFFLINE_AUTHORITY_BRIDGE_V2"},
+    {"path":"tests/pos-offline-core-v2-authority-bridge.test.mjs","bytes":68375,"sha256":"2385d8b538fb3e7d2109f2edc3726fe087933f04eb1544df3a7615ed7629dee4","classification":"FOCUSED_OFFLINE_AUTHORITY_TEST"},
+    {"path":"tests/pos-offline-order-create-sql-final-correction.test.mjs","bytes":14305,"sha256":"2c51c14a9900354e7d08e76291623630138356d16bc37cfab886ab51ba3ca4f3","classification":"FOCUSED_STATIC_SQL_CONTRACT_TEST"},
+    {"path":"tests/pos-offline-trusted-actor-provenance.test.mjs","bytes":7450,"sha256":"4dbfd3c4367bc93b354e218e2fbdfeab4bda2232e7fb36ede57ac78370c7f4dc","classification":"FOCUSED_SERVER_PROVENANCE_TEST"},
+    {"path":"tests/pos-offline-account-bootstrap-provisioning.test.mjs","bytes":14298,"sha256":"4999baebb2db017f8f0dc38f0a45fd8cbc78e2d1cb999c1766a7046afb60eac0","classification":"FOCUSED_ACCOUNT_BOOTSTRAP_AND_PROVISIONING_TEST"},
+    {"path":"scripts/check-core-v2-order-integration.mjs","bytes":4570,"sha256":"c71bd347bff3377ca0c7daa4561097374b4e273733e4c2c73e1d500acce78338","classification":"STALE_REGRESSION_CONTRACT_CORRECTION"}
+  ],
+  "pilotPackage": {
+    "path":"docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-ORDER-CREATE-PILOT-CONTRACT",
+    "artifactCount":13,
+    "manifestCoverage":"12/12",
+    "manifestSha256":"8c87e7da9d4efda635e909e873ce055c09caf6a298d3583c5509aabec4148cb5"
+  },
+  "sqlAuthorityPackage": {
+    "path":"docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-SQL-AUTHORITY-FINAL-CANDIDATE",
+    "artifactCount":45,
+    "sqlFileCount":25,
+    "inactiveReviewSqlFilesChanged":["00","01","02","03","04","04A","05","05A","06","06A","07","08","08A","08B","08C","08D","09","09A","10","10A","11","12","13","14","15"],
+    "manifestCoverage":"44/44",
+    "manifestSha256":"1d07be9da5754df869e0217bd68068ad9034fb580c3baeb8ac2584ba1f28f1e6"
+  },
+  "closurePackage": {
+    "path":"docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-TRUSTED-ACTOR-PROVENANCE-CLOSURE",
+    "artifactCount":17,
+    "manifestCoverage":"16/16"
+  },
+  "boundaries": {
+    "onlineDatabaseBoundaryChanged":false,
+    "offlineDispatchActivated":false,
+    "sensitiveFlagsEnabled":0,
+    "sqlExecuted":0,
+    "databaseConnections":0,
+    "networkExecutions":0,
+    "gitWrites":0,
+    "r8nFilesModified":0,
+    "r8nPathsOpened":0,
+    "r8nReadOnlyScopeLeakDuringValidation":false
+  }
+}

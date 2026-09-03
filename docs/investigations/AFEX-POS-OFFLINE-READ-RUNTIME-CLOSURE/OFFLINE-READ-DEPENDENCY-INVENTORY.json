@@ -1,0 +1,123 @@
+{
+  "contractVersion": "afex-pos-offline-read-dependency-inventory.v1",
+  "scope": "POS read/runtime only; Offline checkout, payment, status mutation, provider effects and synchronization remain disabled",
+  "storageEngine": "Existing Phase 1 encrypted IndexedDB namespace plus Phase 2 complete-snapshot manifests",
+  "dependencies": [
+    {
+      "capability": "application shell and cold route reload",
+      "onlineSource": "authenticated GET for each approved /pos route plus /_next/static assets",
+      "localDatasetStore": "Cache Storage static application-shell assets only",
+      "snapshotPublisher": "public/sw.js AFEX_INSTALL_POS_SHELL_V2",
+      "installer": "installAfexOfflineApplicationShell",
+      "offlineReader": "service-worker navigation/static-asset handler",
+      "uiConsumers": ["/pos", "/pos/employee-pin", "/pos/sale/customer", "/pos/sale/items", "/pos/sale/checkout", "/pos/settings", "/pos/order-status", "/pos/order-history", "/pos/invoices"]
+    },
+    {
+      "capability": "trusted organization, branch and device authority",
+      "onlineSource": "/api/pos/offline-preparation context and device.provision",
+      "localDatasetStore": "encrypted runtime material, access marker and device-bound namespace",
+      "snapshotPublisher": "Pre-PIN V2/V3 server facade selected once per preparation",
+      "installer": "loadOrCreateRuntimeMaterial and encrypted key-envelope install",
+      "offlineReader": "restorePreparedOfflineRuntime and restoreOfflinePrimaryAuthProfile",
+      "uiConsumers": ["AuthStateProvider", "all /pos route guards"]
+    },
+    {
+      "capability": "eligible employee roster, permissions and local PIN verification",
+      "onlineSource": "/api/pos/offline-preparation employee.roster",
+      "localDatasetStore": "encrypted drafts/approved-employee-roster-v2",
+      "snapshotPublisher": "afex_offline_server_pre_pin_employee_roster_v2 or v3",
+      "installer": "employeeRoster plus the final encrypted roster/bootstrap/inventory/completeness transaction",
+      "offlineReader": "verifyOfflineEmployeePin with persistent encrypted attempt state",
+      "uiConsumers": ["/pos/employee-pin", "switch employee flow"]
+    },
+    {
+      "capability": "customers, full profile and customer search",
+      "onlineSource": "/api/pos/offline-read-snapshot",
+      "localDatasetStore": "encrypted Phase 2 customers complete snapshot",
+      "snapshotPublisher": "tenant-scoped customers pagination with safe profiles",
+      "installer": "persistDataset(customers) before atomic completeness pivot",
+      "offlineReader": "searchOfflineCustomers and readOfflineCustomerProfile",
+      "uiConsumers": ["/pos/sale/customer", "InvoiceCustomerStep"]
+    },
+    {
+      "capability": "catalog, services, categories, prices and supported variants",
+      "onlineSource": "/api/invoice/catalog",
+      "localDatasetStore": "encrypted Phase 2 catalog complete snapshot",
+      "snapshotPublisher": "authenticated branch catalog API",
+      "installer": "persistDataset(catalog) before atomic completeness pivot",
+      "offlineReader": "readOfflineCatalogPage",
+      "uiConsumers": ["/pos/sale/items", "InvoiceItemsStep"]
+    },
+    {
+      "capability": "discounts and VAT",
+      "onlineSource": "/api/pos/runtime",
+      "localDatasetStore": "encrypted Phase 2 runtimeSettings/pos-runtime",
+      "snapshotPublisher": "authenticated branch POS runtime API",
+      "installer": "complete runtimeSettings snapshot before the final encrypted completeness pivot",
+      "offlineReader": "readOfflineRuntimeSettings",
+      "uiConsumers": ["/pos/sale/items", "/pos/sale/checkout", "InvoiceCheckoutPanel"]
+    },
+    {
+      "capability": "current branch inventory frontier",
+      "onlineSource": "/api/pos/offline-preparation inventory.publish",
+      "localDatasetStore": "encrypted trusted inventory draft and runtimeSettings inventory snapshot",
+      "snapshotPublisher": "Pre-PIN V2/V3 inventory facade",
+      "installer": "trustedInventory retained until the final encrypted bootstrap/roster/inventory/completeness transaction",
+      "offlineReader": "restorePreparedOfflineRuntime and readOfflineCatalogPage",
+      "uiConsumers": ["/pos/sale/items", "local cart quantity guards"]
+    },
+    {
+      "capability": "tenant, branch, POS and receipt display settings",
+      "onlineSource": "/api/pos/offline-read-snapshot",
+      "localDatasetStore": "encrypted Phase 2 runtimeSettings/system-settings",
+      "snapshotPublisher": "sanitized tenant-scoped system settings API",
+      "installer": "complete runtimeSettings snapshot before the final encrypted completeness pivot",
+      "offlineReader": "readOfflineSystemSettings",
+      "uiConsumers": ["useSystemSettings", "/pos", "/pos/settings", "receipt preview"]
+    },
+    {
+      "capability": "payment configuration",
+      "onlineSource": "reviewed PAYMENT_METHODS application contract",
+      "localDatasetStore": "encrypted Phase 2 runtimeSettings/payment-configuration",
+      "snapshotPublisher": "application compatibility contract",
+      "installer": "complete runtimeSettings snapshot before the final encrypted completeness pivot",
+      "offlineReader": "readOfflineRuntimeSettings",
+      "uiConsumers": ["/pos/sale/checkout local calculation only"]
+    },
+    {
+      "capability": "recent order, invoice and operation reads",
+      "onlineSource": "/api/orders?mode=full with authenticated branch scope",
+      "localDatasetStore": "encrypted Phase 2 orders complete snapshot",
+      "snapshotPublisher": "authenticated recent-orders read",
+      "installer": "persistDataset(orders) before atomic completeness pivot",
+      "offlineReader": "readOfflineRecentOrders and readOfflineOrderRecord",
+      "uiConsumers": ["/pos", "/pos/order-status", "/pos/order-history", "/pos/invoices"]
+    }
+  ],
+  "mandatoryReadConsumersReviewed": [
+    "components/invoice-customer-step.tsx",
+    "components/invoice-items-step.tsx",
+    "components/invoice-checkout-panel.tsx",
+    "hooks/use-system-settings.ts",
+    "app/pos/page.tsx",
+    "app/pos/employee-pin/page.tsx",
+    "app/pos/sale/checkout/page.tsx",
+    "app/pos/order-status/page.tsx",
+    "app/pos/order-history/page.tsx",
+    "app/pos/invoices/page.tsx"
+  ],
+  "mandatoryNetworkReadsRemainingWhileOffline": [],
+  "atomicInstallation": {
+    "stagedDatasets": ["catalog", "customers", "orders", "runtimeSettings"],
+    "finalEncryptedPivot": ["employeeRoster", "branchInventory", "bootstrap", "completenessManifest"],
+    "failedRefreshDisposition": "retain and continue serving the prior complete verified snapshot"
+  },
+  "offlineMutationBoundaries": {
+    "customerCreate": "disabled",
+    "orderCreate": "disabled pending W2",
+    "paymentSubmission": "disabled pending W2",
+    "orderStatusTransition": "disabled",
+    "providerEffects": "disabled",
+    "networkRetryLoop": "none; readers use a validated complete local snapshot"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 8,
+  "principles": ["RLS controls rows, not column exposure","no auth.role authority","no raw metadata authority","no browser policy on private relations"],
+  "privateRelations": [
+    {"relation":"offline_devices","forceRls":true,"owner":"ALL","functionOwner":"SELECT"},
+    {"relation":"offline_device_events","forceRls":true,"owner":"ALL","functionOwner":"NONE"},
+    {"relation":"offline_employee_authorities","forceRls":true,"owner":"ALL","functionOwner":"SELECT"},
+    {"relation":"offline_employee_authority_events","forceRls":true,"owner":"ALL","functionOwner":"NONE"},
+    {"relation":"offline_key_envelopes","forceRls":true,"owner":"ALL","functionOwner":"SELECT"},
+    {"relation":"branch_inventory_snapshot_headers","forceRls":true,"owner":"ALL","functionOwner":"SELECT"},
+    {"relation":"branch_inventory_snapshot_items","forceRls":true,"owner":"ALL","functionOwner":"SELECT"},
+    {"relation":"offline_account_bootstrap_authorities","forceRls":true,"owner":"ALL","functionOwner":"SELECT"},
+    {"relation":"offline_bootstrap_employee_roster","forceRls":true,"owner":"ALL","functionOwner":"NONE"},
+    {"relation":"offline_account_bootstrap_events","forceRls":true,"owner":"ALL","functionOwner":"NONE"},
+    {"relation":"offline_command_bindings","forceRls":true,"owner":"ALL","functionOwner":"SELECT_AND_INSERT"}
+  ],
+  "boundedExistingSupportPolicies": [
+    {"relation":"afex_pos_authority.actor_sessions","policy":"actor_sessions_offline_function_owner_select","role":"afex_function_owner","command":"SELECT","columnGrantExcludes":["token_hash","credential_fingerprint"]},
+    {"relation":"public.profiles","policy":"profiles_offline_function_owner_select","role":"afex_function_owner","command":"SELECT","columnGrant":["id","is_active"]},
+    {"relation":"public.profiles","policy":"profiles_offline_authority_owner_select","role":"afex_offline_authority_owner","command":"SELECT","columnGrant":["id","tenant_id","branch_id","is_active","role"]},
+    {"relation":"public.branches","policy":"branches_offline_authority_owner_select","role":"afex_offline_authority_owner","command":"SELECT","columnGrant":["id","tenant_id","is_active"]},
+    {"relation":"public.pos_profiles","policy":"pos_profiles_offline_authority_owner_select","role":"afex_offline_authority_owner","command":"SELECT","columnGrant":["id","tenant_id","branch_id","role","is_active","updated_at"]},
+    {"relation":"public.inventory_stock","policy":"inventory_stock_offline_authority_owner_select","role":"afex_offline_authority_owner","command":"SELECT","columnGrant":["tenant_id","branch_id","catalog_item_id","quantity_on_hand","updated_at"]},
+    {"relation":"afex_pos_authority.actor_sessions","policy":"actor_sessions_offline_authority_owner_select","role":"afex_offline_authority_owner","command":"SELECT","columnGrantExcludes":["token_hash","credential_fingerprint"]}
+  ],
+  "browserPoliciesAdded": 0,
+  "executionAuthorized": false
+}

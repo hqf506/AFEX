@@ -1,10 +1,14 @@
 'use client'
 
 import { InvoiceCustomerStep } from '@/components/invoice-customer-step'
+import { readInvoiceSaleCycle } from '@/lib/invoices/sale-reset'
 
 export default function PosSaleCustomerPage() {
+  const saleCycle = readInvoiceSaleCycle()
+
   return (
     <InvoiceCustomerStep
+      key={saleCycle}
       heroTitle="بدء عملية بيع"
       heroSubtitle="نقطة البيع"
       sectionTitle="بيانات العميل"

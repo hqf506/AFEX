@@ -9,7 +9,6 @@ import { useSystemSettings } from '@/hooks/use-system-settings'
 import { getClientErrorMessage } from '@/lib/api/client-error'
 import { getRoleLabel } from '@/lib/app-roles'
 import {
-  clearClientResource,
   createProtectedResourceAuthError,
   loadClientResource,
   markProtectedResourcesUnauthorized,
@@ -34,28 +33,28 @@ import {
 } from '@/lib/orders/normalize'
 import { formatCurrency } from '@/lib/orders/format'
 import {
-  clearActivePosEmployee,
-  endPosActorSessionAndRequireReauthentication,
   readActivePosEmployee,
   type ActivePosEmployee,
 } from '@/lib/pos-employee-session'
+import { hasPersistedInvoiceSaleDraft } from '@/lib/invoices/sale-navigation'
 import {
   getPosOfflineDraftSyncState,
   POS_OFFLINE_DRAFTS_SYNC_EVENT,
   POS_OFFLINE_DRAFTS_UPDATED_EVENT,
   type PosOfflineDraftSyncState,
 } from '@/lib/pos-offline-draft'
-import { supabase } from '@/lib/supabase/client'
 import {
   formatPosGregorianDate,
   formatPosTime,
   formatPosWeekday,
 } from '@/lib/pos/date-format'
-import { PosMobileBottomNavigation } from '@/components/pos-mobile-bottom-navigation'
 import {
   PosAddCustomerModal,
   type CreatedPosCustomer,
 } from '@/components/pos-add-customer-modal'
+import { PosPreparingScreen } from '@/components/pos-preparing-screen'
+import { PosLogoutRetentionDialog } from '@/components/pos-logout-retention-dialog'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
 
 const ADMIN_CATEGORIES_CACHE_KEY = 'admin-categories'
 const ADMIN_CATEGORIES_CACHE_TTL_MS = 60_000
@@ -141,7 +140,7 @@ const sidebarItems = [
   },
   {
     id: 'orders',
-    label: 'الطلبات',
+    label: 'حالة الطلبات',
     href: '/pos/order-status',
     active: false,
     disabled: false,
@@ -166,13 +165,6 @@ const sidebarItems = [
 ]
 
 type PosKanbanStatus = 'in_progress' | 'ready' | 'closed'
-type PosKanbanTransitionStatus = Exclude<PosKanbanStatus, 'closed'>
-
-const STATUS_TRANSITIONS: Record<PosKanbanTransitionStatus, PosKanbanStatus> = {
-  in_progress: 'ready',
-  ready: 'closed',
-}
-
 const POS_KANBAN_STATUSES = new Set<PosKanbanStatus>([
   'in_progress',
   'ready',
@@ -338,18 +330,6 @@ function resolvePosKanbanStatus(status: OrderStatus): PosKanbanStatus | null {
     : null
 }
 
-function getNextPosOrderStatus(
-  status: OrderStatus
-): PosKanbanStatus | null {
-  const kanbanStatus = resolvePosKanbanStatus(status)
-
-  if (!kanbanStatus || kanbanStatus === 'closed') {
-    return null
-  }
-
-  return STATUS_TRANSITIONS[kanbanStatus]
-}
-
 function getPosEmployeeDisplayName(employee: ActivePosEmployee | null) {
   return employee?.full_name?.trim() || employee?.username?.trim() || 'لم يُسجل الموظف'
 }
@@ -357,6 +337,142 @@ function getPosEmployeeDisplayName(employee: ActivePosEmployee | null) {
 function formatOrderTime(createdAt: string) {
   const formatted = formatPosTime(createdAt)
   return formatted === '—' ? '--:--' : formatted
+}
+
+type PosOperationalHomeProps = {
+  employeeName: string
+  organizationName: string
+  branchName: string
+  dayName: string
+  dateLabel: string
+  timeLabel: string
+  orders: OrderRecord[]
+  ordersLoading: boolean
+  ordersError: string
+  offlineDrafts: PosOfflineDraftSyncState
+  customerSuccess: string
+  customerModal: ReactNode
+  onStartSale: () => void
+  onAddCustomer: () => void
+}
+
+function PosOperationalHome({
+  employeeName,
+  organizationName,
+  branchName,
+  dayName,
+  dateLabel,
+  timeLabel,
+  orders,
+  ordersLoading,
+  ordersError,
+  offlineDrafts,
+  customerSuccess,
+  customerModal,
+  onStartSale,
+  onAddCustomer,
+}: PosOperationalHomeProps) {
+  const statusSummary = [
+    { status: 'in_progress' as const, count: orders.filter((order) => order.status === 'in_progress').length },
+    { status: 'ready' as const, count: orders.filter((order) => order.status === 'ready').length },
+    { status: 'closed' as const, count: orders.filter((order) => order.status === 'closed').length },
+  ]
+
+  return (
+    <main className="pos-operational-home" dir="rtl">
+      <div className="pos-operational-canvas">
+        <header className="pos-operational-header">
+          <div className="pos-operational-heading">
+            <p>{organizationName}</p>
+            <h1>مرحباً، {employeeName}</h1>
+            <span>{branchName}</span>
+          </div>
+          <div className="pos-operational-clock" aria-label={`${dayName} ${dateLabel} ${timeLabel}`}>
+            <strong>{timeLabel}</strong>
+            <span>{dayName} · {dateLabel}</span>
+          </div>
+        </header>
+
+        <section className="pos-home-actions" aria-label="إجراءات نقطة البيع الرئيسية">
+          <button type="button" className="pos-home-action is-primary" onClick={onStartSale}>
+            <span className="pos-home-action-icon"><PosIcon name="shoppingCart" /></span>
+            <div>
+              <b>بيع جديد</b>
+              <small>ابدأ عملية بيع جديدة</small>
+            </div>
+          </button>
+          <div className="pos-home-action-pair">
+            <button type="button" className="pos-home-action" onClick={onAddCustomer}>
+              <span className="pos-home-action-icon"><PosIcon name="user" /></span>
+              <div><b>إضافة عميل</b><small>تسجيل عميل جديد</small></div>
+            </button>
+            <Link className="pos-home-action" href="/pos/order-history">
+              <span className="pos-home-action-icon"><PosIcon name="clipboard" /></span>
+              <div><b>سجل العمليات</b><small>نشاط الطلبات والفواتير</small></div>
+            </Link>
+          </div>
+          <Link className="pos-home-action is-drafts" href="/pos/offline-drafts">
+            <span className="pos-home-action-icon"><PosIcon name="clipboard" /></span>
+            <div><b>مسودات الفواتير</b><small>{offlineDrafts.draftsCount > 0 ? `${offlineDrafts.draftsCount} مسودات محفوظة` : 'عرض المسودات غير المتصلة'}</small></div>
+          </Link>
+        </section>
+
+        {customerSuccess ? <p className="pos-operational-success" role="status">{customerSuccess}</p> : null}
+
+        <section className="pos-operational-summary" aria-label="ملخص حالات الطلبات">
+          {statusSummary.map(({ status, count }) => (
+            <div key={status}>
+              <span className={POS_ORDER_STATUS_UI[status].dotClassName} />
+              <b>{count}</b>
+              <small>{POS_ORDER_STATUS_UI[status].label}</small>
+            </div>
+          ))}
+          {offlineDrafts.draftsCount > 0 || offlineDrafts.isSyncing ? (
+            <Link href="/pos/offline-drafts" className="pos-operational-drafts">
+              <PosIcon name="clipboard" />
+              {offlineDrafts.isSyncing ? 'مزامنة المسودات' : `${offlineDrafts.draftsCount} مسودات معلقة`}
+            </Link>
+          ) : null}
+        </section>
+
+        <section className="pos-recent-orders" aria-labelledby="pos-recent-orders-title">
+          <header>
+            <div>
+              <h2 id="pos-recent-orders-title">سجل الطلبات</h2>
+              <p>أحدث ستة طلبات خلال آخر 48 ساعة</p>
+            </div>
+            <Link href="/pos/order-history">عرض سجل العمليات</Link>
+          </header>
+
+          {ordersError ? <p className="pos-orders-message is-error" role="alert">تعذر تحميل الطلبات حاليًا. حاول مرة أخرى.</p> : null}
+          {!ordersError && ordersLoading ? <p className="pos-orders-message">جارٍ تحميل آخر الطلبات...</p> : null}
+          {!ordersError && !ordersLoading && orders.length === 0 ? <p className="pos-orders-message">لا توجد طلبات حديثة. ابدأ أول عملية بيع.</p> : null}
+
+          {!ordersError && !ordersLoading && orders.length > 0 ? (
+            <div className="pos-orders-list" role="list">
+              <div className="pos-orders-list-head" aria-hidden="true">
+                <span>رقم الطلب</span><span>التاريخ والوقت</span><span>الحالة</span><span>الإجمالي</span><span>الإجراء</span>
+              </div>
+              {orders.map((order) => {
+                const status = resolvePosKanbanStatus(order.status)
+                const statusUi = status ? POS_ORDER_STATUS_UI[status] : null
+                return (
+                  <article key={order.id} className="pos-order-row" role="listitem">
+                    <div className="pos-order-number"><small>رقم الطلب</small><strong dir="ltr">{order.order_number}</strong></div>
+                    <div className="pos-order-date"><small>التاريخ والوقت</small><span><bdi>{formatPosGregorianDate(order.created_at)}</bdi><span aria-hidden="true"> · </span><bdi>{formatOrderTime(order.created_at)}</bdi></span></div>
+                    <div className="pos-order-status"><small>الحالة</small><span><i className={statusUi?.dotClassName || 'bg-slate-400'} />{statusUi?.label || order.status}</span></div>
+                    <div className="pos-order-total"><small>الإجمالي</small><strong dir="ltr">{formatCurrency(order.total)}</strong></div>
+                    <div className="pos-order-action"><Link href="/pos/order-history">عرض التفاصيل</Link></div>
+                  </article>
+                )
+              })}
+            </div>
+          ) : null}
+        </section>
+      </div>
+      {customerModal}
+    </main>
+  )
 }
 
 export default function PosPage() {
@@ -367,13 +483,14 @@ export default function PosPage() {
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [ordersError, setOrdersError] = useState('')
   const [orders, setOrders] = useState<OrderRecord[]>([])
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const [showMobileRecentOrders, setShowMobileRecentOrders] = useState(false)
   const [showMobileAddCustomer, setShowMobileAddCustomer] = useState(false)
   const [mobileCustomerSuccess, setMobileCustomerSuccess] = useState('')
   const [selectedMobileOrderId, setSelectedMobileOrderId] = useState<string | null>(null)
   const [activePosEmployee, setActivePosEmployee] =
     useState<ActivePosEmployee | null>(null)
+  const [switchEmployeeOpen, setSwitchEmployeeOpen] = useState(false)
+  const [hasActiveSale, setHasActiveSale] = useState(false)
   const [currentNow, setCurrentNow] = useState(() => new Date())
   const [offlineDraftSyncState, setOfflineDraftSyncState] =
     useState<PosOfflineDraftSyncState>({
@@ -391,8 +508,8 @@ export default function PosPage() {
 
   const storeName = settings?.store_name?.trim() || 'AFEX POS'
   const branchName = settings?.branch_name?.trim() || storeName
-  const mobileStoreName = /^leather\s*fix$/i.test(storeName) ? 'AFEX' : storeName
-  const mobileBranchName = /^leather\s*fix$/i.test(branchName) ? 'AFEX' : branchName
+  const mobileStoreName = storeName
+  const mobileBranchName = branchName
   const employeeDisplayName = getPosEmployeeDisplayName(activePosEmployee)
   const resolvedPosBranchId =
     activePosEmployee?.branch_id ||
@@ -409,9 +526,6 @@ export default function PosPage() {
     : null
   const selectedMobileOrderStatusUi = selectedMobileOrderStatusKey
     ? POS_ORDER_STATUS_UI[selectedMobileOrderStatusKey]
-    : null
-  const selectedMobileOrderNextStatus = selectedMobileOrder
-    ? getNextPosOrderStatus(selectedMobileOrder.status)
     : null
   const mobileOrderStatusSummary = [
     {
@@ -513,12 +627,22 @@ export default function PosPage() {
       return
     }
 
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return
+    }
+
     router.prefetch('/pos/sale/customer')
     router.prefetch('/pos/sale/items')
     router.prefetch('/pos/sale/checkout')
     router.prefetch('/pos/order-status')
+    router.prefetch('/pos/order-history')
+    router.prefetch('/pos/invoices')
     const orderStatusPrefetchIntervalId = window.setInterval(
-      () => router.prefetch('/pos/order-status'),
+      () => {
+        router.prefetch('/pos/order-status')
+        router.prefetch('/pos/order-history')
+        router.prefetch('/pos/invoices')
+      },
       15_000
     )
 
@@ -584,10 +708,41 @@ export default function PosPage() {
       setOrdersLoading(true)
       setOrdersError('')
 
+      const loadOfflineOrders = async () => {
+        try {
+          const { readOfflineRecentOrders } = await import(
+            '@/lib/offline/complete-runtime'
+          )
+          const rows = (await readOfflineRecentOrders()) as OrderSourceRow[]
+          setOrders(
+            rows
+              .map((row, index) => normalizeOrderRecord(row, index))
+              .map(mapOrderSummaryToOrderRecord)
+          )
+          setOrdersError('')
+        } catch (offlineError) {
+          setOrders([])
+          setOrdersError(
+            offlineError instanceof Error &&
+              offlineError.message.includes('INTEGRITY')
+              ? 'تعذر التحقق من سلامة لقطة الطلبات المحلية.'
+              : 'لقطة الطلبات المحلية غير مكتملة.'
+          )
+        } finally {
+          setOrdersLoading(false)
+        }
+      }
+
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await loadOfflineOrders()
+        return
+      }
+
       try {
         const searchParams = new URLSearchParams()
         searchParams.set('page', '1')
         searchParams.set('pageSize', POS_HOME_ORDERS_PAGE_SIZE.toString())
+        searchParams.set('recentHours', '48')
 
         if (access.scopeType === 'system' && access.branchId) {
           searchParams.set('branchId', access.branchId)
@@ -628,6 +783,10 @@ export default function PosPage() {
         }
       } catch (error) {
         if (!cancelled) {
+          if (shouldUseOfflineReadFallback(error)) {
+            await loadOfflineOrders()
+            return
+          }
           setOrders([])
           setOrdersError(
             error instanceof Error ? error.message : 'تعذر تحميل الطلبات'
@@ -653,83 +812,9 @@ export default function PosPage() {
     isPosLoginPage,
   ])
 
-  const handleAdvanceOrderStatus = async (order: OrderRecord) => {
-    const currentStatus = resolvePosKanbanStatus(order.status)
-    const nextStatus = getNextPosOrderStatus(order.status)
-
-    if (!currentStatus || !nextStatus || updatingOrderId) {
-      if (!currentStatus) {
-        console.error('[POS KANBAN] Refused order status update for unknown status.', {
-          orderId: order.id,
-          orderNumber: order.order_number,
-          currentStatus: order.status,
-        })
-      }
-      return
-    }
-
-    if (!access.tenantId) {
-      console.error('[POS KANBAN] Refused order status update without tenant id.', {
-        orderId: order.id,
-        orderNumber: order.order_number,
-        currentStatus,
-        nextStatus,
-      })
-      setOrdersError('تعذر تحديد نطاق المنشأة لتحديث الطلب')
-      return
-    }
-
-    const updatePayload = { status: nextStatus }
-
-    triggerPosClickFeedback()
-    setUpdatingOrderId(order.id)
-    setOrdersError('')
-
-    const { error } = await supabase
-      .from('orders')
-      .update(updatePayload)
-      .eq('id', order.id)
-      .eq('tenant_id', access.tenantId)
-
-    if (error) {
-      console.error('[POS KANBAN] Failed to update order status.', {
-        orderId: order.id,
-        orderNumber: order.order_number,
-        tenantId: access.tenantId,
-        currentStatus,
-        payload: updatePayload,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      })
-      setOrdersError(`تعذر تحديث حالة الطلب ${order.order_number}`)
-      setUpdatingOrderId(null)
-      return
-    }
-
-    setOrders((currentOrders) =>
-      currentOrders.map((currentOrder) =>
-        currentOrder.id === order.id
-          ? { ...currentOrder, status: nextStatus }
-          : currentOrder
-      )
-    )
-    clearClientResource([
-      'pos-home-orders',
-      access.tenantId,
-      access.scopeType || 'unknown',
-      access.branchId || 'all',
-      POS_HOME_ORDERS_PAGE_SIZE,
-    ].join(':'))
-    setUpdatingOrderId(null)
-  }
-
-  const handleSwitchEmployee = async () => {
-    clearAllInvoiceCatalogCache()
-    await endPosActorSessionAndRequireReauthentication()
-    setActivePosEmployee(null)
-    router.push('/pos/login')
+  const handleSwitchEmployee = () => {
+    setHasActiveSale(hasPersistedInvoiceSaleDraft(window.sessionStorage))
+    setSwitchEmployeeOpen(true)
   }
 
   const handleStartSale = () => {
@@ -765,7 +850,7 @@ export default function PosPage() {
 
   const handleOpenRecentOrders = () => {
     triggerPosClickFeedback()
-    setShowMobileRecentOrders(true)
+    router.push('/pos/order-history')
   }
 
   if (access.authError === 'timeout') {
@@ -790,19 +875,40 @@ export default function PosPage() {
   }
 
   if (access.loading || !access.allowed) {
+    return <PosPreparingScreen />
+  }
+
+  if (Boolean(activePosEmployee)) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-[#020817] text-white">
-        <div className="rounded-[24px] border border-cyan-300/20 bg-[rgba(2,8,23,0.72)] px-6 py-4 text-sm font-bold text-slate-200 shadow-[0_0_40px_rgba(34,211,238,0.12)]">
-          جارٍ تحميل نقطة البيع...
-        </div>
-      </div>
+      <PosOperationalHome
+        employeeName={employeeDisplayName}
+        organizationName={mobileStoreName}
+        branchName={mobileBranchName}
+        dayName={dayName}
+        dateLabel={dateLabel}
+        timeLabel={timeLabel}
+        orders={recentOrders}
+        ordersLoading={ordersLoading}
+        ordersError={ordersError}
+        offlineDrafts={offlineDraftSyncState}
+        customerSuccess={mobileCustomerSuccess}
+        customerModal={showMobileAddCustomer ? (
+          <PosAddCustomerModal
+            branchId={resolvedPosBranchId}
+            onClose={() => setShowMobileAddCustomer(false)}
+            onCreated={handleMobileCustomerCreated}
+          />
+        ) : null}
+        onStartSale={handleStartSale}
+        onAddCustomer={handleOpenAddCustomer}
+      />
     )
   }
 
   return (
     <main
       dir="rtl"
-      className="fixed inset-0 z-[60] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white"
+      className="pos-home-legacy-root relative h-full min-h-0 w-full overflow-hidden bg-[#020817] text-white"
     >
       <style jsx global>{`
         @keyframes pos-order-details-sheet-in {
@@ -871,8 +977,8 @@ export default function PosPage() {
                   className: 'min-h-[104px]',
                 },
                 {
-                  label: 'آخر الطلبات',
-                  subtitle: 'عرض آخر 6 طلبات',
+                  label: 'سجل العمليات',
+                  subtitle: 'نشاط الطلبات والفواتير',
                   icon: 'clipboard' as const,
                   onClick: handleOpenRecentOrders,
                   className: 'min-h-[104px]',
@@ -955,7 +1061,6 @@ export default function PosPage() {
               ) : null}
             </section>
 
-            <PosMobileBottomNavigation />
           </div>
 
           {showMobileAddCustomer ? (
@@ -977,8 +1082,8 @@ export default function PosPage() {
               <section className="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-md flex-col">
                 <header className="flex shrink-0 items-start justify-between gap-4 pb-5 pt-1">
                   <div>
-                    <h2 id="mobile-recent-orders-title" className="text-[28px] font-black leading-tight text-white">آخر الطلبات</h2>
-                    <p className="mt-2 text-sm font-bold leading-6 text-slate-400">آخر عمليات البيع المتاحة لنقطة البيع</p>
+                    <h2 id="mobile-recent-orders-title" className="text-[28px] font-black leading-tight text-white">سجل الطلبات</h2>
+                    <p className="mt-2 text-sm font-bold leading-6 text-slate-400">طلبات آخر 48 ساعة</p>
                   </div>
                   <button
                     type="button"
@@ -986,7 +1091,7 @@ export default function PosPage() {
                       setSelectedMobileOrderId(null)
                       setShowMobileRecentOrders(false)
                     }}
-                    aria-label="إغلاق آخر الطلبات"
+                    aria-label="إغلاق سجل الطلبات"
                     className="grid h-12 w-12 shrink-0 place-items-center rounded-[17px] border border-cyan-300/20 bg-cyan-300/[0.05] text-2xl font-black text-slate-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.96]"
                   >
                     ←
@@ -1024,10 +1129,8 @@ export default function PosPage() {
                   {!ordersError && !ordersLoading ? mapRecentOrders((order) => {
                     const statusKey = resolvePosKanbanStatus(order.status)
                     const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
-                    const isUpdatingOrder = updatingOrderId === order.id
-
                     return (
-                      <article key={order.id} className={`rounded-[24px] border border-cyan-300/10 bg-[rgba(6,20,38,0.68)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition ${isUpdatingOrder ? 'opacity-60' : 'opacity-100'}`}>
+                      <article key={order.id} className="rounded-[24px] border border-cyan-300/10 bg-[rgba(6,20,38,0.68)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-lg font-black text-white">{order.order_number}</p>
@@ -1164,16 +1267,6 @@ export default function PosPage() {
                         </section>
                       ) : null}
 
-                      {selectedMobileOrderNextStatus ? (
-                        <button
-                          type="button"
-                          onClick={() => handleAdvanceOrderStatus(selectedMobileOrder)}
-                          disabled={updatingOrderId === selectedMobileOrder.id}
-                          className="min-h-[52px] w-full rounded-[18px] bg-cyan-300/[0.10] px-4 text-sm font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] disabled:opacity-60"
-                        >
-                          {updatingOrderId === selectedMobileOrder.id ? 'جارٍ التحديث...' : selectedMobileOrder.status === 'in_progress' ? 'نقل إلى جاهز' : 'تم التسليم'}
-                        </button>
-                      ) : null}
                     </div>
                   </section>
                 </div>
@@ -1182,8 +1275,8 @@ export default function PosPage() {
           ) : null}
         </div>
       ) : (
-      <div className="relative z-10 grid h-full w-full gap-3 overflow-y-auto overscroll-contain p-3 [direction:rtl] lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6 lg:overflow-hidden lg:p-6 xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8 xl:p-8">
-        <aside className="flex min-h-0 flex-col overflow-visible rounded-[24px] bg-[rgba(2,8,23,0.68)] p-3 shadow-[0_22px_60px_rgba(0,0,0,0.24),inset_0_0_0_1px_rgba(34,211,238,0.10)] backdrop-blur-2xl [direction:rtl] lg:overflow-hidden lg:rounded-[26px]">
+      <div className="pos-home-desktop-layout relative z-10 grid h-full w-full gap-3 overflow-y-auto overscroll-contain p-3 [direction:rtl] lg:grid-cols-[minmax(0,1fr)] lg:gap-6 lg:overflow-hidden lg:p-6 xl:grid-cols-[minmax(0,1fr)] xl:gap-8 xl:p-8">
+        <aside className="pos-home-legacy-sidebar hidden">
           <div className="mb-5 hidden rounded-[24px] bg-[rgba(6,20,38,0.62)] px-3 py-4 text-center shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] lg:block">
             <p className="text-2xl font-black tracking-[0.18em] text-cyan-50 drop-shadow-[0_0_14px_rgba(34,211,238,0.22)]">
               AFEX
@@ -1297,7 +1390,7 @@ export default function PosPage() {
                 {branchName}
               </p>
               <h1 className="mt-2 text-2xl font-black leading-tight text-white sm:mt-3 sm:text-3xl xl:text-[42px]">
-                مرحباً بك، فيصل
+                مرحباً بك، {employeeDisplayName}
               </h1>
               <p className="mt-2 text-base font-bold text-slate-300 xl:text-lg">
                 جاهز لبدء البيع
@@ -1401,9 +1494,9 @@ export default function PosPage() {
           <section className="mt-4 flex min-h-0 flex-1 flex-col overflow-visible rounded-[24px] bg-transparent p-0 sm:mt-6 sm:rounded-[28px] sm:bg-[rgba(2,8,23,0.60)] sm:p-5 sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),inset_0_0_28px_rgba(34,211,238,0.03)] lg:overflow-hidden xl:mt-8">
             <div className="mb-4 flex min-h-[54px] shrink-0 items-center justify-between gap-4 rounded-[18px] border border-cyan-300/15 bg-[#07111f] px-4 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0">
                 <div className="text-right">
-                  <h2 className="text-sm font-black text-cyan-300 sm:text-xl sm:text-white xl:text-2xl"><span className="sm:hidden">عرض كل الطلبات</span><span className="hidden sm:inline">آخر الطلبات</span></h2>
+                  <h2 className="text-sm font-black text-cyan-300 sm:text-xl sm:text-white xl:text-2xl">سجل الطلبات</h2>
                   <p className="mt-1 hidden text-xs font-semibold text-slate-500 sm:block xl:text-sm">
-                    صفوف مختصرة لآخر عمليات البيع
+                    أحدث ستة طلبات خلال آخر 48 ساعة
                   </p>
                 </div>
 
@@ -1417,11 +1510,11 @@ export default function PosPage() {
                     <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M7 12h10M10 17h4" strokeLinecap="round"/><path d="M7 4v6M17 9v6" strokeLinecap="round"/></svg>
                   </span>
                   <Link
-                    href="/pos/order-status"
+                    href="/pos/order-history"
                     prefetch={true}
                     className="hidden min-h-[44px] items-center rounded-2xl bg-[rgba(34,211,238,0.07)] px-4 text-xs font-black text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)] transition hover:bg-[rgba(34,211,238,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:inline-flex"
                   >
-                    عرض الكل
+                    عرض سجل العمليات
                   </Link>
                 </div>
               </div>
@@ -1459,15 +1552,10 @@ export default function PosPage() {
                   {mapRecentOrders((order) => {
                     const statusKey = resolvePosKanbanStatus(order.status)
                     const statusUi = statusKey ? POS_ORDER_STATUS_UI[statusKey] : null
-                    const nextStatus = getNextPosOrderStatus(order.status)
-                    const isUpdatingOrder = updatingOrderId === order.id
-
                     return (
                       <div
                         key={order.id}
-                        className={`flex min-h-[156px] flex-col justify-between rounded-[22px] border border-cyan-300/10 bg-[#07111f] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.035)] transition hover:bg-[rgba(34,211,238,0.045)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_18px_rgba(34,211,238,0.07)] sm:min-h-[118px] sm:rounded-[24px] sm:border-0 sm:bg-[rgba(6,20,38,0.54)] sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] xl:min-h-[132px] ${
-                          isUpdatingOrder ? 'opacity-60' : 'opacity-100'
-                        }`}
+                        className="flex min-h-[156px] flex-col justify-between rounded-[22px] border border-cyan-300/10 bg-[#07111f] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.035)] transition hover:bg-[rgba(34,211,238,0.045)] hover:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_18px_rgba(34,211,238,0.07)] sm:min-h-[118px] sm:rounded-[24px] sm:border-0 sm:bg-[rgba(6,20,38,0.54)] sm:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.07)] xl:min-h-[132px]"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -1502,25 +1590,7 @@ export default function PosPage() {
                             {formatCurrency(order.total)}
                           </p>
 
-                          {nextStatus ? (
-                            <button
-                              type="button"
-                              onClick={() => handleAdvanceOrderStatus(order)}
-                              disabled={isUpdatingOrder}
-                              className="min-h-[44px] rounded-2xl bg-[rgba(34,211,238,0.08)] px-3 text-xs font-black text-cyan-100 transition hover:bg-[rgba(34,211,238,0.13)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {isUpdatingOrder
-                                ? 'جارٍ...'
-                                : order.status === 'in_progress'
-                                  ? 'جاهز'
-                                  : 'تم تسليم'}
-                            </button>
-                          ) : (
-                            <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-500">
-                              <PosIcon name="clock" className="h-4 w-4" />
-                              {formatOrderTime(order.created_at)}
-                            </span>
-                          )}
+                          <Link href="/pos/order-history" className="inline-flex min-h-[44px] items-center rounded-2xl bg-[rgba(34,211,238,0.08)] px-3 text-xs font-black text-cyan-100">عرض التفاصيل</Link>
                         </div>
                       </div>
                     )
@@ -1532,6 +1602,18 @@ export default function PosPage() {
       </div>
       )}
       </section>
+      <PosLogoutRetentionDialog
+        open={switchEmployeeOpen}
+        intent="switch"
+        hasActiveSale={hasActiveSale}
+        onCancel={() => setSwitchEmployeeOpen(false)}
+        onComplete={({ intent, route }) => {
+          clearAllInvoiceCatalogCache()
+          setActivePosEmployee(null)
+          setSwitchEmployeeOpen(false)
+          if (intent === 'logout') router.replace(route)
+        }}
+      />
     </main>
   )
 }

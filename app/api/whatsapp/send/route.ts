@@ -16,6 +16,7 @@ import { isFullAdmin } from '@/lib/permissions'
 import { maskId, maskPhone, redactSensitive } from '@/lib/security/redaction'
 import { logWhatsAppSend } from '@/lib/whatsapp/logging'
 import {
+  applyOrderStatusWhatsAppTemplate,
   buildDeliveredOrderStatusWhatsAppMessage,
   buildReadyOrderStatusWhatsAppMessage,
   isSendableWhatsAppPhone,
@@ -321,50 +322,6 @@ function normalizeInvoiceItems(value: NotificationInvoiceRow['invoice_items']) {
     .filter((item) => item.item_name && item.quantity > 0)
 }
 
-function applyOrderNotificationTemplate({
-  template,
-  orderNumber,
-  customerName,
-  branchName,
-  storeName,
-  total,
-  mapUrl,
-}: {
-  template: string | null | undefined
-  orderNumber: string
-  customerName: string
-  branchName: string
-  storeName: string
-  total: number
-  mapUrl: string
-}) {
-  const trimmedTemplate = template?.trim() || ''
-
-  if (!trimmedTemplate) {
-    return ''
-  }
-
-  const values: Record<string, string> = {
-    store_name: storeName,
-    storeName,
-    branch_name: branchName,
-    branchName,
-    customer_name: customerName,
-    customerName,
-    order_number: orderNumber,
-    orderNumber,
-    total: String(total),
-    map_url: mapUrl,
-    mapUrl,
-  }
-
-  return trimmedTemplate.replace(
-    /\{\{\s*(store_name|storeName|branch_name|branchName|customer_name|customerName|order_number|orderNumber|total|map_url|mapUrl)\s*\}\}|\{\s*(store_name|storeName|branch_name|branchName|customer_name|customerName|order_number|orderNumber|total|map_url|mapUrl)\s*\}/g,
-    (_match, doubleBraceKey: string | undefined, singleBraceKey: string | undefined) =>
-      values[doubleBraceKey || singleBraceKey || ''] || ''
-  )
-}
-
 async function loadServerComposedOrderNotification({
   tenantId,
   branchId,
@@ -536,7 +493,7 @@ async function loadServerComposedOrderNotification({
   const deliveredStatus =
     notificationStatus === 'closed' || notificationStatus === 'delivered'
   const templateText = deliveredStatus
-    ? applyOrderNotificationTemplate({
+    ? applyOrderStatusWhatsAppTemplate({
         template: settings?.whatsapp_order_delivered_message_template,
         orderNumber,
         customerName,
@@ -545,7 +502,7 @@ async function loadServerComposedOrderNotification({
         total,
         mapUrl: '',
       })
-    : applyOrderNotificationTemplate({
+    : applyOrderStatusWhatsAppTemplate({
         template: settings?.whatsapp_order_ready_message_template,
         orderNumber,
         customerName,

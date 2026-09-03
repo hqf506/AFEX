@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 9,
+  "installer": {
+    "database":"postgres","currentUser":"postgres","sessionUser":"postgres",
+    "serverVersionNum":"170006","databaseOwner":"postgres",
+    "databaseCreate":true,"databaseConnect":true
+  },
+  "schemaAuthority": [
+    {"schema":"public","owner":"pg_database_owner","postgresCreate":true},
+    {"schema":"afex_core_private","owner":"afex_function_owner"},
+    {"schema":"afex_pos_authority","owner":"afex_pos_session_owner"},
+    {"schema":"auth","owner":"supabase_admin","postgresCreate":false,"mutatedByPackage":false},
+    {"schema":"afex_offline_authority","owner":"afex_offline_authority_owner","private":true}
+  ],
+  "ownerMemberships": [
+    {"member":"postgres","role":"afex_context_issuer","admin":true,"inherit":false,"setAtRest":false},
+    {"member":"postgres","role":"afex_core_owner","admin":true,"inherit":false,"setAtRest":false},
+    {"member":"postgres","role":"afex_function_owner","admin":true,"inherit":false,"setAtRest":false},
+    {"member":"postgres","role":"afex_pos_session_owner","admin":true,"inherit":false,"setAtRest":false},
+    {"member":"postgres","role":"afex_offline_authority_owner","admin":true,"inherit":false,"setAtRest":false,"createdIfAbsentBy01A":true}
+  ],
+  "owners": [
+    {"role":"afex_offline_authority_owner","login":false,"inherit":false,"owns":"offline relations, provisioning functions, owner-only triggers and policies"},
+    {"role":"afex_function_owner","login":false,"inherit":false,"owns":"validators, resolver, acquisition, receipt and inactive public facades"},
+    {"role":"afex_pos_session_owner","owns":"existing afex_pos_authority.actor_sessions and its package policy bridge"},
+    {"role":"afex_core_owner","owns":"existing Core relations changed only by 01C"},
+    {"role":"postgres","owns":"bounded private Auth-session helper only; public support changes execute only on postgres-owned relations"}
+  ],
+  "runtimeRoles": [
+    {"role":"afex_offline_provisioning_runtime","login":false,"inherit":false,"directTablePrivileges":[],"browserMembership":false,"postgresInstallerMembership":{"admin":true,"inherit":false,"setAtRest":false,"source":"PostgreSQL 17 bounded CREATEROLE installer topology"}},
+    {"role":"afex_offline_acquisition_runtime","login":false,"inherit":false,"directTablePrivileges":[],"browserMembership":false,"postgresInstallerMembership":{"admin":true,"inherit":false,"setAtRest":false,"source":"PostgreSQL 17 bounded CREATEROLE installer topology"}}
+  ],
+  "boundedSupport": [
+    {"grantee":"afex_function_owner","object":"afex_offline_authority.afex_current_auth_session_matches_v1(uuid,uuid)","privilege":"EXECUTE"},
+    {"grantee":"afex_offline_authority_owner","object":"afex_offline_authority.afex_current_auth_session_matches_v1(uuid,uuid)","privilege":"EXECUTE"},
+    {"owner":"afex_pos_session_owner","object":"afex_pos_authority.actor_sessions","privilege":"exact SELECT policy/columns"},
+    {"owner":"postgres","objects":"public.profiles/public.pos_profiles/public.branches/public.inventory_stock","privilege":"exact SELECT policy/columns"}
+  ],
+  "authException": {
+    "function":"afex_offline_authority.afex_current_auth_session_matches_v1(uuid,uuid)",
+    "owner":"postgres","authSchemaCreateGranted":false,"authSchemaAclChanged":false,
+    "authSessionsAclChanged":false,"returnsAuthData":false
+  },
+  "inactiveActivation": {
+    "file":"90-FINAL-MANUAL-PILOT-ACTIVATION.sql","foundation":false,
+    "deactivationFile":"90Z-FINAL-EMERGENCY-PILOT-DEACTIVATION.sql",
+    "status":"NOT_EXECUTED_REQUIRES_FINAL_HUMAN_APPROVAL",
+    "serviceRolePrivilege":"EXECUTE on twelve exact bounded public server facades only",
+    "browserExecute":false,"directPrivateHelperExecute":false,
+    "directTablePrivilege":false,"featureFlagChanged":false
+  },
+  "foundationStatus":"FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN",
+  "activationExecutionAuthorized": false
+}

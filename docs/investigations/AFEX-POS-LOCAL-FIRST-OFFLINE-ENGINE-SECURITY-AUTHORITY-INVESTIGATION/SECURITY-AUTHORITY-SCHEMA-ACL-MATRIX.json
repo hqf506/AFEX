@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "schemas": [
+    {"schema":"public","owner":"pg_database_owner","acl":{"PUBLIC":["USAGE"],"anon":["USAGE"],"authenticated":["USAGE"],"service_role":["USAGE"],"postgres":["USAGE"]},"create":"pg_database_owner; temporary explicit CREATE was granted/revoked for AFEX installers","risk":"Public USAGE plus broad object/default grants exposes the legacy surface.","confidence":"PROVEN"},
+    {"schema":"auth","owner":"supabase_auth_admin","acl":{"anon":["USAGE"],"authenticated":["USAGE"],"service_role":["USAGE"],"postgres":["USAGE"],"supabase_auth_admin":["USAGE","CREATE"]},"risk":"Auth objects remain platform-owned; no Offline fixture or client authority may be inferred.","confidence":"PROVEN"},
+    {"schema":"storage","owner":"supabase_storage_admin","acl":{"anon":["USAGE"],"authenticated":["USAGE"],"service_role":["USAGE"],"postgres":["USAGE"],"supabase_storage_admin":["USAGE","CREATE"]},"risk":"Schema usage does not prove bucket/object policy safety; current Offline asset authorization remains UNKNOWN.","confidence":"PROVEN_PARTIAL"},
+    {"schema":"afex_core_private","owner":"afex_function_owner","acl":{"afex_function_owner":["USAGE"],"PUBLIC":[],"anon":[],"authenticated":[],"service_role":[],"afex_core_runtime":[]},"risk":"Service runtime reaches only public wrappers; preserve this boundary.","confidence":"PROVEN"},
+    {"schema":"afex_pos_authority","owner":"afex_pos_session_owner","acl":{"afex_pos_session_owner":["USAGE"],"PUBLIC":[],"anon":[],"authenticated":[],"service_role":[]},"risk":"Direct tables are owner-only and forced RLS; preserve.","confidence":"PROVEN"},
+    {"schema":"afex_phone_private","owner":"afex_function_owner","acl":{"afex_function_owner":["USAGE"],"PUBLIC":[],"anon":[],"authenticated":[],"service_role":[],"afex_core_runtime":[]},"risk":"Private auth-context helpers are not direct runtime entry points.","confidence":"CORROBORATED"}
+  ],
+  "objectAclDomains": [
+    {"domain":"legacy_public_business","objects":["profiles","pos_profiles","tenants","branches","customers","catalog_items","branch_catalog_items","orders","invoices","invoice_items","order_status_logs","order_number_sequences","vat_settings","audit_logs","branch_whatsapp_configs","inventory_stock","inventory_movements"],"historicalGrantees":["anon","authenticated","service_role","postgres"],"effectivePrivilegesPerListedObject":["INSERT","SELECT","UPDATE","DELETE","TRUNCATE","REFERENCES","TRIGGER","MAINTAIN"],"securityEffect":"All four listed grantees hold the complete captured table privilege set on every listed legacy object; RLS and function body checks are therefore critical.","confidence":"PROVEN"},
+    {"domain":"core_atomic","objects":["atomic_authorization_contexts","atomic_order_commands","atomic_order_command_payloads","atomic_order_claims","atomic_order_retry_authorizations","atomic_order_business_links","atomic_order_line_links","atomic_order_audit","atomic_order_diagnostics"],"grantees":{"afex_function_owner":["explicit bounded SELECT/INSERT/UPDATE by table"],"publicApiRoles":[]},"securityEffect":"Forced RLS plus owner policies and narrow wrappers.","confidence":"PROVEN"},
+    {"domain":"customer_phone_identity","objects":["customer_phone_identities","customer_phone_identity_members"],"grantees":{"afex_function_owner":["bounded SELECT/INSERT/UPDATE/DELETE"],"publicApiRoles":[]},"securityEffect":"Forced RLS; only helper functions expose supported operations.","confidence":"CORROBORATED"},
+    {"domain":"pos_authority","objects":["actor_sessions","auth_session_locks"],"grantees":{"afex_pos_session_owner":["ALL as owner"],"publicApiRoles":[]},"securityEffect":"Forced RLS and owner-only policies.","confidence":"PROVEN"}
+  ],
+  "sequenceAcls": [
+    {"sequence":"public.invoice_number_seq","grants":{"postgres":["SELECT","UPDATE","USAGE"],"anon":["SELECT","UPDATE","USAGE"],"authenticated":["SELECT","UPDATE","USAGE"],"service_role":["SELECT","UPDATE","USAGE"]},"confidence":"PROVEN"},
+    {"sequence":"public.order_number_seq","grants":{"postgres":["SELECT","UPDATE","USAGE"],"anon":["SELECT","UPDATE","USAGE"],"authenticated":["SELECT","UPDATE","USAGE"],"service_role":["SELECT","UPDATE","USAGE"]},"confidence":"PROVEN"},
+    {"sequence":"public.support_ticket_number_seq","grants":{"postgres":["SELECT","UPDATE","USAGE"],"service_role":["SELECT","UPDATE","USAGE"]},"offlineRelevant":false,"confidence":"PROVEN"}
+  ],
+  "viewAcls": [
+    {"view":"public.inventory_movements_view","grants":{"postgres":["INSERT","SELECT","UPDATE","DELETE","TRUNCATE","REFERENCES","TRIGGER","MAINTAIN"],"anon":["INSERT","SELECT","UPDATE","DELETE","TRUNCATE","REFERENCES","TRIGGER","MAINTAIN"],"authenticated":["INSERT","SELECT","UPDATE","DELETE","TRUNCATE","REFERENCES","TRIGGER","MAINTAIN"],"service_role":["INSERT","SELECT","UPDATE","DELETE","TRUNCATE","REFERENCES","TRIGGER","MAINTAIN"]},"securityInvoker":true,"finding":"SELECT remains subject to invoker/base-table authority, but the view itself is broadly reachable and must be covered by the ACL correction.","confidence":"PROVEN"}
+  ],
+  "defaultPrivileges": [
+    {"schema":"public","creator":"postgres","sequences":"postgres, anon, authenticated, service_role = SELECT/UPDATE/USAGE","functions":"postgres, anon, authenticated, service_role = EXECUTE","relations":"postgres, anon, authenticated, service_role = INSERT/SELECT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER/MAINTAIN","confidence":"PROVEN"},
+    {"schema":"public","creator":"supabase_admin","sequences":"postgres, anon, authenticated, service_role = SELECT/UPDATE/USAGE","functions":"postgres, anon, authenticated, service_role = EXECUTE","relations":"postgres, anon, authenticated, service_role = INSERT/SELECT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER/MAINTAIN","confidence":"PROVEN"},
+    {"schema":"storage","creator":"postgres","sequences":"postgres, anon, authenticated, service_role = SELECT/UPDATE/USAGE","functions":"postgres, anon, authenticated, service_role = EXECUTE","relations":"postgres, anon, authenticated, service_role = full relation privileges","confidence":"PROVEN"},
+    {"schema":"auth","creator":"supabase_auth_admin","sequences":"postgres and dashboard_user only","functions":"postgres and dashboard_user only","relations":"postgres and dashboard_user only","confidence":"PROVEN"},
+    {"schema":"afex_pos_authority","creator":"afex_pos_session_owner","rule":"revoke all tables/sequences/functions from PUBLIC, anon, authenticated, service_role","confidence":"CORROBORATED_MATCHED_MIGRATION"},
+    {"schema":"public","creator":"afex_function_owner","rule":"explicit grants only; legacy postgres/supabase_admin defaults do not authorize future AFEX-owner objects","confidence":"CORROBORATED"}
+  ],
+  "requiredCorrectionOutcome":"No future object may silently inherit broad public execution or mutation authority; retained direct-client privileges must be enumerated per object and backed by effective scoped policies."
+}

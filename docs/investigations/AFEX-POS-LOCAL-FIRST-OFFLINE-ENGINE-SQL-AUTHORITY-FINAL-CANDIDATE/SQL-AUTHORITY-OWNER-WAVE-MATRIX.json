@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "foundationWaves": [
+    {"file":"01A-PRIVATE-ROLES-AND-SCHEMA-FOUNDATION.sql","owner":"afex_offline_authority_owner","newObjects":"roles/schema/default privileges"},
+    {"file":"01B-PUBLIC-COMPOSITE-SCOPE-CONSTRAINTS.sql","owner":"postgres","newObjects":"public constraints/reference grants"},
+    {"file":"01C-CORE-COMPOSITE-SCOPE-CONSTRAINTS.sql","owner":"afex_core_owner","newObjects":"Core constraints/reference grants"},
+    {"file":"04A-TRUSTED-AUTH-SESSION-BRIDGE.sql","owner":"postgres","newObjects":"one private Auth-session boolean helper","schemaGrantOwner":"afex_offline_authority_owner"},
+    {"file":"04B-POS-ACTOR-AUTHORITY-POLICY-BRIDGE.sql","owner":"afex_pos_session_owner","newObjects":"actor_sessions policies/ACL"},
+    {"file":"04C-POSTGRES-OWNED-SUPPORT-POLICIES.sql","owner":"postgres","newObjects":"public support policies/ACL"},
+    {"files":["05-OFFLINE-DEVICE-AUTHORITY.sql","05A-TRUSTED-DEVICE-LIFECYCLE-WRITERS.sql","06-OFFLINE-EMPLOYEE-ENROLLMENT-AUTHORITY.sql","06A-TRUSTED-EMPLOYEE-PIN-SELECTION-WRITERS.sql","07-PERSISTENT-UNWRAP-METADATA.sql","08A-OFFLINE-COMMAND-BINDING-RELATION.sql","09-INVENTORY-SNAPSHOT-AND-FRONTIER-AUTHORITY.sql","09A-TRUSTED-INVENTORY-SNAPSHOT-PUBLISHER.sql","10A-TRUSTED-OFFLINE-BOOTSTRAP-AUTHORITY.sql","13-INDEXES-CONSTRAINTS-AND-INVARIANTS.sql"],"owner":"afex_offline_authority_owner"},
+    {"files":["08B-PROVENANCE-PAYMENT-INVENTORY-VALIDATORS.sql","08C-TOTAL-RESOLVER-AND-INVENTORY-READER.sql","08D-ATOMIC-ORDER-CREATE-ACQUISITION.sql","11-IDEMPOTENCY-RECEIPT-AND-EFFECT-LEDGERS.sql"],"owner":"afex_function_owner"}
+  ],
+  "boundedContract": {
+    "beginAs":"postgres",
+    "temporaryGrant":"GRANT <owner_role> TO postgres WITH ADMIN FALSE, INHERIT FALSE, SET TRUE GRANTED BY CURRENT_USER",
+    "setLocalRole":true,
+    "resetRole":true,
+    "temporaryRevoke":"REVOKE <owner_role> FROM postgres GRANTED BY CURRENT_USER",
+    "grantSetFalseForbidden":true,
+    "commitAfterAttestation":true
+  },
+  "existingOwnershipTransfers":0,
+  "authSchemaMutations":0,
+  "foundationStatus":"FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN",
+  "foundationExecutedWaves":22,
+  "activationFile":"90-FINAL-MANUAL-PILOT-ACTIVATION.sql",
+  "deactivationFile":"90Z-FINAL-EMERGENCY-PILOT-DEACTIVATION.sql",
+  "activationStatus":"NOT_EXECUTED_REQUIRES_FINAL_HUMAN_APPROVAL",
+  "activationInFoundation":false
+}

@@ -1,0 +1,48 @@
+{
+  "phase": "AFEX POS LOCAL-FIRST OFFLINE ENGINE PHASE 1",
+  "startingHead": "37331390ec00bee507f88701365bfebb944db675",
+  "applicationChanges": [
+    { "status": "added", "path": "lib/offline/phase1.ts", "purpose": "authoritative encrypted IndexedDB, namespace, crypto, lock, quota, purge and migration boundary" },
+    { "status": "added", "path": "app/api/pos/offline-context/route.ts", "purpose": "read-only server-verified namespace identity" },
+    { "status": "added", "path": "components/pos-logout-retention-dialog.tsx", "purpose": "shared real retain/purge logout UI" },
+    { "status": "added", "path": "tests/pos-offline-phase1.test.mjs", "purpose": "synthetic WebCrypto and real browser IndexedDB contract tests" },
+    { "status": "modified", "path": "lib/pos-employee-session.ts", "purpose": "immediate lock and fail-closed authoritative logout" },
+    { "status": "modified", "path": "lib/pos-offline-draft.ts", "purpose": "disable new plaintext writes and business dispatch" },
+    { "status": "modified", "path": "components/auth-state-provider.tsx", "purpose": "lock on auth/account/tenant/branch change" },
+    { "status": "modified", "path": "components/pos-shell-layout.tsx", "purpose": "safe optional initialization and no legacy auto-dispatch" },
+    { "status": "modified", "path": "components/pos-shell/pos-responsive-shell.tsx", "purpose": "shared logout/switch dialog integration" },
+    { "status": "modified", "path": "app/pos/settings/page.tsx", "purpose": "shared logout contract integration" },
+    { "status": "modified", "path": "app/pos/page.tsx", "purpose": "shared employee-switch contract integration" },
+    { "status": "modified", "path": "app/pos/employee-pin/page.tsx", "purpose": "shared primary logout contract integration and post-actor/pre-presentation exact-scope recovery gate" },
+    { "status": "modified", "path": "app/pos/offline-drafts/page.tsx", "purpose": "disable legacy dispatch controls" },
+    { "status": "deleted", "path": "components/pos-shell/pos-confirmation-dialog.tsx", "purpose": "remove obsolete duplicate confirmation UI after shared contract integration" }
+  ],
+  "humanReviewCorrection": {
+    "scope": "Phase 1 only",
+    "correctedApplicationFiles": [
+      { "path": "lib/offline/phase1.ts", "beforeSha256": "f5fb72314264cb2672503f19cb47c0ba0327ec4ee97e7c003d9054d3857bd3d0", "afterSha256": "24dfef693b98d1d4e4188aa488d6c8b63ed0fa31e7bab593a92dfc9329293d94", "purpose": "fresh verified purge authorization, bound tombstones, active namespace invalidation, separate unresolved counts and allowlisted legacy cleanup" },
+      { "path": "lib/pos-employee-session.ts", "beforeSha256": "ee777f9f50bd7650eb8afa26188ae66ce5f6ae28abbfcde4e4e8375b9fce0211", "afterSha256": "812df45dd14f66c21717b5a943552437a415eab3f5fc46196f732716497c620b", "purpose": "separate employee-switch and full-logout lifecycles plus plaintext cache clearing" },
+      { "path": "components/pos-logout-retention-dialog.tsx", "beforeSha256": "7e0257454742ce3f0924004164cede6a3c489e5f62df8a34c34b6706c2cf791d", "afterSha256": "288de660deede3b816c78c81146b8ab06314459ff94a8b0eacd1e01e55e800ae", "purpose": "fresh scope revalidation, complete assessment and explicit unscoped legacy confirmation" },
+      { "path": "components/auth-state-provider.tsx", "beforeSha256": "75dba8aac3b34e0018dfa59814e167b86e8d5ccf6a19dd1b8ad3eeeee33a1888", "afterSha256": "7e3b72757bfd8a62f4145d57ad76a01b144f9ad5bbb4c112ddce55e3e6010e34", "purpose": "clear active namespace on Primary Auth loss and verified authority change" },
+      { "path": "components/pos-shell/pos-responsive-shell.tsx", "beforeSha256": "02d5eb2bb4947b1eda3e7a5d1fcf02e247f15c7d9b1c43ac0cdbc0fd61557cc9", "afterSha256": "9fecfb5f5510d1618d019e9cbdf5ad8c19b255e533914d1812e38db13dbc95d8", "purpose": "honor explicit switch/login completion route" },
+      { "path": "app/pos/settings/page.tsx", "beforeSha256": "5a316e83b413dd53658a15c1de556dd11e6029f4946f2722107dfe023d4b7e25", "afterSha256": "72be80eae69ecafe85dad2a8feecbd97cd384567664974830dfca6920c43eb92", "purpose": "honor explicit full-logout completion route" },
+      { "path": "app/pos/page.tsx", "beforeSha256": "9cb1c8bbd236829bc6fdaf853834c4270300fed782519a24fdfd714edd0ece02", "afterSha256": "4ea33df684ed50ddc665b9388edfabb74f827dfb9d10734712379389217d336e", "purpose": "honor explicit employee-switch completion route" },
+      { "path": "app/pos/employee-pin/page.tsx", "beforeSha256": "6590d7c2a8d4683d4c246bb07e3156df798eff1ff36d2d81054d35dcc21e1571", "afterSha256": "cc1dd080946fd25baedf9a88f3ec1dced76cfe9b7de12bcdd4c01243c3223058", "purpose": "honor explicit full-logout completion route" },
+      { "path": "tests/pos-offline-phase1.test.mjs", "beforeSha256": "0bec340dc59638c3c7d9783ddd6f5e45311e703ddd12306a202a11b1af7a39dd", "afterSha256": "b4550c9a0827f850c9cd361d2fc42c62f59017cb21770c0c545cb7dafe97f9d3", "purpose": "functional regression coverage for all four human-review defects" }
+    ]
+  },
+  "finalRestartRecoveryCorrection": {
+    "scope": "Phase 1 only",
+    "rootCause": "cold unauthenticated startup cached a resolved initialization promise after attempting global tombstone recovery, preventing a later POS-authorized retry and allowing an unrelated scope tombstone to poison startup",
+    "correctedApplicationFiles": [
+      { "path": "lib/offline/phase1.ts", "beforeSha256": "24dfef693b98d1d4e4188aa488d6c8b63ed0fa31e7bab593a92dfc9329293d94", "afterSha256": "55867e81c718176b017ef78ddcb1f6eeb18fc16467161f5b0a708a6d4599e8f5", "purpose": "separate authority-free initialization from re-runnable exact-scope authorized purge recovery with safe status classification and atomic two-tab behavior" },
+      { "path": "app/pos/employee-pin/page.tsx", "beforeSha256": "cc1dd080946fd25baedf9a88f3ec1dced76cfe9b7de12bcdd4c01243c3223058", "afterSha256": "355b758f853a2528c1dc2a67d663ea7c4eef4d324974d0c3885fbb40779b9633", "purpose": "await authorized offline recovery immediately after POS actor issuance and before employee presentation or navigation" },
+      { "path": "tests/pos-offline-phase1.test.mjs", "beforeSha256": "b4550c9a0827f850c9cd361d2fc42c62f59017cb21770c0c545cb7dafe97f9d3", "afterSha256": "69df779c21bc798709c8f988cecf744cd1b39003b051a9d1dbcbc643d9cb5a83", "purpose": "real Chromium restart, exact-scope, binding, idempotency, concurrent-tab and PIN-gate ordering regressions" }
+    ]
+  },
+  "historicalInvestigationPackagesModified": false,
+  "runtimeIntegrationR8NModified": false,
+  "packageFilesModified": false,
+  "sqlOrMigrationFilesModified": false,
+  "gitWritesPerformed": false
+}

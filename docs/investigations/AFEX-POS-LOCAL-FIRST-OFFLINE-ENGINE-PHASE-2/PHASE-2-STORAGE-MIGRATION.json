@@ -1,0 +1,53 @@
+{
+  "fromDatabaseVersion": 1,
+  "toDatabaseVersion": 2,
+  "databaseNameChanged": false,
+  "parallelDatabaseCreated": false,
+  "preservedPhase1Stores": [
+    "meta",
+    "keyEnvelopes",
+    "drafts",
+    "quarantine",
+    "purgeTombstones"
+  ],
+  "addedStores": [
+    "datasetManifests",
+    "catalog",
+    "customers",
+    "orders",
+    "invoices",
+    "events",
+    "runtimeSettings",
+    "mediaRefs"
+  ],
+  "manifestIndexes": [
+    { "name": "namespaceId", "keyPath": "namespaceId", "unique": false },
+    { "name": "namespaceDatasetStatus", "keyPath": ["namespaceId", "datasetId", "status"], "unique": false },
+    { "name": "namespaceDatasetConfirmedAt", "keyPath": ["namespaceId", "datasetId", "confirmedAtServer"], "unique": false }
+  ],
+  "datasetIndexes": [
+    { "name": "namespaceId", "keyPath": "namespaceId", "unique": false },
+    { "name": "namespaceSnapshot", "keyPath": ["namespaceId", "snapshotVersion"], "unique": false },
+    { "name": "namespaceSnapshotRecord", "keyPath": ["namespaceId", "snapshotVersion", "recordKey"], "unique": true }
+  ],
+  "failClosedRules": {
+    "missingPhase1StoreDuringUpgrade": "OFFLINE_SCHEMA_CORRUPT",
+    "futureDatabaseVersion": "OFFLINE_SCHEMA_UNSUPPORTED",
+    "quotaExceeded": "OFFLINE_QUOTA_HARD_STOP",
+    "unknownFutureVersionDeleted": false,
+    "unknownFutureVersionReadable": false
+  },
+  "purgeExtension": {
+    "datasetStoresIncluded": true,
+    "datasetManifestsIncluded": true,
+    "unrelatedNamespacePreserved": true,
+    "zeroResidueVerified": true
+  },
+  "automatedMigrationResult": "PASS",
+  "phase1RecordsPreserved": [
+    "draft marker",
+    "quarantine marker",
+    "purge tombstone marker"
+  ],
+  "rollbackNote": "A pre-v2 application receives VersionError and locks without deleting data. Rollout approval requires a v2-aware rollback build; none was deployed in this phase."
+}

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "phase5MayBegin": false,
+  "alreadyDeployedAndReusable": [
+    "durable Core V2 command and immutable payload ledger",
+    "idempotency fingerprint duplicate/conflict classification",
+    "claim lease and bounded attempts",
+    "atomic order/invoice/inventory persistence",
+    "stable server receipt snapshot and replay",
+    "official branch/month numbering",
+    "online POS actor session issuance, validation, and revocation",
+    "tenant/branch customer phone identity helpers"
+  ],
+  "canBeImplementedWithoutDatabaseChange": [
+    "client-only connection/synchronization indicator",
+    "local progress and preparation UI",
+    "offline local stock projection and zero-stock UI guard",
+    "transport-neutral client command scheduling behind a disabled flag",
+    "redacted diagnostics and local QA tooling"
+  ],
+  "requiresSeparatelyReviewedMigration": [
+    "harden legacy RLS and execute ACLs",
+    "registered device authority and generations",
+    "offline employee authorization/enrollment state",
+    "review container and management state machine",
+    "immutable payment attestation",
+    "durable external-effect ledger/outbox",
+    "payment canonicalization including bank_transfer",
+    "cancellation function parity decision and inventory safety constraints"
+  ],
+  "requiresCoreV2CompletionFirst": [
+    "bind actual POS employee and device generation into acquisition authority",
+    "revalidate revocation/generation during replay",
+    "accept the approved offline envelope without trusting client identity",
+    "route true business conflicts to review without weakening exact duplicate replay",
+    "persist effect intents in the authoritative transaction"
+  ],
+  "unsafeForOffline": [
+    "client-supplied employee identity as authority",
+    "legacy broad SECURITY DEFINER RPC surface",
+    "reusing invoice payment_status as provider confirmation",
+    "sending WhatsApp or invoking payment providers during replay",
+    "treating failed_retryable/failed_final as a human review container",
+    "assuming one device removes online inventory concurrency"
+  ],
+  "smallestSafeSequence": [
+    "human approval of this attestation and Offline PIN mode",
+    "urgent Production security review and scoped ACL/RLS correction plan",
+    "independent migration design for device, review, payment attestation, and effects",
+    "Core V2 authority/effect bridge design and isolated qualification",
+    "Phase 5 client synchronization behind kill switches",
+    "Preview qualification with synthetic/disposable evidence",
+    "one-branch managed-device pilot with rollback and monitoring"
+  ],
+  "estimate": {
+    "engineeringEffort": "10-14 senior engineer-weeks plus database/security review",
+    "elapsedWithTwoEngineers": "8-12 calendar weeks before a controlled pilot",
+    "confidence": "medium; migration review and managed-device mode selection are critical path"
+  },
+  "humanDecisionsRequired": [
+    "select Managed PWA Mode A or Native Mode B and accept its residual risk",
+    "approve immediate remediation planning for broad legacy RLS/function ACL exposure",
+    "select dedicated review table versus versioned Core extension",
+    "approve canonical behavior for card, transfer, bank_transfer, cod, and on_delivery",
+    "approve payment-attestation wording and refund authority",
+    "approve external-effect delivery semantics and provider idempotency policy",
+    "approve one-device pilot scope, kill switches, retention, and support ownership"
+  ]
+}

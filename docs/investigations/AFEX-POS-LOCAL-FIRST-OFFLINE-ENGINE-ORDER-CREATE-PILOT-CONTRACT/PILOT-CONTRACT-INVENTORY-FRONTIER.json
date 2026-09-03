@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "contractVersion":"branch-inventory-frontier.v1",
+  "scope":["tenantId","branchId","snapshotId","frontierVersion","localCommitmentFrontier"],
+  "canonicalItemOrder":"catalogItemId ascending; non-canonical order rejected",
+  "exactItemSet":true,
+  "duplicates":"REJECT",
+  "missingOrExtraItems":"REJECT",
+  "requestedQuantity":"positive integer and exact equality with canonical order line quantity",
+  "commitments":["pendingLocalCommitments","syncingLocalCommitments"],
+  "formula":"localAvailable=max(0,lastConfirmedBranchStock-pendingLocalCommitments-syncingLocalCommitments)",
+  "negativeLocalInventory":false,
+  "restart":"durable pending and syncing states reconstruct the same frontier projection",
+  "lastSyncAge":"INFORMATIONAL_ONLY_NEVER_BLOCKS_OPERATION",
+  "mutationAuthorized":false
+}

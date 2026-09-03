@@ -1,0 +1,15 @@
+-- REVIEW ONLY — NOT AUTHORIZED FOR EXECUTION
+-- classification: BLOCKED_WITH_EXACT_FINITE_LIST
+-- active mutating SQL statements: 0
+--
+-- The approved boundary requires one versioned Core transaction: receipt-first idempotency,
+-- original command/business link, order/invoice/payment record, authoritative original
+-- lines, deterministic item locks, exactly-once sale_void/restoration, new cancellation or
+-- refund receipt and atomic effect intents. It must never trust request quantities or call
+-- a provider from Offline code.
+--
+-- No approved exact legal order-state/payment-state matrix or database writer signature is
+-- present. The corrected bridge intentionally returns CANCELLATION_ATOMIC_AUTHORITY_UNAVAILABLE
+-- and REFUND_ATOMIC_AUTHORITY_UNAVAILABLE. MS-007, MS-008, MS-012 and MS-013 must be frozen;
+-- using restore_inventory_for_cancelled_invoice would reintroduce the rejected legacy path.
+

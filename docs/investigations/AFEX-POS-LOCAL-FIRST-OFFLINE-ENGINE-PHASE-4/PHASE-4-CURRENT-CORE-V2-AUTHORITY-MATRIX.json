@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "phase": "4",
+  "productionContact": false,
+  "authorities": [
+    {
+      "authority": "authenticated_primary_account",
+      "sourceArtifacts": ["lib/authorization-context.ts", "app/api/orders/route.ts"],
+      "status": ["source_artifact_exists", "runtime_integrated", "production_presence_unverified"],
+      "finding": "Online API authorization resolves the primary account plus tenant/branch and validates a POS actor session."
+    },
+    {
+      "authority": "pos_employee_actor_session",
+      "sourceArtifacts": ["lib/authorization-context.ts", "supabase/migrations/20260814233000_pos_actor_sessions.sql"],
+      "status": ["source_artifact_exists", "sql_artifact_exists", "runtime_integrated", "production_presence_unverified"],
+      "finding": "Online POS actor session is fail-closed, branch/tenant bound, and revocable; it is not an offline device or offline lease authority."
+    },
+    {
+      "authority": "core_v2_authorization_context",
+      "sourceArtifacts": ["lib/core-v2/contracts/authorization.ts", "database-reconciliation/core-v2/P2D.15-FRESH.sql"],
+      "status": ["designed_only", "source_artifact_exists", "sql_artifact_exists", "production_presence_unverified"],
+      "finding": "The frozen SQL context has a 120-second TTL and primary actor fields. The TypeScript contract recognizes employee source, but the active order route passes the primary account user ID as Core actor instead of the validated POS employee."
+    },
+    {
+      "authority": "core_v2_command_ledger",
+      "sourceArtifacts": ["lib/core-v2/contracts/commands.ts", "database-reconciliation/core-v2/P2D.15-FRESH.sql", "database-reconciliation/core-v2/P2D.19-FRESH.sql"],
+      "status": ["source_artifact_exists", "sql_artifact_exists", "production_presence_unverified"],
+      "finding": "Unique tenant/branch/type/idempotency identity and immutable payload storage are designed. Live migration dependency installation is not proven in this phase."
+    },
+    {
+      "authority": "trusted_command_acquisition",
+      "sourceArtifacts": ["database-reconciliation/core-v2/P2D.20-FRESH.sql", "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "status": ["sql_artifact_exists", "runtime_integrated", "production_presence_unverified"],
+      "finding": "Acquisition is server-side and rejects fingerprint mismatch, but the current actor binding is primary-account based and does not validate offline device/lease authority."
+    },
+    {
+      "authority": "order_create_execution",
+      "sourceArtifacts": ["lib/server/core-v2/atomic-order.ts", "app/api/orders/route.ts", "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "status": ["source_artifact_exists", "runtime_integrated", "tested", "production_presence_unverified"],
+      "finding": "Feature-flagged server execution can create order, invoice, lines, inventory mutations, and a response snapshot. It currently supports only cash, mada, visa, and cod."
+    },
+    {
+      "authority": "official_numbering",
+      "sourceArtifacts": ["supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "status": ["sql_artifact_exists", "runtime_integrated", "production_presence_unverified"],
+      "finding": "Branch/month server sequences and database triggers are the authority; official order and invoice numbers cannot be finalized offline."
+    },
+    {
+      "authority": "inventory_mutation",
+      "sourceArtifacts": ["supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "status": ["sql_artifact_exists", "runtime_integrated", "production_presence_unverified"],
+      "finding": "Atomic decrement exists, but no versioned branch-stock snapshot/token and no receipt frontier for offline reconciliation were found."
+    },
+    {
+      "authority": "customer_resolution",
+      "sourceArtifacts": ["lib/server/core-v2/atomic-order.ts", "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "status": ["source_artifact_exists", "runtime_integrated", "production_presence_unverified"],
+      "finding": "Current Core path can resolve or create a tenant customer. Offline customer update authority and version-conflict semantics are not established."
+    },
+    {
+      "authority": "audit_and_employee_attribution",
+      "sourceArtifacts": ["app/api/orders/route.ts", "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql"],
+      "status": ["source_artifact_exists", "runtime_integrated", "production_presence_unverified"],
+      "finding": "Core audit and post-success route writes exist, but validated employee attribution is not wholly within the atomic idempotent execution boundary."
+    },
+    {
+      "authority": "external_effect_ledger",
+      "sourceArtifacts": ["database-reconciliation/core-v2/i5.9"],
+      "status": ["designed_only", "production_presence_unverified"],
+      "finding": "A historical atomic_outbox design exists, but it was not proven integrated into the current Core order execution. WhatsApp scheduling remains outside the atomic Core result boundary."
+    },
+    {
+      "authority": "function_ownership_execute_grants_and_rls",
+      "sourceArtifacts": ["supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql", "database-reconciliation/core-v2/P2D.15-FRESH.sql", "database-reconciliation/core-v2/P2D.19-FRESH.sql", "database-reconciliation/core-v2/P2D.20-FRESH.sql"],
+      "status": ["sql_artifact_exists", "production_presence_unverified"],
+      "finding": "Repository SQL contains owner, grant, revocation, and RLS intent, but Phase 4 did not attest effective Production owners, raw/effective ACLs, policy identities, fixed search paths, or EXECUTE reachability."
+    },
+    {
+      "authority": "offline_device_and_lease",
+      "sourceArtifacts": [],
+      "status": ["missing", "production_presence_unverified"],
+      "finding": "No trusted device registration, one-active-device-per-branch constraint, device-bound envelope, read lease, or command lease authority was found."
+    }
+  ],
+  "criticalGaps": [
+    "Core actor is not end-to-end bound to the validated POS employee.",
+    "No offline device registration or offline lease authority exists.",
+    "No versioned branch inventory snapshot/reconciliation frontier exists.",
+    "External effects and post-success employee writes are outside the idempotent Core transaction.",
+    "Four required payment representations are absent from the Core execution contract.",
+    "Production object presence, owners, grants, RLS, and function identities were not attested in this phase."
+  ]
+}

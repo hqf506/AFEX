@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "status": "PROPOSED_PENDING_HUMAN_APPROVAL",
+  "principals": [
+    {
+      "id": "primary_subject",
+      "description": "Verified Supabase organization subject/session",
+      "mayAuthorize": ["sealed bootstrap request", "online tenant/branch context"],
+      "mustNotAuthorizeAlone": ["decrypt POS cache", "create offline business command", "purge another namespace"]
+    },
+    {
+      "id": "effective_pos_actor",
+      "description": "Server-validated POS employee actor/PIN session",
+      "mayAuthorize": ["POS cache unlock for exact scope", "allowed POS command creation"],
+      "mustNotAuthorizeAlone": ["cross-tenant access", "service-role operation", "administrative command"]
+    },
+    {
+      "id": "offline_actor_lease",
+      "description": "Future server-issued signed device-bound command-scoped lease",
+      "mayAuthorize": ["approved offline reads", "approved offline order.create enqueue within limits"],
+      "mustNotAuthorizeAlone": ["server business success", "official numbering", "provider calls", "unlimited disconnected refresh"]
+    },
+    {
+      "id": "device_cache_namespace",
+      "description": "Opaque device registration/cache identity",
+      "mayAuthorize": ["local namespace selection when combined with authenticated scope"],
+      "mustNotAuthorizeAlone": ["identity", "tenant/branch selection", "business command"]
+    },
+    {
+      "id": "page_or_worker",
+      "description": "Untrusted client runtime for server authorization purposes",
+      "mayAuthorize": ["local transaction after unlock", "sync request using approved envelope"],
+      "mustNotAuthorizeAlone": ["employee identity", "tenant", "branch", "price", "inventory", "official result"]
+    },
+    {
+      "id": "server_api",
+      "description": "Verified auth/context gateway",
+      "mayAuthorize": ["scope validation", "lease validation", "command acquisition", "safe response"],
+      "mustNotAuthorizeAlone": ["bypass RLS/least privilege without explicit trusted path"]
+    },
+    {
+      "id": "core_v2",
+      "description": "Atomic command acquisition, execution, replay and reconciliation authority",
+      "mayAuthorize": ["order.create business effect", "terminal receipt", "reconciliation/manual hold"],
+      "mustNotAuthorizeAlone": ["commands not defined by a reviewed typed contract"]
+    },
+    {
+      "id": "database_authority",
+      "description": "RLS/least-privilege functions and authoritative data",
+      "mayAuthorize": ["official numbering", "atomic price/VAT/discount/inventory validation", "business links"],
+      "mustNotAuthorizeAlone": ["external provider delivery"]
+    },
+    {
+      "id": "external_effect_worker",
+      "description": "Future server-owned idempotent outbox worker",
+      "mayAuthorize": ["claimed audit/cost/notification effect"],
+      "mustNotAuthorizeAlone": ["change command payload", "invent business success", "cross-scope provider request"]
+    },
+    {
+      "id": "human_reviewer",
+      "description": "Approved product/security/finance/support authority",
+      "mayAuthorize": ["policy decisions", "conflict replacement", "manual-hold resolution through approved server path"],
+      "mustNotAuthorizeAlone": ["direct database mutation outside approved authority"]
+    }
+  ],
+  "actions": [
+    {
+      "action": "refresh_encrypted_dataset_before_pin",
+      "required": ["primary_subject", "server_api", "device_cache_namespace"],
+      "result": "ciphertext only",
+      "status": "REQUIRES_FUTURE_SEALED_BOOTSTRAP_API"
+    },
+    {
+      "action": "decrypt_cached_pos_data",
+      "required": ["primary_subject", "effective_pos_actor", "matching_device_cache_namespace"],
+      "result": "in-memory plaintext for exact namespace",
+      "status": "PROPOSED"
+    },
+    {
+      "action": "read_after_command_lease_expiry",
+      "required": ["unexpired_read_lease", "matching namespace"],
+      "result": "read-only cached data with stale/as-of label",
+      "status": "PROPOSED"
+    },
+    {
+      "action": "enqueue_offline_order_create",
+      "required": ["primary_subject lineage", "effective_pos_actor", "unexpired offline_actor_lease", "approved limits"],
+      "result": "pending local command only",
+      "status": "BLOCKED_UNTIL_PHASE_4_GATES"
+    },
+    {
+      "action": "dispatch_offline_command",
+      "required": ["server_api", "core_v2", "validated lease and scope", "stable command identity"],
+      "result": "server acquired/replayed command",
+      "status": "BLOCKED_UNTIL_PHASE_4_GATES"
+    },
+    {
+      "action": "declare_order_invoice_success",
+      "required": ["database_authority", "core_v2 terminal receipt"],
+      "result": "official business links and numbers",
+      "status": "SERVER_ONLY"
+    },
+    {
+      "action": "send_whatsapp_or_provider_effect",
+      "required": ["confirmed business event", "external_effect_worker", "unique effect identity"],
+      "result": "provider receipt/reconciliation",
+      "status": "SERVER_ONLY"
+    },
+    {
+      "action": "purge_namespace",
+      "required": ["successful authoritative logout", "explicit checked choice", "second confirmation if unresolved commands", "exact namespace"],
+      "result": "scoped zero residue",
+      "status": "PHASE_1_REQUIRED_BEFORE_PII_CACHE"
+    }
+  ],
+  "invariants": [
+    "Browser-supplied employee, tenant or branch identifiers are never authority.",
+    "Service-role and provider credentials never enter client storage.",
+    "RLS and least privilege remain server/database backstops.",
+    "Primary Auth alone never decrypts POS data.",
+    "Offline authority permits command creation only; server receipt establishes business success."
+  ]
+}
+

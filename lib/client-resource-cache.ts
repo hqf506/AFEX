@@ -22,6 +22,7 @@ const PROTECTED_RESOURCE_CACHE_PREFIXES = [
   'pos-runtime:',
   'pos-home-orders:',
   'invoice-catalog:',
+  'customer-profile:',
 ] as const
 
 const clientResourceCache = new Map<string, CacheEntry<unknown>>()
@@ -127,7 +128,7 @@ export async function loadClientResource<T>(
     return currentEntry.data
   }
 
-  if (currentEntry?.promise) {
+  if (!force && currentEntry?.promise) {
     return currentEntry.promise
   }
 
@@ -145,7 +146,11 @@ export async function loadClientResource<T>(
     .catch((error) => {
       const latestEntry = getCacheEntry<T>(key)
 
-      if (latestEntry) {
+      if (latestEntry?.promise !== nextPromise) {
+        throw error
+      }
+
+      if (latestEntry.data != null) {
         clientResourceCache.set(key, {
           data: latestEntry.data,
           updatedAt: latestEntry.updatedAt,

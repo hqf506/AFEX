@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 9,
+  "installer": {"currentUser":"postgres","sessionUser":"postgres","boundedSetLocalRole":true,"setAtRest":false,"inheritAtRest":false,"adminPreserved":true},
+  "routineCount": 34,
+  "provisioningRuntime": {"role":"afex_offline_provisioning_runtime","login":false,"inherit":false,"membershipGranted":false,"directTablePrivileges":false},
+  "acquisitionRuntime": {"role":"afex_offline_acquisition_runtime","login":false,"inherit":false,"membershipGranted":false,"directTablePrivileges":false},
+  "provisioningContracts": [
+    {"area":"device","signature":"afex_offline_authority.register_offline_device_v1(uuid,uuid,uuid,uuid,uuid,text,jsonb,jsonb,text)"},
+    {"area":"device","signature":"afex_offline_authority.activate_offline_device_v1(uuid,uuid,uuid,uuid,uuid,bigint,text)"},
+    {"area":"device","signature":"afex_offline_authority.replace_offline_device_v1(uuid,uuid,uuid,uuid,uuid,uuid,bigint,text)"},
+    {"area":"device","signature":"afex_offline_authority.transition_offline_device_v1(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text)"},
+    {"area":"device","signature":"afex_offline_authority.read_current_offline_device_authority_v1(uuid,uuid,uuid,uuid)"},
+    {"area":"employee_selector","signature":"afex_offline_authority.enroll_offline_employee_v1(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bigint,bytea,bytea,text,text)"},
+    {"area":"employee_selector","signature":"afex_offline_authority.replace_offline_employee_pin_verifier_v1(uuid,uuid,uuid,uuid,uuid,uuid,bigint,bytea,bytea,text,text)"},
+    {"area":"employee_selector","signature":"afex_offline_authority.replace_offline_employee_permissions_v1(uuid,uuid,uuid,uuid,uuid,uuid,bigint,text[],text,text)"},
+    {"area":"employee_selector","signature":"afex_offline_authority.transition_offline_employee_v1(uuid,uuid,uuid,uuid,uuid,uuid,bigint,text,text,text)"},
+    {"area":"employee_selector","signature":"afex_offline_authority.read_current_offline_employee_authority_v1(uuid,uuid,uuid,uuid,uuid)"},
+    {"area":"inventory","signature":"afex_offline_authority.publish_branch_inventory_snapshot_v1(uuid,uuid,uuid,uuid,text,timestamptz,jsonb)"},
+    {"area":"account_bootstrap","signature":"afex_offline_authority.publish_offline_account_bootstrap_v1(uuid,uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bigint,uuid,text,text)"},
+    {"area":"account_bootstrap","signature":"afex_offline_authority.explicit_logout_offline_account_v1(uuid,uuid,uuid,uuid,uuid,uuid,text)"},
+    {"area":"account_bootstrap","signature":"afex_offline_authority.revoke_offline_account_bootstrap_v1(uuid,uuid,uuid,uuid,uuid,text,text)"},
+    {"area":"account_bootstrap","signature":"afex_offline_authority.read_current_offline_bootstrap_authority_v1(uuid,uuid,uuid,uuid)"}
+  ],
+  "publicRuntimeContracts": [
+    {"id":"DBSIG-ORDER-ACQUIRE-001","signature":"afex_offline_authority.acquire_offline_order_create_v2(uuid,uuid,uuid,text,text,integer,uuid,text,uuid,uuid,uuid,uuid,uuid,bigint,bigint,bigint,uuid,bigint,text,uuid,text,text,jsonb,jsonb,jsonb,text,jsonb,text,text,text,timestamptz,timestamptz,text)","owner":"afex_function_owner","execute":"afex_offline_acquisition_runtime"},
+    {"id":"DBSIG-RESOLVE-001","signature":"afex_offline_authority.resolve_offline_order_create_authority_batch_v2(uuid,uuid,uuid,jsonb)","owner":"afex_function_owner","execute":"afex_offline_acquisition_runtime"},
+    {"id":"DBSIG-RECEIPT-001","signature":"afex_offline_authority.lookup_offline_order_create_receipts_v2(uuid,uuid,uuid,jsonb)","owner":"afex_function_owner","execute":"afex_offline_acquisition_runtime"},
+    {"id":"DBSIG-INVENTORY-001","signature":"afex_offline_authority.read_branch_inventory_frontier_v2(uuid,uuid,uuid,jsonb,uuid[])","owner":"afex_function_owner","execute":"afex_offline_acquisition_runtime"}
+  ],
+  "privateAuthorityRoutines": [
+    "afex_offline_authority.resolve_one_offline_order_create_claim_v2(uuid,uuid,uuid,jsonb,integer,boolean)",
+    "afex_offline_authority.validate_offline_provenance_v2(uuid,uuid,uuid,jsonb,text)",
+    "afex_offline_authority.validate_payment_attestation_v2(jsonb,text,uuid,text,uuid,text,uuid,uuid,uuid,uuid,uuid,bigint,bigint,bigint)",
+    "afex_offline_authority.validate_inventory_frontier_v2(uuid,uuid,jsonb,jsonb)",
+    "afex_offline_authority.assert_offline_core_order_mapping_v2(jsonb,jsonb,jsonb,uuid,uuid,uuid,text,text,uuid,text)",
+    "afex_offline_authority.canonical_jsonb_v2(jsonb)",
+    "afex_offline_authority.jsonb_has_exact_keys_v1(jsonb,text[])",
+    "afex_offline_authority.try_uuid_v1(text)",
+    "afex_offline_authority.try_bigint_v1(text)",
+    "afex_offline_authority.try_integer_v1(text)",
+    "afex_offline_authority.try_numeric_v1(text)"
+  ],
+  "supportRoutines": [
+    {"signature":"afex_offline_authority.afex_current_auth_session_matches_v1(uuid,uuid)","owner":"postgres","execute":["afex_function_owner","afex_offline_authority_owner"],"bodyMd5":"cc67bd0f9c1828a833b868c48f1f65fb","bodyBytes":153},
+    {"signature":"afex_offline_authority.reject_immutable_offline_evidence_v1()","execute":"trigger-only"},
+    {"signature":"afex_offline_authority.reject_offline_command_binding_mutation_v1()","execute":"trigger-only"},
+    {"signature":"afex_offline_authority.enforce_enrollment_capacity_v1()","execute":"trigger-only"}
+  ],
+  "foundationForbiddenExecuteRoles": ["PUBLIC","anon","authenticated","service_role"],
+  "searchPath": "pg_catalog",
+  "finalManualActivation": {
+    "file":"90-FINAL-MANUAL-PILOT-ACTIVATION.sql",
+    "deactivationFile":"90Z-FINAL-EMERGENCY-PILOT-DEACTIVATION.sql",
+    "status":"ACTIVATION_EXECUTED_AND_ATTESTED_BY_HUMAN_FLAGS_FALSE",
+    "ownedRoutineCount":13,
+    "privateContextHelper":"public.afex_offline_server_context_matches_v1(uuid,uuid,uuid,uuid,uuid,uuid)",
+    "serviceRoleFacades": [
+      "public.afex_offline_server_register_device_v1(uuid,uuid,uuid,uuid,uuid,uuid,uuid,text,jsonb,jsonb,text)",
+      "public.afex_offline_server_activate_device_v1(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,text)",
+      "public.afex_offline_server_enroll_employee_v1(uuid,uuid,uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bigint,bytea,bytea,text,text)",
+      "public.afex_offline_server_replace_employee_pin_v1(uuid,uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bytea,bytea,text,text)",
+      "public.afex_offline_server_publish_inventory_v1(uuid,uuid,uuid,uuid,uuid,uuid,text,timestamptz,jsonb)",
+      "public.afex_offline_server_read_inventory_v1(uuid,uuid,uuid,jsonb,uuid[])",
+      "public.afex_offline_server_bootstrap_v1(uuid,uuid,uuid,uuid,uuid,uuid,uuid,uuid,bigint,bigint,uuid,text,text)",
+      "public.afex_offline_server_resolve_order_create_batch_v1(uuid,uuid,uuid,jsonb)",
+      "public.afex_offline_server_acquire_order_create_v1(uuid,uuid,uuid,text,text,integer,uuid,text,uuid,uuid,uuid,uuid,uuid,bigint,bigint,bigint,uuid,bigint,text,uuid,text,text,jsonb,jsonb,jsonb,text,jsonb,text,text,text,timestamptz,timestamptz,text)",
+      "public.afex_offline_server_lookup_receipts_v1(uuid,uuid,uuid,jsonb)",
+      "public.afex_offline_server_logout_v1(uuid,uuid,uuid,uuid,uuid,uuid,uuid,text)",
+      "public.afex_offline_server_recovery_state_v1(uuid,uuid,uuid,uuid,uuid,uuid)"
+    ]
+  },
+  "foundationStatus":"FOUNDATION_EXECUTED_AND_ATTESTED_BY_HUMAN",
+  "runtimeActivationAuthorized": false,
+  "activationCatalogInstalledByHuman": true
+}

@@ -1,0 +1,279 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceQuery": "P10-Q002",
+  "evidenceStatus": "PRODUCTION_CATALOG_PROOF",
+  "rawBusinessRowsReturned": 0,
+  "roles": [
+    {
+      "id": "ROLE-001",
+      "name": "postgres",
+      "superuser": false,
+      "inherit": true,
+      "createRole": true,
+      "createDb": true,
+      "login": true,
+      "replication": true,
+      "bypassRls": true
+    },
+    {
+      "id": "ROLE-002",
+      "name": "supabase_admin",
+      "superuser": true,
+      "inherit": true,
+      "createRole": true,
+      "createDb": true,
+      "login": true,
+      "replication": true,
+      "bypassRls": true
+    },
+    {
+      "id": "ROLE-003",
+      "name": "anon",
+      "superuser": false,
+      "inherit": true,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-004",
+      "name": "authenticated",
+      "superuser": false,
+      "inherit": true,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-005",
+      "name": "service_role",
+      "superuser": false,
+      "inherit": true,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": true
+    },
+    {
+      "id": "ROLE-006",
+      "name": "authenticator",
+      "superuser": false,
+      "inherit": false,
+      "createRole": false,
+      "createDb": false,
+      "login": true,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-007",
+      "name": "afex_context_issuer",
+      "superuser": false,
+      "inherit": false,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-008",
+      "name": "afex_core_owner",
+      "superuser": false,
+      "inherit": false,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-009",
+      "name": "afex_core_runtime",
+      "superuser": false,
+      "inherit": false,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-010",
+      "name": "afex_function_owner",
+      "superuser": false,
+      "inherit": false,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-011",
+      "name": "afex_outbox_worker",
+      "superuser": false,
+      "inherit": false,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-012",
+      "name": "afex_pos_session_owner",
+      "superuser": false,
+      "inherit": false,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-013",
+      "name": "afex_pos_session_maintenance",
+      "superuser": false,
+      "inherit": false,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    },
+    {
+      "id": "ROLE-014",
+      "name": "afex_reconciliation_authority",
+      "superuser": false,
+      "inherit": true,
+      "createRole": false,
+      "createDb": false,
+      "login": false,
+      "replication": false,
+      "bypassRls": false
+    }
+  ],
+  "memberships": [
+    {
+      "id": "MEM-001",
+      "member": "authenticator",
+      "role": "anon",
+      "grantor": "supabase_admin",
+      "admin": false,
+      "inherit": false,
+      "set": true
+    },
+    {
+      "id": "MEM-002",
+      "member": "authenticator",
+      "role": "authenticated",
+      "grantor": "supabase_admin",
+      "admin": false,
+      "inherit": false,
+      "set": true
+    },
+    {
+      "id": "MEM-003",
+      "member": "authenticator",
+      "role": "service_role",
+      "grantor": "supabase_admin",
+      "admin": false,
+      "inherit": false,
+      "set": true
+    },
+    {
+      "id": "MEM-004",
+      "member": "postgres",
+      "role": "afex_context_issuer",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    },
+    {
+      "id": "MEM-005",
+      "member": "postgres",
+      "role": "afex_core_owner",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    },
+    {
+      "id": "MEM-006",
+      "member": "postgres",
+      "role": "afex_core_runtime",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    },
+    {
+      "id": "MEM-007",
+      "member": "postgres",
+      "role": "afex_function_owner",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    },
+    {
+      "id": "MEM-008",
+      "member": "postgres",
+      "role": "afex_outbox_worker",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    },
+    {
+      "id": "MEM-009",
+      "member": "postgres",
+      "role": "afex_pos_session_owner",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    },
+    {
+      "id": "MEM-010",
+      "member": "postgres",
+      "role": "afex_pos_session_maintenance",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    },
+    {
+      "id": "MEM-011",
+      "member": "postgres",
+      "role": "afex_reconciliation_authority",
+      "grantor": "supabase_admin",
+      "admin": true,
+      "inherit": false,
+      "set": false
+    }
+  ],
+  "conclusions": [
+    {
+      "id": "ROLE-CONC-001",
+      "proof": "The query principal postgres is not superuser but has CREATEROLE, CREATEDB, REPLICATION, BYPASSRLS and inherited broad memberships.",
+      "classification": "PRODUCTION_CATALOG_PROOF"
+    },
+    {
+      "id": "ROLE-CONC-002",
+      "proof": "service_role has BYPASSRLS and therefore is not authorization evidence by itself.",
+      "classification": "PRODUCTION_CATALOG_PROOF"
+    }
+  ],
+  "blockers": [
+    "External CI/CD, maintenance, and platform workflow principals cannot be proven unused from database membership alone."
+  ]
+}
+

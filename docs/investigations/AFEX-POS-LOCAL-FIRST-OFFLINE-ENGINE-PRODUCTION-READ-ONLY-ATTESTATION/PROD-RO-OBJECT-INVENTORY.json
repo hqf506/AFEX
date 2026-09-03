@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "capturedAtDate": "2026-08-25",
+  "productionProject": {
+    "safeReference": "fsxmnwucgotwhtlxuknt",
+    "region": "ap-south-1",
+    "postgresVersion": "17.6",
+    "status": "ACTIVE_HEALTHY"
+  },
+  "relations": {
+    "identityAndAuthority": [
+      "auth.users",
+      "auth.sessions",
+      "public.profiles",
+      "public.pos_profiles",
+      "public.tenants",
+      "public.branches",
+      "afex_pos_authority.actor_sessions",
+      "afex_pos_authority.auth_session_locks"
+    ],
+    "business": [
+      "public.customers",
+      "public.catalog_items",
+      "public.branch_catalog_items",
+      "public.orders",
+      "public.invoices",
+      "public.invoice_items",
+      "public.order_status_logs",
+      "public.order_number_sequences",
+      "public.vat_settings",
+      "public.audit_logs",
+      "public.branch_whatsapp_configs"
+    ],
+    "inventory": [
+      "public.inventory_stock",
+      "public.inventory_movements"
+    ],
+    "coreV2": [
+      "public.atomic_authorization_contexts",
+      "public.atomic_order_commands",
+      "public.atomic_order_command_payloads",
+      "public.atomic_order_claims",
+      "public.atomic_order_retry_authorizations",
+      "public.atomic_order_business_links",
+      "public.atomic_order_line_links",
+      "public.atomic_order_audit",
+      "public.atomic_order_diagnostics"
+    ],
+    "missingRequiredConcepts": [
+      "registered offline device authority",
+      "offline employee credential generation",
+      "server review container",
+      "durable external-effect ledger",
+      "provider-independent payment attestation record"
+    ]
+  },
+  "targetedFunctionCount": 44,
+  "functions": [
+    {"name":"public.acquire_atomic_order_command_result_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"eac41a8e26ae11c57f3a9771ee36cd12"},
+    {"name":"public.acquire_atomic_order_command_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"afex_core_runtime","md5":"4b6889b340a663a36bd79418d8234539"},
+    {"name":"public.claim_atomic_order_command_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"93d52df465ac66c81f2bacf02de69f00"},
+    {"name":"public.execute_atomic_order_command_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"65a8aac3e93d42f2c364e7f28f2f204e"},
+    {"name":"public.replay_atomic_order_command_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"0e50333d30f089d1515111262662de94"},
+    {"name":"public.inspect_atomic_order_reconciliation_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"f9636c62781dc5cb2487d9447c66ac7d"},
+    {"name":"public.place_atomic_order_manual_hold_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"afex_reconciliation_authority","md5":"a673b22b36eb2c88b67a44b2c7297138"},
+    {"name":"public.authorize_atomic_order_retry_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"afex_reconciliation_authority","md5":"517397cc440bfb4e4c897cffd69308e6"},
+    {"name":"public.resolve_atomic_order_reconciliation_hold_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"afex_reconciliation_authority","md5":"a50335b2179a18ea7c78fd5bc06fab13"},
+    {"name":"public.mark_atomic_order_reconciliation_required_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"afex_reconciliation_authority","md5":"7789bee22be40ac332b7fa0d58e064d7"},
+    {"name":"public.issue_pos_actor_session_v1","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"cdb42250fa86b95eeca2a5ad93f61b21"},
+    {"name":"public.validate_pos_actor_session_v1","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"c8dfaa0ab5908d3db2e1bef5c21ead06"},
+    {"name":"public.revoke_pos_actor_session_v1","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"5eee43d08268025e902551e7ae0fdd78"},
+    {"name":"public.revoke_pos_actor_sessions_for_actor_v1","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"3c6bfdb387f50a8a4aa173c1ae60dcda"},
+    {"name":"public.pos_actor_session_state_v1","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"service_role","md5":"758e0ac046882fd70f478ae5e1e677e0"},
+    {"name":"public.cleanup_pos_actor_sessions_v1","owner":"afex_pos_session_owner","securityDefiner":true,"searchPath":"pg_catalog","execute":"afex_pos_session_maintenance","md5":"92793bb07e7933385f96c6c5ee175977"},
+    {"name":"public.verify_pos_pin_for_actor","owner":"postgres","securityDefiner":true,"searchPath":"pg_catalog","execute":"broad; advisor flagged anon/authenticated","md5":"8ea4f576c828d8eec29d0683538bb793"},
+    {"name":"public.lookup_customer_phone_identity_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog, public","execute":"authenticated and trusted server roles","md5":"01a8f15adebe41129c4d423a9da531c2"},
+    {"name":"public.create_customer_with_phone_identity_v1","owner":"afex_function_owner","securityDefiner":true,"searchPath":"pg_catalog, public","execute":"authenticated and trusted server roles","md5":"d1efb1a835c0fed820c355c5e4366359"},
+    {"name":"public.create_invoice_with_items_safe","owner":"postgres","securityDefiner":true,"searchPath":"public","execute":"broad; advisor flagged anon/authenticated","md5":"f62e3582f536265f1b686014f8ab5fdf"},
+    {"name":"public.adjust_inventory_stock","owner":"postgres","securityDefiner":true,"searchPath":"public","execute":"broad; advisor flagged anon/authenticated","md5":"1f84f704084935f26352488a7ffae105"},
+    {"name":"public.restore_inventory_for_cancelled_invoice","owner":"postgres","securityDefiner":true,"searchPath":"public","execute":"broad; advisor flagged anon/authenticated","result":"void","md5":"71ca89c7e85e976071f4ae8a3aae96c8"},
+    {"name":"public.next_branch_monthly_order_number","owner":"postgres","securityDefiner":true,"searchPath":"public","execute":"broad legacy ACL","md5":"89cddfc7d84aa928ef80b3cc2add6cef"}
+  ],
+  "additionalFunctionNames": [
+    "canonicalize_atomic_order_json_v1",
+    "normalize_saudi_customer_phone_v1",
+    "prepare_customer_phone_identity_v1",
+    "refresh_customer_phone_identity_v1",
+    "sync_customer_phone_identity_v1",
+    "create_invoice_with_items(json)",
+    "create_invoice_with_items(jsonb)",
+    "create_invoice_with_items(invoice_jsonb,items_jsonb)",
+    "deduct_inventory_on_invoice_item_insert",
+    "ensure_branch_order_number_prefix",
+    "ensure_inventory_stock_for_catalog_item",
+    "generate_invoice_number",
+    "generate_order_number",
+    "get_branch_inventory",
+    "hash_pos_pin",
+    "set_customers_branch_id",
+    "set_invoice_number_from_order",
+    "set_invoices_branch_id",
+    "set_order_number_branch_monthly",
+    "set_pos_pin",
+    "update_inventory_low_stock_threshold"
+  ],
+  "boundedOperationalEvidence": {
+    "atomicCommands": 12,
+    "atomicCommandsSucceeded": 12,
+    "stableReceiptSnapshots": 12,
+    "claims": 12,
+    "businessLinks": 12,
+    "lineLinks": 13,
+    "retryAuthorizations": 0,
+    "diagnostics": 0,
+    "employeeBoundAuthorizationContexts": 4,
+    "deviceBindingColumns": 0,
+    "effectLedgerColumns": 0,
+    "reviewContainerColumns": 0
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "principles": {
+    "tableAclAloneIsNotIsolation": true,
+    "permissivePoliciesCombineWithOr": true,
+    "serviceRoleBypassesRls": true
+  },
+  "protectedOwnerDomains": [
+    {"scope":"afex_pos_authority.*","owner":"afex_pos_session_owner","rls":true,"forceRls":true,"directRuntimeAccess":"owner functions only"},
+    {"scope":"public.atomic_*","owner":"afex_core_owner","rls":true,"forceRls":true,"directRuntimeAccess":"afex_function_owner through narrowly owned functions"},
+    {"scope":"auth.users, auth.sessions","owner":"supabase_auth_admin","rls":true,"forceRls":false,"directRuntimeAccess":"platform and postgres"}
+  ],
+  "legacyPublicBusinessDomain": {
+    "owner": "postgres",
+    "tables": ["customers","orders","invoices","invoice_items","order_status_logs","inventory_stock","inventory_movements","order_number_sequences","profiles","pos_profiles"],
+    "rawAclFinding": "Historical defaults grant broad privileges to anon/authenticated/service_role on many public tables.",
+    "criticalPolicyPairs": [
+      {"table":"customers","broadPolicies":["authenticated can insert customers","authenticated can view customers","authenticated can update customers"],"scopedPolicies":["customers_insert_same_tenant","customers_select_same_tenant","customers_update_same_tenant"],"risk":"broad PUBLIC policy using auth.role() ORs with tenant policy"},
+      {"table":"orders","broadPolicies":["authenticated can insert orders","authenticated can view orders","authenticated can update orders"],"scopedPolicies":["orders_insert_same_tenant","orders_select_same_tenant","orders_update_same_tenant"],"risk":"broad PUBLIC policy using auth.role() ORs with tenant policy"},
+      {"table":"invoices","broadPolicies":["authenticated can insert invoices","authenticated can view invoices","authenticated can update invoices"],"scopedPolicies":["invoices_insert_same_tenant","invoices_select_same_tenant","invoices_update_same_tenant"],"risk":"broad PUBLIC policy using auth.role() ORs with tenant policy"},
+      {"table":"invoice_items","broadPolicies":["authenticated can insert invoice_items","authenticated can view invoice_items","authenticated can update invoice_items"],"scopedPolicies":["invoice_items_insert_same_tenant","invoice_items_select_same_tenant","invoice_items_update_same_tenant"],"risk":"broad PUBLIC policy using auth.role() ORs with tenant policy"},
+      {"table":"order_status_logs","broadPolicies":["authenticated can insert status logs","authenticated can view status logs"],"scopedPolicies":[],"risk":"authenticated role predicate has no tenant condition"}
+    ],
+    "conclusion": "CONTRADICTED_TENANT_ISOLATION_FOR_DIRECT_AUTHENTICATED_DATA_API"
+  },
+  "specialCases": [
+    {"object":"public.order_number_sequences","owner":"postgres","rls":true,"policyCount":0,"finding":"server SECURITY DEFINER path works, but broad raw ACL plus no policy is structurally inconsistent and advisor flagged"},
+    {"object":"public.profiles","owner":"postgres","rls":true,"finding":"self, same-tenant, admin, Core owner, and POS session owner policies coexist; duplicated permissive policies add complexity"},
+    {"object":"public.pos_profiles","owner":"postgres","rls":true,"finding":"tenant/branch read policy plus restricted POS session owner read/row-lock topology exists"},
+    {"object":"afex_pos_authority.actor_sessions","owner":"afex_pos_session_owner","rls":true,"forceRls":true,"finding":"owner-only policy; postgres read-only catalog visibility; service_role reaches via owned functions"}
+  ],
+  "functionExecuteRisk": {
+    "securityAdvisorTotal": 77,
+    "securityAdvisorWarnings": 71,
+    "securityAdvisorInfo": 6,
+    "mutableSearchPathFunctions": 16,
+    "anonExecutableSecurityDefinerFunctions": 25,
+    "authenticatedExecutableSecurityDefinerFunctions": 29,
+    "examplesRequiringImmediateReview": [
+      "adjust_inventory_stock",
+      "create_invoice_with_items",
+      "create_invoice_with_items_safe",
+      "restore_inventory_for_cancelled_invoice",
+      "set_pos_pin",
+      "hash_pos_pin",
+      "verify_pos_pin_for_actor"
+    ],
+    "qualification": "Advisor reachability proves execute ACL exposure, not successful exploitation; each body still requires separate hostile-path review. Offline rollout must not rely on this legacy surface."
+  }
+}

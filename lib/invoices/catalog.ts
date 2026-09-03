@@ -102,6 +102,29 @@ export type PosInvoiceCatalogPage = {
 const INVOICE_CATALOG_CACHE_TTL_MS = 60_000
 const INVOICE_CATALOG_PAGE_CACHE_TTL_MS = 10_000
 
+function isBrowserOffline() {
+  return typeof navigator !== 'undefined' && navigator.onLine === false
+}
+
+function isNetworkReadFailure(error: unknown) {
+  return (
+    isBrowserOffline() ||
+    error instanceof TypeError ||
+    (error instanceof Error && /fetch|network|load failed/i.test(error.message))
+  )
+}
+
+async function readOfflineCatalogPage(input: {
+  branchId: string
+  page: number
+  pageSize: number
+  search?: string
+  category?: string
+}) {
+  const offline = await import('@/lib/offline/complete-runtime')
+  return (await offline.readOfflineCatalogPage(input)) as PosInvoiceCatalogPage
+}
+
 function getInvoiceCatalogCacheKey(
   branchId: string | null,
   tenantId?: string | null
@@ -450,10 +473,25 @@ export async function loadBranchInvoiceCatalog(
     return []
   }
 
+  if (isBrowserOffline()) {
+    const page = await readOfflineCatalogPage({
+      branchId,
+      page: 1,
+      pageSize: 200,
+    })
+    return page.products
+  }
+
   if (options.force === true) {
     const cacheKey = getInvoiceCatalogCacheKey(branchId, options.tenantId)
     if (cacheKey) clearClientResource(cacheKey)
-    return fetchBranchInvoiceCatalog(branchId, { cacheBust: true })
+    try {
+      return await fetchBranchInvoiceCatalog(branchId, { cacheBust: true })
+    } catch (error) {
+      if (!isNetworkReadFailure(error)) throw error
+      const page = await readOfflineCatalogPage({ branchId, page: 1, pageSize: 200 })
+      return page.products
+    }
   }
 
   const cacheKey = getInvoiceCatalogCacheKey(branchId, options.tenantId)
@@ -461,15 +499,21 @@ export async function loadBranchInvoiceCatalog(
     return fetchBranchInvoiceCatalog(branchId)
   }
 
-  return loadClientResource(
-    cacheKey,
-    () => fetchBranchInvoiceCatalog(branchId),
-    {
-      ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
-      logLabel: `fetch catalog (${branchId})`,
-      protectedResource: true,
-    }
-  )
+  try {
+    return await loadClientResource(
+      cacheKey,
+      () => fetchBranchInvoiceCatalog(branchId),
+      {
+        ttlMs: INVOICE_CATALOG_CACHE_TTL_MS,
+        logLabel: `fetch catalog (${branchId})`,
+        protectedResource: true,
+      }
+    )
+  } catch (error) {
+    if (!isNetworkReadFailure(error)) throw error
+    const page = await readOfflineCatalogPage({ branchId, page: 1, pageSize: 200 })
+    return page.products
+  }
 }
 
 export async function loadBranchInvoiceCatalogPage(
@@ -493,6 +537,16 @@ export async function loadBranchInvoiceCatalogPage(
     } satisfies PosInvoiceCatalogPage
   }
 
+  if (isBrowserOffline()) {
+    return readOfflineCatalogPage({
+      branchId,
+      page: options.page,
+      pageSize: options.pageSize,
+      search: options.search,
+      category: options.category,
+    })
+  }
+
   const cacheKey = getInvoiceCatalogPageCacheKey({
     branchId,
     tenantId: options.tenantId,
@@ -508,21 +562,31 @@ export async function loadBranchInvoiceCatalogPage(
 
   if (options.force === true) {
     clearClientResource(cacheKey)
-    return fetchBranchInvoiceCatalogPage(branchId, {
-      ...options,
-      cacheBust: true,
-    })
+    try {
+      return await fetchBranchInvoiceCatalogPage(branchId, {
+        ...options,
+        cacheBust: true,
+      })
+    } catch (error) {
+      if (!isNetworkReadFailure(error)) throw error
+      return readOfflineCatalogPage({ branchId, ...options })
+    }
   }
 
-  return loadClientResource(
-    cacheKey,
-    () => fetchBranchInvoiceCatalogPage(branchId, options),
-    {
-      ttlMs: INVOICE_CATALOG_PAGE_CACHE_TTL_MS,
-      logLabel: `fetch catalog page (${branchId})`,
-      protectedResource: true,
-    }
-  )
+  try {
+    return await loadClientResource(
+      cacheKey,
+      () => fetchBranchInvoiceCatalogPage(branchId, options),
+      {
+        ttlMs: INVOICE_CATALOG_PAGE_CACHE_TTL_MS,
+        logLabel: `fetch catalog page (${branchId})`,
+        protectedResource: true,
+      }
+    )
+  } catch (error) {
+    if (!isNetworkReadFailure(error)) throw error
+    return readOfflineCatalogPage({ branchId, ...options })
+  }
 }
 
 export function peekBranchInvoiceCatalog(

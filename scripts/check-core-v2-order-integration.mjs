@@ -49,7 +49,13 @@ const checks = [
   ['tenant phone identity', customerRoute.includes(".eq('normalized_phone', normalizedPhone)")],
   ['atomic customer creation', customerRoute.includes(".rpc('create_customer_with_phone_identity_v1'")],
   ['ambiguous phone not canonicalized', customers.includes('AMBIGUOUS') || customerRoute.includes('duplicatePhoneCandidates')],
-  ['customer failure message', modal.includes('تعذر حفظ بيانات العميل. لم يتم إنشاء الطلب بعد.')],
+  [
+    'classified customer failure message',
+    customers.includes('CUSTOMER_CREATE_FAILURE_MESSAGES') &&
+      customers.includes('resolveCustomerCreateFailure') &&
+      modal.includes('resolveCustomerCreateFailure') &&
+      modal.includes('setError(failure.message)'),
+  ],
   ['no direct secret response', !adapter.includes('SUPABASE_SERVICE_ROLE_KEY')],
   ['feature off legacy branch', route.includes('} else {') && route.includes('serviceSupabase.rpc(rpcName, rpcPayload)')],
 ]

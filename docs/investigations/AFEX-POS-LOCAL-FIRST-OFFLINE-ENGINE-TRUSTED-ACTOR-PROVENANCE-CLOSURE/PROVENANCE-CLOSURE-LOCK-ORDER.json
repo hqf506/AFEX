@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "deterministicOrder": [
+    {"position":1,"resource":"current Auth-session reference","mode":"platform helper existence check","mutable":false},
+    {"position":2,"resource":"current POS actor session","mode":"FOR KEY SHARE","key":"session_id"},
+    {"position":3,"resource":"managed Offline device","mode":"FOR KEY SHARE","key":"device_id"},
+    {"position":4,"resource":"employee enrollment","mode":"FOR KEY SHARE","key":"device_id,actual_pos_employee_id,employee_enrollment_generation"},
+    {"position":5,"resource":"key envelope","mode":"FOR KEY SHARE","key":"key_envelope_id,key_envelope_version"},
+    {"position":6,"resource":"verified account bootstrap","mode":"FOR KEY SHARE","key":"bootstrap_id,bootstrap_generation,primary_authenticated_subject_id,tenant_id,branch_id,device_id"},
+    {"position":7,"resource":"inventory snapshot","mode":"read-only equality lookup","key":"tenant_id,branch_id,snapshot_id"},
+    {"position":8,"resource":"existing Core V2 acquisition locks","mode":"unchanged existing order","key":"authorization context then command"},
+    {"position":9,"resource":"offline_command_bindings","mode":"INSERT or FOR KEY SHARE","key":"server_command_id"}
+  ],
+  "globalHotCounter": false,
+  "batchResolverLocks": false,
+  "enrollmentWriterOrder": ["device FOR UPDATE","active enrollment count","enrollment mutation"],
+  "timeout": {"lock":"5s","statement":"120s"},
+  "cycles": 0
+}

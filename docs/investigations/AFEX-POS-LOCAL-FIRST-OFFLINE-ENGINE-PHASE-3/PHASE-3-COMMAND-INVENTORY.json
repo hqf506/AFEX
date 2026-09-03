@@ -1,0 +1,86 @@
+{
+  "phase3Allowlist": [
+    "order.create",
+    "order.status.change",
+    "customer.create",
+    "customer.update",
+    "payment.employee_attestation",
+    "audit.event.append"
+  ],
+  "dispatchEnabledTypes": [],
+  "currentApplicationInventory": [
+    {
+      "operation": "POS checkout atomic order/invoice creation",
+      "currentPath": "hooks/use-invoice-checkout.ts -> current server/Core V2 order path",
+      "futureCommands": ["payment.employee_attestation", "order.create", "audit.event.append"],
+      "classification": "structurally_representable_requires_core_v2_and_server_idempotency_authority",
+      "phase3Interception": false
+    },
+    {
+      "operation": "POS customer create",
+      "currentPath": "components/pos-add-customer-modal.tsx -> POST /api/customers -> trusted RPC",
+      "futureCommands": ["customer.create", "audit.event.append"],
+      "classification": "structurally_representable_requires_server_authority_and_conflict_contract",
+      "phase3Interception": false
+    },
+    {
+      "operation": "customer update",
+      "currentPath": "authorized customer API/admin paths",
+      "futureCommands": ["customer.update", "audit.event.append"],
+      "classification": "structurally_representable_requires_record_version_and_server_authority",
+      "phase3Interception": false
+    },
+    {
+      "operation": "POS order status transition",
+      "currentPath": "app/pos/order-status/page.tsx -> PATCH /api/pos/orders/[id]/status",
+      "futureCommands": ["order.status.change", "audit.event.append"],
+      "classification": "structurally_representable_requires_legal_transition_and_server_transaction_authority",
+      "phase3Interception": false
+    },
+    {
+      "operation": "invoice/order cancellation",
+      "futureCommands": [],
+      "classification": "unsafe_offline_until_cancellation_and_reconciliation_authority_is_reviewed",
+      "phase3Interception": false
+    },
+    {
+      "operation": "inventory deduction and invoice/order numbering",
+      "futureCommands": [],
+      "classification": "core_v2_transaction_only",
+      "phase3Interception": false
+    },
+    {
+      "operation": "WhatsApp delivery",
+      "futureCommands": [],
+      "classification": "permanently_online_external_effect_for_this_contract",
+      "phase3Interception": false
+    },
+    {
+      "operation": "printing and PDF generation",
+      "futureCommands": [],
+      "classification": "external_or_online_only_not_an_outbox_business_command",
+      "phase3Interception": false
+    },
+    {
+      "operation": "payment provider charge/confirmation",
+      "futureCommands": [],
+      "classification": "never_replay_or_invoke_provider",
+      "phase3Interception": false
+    },
+    {
+      "operation": "settings/admin/support writes",
+      "futureCommands": [],
+      "classification": "online_only_outside_phase3_allowlist",
+      "phase3Interception": false
+    }
+  ],
+  "proof": {
+    "productionRoutesImportPhase3": 0,
+    "currentWritesIntercepted": 0,
+    "shadowWhatsApp": 0,
+    "shadowPrinting": 0,
+    "shadowNumberGeneration": 0,
+    "optimisticCacheMutation": 0
+  }
+}
+

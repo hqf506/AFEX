@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type UIEvent,
 } from 'react'
 import { useRouter } from 'next/navigation'
 import { getClientErrorMessage } from '@/lib/api/client-error'
@@ -18,9 +19,9 @@ import { AdminInput } from '@/components/admin-input'
 import { InvoiceCheckoutPanel } from '@/components/invoice-checkout-panel'
 import { PageHero } from '@/components/page-hero'
 import { PosStepIndicator } from '@/components/pos-step-indicator'
+import { PosThemeToggle } from '@/components/pos-theme-toggle'
 import { SummaryRow } from '@/components/summary-row'
 import { useAdminBranchFilter } from '@/hooks/use-admin-branch-filter'
-import { useMobileViewport } from '@/hooks/use-mobile-viewport'
 import {
   useInvoiceCheckout,
   type CheckoutDiscountOption,
@@ -40,6 +41,7 @@ import {
   isBranchInvoiceCatalogPageFresh,
   loadBranchInvoiceCatalogPage,
   peekBranchInvoiceCatalog,
+  type PosInvoiceCatalogPage,
   type PosInvoiceCatalogProduct,
 } from '@/lib/invoices/catalog'
 import {
@@ -68,6 +70,15 @@ import {
 } from '@/lib/invoices/sale-draft'
 import { getPaymentMethodLabel } from '@/lib/invoices/payment-method'
 import { formatCurrency } from '@/lib/orders/format'
+import { shouldUseOfflineReadFallback } from '@/lib/offline/read-fallback'
+import {
+  canAutofillCatalog,
+  isCatalogScrollContainerUnderfilled,
+  isCurrentCatalogGeneration,
+  mergeUniqueCatalogItems,
+  shouldContinueCatalogLoading,
+} from '@/lib/pos/catalog-continuation'
+import modelOneStyles from './pos-items-model-one.module.css'
 
 const POS_HIDDEN_CATEGORY_FILTERS = new Set(['دون فئة'])
 const ADMIN_SYSTEM_SETTINGS_CACHE_KEY = 'admin-system-settings'
@@ -77,6 +88,41 @@ const CATALOG_ITEMS_PER_PAGE = 10
 type PosFeedbackKind = 'add' | 'remove' | 'error'
 const SOUND_ENABLED = true
 let posFeedbackAudioContext: AudioContext | null = null
+
+async function loadPosCatalogPage(
+  branchId: string,
+  options: Parameters<typeof loadBranchInvoiceCatalogPage>[1]
+): Promise<PosInvoiceCatalogPage> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const { readOfflineCatalogPage } = await import(
+      '@/lib/offline/complete-runtime'
+    )
+    return (await readOfflineCatalogPage({
+      branchId,
+      page: options.page,
+      pageSize: options.pageSize,
+      search: options.search,
+      category: options.category,
+    })) as PosInvoiceCatalogPage
+  }
+  try {
+    return await loadBranchInvoiceCatalogPage(branchId, options)
+  } catch (error) {
+    if (!shouldUseOfflineReadFallback(error)) {
+      throw error
+    }
+    const { readOfflineCatalogPage } = await import(
+      '@/lib/offline/complete-runtime'
+    )
+    return (await readOfflineCatalogPage({
+      branchId,
+      page: options.page,
+      pageSize: options.pageSize,
+      search: options.search,
+      category: options.category,
+    })) as PosInvoiceCatalogPage
+  }
+}
 
 function getPosFeedbackAudioContext() {
   if (typeof window === 'undefined') {
@@ -449,6 +495,9 @@ export function InvoiceItemsStep({
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerId, setCustomerId] = useState<string | null>(null)
+  const [customerRecordVersion, setCustomerRecordVersion] = useState<
+    number | null
+  >(null)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState(INVOICE_ALL_FILTER)
   const [invoiceItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([])
@@ -462,6 +511,15 @@ export function InvoiceItemsStep({
   const [catalogRefreshing, setCatalogRefreshing] = useState(false)
   const [catalogError, setCatalogError] = useState(false)
   const [currentCatalogPage, setCurrentCatalogPage] = useState(1)
+  const catalogRequestsRef = useRef(
+    new Map<string, ReturnType<typeof loadBranchInvoiceCatalogPage>>()
+  )
+  const catalogAdvancePendingRef = useRef(false)
+  const catalogGenerationRef = useRef(0)
+  const catalogAutofillIterationsRef = useRef(0)
+  const catalogScrollRootRef = useRef<HTMLDivElement | null>(null)
+  const catalogSentinelRef = useRef<HTMLSpanElement | null>(null)
+  const catalogLayoutFrameRef = useRef(0)
   const deferredSearch = useDeferredValue(search)
   const rememberCatalogProducts = useCallback(
     (products: PosInvoiceCatalogProduct[]) => {
@@ -493,7 +551,7 @@ export function InvoiceItemsStep({
       }
 
       try {
-        const nextCatalogPage = await loadBranchInvoiceCatalogPage(invoiceBranchId, {
+        const nextCatalogPage = await loadPosCatalogPage(invoiceBranchId, {
           page: currentCatalogPage,
           pageSize: CATALOG_ITEMS_PER_PAGE,
           search: deferredSearch,
@@ -502,7 +560,15 @@ export function InvoiceItemsStep({
           tenantId,
         })
 
-        setCatalogProducts(nextCatalogPage.products)
+        setCatalogProducts((currentProducts) =>
+          variant === 'pos' && currentCatalogPage > 1
+            ? mergeUniqueCatalogItems(
+                currentProducts,
+                nextCatalogPage.products,
+                getNormalizedCatalogItemId
+              )
+            : nextCatalogPage.products
+        )
         rememberCatalogProducts(nextCatalogPage.products)
         setCatalogTotal(nextCatalogPage.total)
 
@@ -536,25 +602,28 @@ export function InvoiceItemsStep({
       invoiceBranchId,
       rememberCatalogProducts,
       tenantId,
+      variant,
     ]
   )
   const [showItemsModal, setShowItemsModal] = useState(false)
+  const mobileCartTriggerRef = useRef<HTMLButtonElement | null>(null)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [hydratedSaleDraft, setHydratedSaleDraft] = useState(false)
   const [vatSetting, setVatSetting] = useState<CheckoutVatSetting | null>(null)
   const [recentlyAddedItemId, setRecentlyAddedItemId] = useState<string | null>(null)
   const [pressedItemId, setPressedItemId] = useState<string | null>(null)
   const [stockErrorMessage, setStockErrorMessage] = useState('')
-  const isMobileViewport = useMobileViewport()
 
   useEffect(() => {
     if (!allowed) return
 
+    const saleDraftStorage = variant === 'pos' ? sessionStorage : localStorage
+
     const parsed = parseStoredInvoiceCustomerDraft(
-      localStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
+      saleDraftStorage.getItem(INVOICE_CUSTOMER_STORAGE_KEY)
     )
     const parsedSaleItemsDraft = parseStoredInvoiceSaleItemsDraft(
-      localStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      saleDraftStorage.getItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
     )
 
     if (!parsed) {
@@ -566,11 +635,27 @@ export function InvoiceItemsStep({
       setCustomerName(parsed.name)
       setCustomerPhone(parsed.phone)
       setCustomerId(parsed.customerId)
+      setCustomerRecordVersion(parsed.customerRecordVersion)
       setInvoiceLineItems(parsedSaleItemsDraft?.items ?? [])
       setHydratedSaleDraft(true)
       setReady(true)
     }, 0)
-  }, [allowed, customerStepHref, router])
+  }, [allowed, customerStepHref, router, variant])
+
+  useEffect(() => {
+    if (variant !== 'pos') return
+    catalogGenerationRef.current += 1
+    catalogAutofillIterationsRef.current = 0
+    catalogRequestsRef.current.clear()
+    catalogAdvancePendingRef.current = false
+    const resetScroll = window.requestAnimationFrame(() => {
+      setCurrentCatalogPage(1)
+      setCatalogProducts([])
+      setCatalogProductById({})
+      if (catalogScrollRootRef.current) catalogScrollRootRef.current.scrollTop = 0
+    })
+    return () => window.cancelAnimationFrame(resetScroll)
+  }, [activeFilter, deferredSearch, invoiceBranchId, variant])
 
   useEffect(() => {
     if (!allowed || !ready) return
@@ -579,14 +664,25 @@ export function InvoiceItemsStep({
       return
     }
 
+    const catalogBranchId = invoiceBranchId
+    if (!catalogBranchId) return
+
     let cancelled = false
 
+    const requestGeneration = catalogGenerationRef.current
     const loadCatalog = async () => {
+      const requestKey = [
+        requestGeneration,
+        catalogBranchId,
+        currentCatalogPage,
+        deferredSearch.trim(),
+        activeFilter,
+      ].join(':')
       try {
         const cachedProducts =
           variant === 'pos' || activeFilter !== INVOICE_ALL_FILTER || deferredSearch.trim()
             ? []
-            : peekBranchInvoiceCatalog(invoiceBranchId, tenantId)
+            : peekBranchInvoiceCatalog(catalogBranchId, tenantId)
 
         if (!cancelled && cachedProducts.length > 0) {
           setCatalogProducts(cachedProducts)
@@ -596,21 +692,34 @@ export function InvoiceItemsStep({
           setCatalogRefreshing(true)
         }
 
-        if (!cancelled) {
+        if (!cancelled && isCurrentCatalogGeneration(requestGeneration, catalogGenerationRef.current)) {
           setCatalogLoading(cachedProducts.length === 0)
           setCatalogError(false)
         }
 
-        const nextCatalogPage = await loadBranchInvoiceCatalogPage(invoiceBranchId, {
-          page: currentCatalogPage,
-          pageSize: CATALOG_ITEMS_PER_PAGE,
-          search: deferredSearch,
-          category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
-          tenantId,
-        })
+        let catalogRequest = catalogRequestsRef.current.get(requestKey)
+        if (!catalogRequest) {
+          catalogRequest = loadPosCatalogPage(catalogBranchId, {
+            page: currentCatalogPage,
+            pageSize: CATALOG_ITEMS_PER_PAGE,
+            search: deferredSearch,
+            category: activeFilter === INVOICE_ALL_FILTER ? '' : activeFilter,
+            tenantId,
+          })
+          catalogRequestsRef.current.set(requestKey, catalogRequest)
+        }
+        const nextCatalogPage = await catalogRequest
 
-        if (!cancelled) {
-          setCatalogProducts(nextCatalogPage.products)
+        if (!cancelled && isCurrentCatalogGeneration(requestGeneration, catalogGenerationRef.current)) {
+          setCatalogProducts((currentProducts) =>
+            variant === 'pos' && currentCatalogPage > 1
+              ? mergeUniqueCatalogItems(
+                  currentProducts,
+                  nextCatalogPage.products,
+                  getNormalizedCatalogItemId
+                )
+              : nextCatalogPage.products
+          )
           rememberCatalogProducts(nextCatalogPage.products)
           setCatalogTotal(nextCatalogPage.total)
 
@@ -627,19 +736,24 @@ export function InvoiceItemsStep({
           setCatalogRefreshing(false)
         }
       } catch (error) {
-        if (!cancelled && isProtectedResourceAuthError(error)) {
+        if (!cancelled && isCurrentCatalogGeneration(requestGeneration, catalogGenerationRef.current) && isProtectedResourceAuthError(error)) {
           handlePosProtectedResourceUnauthorized()
           return
         }
 
-        if (!cancelled) {
+        if (!cancelled && isCurrentCatalogGeneration(requestGeneration, catalogGenerationRef.current)) {
           setCatalogError(true)
-          setCatalogProducts([])
-          setCatalogTotal(0)
+          if (currentCatalogPage === 1) {
+            setCatalogProducts([])
+            setCatalogTotal(0)
+          }
           setCatalogLoading(false)
           setCatalogRefreshing(false)
           triggerPosFeedback('error')
         }
+      } finally {
+        catalogRequestsRef.current.delete(requestKey)
+        catalogAdvancePendingRef.current = false
       }
     }
 
@@ -788,6 +902,68 @@ export function InvoiceItemsStep({
       .filter((page) => page >= 1 && page <= totalCatalogPages)
       .sort((left, right) => left - right)
   }, [effectiveCatalogPage, totalCatalogPages])
+  const hasMoreCatalogProducts =
+    currentCatalogPage < totalCatalogPages && catalogProducts.length < catalogTotal
+  const loadNextCatalogPage = useCallback(() => {
+    if (
+      catalogAdvancePendingRef.current ||
+      catalogLoading ||
+      catalogRefreshing ||
+      !hasMoreCatalogProducts ||
+      catalogError
+    ) return
+    catalogAdvancePendingRef.current = true
+    setCurrentCatalogPage((current) => Math.min(totalCatalogPages, current + 1))
+  }, [catalogError, catalogLoading, catalogRefreshing, hasMoreCatalogProducts, totalCatalogPages])
+
+  useEffect(() => {
+    if (variant !== 'pos' || catalogError || catalogLoading || catalogRefreshing || !hasMoreCatalogProducts) return
+    const timer = window.setTimeout(loadNextCatalogPage, 80)
+    return () => window.clearTimeout(timer)
+  }, [catalogError, catalogLoading, catalogProducts.length, catalogRefreshing, hasMoreCatalogProducts, loadNextCatalogPage, variant])
+  const handleCatalogScroll = useCallback(
+    (event: UIEvent<HTMLDivElement>) => {
+      if (shouldContinueCatalogLoading(event.currentTarget)) {
+        loadNextCatalogPage()
+      }
+    },
+    [loadNextCatalogPage]
+  )
+
+  useEffect(() => {
+    if (variant !== 'pos' || catalogError || catalogLoading || catalogRefreshing || !hasMoreCatalogProducts) return
+    const firstFrame = window.requestAnimationFrame(() => {
+      const secondFrame = window.requestAnimationFrame(() => {
+        const root = catalogScrollRootRef.current
+        if (
+          root &&
+          canAutofillCatalog({
+            clientHeight: root.clientHeight,
+            scrollHeight: root.scrollHeight,
+            iteration: catalogAutofillIterationsRef.current,
+          })
+        ) {
+          catalogAutofillIterationsRef.current += 1
+          loadNextCatalogPage()
+        }
+      })
+      catalogLayoutFrameRef.current = secondFrame
+    })
+    catalogLayoutFrameRef.current = firstFrame
+    return () => window.cancelAnimationFrame(catalogLayoutFrameRef.current)
+  }, [catalogError, catalogLoading, catalogProducts.length, catalogRefreshing, hasMoreCatalogProducts, loadNextCatalogPage, variant])
+
+  useEffect(() => {
+    const root = catalogScrollRootRef.current
+    const sentinel = catalogSentinelRef.current
+    if (variant !== 'pos' || !root || !sentinel || catalogError || !hasMoreCatalogProducts || typeof IntersectionObserver === 'undefined') return
+    if (isCatalogScrollContainerUnderfilled(root)) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadNextCatalogPage()
+    }, { root, rootMargin: '0px 0px 240px 0px', threshold: 0 })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [catalogError, catalogProducts.length, hasMoreCatalogProducts, loadNextCatalogPage, variant])
 
   const canRenderCatalogImmediately = visibleCatalogProducts.length > 0
 
@@ -856,6 +1032,19 @@ export function InvoiceItemsStep({
 
     async function loadPosRuntime() {
       try {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          const { readOfflineRuntimeSettings } = await import(
+            '@/lib/offline/complete-runtime'
+          )
+          const offlineRuntime = (await readOfflineRuntimeSettings()) as {
+            discounts?: CheckoutDiscountOption[]
+            vat?: CheckoutVatSetting | null
+          }
+          if (!cancelled) {
+            setVatSetting(offlineRuntime.vat ?? null)
+          }
+          return
+        }
         const runtimeCacheKey = getPosRuntimeCacheKey(tenantId, invoiceBranchId)
         const cachedRuntime = peekClientResource<PosRuntime>(runtimeCacheKey)
 
@@ -914,6 +1103,20 @@ export function InvoiceItemsStep({
         }
 
         if (!cancelled) {
+          if (shouldUseOfflineReadFallback(error)) {
+            try {
+              const { readOfflineRuntimeSettings } = await import(
+                '@/lib/offline/complete-runtime'
+              )
+              const offlineRuntime = (await readOfflineRuntimeSettings()) as {
+                vat?: CheckoutVatSetting | null
+              }
+              setVatSetting(offlineRuntime.vat ?? null)
+              return
+            } catch {
+              // Fall through to the fail-closed empty state.
+            }
+          }
           setVatSetting(null)
         }
       }
@@ -928,6 +1131,10 @@ export function InvoiceItemsStep({
 
   useEffect(() => {
     if (!allowed || !ready || hasUnavailablePosBranchContext) {
+      return
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       return
     }
 
@@ -1007,6 +1214,7 @@ export function InvoiceItemsStep({
 
   const checkout = useInvoiceCheckout({
     customerId,
+    customerRecordVersion,
     customerName,
     customerPhone,
     invoiceItems,
@@ -1014,6 +1222,7 @@ export function InvoiceItemsStep({
     hasAmbiguousAdminBranchContext,
     branchId: invoiceBranchId,
     vatSetting,
+    persistSaleDraft: variant === 'pos',
   })
 
   const addItem = (
@@ -1124,19 +1333,43 @@ export function InvoiceItemsStep({
     checkout.clearCheckout()
   }
 
+  const closeMobileCart = useCallback(() => {
+    setShowItemsModal(false)
+    window.requestAnimationFrame(() => mobileCartTriggerRef.current?.focus())
+  }, [])
+
+  useEffect(() => {
+    if (variant !== 'pos' || !showItemsModal) return
+
+    const root = document.documentElement
+    const body = document.body
+    const previousRootOverflow = root.style.overflow
+    const previousBodyOverflow = body.style.overflow
+
+    root.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+
+    return () => {
+      root.style.overflow = previousRootOverflow
+      body.style.overflow = previousBodyOverflow
+    }
+  }, [showItemsModal, variant])
+
   useEffect(() => {
     if (!ready || !hydratedSaleDraft || checkoutMode !== 'separate') return
 
     if (invoiceItems.length === 0) {
-      localStorage.removeItem(INVOICE_SALE_ITEMS_STORAGE_KEY)
+      ;(variant === 'pos' ? sessionStorage : localStorage).removeItem(
+        INVOICE_SALE_ITEMS_STORAGE_KEY
+      )
       return
     }
 
-    localStorage.setItem(
+    ;(variant === 'pos' ? sessionStorage : localStorage).setItem(
       INVOICE_SALE_ITEMS_STORAGE_KEY,
       serializeInvoiceSaleItemsDraft({ items: invoiceItems })
     )
-  }, [checkoutMode, hydratedSaleDraft, invoiceItems, ready])
+  }, [checkoutMode, hydratedSaleDraft, invoiceItems, ready, variant])
 
   if (authError === 'timeout' && variant === 'pos') {
     return (
@@ -1163,226 +1396,176 @@ export function InvoiceItemsStep({
   }
 
   if (variant === 'pos') {
-    const squarePosCategoryLabels = [
-      INVOICE_ALL_FILTER,
-      'الخدمات',
-      'المنتجات',
-      'تنظيف',
-      'إصلاح',
-      'عناية',
-      'ألوان',
-      'غسيل',
-    ]
+    const posCategoryLabels = invoiceFilters.filter(
+      (filter) => !POS_HIDDEN_CATEGORY_FILTERS.has(filter)
+    )
+    const employeeDisplayName =
+      activePosEmployee?.full_name?.trim() ||
+      activePosEmployee?.username?.trim() ||
+      roleLabel ||
+      'موظف نقطة البيع'
+    const employeeInitial = employeeDisplayName.charAt(0)
 
     return (
-      <div className="pos-mobile-motion fixed inset-0 z-[50] h-[100svh] w-screen overflow-hidden bg-[#020817] text-white">
-        <style jsx global>{`
-          @keyframes pos-mobile-screen-enter {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-
-          @keyframes pos-mobile-sheet-enter {
-            from { opacity: 0; transform: translateY(18px) scale(0.99); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-          }
-
-          @keyframes pos-mobile-skeleton-pulse {
-            0%, 100% { opacity: 0.45; }
-            50% { opacity: 0.8; }
-          }
-
-          @media (max-width: 639px) {
-            .pos-mobile-screen-enter { animation: pos-mobile-screen-enter 200ms ease-out both; }
-            .pos-mobile-sheet-enter { animation: pos-mobile-sheet-enter 200ms ease-out both; }
-            .pos-mobile-skeleton { animation: pos-mobile-skeleton-pulse 1.2s ease-in-out infinite; }
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            .pos-mobile-motion *,
-            .pos-mobile-motion *::before,
-            .pos-mobile-motion *::after {
-              animation-duration: 0.01ms !important;
-              animation-iteration-count: 1 !important;
-              scroll-behavior: auto !important;
-              transition-duration: 0.01ms !important;
-            }
-          }
-        `}</style>
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_34%),radial-gradient(circle_at_78%_84%,rgba(14,165,233,0.12),transparent_38%),linear-gradient(135deg,#020817_0%,#061426_48%,#020817_100%)]" />
-        <div className="pos-mobile-screen-enter relative flex h-full w-full flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [direction:ltr] md:flex-row md:p-4 xl:gap-4">
-          <main className="flex min-w-0 flex-1 flex-col gap-2.5 overflow-hidden [direction:rtl]">
-            {(hasInvalidBranchContext || hasAmbiguousAdminBranchContext || stockErrorMessage) ? (
-              <div className="grid gap-2">
-                {hasInvalidBranchContext ? (
-                  <div className="rounded-3xl border border-red-400/25 bg-red-950/40 px-5 py-3 text-sm font-bold text-red-100 shadow-[0_18px_48px_rgba(127,29,29,0.18)]">
-                    لا يمكن استخدام شاشة الفاتورة لأن حسابك غير مرتبط بفرع صالح
-                  </div>
-                ) : null}
-                {hasAmbiguousAdminBranchContext ? (
-                  <div className="rounded-3xl border border-amber-400/25 bg-amber-950/40 px-5 py-3 text-sm font-bold text-amber-100 shadow-[0_18px_48px_rgba(120,53,15,0.18)]">
-                    اختر فرعًا محددًا من القائمة قبل إنشاء فاتورة جديدة
-                  </div>
-                ) : null}
-                {stockErrorMessage ? (
-                  <div className="rounded-3xl border border-red-400/25 bg-red-950/40 px-5 py-3 text-sm font-bold text-red-100 shadow-[0_18px_48px_rgba(127,29,29,0.18)]">
-                    {stockErrorMessage}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <section className="grid shrink-0 grid-cols-[minmax(0,1fr)_54px] gap-2 sm:flex sm:flex-row sm:items-center sm:gap-3">
-              <div className="col-span-2 flex min-h-[44px] items-center justify-between gap-2 sm:hidden">
-                <a
-                  href={customerStepHref}
-                  className="flex min-h-[44px] items-center justify-center rounded-[18px] border border-cyan-300/18 bg-cyan-400/10 px-3 text-xs font-black text-cyan-100"
+      <div className={modelOneStyles.workspace} data-pos-items-model="model-one">
+        <div className={modelOneStyles.layout}>
+          <main className={modelOneStyles.catalog}>
+            <header
+              className={modelOneStyles.catalogHeader}
+              data-testid="pos-sale-operational-header"
+            >
+              <div className={modelOneStyles.catalogHeaderTitle}>
+                <Link
+                  href="/pos"
+                  className={modelOneStyles.headerControl}
+                  data-testid="pos-sale-home"
+                  aria-label="العودة إلى نقطة البيع"
+                  title="العودة إلى نقطة البيع"
                 >
-                  العميل
-                </a>
-                <h1 className="min-w-0 flex-1 truncate text-center text-lg font-black text-white">
-                  اختيار العناصر
-                </h1>
-                <button
-                  type="button"
-                  onClick={() => setShowItemsModal(true)}
-                  aria-expanded={showItemsModal}
-                  aria-controls="pos-cart-panel"
-                  className="flex min-h-[44px] items-center justify-center gap-2 rounded-[18px] border border-cyan-300/18 bg-cyan-400/10 px-3 text-xs font-black text-cyan-100"
-                >
-                  السلة
-                  <span className="rounded-full bg-cyan-300 px-2 py-0.5 text-[#02101c]">
-                    {invoiceItemCount}
-                  </span>
-                </button>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.9]">
+                    <path d="M4 5h16v14H4z M8 9h8 M8 13h5" />
+                  </svg>
+                </Link>
+                <h1>اختيار العناصر</h1>
               </div>
 
-              <div className="relative min-w-0 flex-1">
-                {search ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch('')
-                      setCurrentCatalogPage(1)
-                    }}
-                    aria-label="مسح البحث"
-                    className="absolute left-1.5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[16px] text-lg font-black text-cyan-100 transition hover:bg-cyan-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
-                  >
-                    ×
-                  </button>
-                ) : (
-                  <SearchIcon className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-cyan-200/70" />
-                )}
+              <label
+                className={modelOneStyles.searchField}
+                data-has-value={search.trim() ? 'true' : 'false'}
+              >
+                <SearchIcon />
                 <input
-                  type="text"
+                  type="search"
                   value={search}
                   onChange={(event) => {
                     setSearch(event.target.value)
                     setCurrentCatalogPage(1)
                   }}
                   placeholder="ابحث عن منتج أو خدمة"
-                  className="h-[54px] w-full rounded-[22px] border border-cyan-300/14 bg-[#020817]/70 pr-5 pl-14 text-right text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_34px_rgba(8,47,73,0.16)] outline-none backdrop-blur-xl transition placeholder:text-slate-400 focus:border-cyan-300/36 focus:ring-4 focus:ring-cyan-300/10 touch-manipulation"
+                  aria-label="البحث في المنتجات والخدمات"
                   inputMode="search"
                   enterKeyHint="search"
                   autoComplete="off"
                 />
-              </div>
-
-              <a
-                href={customerStepHref}
-                className="hidden h-[54px] shrink-0 items-center justify-center rounded-[22px] border border-cyan-300/18 bg-cyan-400/10 px-4 text-sm font-black text-cyan-100 shadow-[0_14px_30px_rgba(34,211,238,0.10)] transition hover:bg-cyan-400/15 touch-manipulation sm:flex"
-              >
-                إضافة عميل
-              </a>
-
-              <button
-                type="button"
-                onClick={() => void forceReloadCatalog({ showRefreshing: true })}
-                disabled={catalogLoading || catalogRefreshing}
-                aria-label="تحديث المخزون"
-                className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[20px] border border-cyan-300/14 bg-[#020817]/65 text-cyan-200 shadow-[0_14px_30px_rgba(34,211,238,0.10)] transition hover:border-cyan-300/30 hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation"
-              >
-                <InventoryRefreshIcon
-                  className={`h-6 w-6 ${catalogRefreshing ? 'animate-spin' : ''}`}
-                />
-              </button>
-            </section>
-
-            <section aria-label="تصنيفات العناصر" className="flex w-full min-w-0 shrink-0 snap-x snap-mandatory items-center gap-2 overflow-x-auto pb-1 [direction:rtl] [scrollbar-width:none] [-ms-overflow-style:none] sm:snap-proximity sm:gap-1.5 [&::-webkit-scrollbar]:hidden">
-              {squarePosCategoryLabels.map((filter) => {
-                const active = activeFilter === filter
-
-                return (
+                {search ? (
                   <button
-                    key={filter}
                     type="button"
+                    className={modelOneStyles.clearSearch}
                     onClick={() => {
-                      setActiveFilter(filter)
+                      setSearch('')
                       setCurrentCatalogPage(1)
                     }}
-                    aria-pressed={active}
-                    className={`min-h-[44px] max-w-[180px] shrink-0 snap-start truncate rounded-full px-4 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 touch-manipulation sm:max-w-[160px] sm:px-3.5 ${
-                      active
-                        ? 'bg-cyan-300 text-[#02101c] shadow-[0_0_34px_rgba(34,211,238,0.30)]'
-                        : 'border border-cyan-300/12 bg-[#020817]/54 text-slate-300 hover:border-cyan-300/24 hover:bg-cyan-400/8'
-                    }`}
+                    aria-label="مسح البحث"
                   >
-                    {filter}
+                    ×
                   </button>
-                )
-              })}
-            </section>
+                ) : null}
+              </label>
 
-            {isSystemAdmin && !posEmployeeBranchId ? (
-              <div className="shrink-0 rounded-[24px] border border-cyan-300/12 bg-[#020817]/60 p-3 backdrop-blur-xl">
-                <AdminBranchFilter
-                  branches={branches}
-                  selectedBranchId={selectedBranchId}
-                  loading={loadingBranches}
-                  onChange={setSelectedBranchId}
-                  allLabel="اختر فرعًا للفاتورة"
-                />
+              <div className={modelOneStyles.headerActions}>
+                <PosThemeToggle />
+                <button
+                  type="button"
+                  onClick={() => void forceReloadCatalog({ showRefreshing: true })}
+                  disabled={catalogLoading || catalogRefreshing}
+                  className={modelOneStyles.refreshButton}
+                  aria-label="تحديث المخزون"
+                  title="تحديث المخزون"
+                >
+                  <InventoryRefreshIcon
+                    className={catalogRefreshing ? 'h-5 w-5 animate-spin' : 'h-5 w-5'}
+                  />
+                </button>
+                <Link
+                  href={customerStepHref}
+                  className={modelOneStyles.headerControl}
+                  data-testid="pos-sale-step-back"
+                  aria-label="العودة إلى اختيار العميل"
+                  title="العودة إلى اختيار العميل"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.9]">
+                    <path d="m9 6 6 6-6 6" />
+                  </svg>
+                </Link>
               </div>
-            ) : null}
+            </header>
 
-            <section className="min-h-0 flex-1 overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#020817]/58 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_22px_58px_rgba(2,8,23,0.32)] backdrop-blur-2xl sm:rounded-[28px]">
+            <nav aria-label="تصنيفات العناصر" className={modelOneStyles.categories}>
+              {posCategoryLabels.map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => {
+                    setActiveFilter(filter)
+                    setCurrentCatalogPage(1)
+                  }}
+                  aria-pressed={activeFilter === filter}
+                  className={modelOneStyles.categoryButton}
+                >
+                  {filter}
+                </button>
+              ))}
+            </nav>
+
+            <section className={modelOneStyles.catalogPanel} aria-label="كتالوج العناصر">
+              {(hasInvalidBranchContext || hasAmbiguousAdminBranchContext || stockErrorMessage) ? (
+                <div className={modelOneStyles.noticeStack}>
+                  {hasInvalidBranchContext ? (
+                    <div className={modelOneStyles.errorNotice}>
+                      لا يمكن استخدام شاشة الفاتورة لأن حسابك غير مرتبط بفرع صالح
+                    </div>
+                  ) : null}
+                  {hasAmbiguousAdminBranchContext ? (
+                    <div className={modelOneStyles.notice}>
+                      اختر فرعًا محددًا من القائمة قبل إنشاء فاتورة جديدة
+                    </div>
+                  ) : null}
+                  {stockErrorMessage ? (
+                    <div className={modelOneStyles.errorNotice}>{stockErrorMessage}</div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {isSystemAdmin && !posEmployeeBranchId ? (
+                <div className={modelOneStyles.branchFilter}>
+                  <AdminBranchFilter
+                    branches={branches}
+                    selectedBranchId={selectedBranchId}
+                    loading={loadingBranches}
+                    onChange={setSelectedBranchId}
+                    allLabel="اختر فرعًا للفاتورة"
+                  />
+                </div>
+              ) : null}
+
               {hasAmbiguousAdminBranchContext ? (
-                <div className="flex h-full items-center justify-center rounded-[28px] border border-amber-400/20 bg-amber-950/20 px-6 text-center text-sm font-bold text-amber-100">
+                <div className={modelOneStyles.catalogState}>
                   اختر فرعًا محددًا أولًا حتى يتم تحميل كتالوج الفرع الصحيح للفاتورة.
                 </div>
               ) : catalogLoading && !canRenderCatalogImmediately ? (
-                <>
-                  <div className="grid h-full content-start gap-2 overflow-hidden sm:hidden" aria-label="جارٍ تحميل العناصر" aria-busy="true">
-                    {[0, 1, 2].map((skeletonItem) => (
-                      <div key={skeletonItem} className="pos-mobile-skeleton flex min-h-[132px] gap-3 rounded-[22px] border border-cyan-300/10 bg-[#061426]/68 p-3">
-                        <span className="h-[106px] w-[96px] shrink-0 rounded-[18px] bg-cyan-300/8" />
-                        <span className="flex min-w-0 flex-1 flex-col gap-3 py-1">
-                          <span className="h-4 w-4/5 rounded-full bg-cyan-300/10" />
-                          <span className="h-3 w-2/5 rounded-full bg-cyan-300/8" />
-                          <span className="mt-auto h-10 w-full rounded-[14px] bg-cyan-300/8" />
-                        </span>
-                      </div>
-                    ))}
-                    <span className="sr-only">جارٍ تحميل العناصر...</span>
-                  </div>
-                  <div className="hidden h-full items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300 sm:flex">
-                    جارٍ تحميل العناصر...
-                  </div>
-                </>
+                <div
+                  className={modelOneStyles.skeletonGrid}
+                  aria-label="جارٍ تحميل العناصر"
+                  aria-busy="true"
+                >
+                  {Array.from({ length: 10 }, (_, index) => (
+                    <span key={index} className={modelOneStyles.skeletonCard} />
+                  ))}
+                  <span className="sr-only">جارٍ تحميل العناصر...</span>
+                </div>
               ) : catalogError && filteredProducts.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-red-400/20 bg-red-950/20 px-6 text-center text-sm font-bold text-red-100">
-                  <p>تعذر تحميل العناصر، حاول تحديث الصفحة</p>
+                <div className={modelOneStyles.catalogState}>
+                  <p>تعذر تحميل العناصر، حاول تحديث الصفحة.</p>
                   <button
                     type="button"
                     onClick={() => void forceReloadCatalog({ showRefreshing: true })}
                     disabled={catalogLoading || catalogRefreshing}
-                    className="mt-4 min-h-[44px] rounded-[16px] border border-red-300/20 bg-red-300/10 px-5 text-sm font-black text-red-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200/70 disabled:cursor-not-allowed disabled:opacity-50 sm:hidden"
                   >
                     {catalogRefreshing ? 'جارٍ إعادة المحاولة...' : 'إعادة المحاولة'}
                   </button>
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-cyan-300/10 bg-[#061426]/60 px-6 text-center text-sm font-bold text-slate-300">
+                <div className={modelOneStyles.catalogState}>
                   <p>
                     {search.trim()
                       ? 'لا توجد نتائج مطابقة للبحث.'
@@ -1395,424 +1578,304 @@ export function InvoiceItemsStep({
                         setSearch('')
                         setCurrentCatalogPage(1)
                       }}
-                      className="mt-4 min-h-[44px] rounded-[18px] border border-cyan-300/18 bg-cyan-400/10 px-5 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
                     >
                       مسح البحث
                     </button>
                   ) : null}
                 </div>
               ) : (
-                <div className="flex h-full min-h-0 flex-col gap-3">
-                  {isMobileViewport ? (
-                  <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto overscroll-contain pe-1">
-                    {paginatedProducts.map((product) => {
-                      const normalizedCatalogItemId =
-                        getNormalizedCatalogItemId(product)
-                      const inventoryState = getInventoryTrackingState(product)
-                      const productOutOfStock = inventoryState.isOutOfStock
-                      const productCartQuantity =
-                        invoiceItemQuantities.byId.get(normalizedCatalogItemId) ??
-                        invoiceItemQuantities.byName.get(product.name) ??
-                        0
-                      const reachedStockLimit =
-                        inventoryState.isInventoryTracked &&
-                        productCartQuantity >= inventoryState.normalizedQuantity
+                <div
+                  className={modelOneStyles.productGrid}
+                  ref={catalogScrollRootRef}
+                  onScroll={handleCatalogScroll}
+                >
+                  {paginatedProducts.map((product, productIndex) => {
+                    const normalizedCatalogItemId = getNormalizedCatalogItemId(product)
+                    const inventoryState = getInventoryTrackingState(product)
+                    const productOutOfStock = inventoryState.isOutOfStock
+                    const productCartQuantity =
+                      invoiceItemQuantities.byId.get(normalizedCatalogItemId) ??
+                      invoiceItemQuantities.byName.get(product.name) ??
+                      0
+                    const reachedStockLimit =
+                      inventoryState.isInventoryTracked &&
+                      productCartQuantity >= inventoryState.normalizedQuantity
 
-                      return (
-                        <button
-                          key={product.id}
-                          type="button"
-                          onClick={() => addItemWithFeedback(product)}
-                          disabled={productOutOfStock}
-                          aria-label={
-                            productOutOfStock
-                              ? `${product.name} غير متوفر في المخزون`
-                              : `إضافة ${product.name} إلى السلة`
-                          }
-                          className={`group flex min-h-[132px] w-full min-w-0 items-stretch gap-3 rounded-[22px] border bg-[#061426]/78 p-3 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.985] touch-manipulation ${
-                            productOutOfStock
-                              ? 'cursor-not-allowed border-slate-700/60 opacity-55'
-                              : 'border-cyan-300/12'
-                          } ${
-                            recentlyAddedItemId === normalizedCatalogItemId
-                              ? 'border-cyan-300/50 bg-cyan-400/10 shadow-[0_0_34px_rgba(34,211,238,0.18)]'
-                              : ''
-                          }`}
-                        >
-                          <span className="relative h-[106px] w-[96px] shrink-0 overflow-hidden rounded-[18px] border border-cyan-300/10 bg-[#020817]/72">
-                            <PosCatalogItemImage
-                              key={product.image_url || product.id}
-                              imageUrl={product.image_url}
-                              posDisplayMode={getProductPosDisplayMode(product)}
-                              posColor={getProductOptionalText(product, 'pos_color')}
-                              posShape={getProductOptionalText(product, 'pos_shape')}
-                              name={product.name}
-                              type={product.type}
-                              frameClassName="h-full w-full rounded-[18px] bg-[#020817]"
-                            />
-                            {productCartQuantity > 0 ? (
-                              <span className="absolute right-1.5 top-1.5 flex min-h-7 min-w-7 items-center justify-center rounded-full bg-cyan-300 px-1.5 text-xs font-black text-[#02101c] shadow-[0_0_18px_rgba(34,211,238,0.38)]">
-                                {productCartQuantity}
-                              </span>
-                            ) : null}
-                          </span>
-
-                          <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="break-words text-[15px] font-black leading-6 text-white">
-                              {product.name}
-                            </span>
-                            <span className="mt-1 truncate text-xs font-bold text-slate-400">
-                              {product.category}
-                            </span>
-                            {inventoryState.isInventoryTracked ? (
-                              <span className={`mt-1 inline-flex w-fit rounded-full px-2 py-1 text-[11px] font-black ${
-                                productOutOfStock
-                                  ? 'bg-red-400/12 text-red-200'
-                                  : inventoryState.isLowStock
-                                    ? 'bg-amber-400/12 text-amber-200'
-                                    : 'bg-emerald-400/12 text-emerald-200'
-                              }`}>
-                                {productOutOfStock
-                                  ? 'غير متوفر'
-                                  : inventoryState.isLowStock
-                                    ? 'المخزون منخفض'
-                                    : `المتاح: ${formatStockNumber(inventoryState.normalizedQuantity)}`}
-                              </span>
-                            ) : (
-                              <span className="mt-1 inline-flex w-fit rounded-full bg-emerald-400/12 px-2 py-1 text-[11px] font-black text-emerald-200">
-                                متاح
-                              </span>
-                            )}
-                            <span className="mt-auto flex items-end justify-between gap-2 pt-2">
-                              <span className="text-lg font-black leading-none text-cyan-100">
-                                {formatCurrency(product.price)}
-                              </span>
-                              <span className={`inline-flex min-h-[44px] shrink-0 items-center rounded-[15px] px-3 text-xs font-black ${
-                                reachedStockLimit || productOutOfStock
-                                  ? 'bg-slate-800 text-slate-400'
-                                  : 'bg-cyan-300 text-[#02101c] shadow-[0_0_22px_rgba(34,211,238,0.24)]'
-                              }`}>
-                                {productOutOfStock
-                                  ? 'غير متوفر'
-                                  : reachedStockLimit
-                                    ? `في السلة (${productCartQuantity})`
-                                    : recentlyAddedItemId === normalizedCatalogItemId
-                                      ? 'تمت الإضافة'
-                                      : productCartQuantity > 0
-                                        ? `إضافة أخرى (${productCartQuantity})`
-                                        : 'إضافة للسلة'}
-                              </span>
-                            </span>
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  ) : (
-                  <div className="grid min-h-0 flex-1 auto-rows-[232px] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pe-1 lg:grid-cols-4">
-                    {paginatedProducts.map((product) => {
-                      const normalizedCatalogItemId =
-                        getNormalizedCatalogItemId(product)
-                      const inventoryState = getInventoryTrackingState(product)
-                      const productOutOfStock = inventoryState.isOutOfStock
-                      const productCartQuantity =
-                        invoiceItemQuantities.byId.get(normalizedCatalogItemId) ??
-                        invoiceItemQuantities.byName.get(product.name) ??
-                        0
-                      const reachedStockLimit =
-                        inventoryState.isInventoryTracked &&
-                        productCartQuantity >= inventoryState.normalizedQuantity
-
-                      return (
-                        <button
-                          key={product.id}
-                          type="button"
-                          onClick={() => addItemWithFeedback(product)}
-                          disabled={productOutOfStock}
-                          className={`group flex h-[216px] min-w-0 flex-col rounded-[22px] border border-cyan-300/12 bg-[#061426]/72 p-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_12px_28px_rgba(2,8,23,0.26)] transition hover:border-cyan-300/28 hover:bg-[#08203a]/74 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 active:scale-[0.985] touch-manipulation sm:h-[220px] sm:rounded-[24px] ${
-                            productOutOfStock ? 'cursor-not-allowed opacity-55' : ''
-                          } ${
-                            pressedItemId === normalizedCatalogItemId
-                              ? 'scale-[0.98]'
-                              : 'scale-100'
-                          } ${
-                            recentlyAddedItemId === normalizedCatalogItemId
-                              ? 'border-cyan-300/50 shadow-[0_0_42px_rgba(34,211,238,0.22)]'
-                              : ''
-                          }`}
-                        >
-                          <div className="relative h-[96px] shrink-0 overflow-hidden rounded-[18px] border border-cyan-300/10 bg-[#020817]/72 sm:h-[104px] sm:rounded-[20px]">
-                            <PosCatalogItemImage
-                              key={product.image_url || product.id}
-                              imageUrl={product.image_url}
-                              posDisplayMode={getProductPosDisplayMode(product)}
-                              posColor={getProductOptionalText(product, 'pos_color')}
-                              posShape={getProductOptionalText(product, 'pos_shape')}
-                              name={product.name}
-                              type={product.type}
-                              frameClassName="h-full w-full rounded-[20px] bg-[#020817]"
-                            />
-                            {productCartQuantity > 0 ? (
-                              <span className="absolute right-2 top-2 rounded-full bg-cyan-300 px-2 py-0.5 text-[11px] font-black text-[#02101c] shadow-[0_0_22px_rgba(34,211,238,0.38)]">
-                                {productCartQuantity}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <div className="flex min-h-0 flex-1 flex-col px-1 pt-2">
-                            <h3 className="line-clamp-2 h-[38px] shrink-0 break-words text-[13px] font-black leading-[19px] text-white">
-                              {product.name}
-                            </h3>
-                            <p className="mt-0.5 h-[15px] shrink-0 truncate text-[11px] font-bold leading-[15px] text-slate-400">
-                              {product.category}
-                            </p>
-                            <div className="mt-auto flex h-11 shrink-0 items-end justify-between gap-2 pt-1">
-                              <div className="min-w-0 pb-1">
-                                <p className="truncate whitespace-nowrap text-sm font-black text-cyan-100 sm:text-base">
-                                  {formatCurrency(product.price)}
-                                </p>
-                              </div>
-                              <span
-                                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] text-xl font-black transition ${
-                                  reachedStockLimit || productOutOfStock
-                                    ? 'bg-slate-800 text-slate-500'
-                                    : 'bg-cyan-300 text-[#02101c] shadow-[0_0_28px_rgba(34,211,238,0.32)] group-hover:scale-105'
-                                }`}
-                              >
-                                +
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  )}
-
-                  {totalCatalogPages > 1 ? (
-                    <div className="flex shrink-0 items-center justify-center gap-2 border-t border-cyan-300/10 pt-3">
+                    return (
                       <button
+                        key={product.id}
                         type="button"
-                        onClick={() =>
-                          setCurrentCatalogPage((current) => Math.max(1, current - 1))
+                        onClick={() => addItemWithFeedback(product)}
+                        disabled={productOutOfStock}
+                        aria-label={
+                          productOutOfStock
+                            ? product.name + ' غير متوفر في المخزون'
+                            : 'إضافة ' + product.name + ' إلى السلة'
                         }
-                        disabled={effectiveCatalogPage === 1}
-                        className="min-h-[44px] rounded-2xl border border-cyan-300/12 bg-[#020817]/70 px-4 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 touch-manipulation"
-                      >
-                        السابق
-                      </button>
-                      <span className="rounded-full bg-cyan-300/10 px-4 py-2 text-xs font-black text-cyan-100">
-                        {effectiveCatalogPage} / {totalCatalogPages}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCurrentCatalogPage((current) =>
-                            Math.min(totalCatalogPages, current + 1)
-                          )
+                        aria-pressed={productCartQuantity > 0}
+                        data-cart-quantity={productCartQuantity}
+                        data-pressed={pressedItemId === normalizedCatalogItemId ? 'true' : 'false'}
+                        data-recently-added={
+                          recentlyAddedItemId === normalizedCatalogItemId ? 'true' : 'false'
                         }
-                        disabled={effectiveCatalogPage === totalCatalogPages}
-                        className="min-h-[44px] rounded-2xl border border-cyan-300/12 bg-[#020817]/70 px-4 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 touch-manipulation"
+                        className={modelOneStyles.productCard}
                       >
-                        التالي
+                        {productIndex === paginatedProducts.length - 1 ? (
+                          <span
+                            ref={catalogSentinelRef}
+                            className={modelOneStyles.catalogSentinel}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        <PosCatalogItemImage
+                          key={product.image_url || product.id}
+                          imageUrl={product.image_url}
+                          posDisplayMode={getProductPosDisplayMode(product)}
+                          posColor={getProductOptionalText(product, 'pos_color')}
+                          posShape={getProductOptionalText(product, 'pos_shape')}
+                          name={product.name}
+                          type={product.type}
+                          frameClassName={modelOneStyles.productImageFrame}
+                          presentation="model-one"
+                        />
+                        <span className={modelOneStyles.priceBadge}>
+                          {formatCurrency(product.price)}
+                        </span>
+                        {productCartQuantity > 0 ? (
+                          <span className={modelOneStyles.selectionBadge} aria-hidden="true">
+                            {productCartQuantity > 1 ? productCartQuantity : '✓'}
+                          </span>
+                        ) : null}
+                        {productOutOfStock || reachedStockLimit ? (
+                          <span className={modelOneStyles.stockBadge}>
+                            {productOutOfStock ? 'غير متوفر' : 'بلغت الكمية المتاحة'}
+                          </span>
+                        ) : null}
+                        <span className={modelOneStyles.productNameStrip}>
+                          <span>{product.name}</span>
+                        </span>
                       </button>
-                    </div>
-                  ) : null}
+                    )
+                  })}
                 </div>
               )}
+
+              <span
+                className={modelOneStyles.backgroundStatus}
+                aria-live="polite"
+                aria-busy={catalogLoading || catalogRefreshing}
+              >
+                {catalogLoading && currentCatalogPage > 1
+                  ? 'جارٍ تحديث الكتالوج…'
+                  : catalogError && catalogProducts.length > 0
+                    ? 'تعذر إكمال التحديث'
+                    : ''}
+              </span>
             </section>
           </main>
 
           {showItemsModal ? (
             <button
               type="button"
-              onClick={() => setShowItemsModal(false)}
+              onClick={closeMobileCart}
               aria-label="إغلاق السلة"
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+              className={modelOneStyles.cartBackdrop}
             />
           ) : null}
 
-          <aside id="pos-cart-panel" className={`${showItemsModal ? 'pos-mobile-sheet-enter fixed inset-0 z-50 flex' : 'hidden'} w-auto shrink-0 flex-col overflow-y-auto overscroll-contain rounded-none border border-cyan-300/10 bg-[#020817]/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl [direction:rtl] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:flex md:h-full md:w-[280px] md:overflow-hidden md:rounded-[28px] md:bg-[#020817]/72 md:p-3 lg:w-[320px]`}>
-            <div className="shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/68 p-3.5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black tracking-[0.18em] text-cyan-300">
-                    AFEX POS
-                  </p>
-                  <h2 className="mt-1 text-xl font-black text-white">ملخص الفاتورة</h2>
+          <aside
+            id="pos-cart-panel"
+            data-mobile-cart-sheet
+            className={[
+              modelOneStyles.cart,
+              showItemsModal ? modelOneStyles.cartOpen : '',
+            ].filter(Boolean).join(' ')}
+          >
+            <header data-mobile-cart-header className={modelOneStyles.cartHeader}>
+              <div className={modelOneStyles.cartHeaderIdentity}>
+                <span className={modelOneStyles.employeeAvatar} aria-hidden="true">
+                  {employeeInitial}
+                </span>
+                <div className={modelOneStyles.employeeCopy}>
+                  <strong>{employeeDisplayName}</strong>
+                  <small>{invoiceBranchName}</small>
                 </div>
+              </div>
+              <div className={modelOneStyles.cartHeaderControls}>
+                <span className={modelOneStyles.cartCount} aria-label={invoiceItemCount + ' عنصر'}>
+                  {invoiceItemCount}
+                </span>
                 <button
                   type="button"
-                  onClick={() => setShowItemsModal(false)}
+                  onClick={closeMobileCart}
                   aria-label="إغلاق ملخص الفاتورة"
-                  className="flex h-11 w-11 items-center justify-center rounded-[16px] border border-cyan-300/12 bg-[#020817]/70 text-xl font-black text-cyan-100 md:hidden"
+                  className={modelOneStyles.cartClose}
                 >
                   ×
                 </button>
               </div>
-              <p className="mt-1 text-xs font-bold text-slate-400">
-                الفرع: {invoiceBranchName}
-              </p>
-            </div>
+            </header>
 
-            <div className="mt-2.5 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3.5">
-              <p className="text-xs font-black text-slate-400">العميل</p>
-              <p className="mt-2 truncate text-lg font-black text-white">
-                {customerName || 'عميل غير محدد'}
-              </p>
-              <p className="mt-1 truncate text-sm font-bold text-slate-400">
-                {customerPhone || 'بدون رقم جوال'}
-              </p>
-            </div>
-
-            <div className="mt-2 flex min-h-[160px] shrink-0 flex-col rounded-[24px] border border-cyan-300/10 bg-[#061426]/50 p-2.5 md:min-h-0 md:flex-1">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="text-base font-black text-white">العناصر المختارة</h3>
-                <span className="rounded-full bg-cyan-300/12 px-3 py-1 text-xs font-black text-cyan-100">
-                  {invoiceItemCount}
-                </span>
+            <div data-mobile-cart-scroll-body className={modelOneStyles.cartBody}>
+              <div data-mobile-cart-customer className={modelOneStyles.customerSummary}>
+                <span className={modelOneStyles.customerSummaryLabel}>العميل</span>
+                <div className={modelOneStyles.customerSummaryValue}>
+                  <strong>{customerName || 'عميل غير محدد'}</strong>
+                  <small dir="ltr">{customerPhone || 'بدون رقم جوال'}</small>
+                </div>
               </div>
 
-              {invoiceItems.length === 0 ? (
-                <div className="flex min-h-0 flex-1 items-center justify-center rounded-[24px] border border-dashed border-cyan-300/16 bg-[#020817]/44 px-4 text-center text-sm font-bold leading-7 text-slate-400">
-                  اختر العناصر من الشبكة لإضافتها إلى الفاتورة.
+              <section data-mobile-cart-items className={modelOneStyles.cartItems}>
+                <div
+                  data-mobile-cart-items-heading
+                  className={modelOneStyles.cartItemsHeading}
+                >
+                  <h2>ملخص الفاتورة</h2>
+                  <span>{invoiceItemCount} عنصر</span>
                 </div>
-              ) : (
-                <div className="space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto md:pr-1">
-                  {invoiceItems.map((item) => (
-                    <div
-                      key={item.item_name}
-                      className="rounded-[20px] border border-cyan-300/10 bg-[#020817]/58 p-2.5 transition-all duration-200"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="line-clamp-2 break-words text-sm font-black text-white">
-                            {item.item_name}
-                          </p>
-                          <p className="mt-1 text-xs font-bold text-slate-400">
-                            <span className="sm:sr-only">سعر الوحدة: </span>
-                            {formatCurrency(item.unit_price)}
-                          </p>
+
+                {invoiceItems.length === 0 ? (
+                  <div className={modelOneStyles.cartEmpty}>
+                    اختر العناصر من الكتالوج لإضافتها إلى الفاتورة.
+                  </div>
+                ) : (
+                  <div
+                    data-mobile-cart-item-list
+                    className={modelOneStyles.cartItemList}
+                  >
+                    {invoiceItems.map((item) => (
+                      <article key={item.item_name} className={modelOneStyles.cartItem}>
+                        <div className={modelOneStyles.cartItemCopy}>
+                          <strong>{item.item_name}</strong>
+                          <div className={modelOneStyles.quantityStepper}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                decreaseOrRemoveItem(item.item_name, item.quantity)
+                              }
+                              className={modelOneStyles.quantityButton}
+                              aria-label={'تقليل ' + item.item_name}
+                            >
+                              −
+                            </button>
+                            <span className={modelOneStyles.quantityValue}>
+                              × {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => increaseQty(item)}
+                              className={modelOneStyles.quantityButton}
+                              aria-label={'زيادة ' + item.item_name}
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
+                        <p className={modelOneStyles.cartItemPrice}>
+                          {formatCurrency(item.quantity * item.unit_price)}
+                          <small>{formatCurrency(item.unit_price)} للوحدة</small>
+                        </p>
                         <button
                           type="button"
                           onClick={() => removeItem(item.item_name)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-red-300 transition hover:bg-red-500/10 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 touch-manipulation"
-                          aria-label={`حذف ${item.item_name}`}
+                          className={modelOneStyles.deleteButton}
+                          aria-label={'حذف ' + item.item_name}
                         >
                           <TrashIcon />
                         </button>
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-1 rounded-2xl border border-cyan-300/10 bg-[#061426]/70 p-1">
-                          <button
-                            type="button"
-                            onClick={() => decreaseOrRemoveItem(item.item_name, item.quantity)}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#020817]/80 text-lg font-black text-white transition hover:bg-cyan-300/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 touch-manipulation"
-                            aria-label={`تقليل ${item.item_name}`}
-                          >
-                            -
-                          </button>
-                          <span className="w-8 text-center text-sm font-black text-cyan-100">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => increaseQty(item)}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-300 text-lg font-black text-[#02101c] transition hover:bg-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 touch-manipulation"
-                            aria-label={`زيادة ${item.item_name}`}
-                          >
-                            +
-                          </button>
-                        </div>
-                        <p className="text-left text-sm font-black text-white">
-                          <span className="mb-1 block text-[10px] font-bold text-slate-500 sm:hidden">
-                            إجمالي العنصر
-                          </span>
-                          {formatCurrency(item.quantity * item.unit_price)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
 
-            <div className="mt-2 shrink-0 rounded-[24px] border border-cyan-300/10 bg-[#061426]/58 p-3">
-              <div className="space-y-2 text-sm font-bold">
-                <div className="flex items-center justify-between text-slate-300">
+            <footer data-mobile-cart-footer className={modelOneStyles.cartFooter}>
+              <div data-mobile-cart-totals className={modelOneStyles.totalLines}>
+                <div className={modelOneStyles.totalLine}>
                   <span>المجموع الفرعي</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
                 {checkout.discountAmount > 0 ? (
-                  <div className="flex items-center justify-between text-slate-300">
+                  <div className={modelOneStyles.totalLine}>
                     <span>الخصم</span>
                     <span>{formatCurrency(checkout.discountAmount)}</span>
                   </div>
                 ) : null}
-                <div className="flex items-center justify-between text-slate-300">
-                  <span>الضريبة</span>
+                <div className={modelOneStyles.totalLine}>
+                  <span>ضريبة القيمة المضافة</span>
                   <span>{formatCurrency(checkout.taxAmount)}</span>
                 </div>
-                <div className="mt-3 flex items-end justify-between border-t border-cyan-300/10 pt-3">
-                  <span className="text-sm font-black text-cyan-100">الإجمالي</span>
-                  <span className="text-3xl font-black text-white">
-                    {formatCurrency(checkout.finalTotal)}
-                  </span>
+                <div className={modelOneStyles.grandTotal}>
+                  <span>الإجمالي</span>
+                  <strong>{formatCurrency(checkout.finalTotal)}</strong>
                 </div>
               </div>
-            </div>
 
-            <div className="sticky bottom-0 z-10 -mx-3 mt-2 shrink-0 space-y-1.5 border-t border-cyan-300/10 bg-[#020817]/96 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
-              <div className="flex items-end justify-between gap-3 px-1 pb-1 sm:hidden">
-                <div>
-                  <p className="text-[11px] font-black text-slate-400">{invoiceItemCount} عنصر في السلة</p>
-                  <p className="mt-1 text-xl font-black text-white">
-                    {formatCurrency(checkout.finalTotal)}
-                  </p>
-                </div>
-                <p className="text-xs font-black text-emerald-200">جاهز للمتابعة</p>
+              <div data-mobile-cart-actions className={modelOneStyles.cartActions}>
+                <button
+                  type="button"
+                  onClick={() => router.push(checkoutHref)}
+                  disabled={invoiceItems.length === 0}
+                  className={modelOneStyles.completeButton}
+                >
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.9]">
+                      <path d="M5 6h2l1.4 8.2h8.7l1.7-5.7H8.1M10 19h.01M17 19h.01" />
+                    </svg>
+                    إتمام البيع
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(true)}
+                  className={modelOneStyles.cancelButton}
+                  aria-label="إلغاء الفاتورة"
+                  title="إلغاء الفاتورة"
+                >
+                  <TrashIcon />
+                  <span>مسح</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => router.push(checkoutHref)}
-                disabled={invoiceItems.length === 0}
-                className="h-14 w-full rounded-[22px] bg-emerald-400 text-base font-black text-[#02130c] shadow-[0_0_30px_rgba(52,211,153,0.28)] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none touch-manipulation"
-              >
-                إتمام البيع
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCancelModal(true)}
-                className="h-11 w-full rounded-[18px] border border-red-400/16 bg-red-500/8 text-sm font-black text-red-200 transition hover:bg-red-500/14 touch-manipulation"
-              >
-                إلغاء الفاتورة
-              </button>
-            </div>
+            </footer>
           </aside>
+
+          <div className={modelOneStyles.mobileSummary} aria-label="ملخص السلة">
+            <div>
+              <span>الإجمالي</span>
+              <strong>{formatCurrency(checkout.finalTotal)}</strong>
+            </div>
+            <button
+              type="button"
+              ref={mobileCartTriggerRef}
+              onClick={() => setShowItemsModal(true)}
+              aria-expanded={showItemsModal}
+              aria-controls="pos-cart-panel"
+            >
+              عرض السلة • {invoiceItemCount}
+            </button>
+          </div>
         </div>
 
         {showCancelModal ? (
           <>
-            <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm" />
-            <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-              <div className="w-full max-w-md rounded-[28px] border border-red-400/18 bg-[#020817]/95 p-6 text-right shadow-[0_28px_80px_rgba(0,0,0,0.55)]">
-                <h2 className="text-lg font-black text-white">إلغاء الفاتورة</h2>
-                <p className="mt-2 text-sm font-bold leading-7 text-slate-300">
-                  هل أنت متأكد من إلغاء الفاتورة؟
-                </p>
-                <div className="mt-6 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    className="h-11 rounded-2xl border border-cyan-300/12 bg-[#061426] px-5 text-sm font-black text-slate-200 transition hover:bg-cyan-400/10"
-                    onClick={() => setShowCancelModal(false)}
-                  >
-                    إلغاء
+            <div className={modelOneStyles.modalBackdrop} />
+            <div className={modelOneStyles.modalLayer}>
+              <div
+                className={modelOneStyles.modal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cancel-invoice-title"
+              >
+                <h2 id="cancel-invoice-title">إلغاء الفاتورة</h2>
+                <p>هل أنت متأكد من إلغاء الفاتورة؟</p>
+                <div className={modelOneStyles.modalActions}>
+                  <button type="button" onClick={() => setShowCancelModal(false)}>
+                    متابعة البيع
                   </button>
                   <button
                     type="button"
-                    className="h-11 rounded-2xl bg-red-500 px-5 text-sm font-black text-white transition hover:bg-red-400"
+                    className={modelOneStyles.confirmCancel}
                     onClick={() => {
                       setShowCancelModal(false)
                       clearInvoice()
@@ -1820,7 +1883,7 @@ export function InvoiceItemsStep({
                       router.push('/pos')
                     }}
                   >
-                    تأكيد
+                    تأكيد الإلغاء
                   </button>
                 </div>
               </div>
@@ -1830,7 +1893,6 @@ export function InvoiceItemsStep({
       </div>
     )
   }
-
   const renderLegacyPosItemsLayout = false
 
   if (renderLegacyPosItemsLayout) {
@@ -2808,6 +2870,7 @@ function PosCatalogItemImage({
   type,
   compact = false,
   frameClassName,
+  presentation = 'default',
 }: {
   imageUrl: string | null
   posDisplayMode?: 'style' | 'image' | null
@@ -2817,6 +2880,7 @@ function PosCatalogItemImage({
   type: 'product' | 'service'
   compact?: boolean
   frameClassName?: string
+  presentation?: 'default' | 'model-one'
 }) {
   const normalizedImageUrl = resolveInvoiceCatalogImageUrl(imageUrl)
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
@@ -2856,6 +2920,7 @@ function PosCatalogItemImage({
         posColor={posColor}
         shapeClasses={shapeClasses}
         shapeStyle={shapeStyle}
+        presentation={presentation}
       />
     )
   }
@@ -2885,6 +2950,21 @@ function PosCatalogItemImage({
           </div>
           <p className="text-xs font-bold text-slate-500">لا توجد صورة متاحة</p>
         </div>
+      </div>
+    )
+  }
+
+  if (presentation === 'model-one') {
+    return (
+      <div className={imageFrameClass}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={normalizedImageUrl ?? undefined}
+          alt={name}
+          className="absolute inset-0 h-full w-full object-cover object-center"
+          loading="lazy"
+          onError={() => setFailedImageUrl(normalizedImageUrl)}
+        />
       </div>
     )
   }
@@ -2924,13 +3004,43 @@ function PosCatalogItemPlaceholder({
   posColor,
   shapeClasses,
   shapeStyle,
+  presentation = 'default',
 }: {
   imageFrameClass: string
   posDisplayMode?: 'style' | 'image' | null
   posColor?: string | null
   shapeClasses: string
   shapeStyle?: CSSProperties
+  presentation?: 'default' | 'model-one'
 }) {
+  if (presentation === 'model-one') {
+    return (
+      <div className={imageFrameClass} data-catalog-image-fallback="model-one">
+        <div className={modelOneStyles.placeholder}>
+          <div>
+            <span className={modelOneStyles.placeholderIcon} aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 3 4 7l8 4 8-4-8-4Z" />
+                <path d="M4 7v10l8 4 8-4V7" />
+                <path d="M12 11v10" />
+              </svg>
+            </span>
+            <p>لا توجد صورة متاحة</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const accentColor =
     posDisplayMode === 'style' && posColor?.trim() ? posColor : '#22D3EE'
 

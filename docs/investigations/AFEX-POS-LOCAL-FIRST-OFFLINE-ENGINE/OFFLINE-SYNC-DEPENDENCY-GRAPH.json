@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "ordering": "topological with per-aggregate FIFO; unrelated aggregates may synchronize concurrently after server claim support",
+  "nodes": [
+    { "id": "N00_UNLOCK", "kind": "authority", "description": "Validate primary auth, POS actor/offline lease and namespace" },
+    { "id": "N01_SCHEMA", "kind": "local", "description": "Validate local schema, manifest, integrity and migration state" },
+    { "id": "N02_REFRESH", "kind": "read", "description": "Refresh server clock, revocation epoch, datasets and versions" },
+    { "id": "N03_CUSTOMER", "kind": "command", "description": "Optional customer.create command when separately approved" },
+    { "id": "N04_ORDER", "kind": "command", "description": "order.create command with stable identity and canonical fingerprint" },
+    { "id": "N05_STATUS", "kind": "command", "description": "order.status.transition commands in local sequence order" },
+    { "id": "N06_RECEIPT", "kind": "receipt", "description": "Persist terminal server response and official numbers" },
+    { "id": "N07_EFFECTS", "kind": "server", "description": "Server-only audit, inventory, cost snapshot and notification outbox" },
+    { "id": "N08_RECONCILE", "kind": "conflict", "description": "Resolve conflict/manual-hold/blocked results without blind retry" },
+    { "id": "N09_COMPACT", "kind": "local", "description": "Tombstone acknowledgement and safe compaction" }
+  ],
+  "edges": [
+    { "from": "N00_UNLOCK", "to": "N01_SCHEMA", "reason": "no store access before authority" },
+    { "from": "N01_SCHEMA", "to": "N02_REFRESH", "reason": "only validated schema may ingest data" },
+    { "from": "N02_REFRESH", "to": "N03_CUSTOMER", "reason": "refresh identity/conflict facts first" },
+    { "from": "N02_REFRESH", "to": "N04_ORDER", "reason": "refresh price, VAT, inventory and authority versions first" },
+    { "from": "N03_CUSTOMER", "to": "N04_ORDER", "condition": "order references a locally created customer command", "reason": "resolve canonical customer ID or embed resolution atomically" },
+    { "from": "N04_ORDER", "to": "N05_STATUS", "condition": "status command targets locally created order", "reason": "official order ID required" },
+    { "from": "N04_ORDER", "to": "N06_RECEIPT", "reason": "terminal response must be durable before local success" },
+    { "from": "N05_STATUS", "to": "N06_RECEIPT", "reason": "persist transition response" },
+    { "from": "N04_ORDER", "to": "N07_EFFECTS", "reason": "business-linked effects are server-owned" },
+    { "from": "N05_STATUS", "to": "N07_EFFECTS", "reason": "notification is keyed to persisted transition" },
+    { "from": "N06_RECEIPT", "to": "N08_RECONCILE", "condition": "response is conflict/reconciliation/manual hold", "reason": "no automatic destructive resolution" },
+    { "from": "N06_RECEIPT", "to": "N09_COMPACT", "condition": "response is terminal success/final failure and acknowledged", "reason": "preserve evidence until terminal receipt" },
+    { "from": "N08_RECONCILE", "to": "N09_COMPACT", "condition": "human/server resolution acknowledged", "reason": "retain blocked evidence otherwise" }
+  ],
+  "perAggregateRules": [
+    "Commands for one order/local sale execute in localSequence order.",
+    "A failed or conflict command blocks its dependents, not unrelated aggregates.",
+    "A lease uses compare-and-set in IndexedDB and a BroadcastChannel heartbeat; service worker and page cannot process the same command concurrently.",
+    "The server, not the device, claims canonical processing and decides replay versus conflict.",
+    "Online/offline detection is advisory; only an authenticated server response changes a command to synced."
+  ],
+  "stateTransitions": [
+    "pending->syncing",
+    "syncing->synced",
+    "syncing->failed",
+    "syncing->conflict",
+    "syncing->blocked",
+    "failed->pending after classified retry policy",
+    "conflict->pending only after explicit resolution creates a new immutable command",
+    "blocked->pending only after prerequisite/authority restoration"
+  ],
+  "forbiddenTransitions": [
+    "pending->synced without server receipt",
+    "conflict->synced by local overwrite",
+    "failed->synced based on navigator.onLine",
+    "any->deleted while a dependent command is non-terminal"
+  ]
+}
+

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "implementationAuthorized": false,
+  "nodes": [
+    {"id":"E0","name":"Current evidence and causality review","status":"COMPLETE_THIS_PACKAGE"},
+    {"id":"H0","name":"Human approval of security outcomes and retained Mode A policy","status":"PENDING"},
+    {"id":"S1","name":"Legacy object/default ACL target design","status":"BLOCKED_PENDING_SEPARATE_AUTHORITY"},
+    {"id":"S2","name":"Effective RLS replacement and direct-client route decision","status":"BLOCKED_PENDING_SEPARATE_AUTHORITY"},
+    {"id":"S3","name":"SECURITY DEFINER body/search-path/execute closure","status":"BLOCKED_PENDING_SEPARATE_AUTHORITY"},
+    {"id":"A1","name":"Fresh read-only catalog and hostile-path attestation","status":"NOT_STARTED"},
+    {"id":"D1","name":"Registered device identity and generation","status":"DESIGNED_NOT_IMPLEMENTED"},
+    {"id":"C1","name":"Offline employee credential/PIN/permission/revocation generations","status":"DESIGNED_NOT_IMPLEMENTED"},
+    {"id":"U1","name":"Persistent unwrap qualification","status":"FLAG_DISABLED"},
+    {"id":"O1","name":"Immutable durable local command authority/outbox","status":"FLAGS_DISABLED"},
+    {"id":"R1","name":"Business review container","status":"ABSENT"},
+    {"id":"P1","name":"Payment canonicalization and immutable attestation","status":"ABSENT"},
+    {"id":"I1","name":"Inventory frontier, nonnegative invariant and cancellation parity","status":"INCOMPLETE"},
+    {"id":"X1","name":"Transactional external-effect intent and dispatcher","status":"ABSENT"},
+    {"id":"K1","name":"Core actor/device/generation/replay/effect bridge","status":"INCOMPLETE"},
+    {"id":"Q1","name":"Static, isolated, concurrency, Preview qualification","status":"NOT_STARTED"},
+    {"id":"PILOT","name":"One-branch managed-device order.create pilot","status":"BLOCKED"},
+    {"id":"PH5","name":"Phase 5","status":"BLOCKED"}
+  ],
+  "edges": [
+    {"from":"E0","to":"H0"},
+    {"from":"H0","to":"S1"},{"from":"H0","to":"S2"},{"from":"H0","to":"S3"},
+    {"from":"S1","to":"A1"},{"from":"S2","to":"A1"},{"from":"S3","to":"A1"},
+    {"from":"H0","to":"D1"},{"from":"D1","to":"C1"},{"from":"C1","to":"U1"},{"from":"U1","to":"O1"},
+    {"from":"H0","to":"R1"},{"from":"H0","to":"P1"},{"from":"H0","to":"I1"},{"from":"H0","to":"X1"},
+    {"from":"O1","to":"K1"},{"from":"R1","to":"K1"},{"from":"P1","to":"K1"},{"from":"I1","to":"K1"},{"from":"X1","to":"K1"},
+    {"from":"A1","to":"Q1"},{"from":"K1","to":"Q1"},{"from":"Q1","to":"PILOT"},{"from":"PILOT","to":"PH5"}
+  ],
+  "criticalPath":["H0","S1/S2/S3","A1","D1","C1","U1","O1","R1/P1/I1/X1","K1","Q1","PILOT","PH5"],
+  "minimumCorrectionPlan":[
+    "Close legacy reachability first; do not layer more permissive policies.",
+    "Re-attest effective ACL/RLS/function reachability before introducing Offline secrets or commands.",
+    "Install device and employee authority before persistent unwrap.",
+    "Add review/payment/inventory/effect authority before the Core Offline bridge.",
+    "Preserve exact duplicate replay and narrow owner boundaries.",
+    "Keep all client dispatch flags disabled until isolated and Preview qualification passes."
+  ],
+  "forbiddenEdges":["Primary Auth -> Offline employee","PIN UI state -> server authority","outbox -> Core without K1","replay -> provider","failed_retryable -> business approval","pilot -> Phase5 without separate human authorization"]
+}

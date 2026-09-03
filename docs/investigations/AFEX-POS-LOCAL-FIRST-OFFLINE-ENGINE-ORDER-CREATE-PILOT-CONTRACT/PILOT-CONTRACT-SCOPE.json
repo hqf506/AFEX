@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 2,
+  "contractVersion": "core-v2-offline-order-create.v2",
+  "pilot": {
+    "allowlist": ["order.create"],
+    "dispatchEnabled": false,
+    "replayEnabled": false,
+    "offlineOrderCreateEnabled": false,
+    "externalEffectsEnabled": false,
+    "coreAuthority": "CORE_V2_ONLY",
+    "accountBootstrapPrerequisite": "VERIFIED_ONLINE_ESTABLISHMENT_LOGIN",
+    "employeePinAuthority": "PRE_ENROLLED_EMPLOYEE_SELECTION_ONLY",
+    "databaseAllowedCommandTypes": ["order.create"],
+    "maximumActiveEmployeesPerManagedBranchDevice": 25
+  },
+  "paymentMethods": ["mada", "cash", "visa", "cod", "card", "bank_transfer", "transfer", "on_delivery"],
+  "shadowModeDispatchForbidden": ["order.status.change", "customer.create", "customer.update", "payment.employee_attestation", "audit.event.append", "order.cancel", "payment.refund"],
+  "sensitiveFlags": {
+    "authorityPersistence": false,
+    "persistentUnwrap": false,
+    "trustedSnapshotIngestion": false,
+    "productionOutboxPersistence": false,
+    "dispatch": false,
+    "replay": false,
+    "offlineOrderInterception": false,
+    "offlineOrderCreate": false,
+    "paymentProviderAction": false,
+    "externalEffects": false,
+    "cancellationReplay": false,
+    "refundReplay": false
+  },
+  "businessCallerImports": 0,
+  "logoutRecovery": {
+    "offlinePinAfterLogout": false,
+    "pendingCommands": "RETAIN_ENCRYPTED_INACCESSIBLE",
+    "sameAccountOnlineRecoveryOnly": true,
+    "crossAccountTenantBranchRecovery": "REJECT"
+  },
+  "restartWithoutLogout": {
+    "internetRequired": false,
+    "employeePinReentryRequired": true,
+    "pendingCommitmentReconstruction": "DETERMINISTIC"
+  },
+  "implementationState": "ISOLATED_ACCOUNT_BOOTSTRAP_PROVENANCE_PROVISIONING_AND_INACTIVE_REVIEW_SQL",
+  "phase5Started": false
+}

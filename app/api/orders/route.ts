@@ -39,7 +39,9 @@ import {
   POS_FEATURE_DISABLED_MESSAGE,
 } from '@/lib/feature-guards'
 import type { ServerTiming } from '@/lib/performance/server-timing'
-import type { OrderStatus } from '@/lib/orders/normalize'
+import { normalizeOrderStatus, type OrderStatus } from '@/lib/orders/normalize'
+import { getPosOrderHistoryCutoffIso } from '@/lib/orders/recent-window'
+import { loadAuthorizedOrderStatusHistory } from '@/lib/server/orders/order-status-history'
 import {
   resolveEffectiveOrderStatus,
   type EffectiveOrderStatus,
@@ -62,6 +64,8 @@ type OrdersApiQuery = {
   dateFrom: string | null
   dateTo: string | null
   listFilter: string | null
+  recentHours: 48 | null
+  todayRiyadh: boolean
 }
 
 type OrdersApiPayload = {
@@ -75,6 +79,7 @@ type OrdersApiPayload = {
   comparisonSignature: string
   summary?: Record<string, number>
   employeeNames?: Record<string, string>
+  statusHistory?: Awaited<ReturnType<typeof loadAuthorizedOrderStatusHistory>>
 }
 
 let hasHandledOrderPerformanceRequest = false
@@ -255,6 +260,7 @@ type InvoicePaymentPersistenceClient = {
 interface OrdersFilterQuery {
   eq(column: string, value: string): this
   gte(column: string, value: string): this
+  gt(column: string, value: string): this
   lte(column: string, value: string): this
   neq(column: string, value: string): this
   in(column: string, values: string[]): this
@@ -500,6 +506,16 @@ export async function GET(request: NextRequest) {
         )
       }
 
+      const statusHistory = data
+        ? await timing.measure('status_history', () => loadAuthorizedOrderStatusHistory({
+            tenantId: auth.profile.tenant_id as string,
+            branchId: auth.profile.branch_id,
+            scopeType: auth.profile.scope_type,
+            orderId: query.id as string,
+            currentStatus: normalizeOrderStatus(data.status),
+          }))
+        : { readState: 'success' as const, entries: [] }
+
       return jsonWithAuthCookies<OrdersApiPayload>(auth.response, {
         success: true,
         mode: query.mode,
@@ -511,6 +527,7 @@ export async function GET(request: NextRequest) {
         comparisonSignature: data
           ? buildOrdersComparisonSignature([data])
           : '',
+        statusHistory,
       })
     }
 
@@ -2236,6 +2253,8 @@ function parseOrdersQuery(request: NextRequest): OrdersApiQuery {
     dateFrom: normalizeOptionalString(params.get('dateFrom')),
     dateTo: normalizeOptionalString(params.get('dateTo')),
     listFilter: normalizeOptionalString(params.get('listFilter')),
+    recentHours: params.get('recentHours') === '48' ? 48 : null,
+    todayRiyadh: params.get('todayRiyadh') === '1',
   }
 }
 
@@ -2425,6 +2444,18 @@ function applyOrdersFilters<T extends OrdersFilterQuery>(
 
   if (filters.status !== 'all') {
     nextQuery = nextQuery.eq('status', filters.status)
+  }
+
+  if (filters.recentHours === 48) {
+    nextQuery = nextQuery.gt('created_at', getPosOrderHistoryCutoffIso())
+  }
+
+  if (filters.todayRiyadh) {
+    const now = new Date()
+    const riyadhParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' })
+    const parts = Object.fromEntries(riyadhParts.formatToParts(now).map((part) => [part.type, part.value]))
+    const start = new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00+03:00`).toISOString()
+    nextQuery = nextQuery.gte('created_at', start).lte('created_at', now.toISOString())
   }
 
   const fromIso = toUtcBoundaryIso(filters.dateFrom, 'start')

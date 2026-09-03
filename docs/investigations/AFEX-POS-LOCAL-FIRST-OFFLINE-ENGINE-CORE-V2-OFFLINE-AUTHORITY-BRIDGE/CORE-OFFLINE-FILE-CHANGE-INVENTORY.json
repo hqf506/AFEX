@@ -1,0 +1,27 @@
+{
+  "phase": "AFEX POS LOCAL-FIRST OFFLINE ENGINE CORE V2 OFFLINE AUTHORITY AND REPLAY BRIDGE",
+  "baselineHead": "37331390ec00bee507f88701365bfebb944db675",
+  "added": [
+    {
+      "path": "lib/offline/core-v2-offline-authority-bridge.ts",
+      "bytes": 83335,
+      "sha256": "8f38382eee6320602c7ef9fcd2db825296b4c0bc74e2f8c3678d3ab879b05202",
+      "purpose": "server-only exact envelope and eight payload schemas, authority-bound acquisition/receipt replay, runtime-validated fail-closed resolver, qualification, frontier, payment, effects, review and state contracts"
+    },
+    {
+      "path": "tests/pos-offline-core-v2-authority-bridge.test.mjs",
+      "bytes": 40177,
+      "sha256": "ef15b893dffcfba93ba0e0c3257c9d3f8a8fbd42e69ff22a89da7a6e7b93bbb7",
+      "purpose": "30 focused functional and negative tests for payload, acquisition, receipt and resolver contracts plus bounded synthetic measurements"
+    }
+  ],
+  "modified": [],
+  "deleted": [],
+  "routeAdded": false,
+  "currentBusinessPathIntegrated": false,
+  "packageOrLockFilesModified": false,
+  "sqlOrMigrationFilesModified": false,
+  "historicalEvidenceModified": false,
+  "runtimeIntegrationR8NModified": false,
+  "gitWritesPerformed": false
+}

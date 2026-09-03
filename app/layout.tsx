@@ -2,7 +2,10 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import { AuthStateProvider } from '@/components/auth-state-provider'
 import { DevCacheReset } from '@/components/dev-cache-reset'
+import { ProfilePresentationProvider } from '@/components/profile-presentation-provider'
 import './globals.css'
+import './pos-tablet.css'
+import './pos-mobile-defects.css'
 
 const cairo = localFont({
   src: [
@@ -70,10 +73,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className={`${cairo.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full font-sans">
         <DevCacheReset />
-        <AuthStateProvider>{children}</AuthStateProvider>
+        <AuthStateProvider>
+          <ProfilePresentationProvider>{children}</ProfilePresentationProvider>
+        </AuthStateProvider>
       </body>
     </html>
   )

@@ -1,0 +1,492 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceClass": "STATIC_SOURCE_PROOF_PLUS_LABELED_HISTORICAL_PRODUCTION_EVIDENCE",
+  "sourcePaths": [
+    {
+      "path": "app/api/orders/route.ts",
+      "lines": "777, 1312, 1384, 1518+",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "path": "lib/server/core-v2/atomic-order.ts",
+      "lines": "199 and Core workflow",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "path": "lib/pos-actor-session-server.ts",
+      "lines": "issue/validate/revoke/state wrappers",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "path": "supabase/migrations/20260813150000_core_v2_atomic_order_execution.sql",
+      "lines": "Core V2 function bodies and lock/write sequence",
+      "evidenceStatus": "STATIC_SOURCE_PROOF"
+    },
+    {
+      "path": "docs/investigations/AFEX-POS-LOCAL-FIRST-OFFLINE-ENGINE-PRODUCTION-READ-ONLY-ATTESTATION/PROD-RO-CORE-V2-IDEMPOTENCY-ASSESSMENT.md",
+      "lines": "approved inherited evidence",
+      "evidenceStatus": "HISTORICAL_PRODUCTION_EVIDENCE"
+    }
+  ],
+  "callerPaths": [
+    {
+      "id": "CORE-CALL-001",
+      "caller": "app/api/orders/route.ts:1312",
+      "callee": "runAtomicOrderCoreV2",
+      "authority": "requireApiAuth plus POS actor checks",
+      "status": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "actual POS employee is not the actor passed into Core"
+      ]
+    },
+    {
+      "id": "CORE-CALL-002",
+      "caller": "lib/server/core-v2/atomic-order.ts:199",
+      "callee": "acquire_atomic_order_command_result_v1",
+      "authority": "injected server admin client",
+      "status": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "CORE-CALL-003",
+      "caller": "lib/server/core-v2/atomic-order.ts:199",
+      "callee": "claim_atomic_order_command_v1",
+      "authority": "injected server admin client",
+      "status": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "CORE-CALL-004",
+      "caller": "lib/server/core-v2/atomic-order.ts:199",
+      "callee": "execute_atomic_order_command_v1",
+      "authority": "injected server admin client",
+      "status": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "offline authority fields absent"
+      ]
+    },
+    {
+      "id": "CORE-CALL-005",
+      "caller": "lib/server/core-v2/atomic-order.ts:199",
+      "callee": "replay_atomic_order_command_v1",
+      "authority": "injected server admin client",
+      "status": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "receipt compatibility must be preserved"
+      ]
+    },
+    {
+      "id": "CORE-CALL-006",
+      "caller": "app/api/orders/route.ts:1384",
+      "callee": "create_invoice_with_items_safe",
+      "authority": "trusted route plus service role",
+      "status": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "legacy path remains callable under feature fallback"
+      ]
+    },
+    {
+      "id": "CORE-CALL-007",
+      "caller": "no live repository caller identified",
+      "callee": "inspect/authorize/hold/resolve reconciliation functions",
+      "authority": "historical grants only",
+      "status": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "possible external operational callers cannot be excluded"
+      ]
+    }
+  ],
+  "bindingMatrix": [
+    {
+      "id": "BIND-001",
+      "field": "primary authenticated subject",
+      "status": "BOUND",
+      "evidence": "actorId is organization auth user ID in route/Core input",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "BIND-002",
+      "field": "actual POS employee",
+      "status": "PARTIAL_OUTSIDE_CORE",
+      "evidence": "validated by route then best-effort patched into order/inventory rows after Core",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-003",
+      "field": "tenant",
+      "status": "BOUND_AT_ACQUIRE_AND_EXECUTION",
+      "evidence": "trusted route and Core command context",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "BIND-004",
+      "field": "branch",
+      "status": "BOUND_AT_ACQUIRE_AND_EXECUTION",
+      "evidence": "trusted route and Core command context",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "BIND-005",
+      "field": "device",
+      "status": "ABSENT",
+      "evidence": "metadata device_id is null",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-006",
+      "field": "device generation",
+      "status": "ABSENT",
+      "evidence": "no Core input/command field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-007",
+      "field": "employee credential generation",
+      "status": "ABSENT",
+      "evidence": "no Core input/command field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-008",
+      "field": "PIN generation",
+      "status": "ABSENT",
+      "evidence": "no Core input/command field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-009",
+      "field": "permission generation",
+      "status": "ABSENT",
+      "evidence": "no Core input/command field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-010",
+      "field": "revocation generation",
+      "status": "ABSENT",
+      "evidence": "no Core input/command field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-011",
+      "field": "package generation",
+      "status": "ABSENT",
+      "evidence": "no Core input/command field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-012",
+      "field": "key-envelope generation",
+      "status": "ABSENT",
+      "evidence": "no Core input/command field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-013",
+      "field": "namespace generation",
+      "status": "ABSENT",
+      "evidence": "no Core input/command field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-014",
+      "field": "local command ID",
+      "status": "ABSENT_AS_DISTINCT_AUTHORITY",
+      "evidence": "server command/idempotency identity exists but no Offline local command binding",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-015",
+      "field": "local sequence",
+      "status": "ABSENT",
+      "evidence": "no Core field observed",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-016",
+      "field": "idempotency key",
+      "status": "BOUND_IMMUTABLY",
+      "evidence": "acquisition command identity and payload fingerprint path",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "BIND-017",
+      "field": "payload fingerprint",
+      "status": "BOUND_IMMUTABLY",
+      "evidence": "Core acquisition compares/stores payload fingerprint",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    },
+    {
+      "id": "BIND-018",
+      "field": "payment attestation",
+      "status": "PARTIAL",
+      "evidence": "method/amount snapshot exists; employee_attested/provider_unverified state separation absent",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-019",
+      "field": "inventory snapshot/frontier",
+      "status": "ABSENT",
+      "evidence": "live catalog/stock locking is used; Offline frontier identity absent",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CORE_V2_CHANGE_REQUIRED"
+      ]
+    },
+    {
+      "id": "BIND-020",
+      "field": "receipt replay",
+      "status": "BOUND_CURRENT_CONTRACT",
+      "evidence": "Core replay result exists and must remain response compatible",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": []
+    }
+  ],
+  "functionMatrix": [
+    {
+      "id": "FUNC-001",
+      "function": "acquire_atomic_order_command_v1",
+      "purpose": "legacy acquisition wrapper",
+      "callerStatus": "no current literal live caller found",
+      "compatibility": "KEEP_AND_HARDEN",
+      "evidenceStatus": "HISTORICAL_PRODUCTION_EVIDENCE",
+      "blockers": [
+        "external caller closure unproven"
+      ]
+    },
+    {
+      "id": "FUNC-002",
+      "function": "acquire_atomic_order_command_result_v1",
+      "purpose": "deterministic acquisition result",
+      "callerStatus": "Core server library",
+      "compatibility": "PRESERVE",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "extend only with receipt-compatible versioning"
+      ]
+    },
+    {
+      "id": "FUNC-003",
+      "function": "claim_atomic_order_command_v1",
+      "purpose": "claim command for execution",
+      "callerStatus": "Core server library",
+      "compatibility": "PRESERVE",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "device/employee lease authority absent"
+      ]
+    },
+    {
+      "id": "FUNC-004",
+      "function": "execute_atomic_order_command_v1",
+      "purpose": "atomic business persistence",
+      "callerStatus": "Core server library",
+      "compatibility": "PRESERVE_AND_VERSION_FOR_OFFLINE_AUTHORITY",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "actual employee/device/generations/effect intent absent"
+      ]
+    },
+    {
+      "id": "FUNC-005",
+      "function": "replay_atomic_order_command_v1",
+      "purpose": "stable receipt replay",
+      "callerStatus": "Core server library",
+      "compatibility": "PRESERVE",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "receipt response parity required"
+      ]
+    },
+    {
+      "id": "FUNC-006",
+      "function": "inspect_atomic_order_reconciliation_v1",
+      "purpose": "operator inspection",
+      "callerStatus": "no live repository caller",
+      "compatibility": "PRESERVE_BOUNDED",
+      "evidenceStatus": "HISTORICAL_PRODUCTION_EVIDENCE",
+      "blockers": [
+        "possible external caller"
+      ]
+    },
+    {
+      "id": "FUNC-007",
+      "function": "authorize_atomic_order_retry_v1",
+      "purpose": "bounded retry authorization",
+      "callerStatus": "no live repository caller",
+      "compatibility": "PRESERVE_BOUNDED",
+      "evidenceStatus": "HISTORICAL_PRODUCTION_EVIDENCE",
+      "blockers": [
+        "possible external caller"
+      ]
+    },
+    {
+      "id": "FUNC-008",
+      "function": "place/resolve/mark reconciliation hold",
+      "purpose": "manual reconciliation state",
+      "callerStatus": "no live repository caller",
+      "compatibility": "PRESERVE_BOUNDED",
+      "evidenceStatus": "HISTORICAL_PRODUCTION_EVIDENCE",
+      "blockers": [
+        "possible external caller"
+      ]
+    },
+    {
+      "id": "FUNC-009",
+      "function": "issue/validate/revoke/state POS actor session functions",
+      "purpose": "online POS actor authority",
+      "callerStatus": "lib/pos-actor-session-server.ts and routes",
+      "compatibility": "PRESERVE",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "not equivalent to Offline device/generation authority"
+      ]
+    },
+    {
+      "id": "FUNC-010",
+      "function": "next_branch_monthly_order_number",
+      "purpose": "number allocation inside business path",
+      "callerStatus": "Core/legacy internal",
+      "compatibility": "PRESERVE_CORE_INTERNAL",
+      "evidenceStatus": "HISTORICAL_PRODUCTION_EVIDENCE",
+      "blockers": [
+        "numbering parity required"
+      ]
+    },
+    {
+      "id": "FUNC-011",
+      "function": "adjust_inventory_stock/restore_inventory_for_cancelled_invoice",
+      "purpose": "legacy inventory mutation/cancellation",
+      "callerStatus": "server routes",
+      "compatibility": "REPLACE_ONLY_AFTER_CORE_CANCELLATION",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "cancellation/refund Core contract absent"
+      ]
+    },
+    {
+      "id": "FUNC-012",
+      "function": "external effect production",
+      "purpose": "WhatsApp/printing/notification",
+      "callerStatus": "post-Core application logic; no atomic effect ledger",
+      "compatibility": "BLOCKED_CORE_V2_CHANGE_REQUIRED",
+      "evidenceStatus": "STATIC_SOURCE_PROOF",
+      "blockers": [
+        "CA-007"
+      ]
+    }
+  ],
+  "paymentMethods": [
+    {
+      "id": "PAY-01",
+      "method": "mada",
+      "apiCore": "accepted",
+      "database": "accepted",
+      "offlineAttestation": "design only"
+    },
+    {
+      "id": "PAY-02",
+      "method": "cash",
+      "apiCore": "accepted",
+      "database": "accepted",
+      "offlineAttestation": "design only"
+    },
+    {
+      "id": "PAY-03",
+      "method": "visa",
+      "apiCore": "accepted",
+      "database": "accepted",
+      "offlineAttestation": "design only"
+    },
+    {
+      "id": "PAY-04",
+      "method": "cod",
+      "apiCore": "accepted",
+      "database": "mapped to on_delivery",
+      "offlineAttestation": "design only"
+    },
+    {
+      "id": "PAY-05",
+      "method": "card",
+      "apiCore": "not accepted by Core route union",
+      "database": "accepted",
+      "offlineAttestation": "design only"
+    },
+    {
+      "id": "PAY-06",
+      "method": "bank_transfer",
+      "apiCore": "not accepted",
+      "database": "not proven accepted",
+      "offlineAttestation": "design only"
+    },
+    {
+      "id": "PAY-07",
+      "method": "transfer",
+      "apiCore": "not accepted by Core route union",
+      "database": "accepted",
+      "offlineAttestation": "design only"
+    },
+    {
+      "id": "PAY-08",
+      "method": "on_delivery",
+      "apiCore": "not accepted directly",
+      "database": "accepted",
+      "offlineAttestation": "design only"
+    }
+  ],
+  "blockers": [
+    "CA-002",
+    "CA-003",
+    "CA-005",
+    "CA-006",
+    "CA-007",
+    "receipt and cancellation compatibility",
+    "possible external reconciliation callers"
+  ]
+}
+
+
