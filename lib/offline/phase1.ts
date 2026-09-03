@@ -15,6 +15,24 @@ export const OFFLINE_ENVELOPE_VERSION = 1
 export const OFFLINE_KEY_ENVELOPE_VERSION = 1
 export const OFFLINE_SCHEMA_GENERATION = 'g1'
 
+export function createSecureUuidV4() {
+  if (
+    typeof crypto === 'undefined' ||
+    typeof crypto.getRandomValues !== 'function'
+  ) {
+    throw new Error('OFFLINE_WEBCRYPTO_UNAVAILABLE')
+  }
+
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('')
+
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 export const OFFLINE_AUTHORITY_LEASE_POLICY = Object.freeze({
   readLeaseAbsoluteMs: 24 * 60 * 60 * 1_000,
   futureBusinessCommandLeaseAbsoluteMs: 2 * 60 * 60 * 1_000,
@@ -577,7 +595,7 @@ class OfflineTabCoordinator {
     const payload: CoordinationMessage = {
       ...message,
       version: 1,
-      eventId: crypto.randomUUID(),
+      eventId: createSecureUuidV4(),
     }
     if (this.channel) {
       this.channel.postMessage(payload)
@@ -1323,7 +1341,7 @@ export async function getOrCreateDeviceCacheId(
       await transactionAsPromise(transaction)
       return existing.value
     }
-    const deviceCacheId = crypto.randomUUID()
+    const deviceCacheId = createSecureUuidV4()
     store.put({
       id: 'device-cache-id',
       kind: 'device-cache-id',
@@ -1362,7 +1380,7 @@ async function acquireNamespaceLease(
   namespaceId: string,
   resource: 'purge'
 ) {
-  const ownerId = crypto.randomUUID()
+  const ownerId = createSecureUuidV4()
   const leaseId = `lease:${namespaceId}:${resource}`
   const transaction = database.transaction(OFFLINE_STORES.meta, 'readwrite')
   const store = transaction.objectStore(OFFLINE_STORES.meta)

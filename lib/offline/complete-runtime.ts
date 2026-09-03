@@ -21,6 +21,7 @@ import {
   OFFLINE_SCHEMA_VERSION,
   OFFLINE_STORES,
   EncryptedOfflineRepository,
+  createSecureUuidV4,
   activateServerVerifiedOfflineNamespace,
   hasOfflineBootstrapReadyMarker,
   markOfflineBootstrapReady,
@@ -324,6 +325,31 @@ async function sha256Hex(value: string | ArrayBuffer | Uint8Array) {
   return bytesToHex(new Uint8Array(digest))
 }
 
+type OfflineEnrollmentDiagnosticStage =
+  | 'authority.restore'
+  | 'namespace.derive'
+  | 'pin-verifier.derive'
+  | 'employee.enroll.request'
+  | 'employee.roster.request'
+  | 'local-roster.persist'
+  | 'online-bootstrap.request'
+  | 'local-actor.persist'
+
+function safeEnrollmentApplicationCode(error: unknown) {
+  const value = error instanceof Error ? error.message : ''
+  return /^[A-Z][A-Z0-9_]{2,96}$/u.test(value) ? value : null
+}
+
+function reportEnrollmentFailure(input: Readonly<{
+  stageCode: OfflineEnrollmentDiagnosticStage
+  operationName: string
+  httpStatus: number | null
+  applicationCode: string | null
+}>) {
+  if (process.env.NODE_ENV !== 'development' && !clientDiagnosticsEnabled) return
+  console.warn('[AFEX offline enrollment]', input)
+}
+
 function money(value: number) {
   if (!Number.isFinite(value) || value < 0) throw new Error('OFFLINE_MONEY_INVALID')
   return value.toFixed(2)
@@ -511,7 +537,7 @@ async function fetchPrePinContext() {
 async function createRuntimeMaterial(
   context: PrePinContext
 ): Promise<RuntimeMaterial> {
-  const deviceId = crypto.randomUUID()
+  const deviceId = createSecureUuidV4()
   const descriptor = await deriveOfflineNamespace({
     primarySubjectId: context.primarySubjectId,
     tenantId: context.tenantId,
@@ -587,7 +613,7 @@ async function createRuntimeMaterial(
     wrapPrivateKey: wrapPair.privateKey,
     wrapPublicKeyJwk,
     wrappedDek,
-    keyEnvelopeId: crypto.randomUUID(),
+    keyEnvelopeId: createSecureUuidV4(),
     keyVersion: 1,
     packageSha256,
     evidenceSha256,
@@ -1191,7 +1217,7 @@ async function doPrepare(
   )
   await preparationDiagnostic('device.provision', 20, 'start')
   const rawDevice = await postPreparation('device.provision', {
-    operationId: crypto.randomUUID(),
+    operationId: createSecureUuidV4(),
     deviceId: material.deviceId,
     proofPublicKeyJwk: material.proofPublicKeyJwk as JsonRecord,
     wrapPublicKeyJwk: material.wrapPublicKeyJwk as JsonRecord,
@@ -1239,7 +1265,7 @@ async function doPrepare(
   progress(75, 'تم تنزيل الكتالوج والأسعار والضريبة وطرق الدفع')
   await preparationDiagnostic('read-snapshot', 75, 'success')
   const now = new Date().toISOString()
-  const snapshotId = crypto.randomUUID()
+  const snapshotId = createSecureUuidV4()
   const frontierVersion = `frontier-${Date.now()}`
   await preparationDiagnostic('inventory.publish', 75, 'start')
   const inventory = trustedInventory(
@@ -1256,7 +1282,7 @@ async function doPrepare(
   await preparationDiagnostic('bootstrap.publish', 90, 'start')
   const bootstrap = approvedBootstrap(
     await postPreparation('bootstrap.publish', {
-      operationId: crypto.randomUUID(),
+      operationId: createSecureUuidV4(),
       deviceId: device.deviceId,
       keyEnvelopeId: device.keyEnvelopeId,
       keyEnvelopeVersion: device.keyEnvelopeVersion,
@@ -1769,7 +1795,7 @@ async function migrateLegacyOfflinePaymentSnapshot(input: Readonly<{
   }>[]
 }>) {
   const namespaceId = input.runtime.descriptor.namespaceId
-  const migratedSnapshotVersion = `payment-authority-v2-${crypto.randomUUID()}`
+  const migratedSnapshotVersion = `payment-authority-v2-${createSecureUuidV4()}`
   const retainedSnapshotVersions = [input.manifest.snapshotVersion]
   const repository = new Phase2DatasetRepository()
   const migratedRuntimeSettings = input.runtimeSettingRecords.map((record) => {
@@ -2360,20 +2386,28 @@ export async function enrollOnlineEmployeeForOffline(
   pin: string,
   employee: ActivePosEmployee
 ) {
-  const authority = await employeeEnrollmentAuthority()
-  assertSelectedEmployeeMatchesPreparedBranch(
-    employee.branch_id,
-    authority.context.branchId
-  )
-  const existing = authority.roster.find(
-    (entry) => entry.employeeId === employee.id && entry.enrolled
-  )
-  const materialId = await runtimeMaterialId(authority.context)
-  const verifier = await derivePinVerifier(pin)
-  const operation = existing ? 'employee.replace_pin' : 'employee.enroll'
+  let stageCode: OfflineEnrollmentDiagnosticStage = 'authority.restore'
+  let operationName = 'employee.enroll'
+  let httpStatus: number | null = null
+  let applicationCode: string | null = null
+  try {
+    const authority = await employeeEnrollmentAuthority()
+    assertSelectedEmployeeMatchesPreparedBranch(
+      employee.branch_id,
+      authority.context.branchId
+    )
+    const existing = authority.roster.find(
+      (entry) => entry.employeeId === employee.id && entry.enrolled
+    )
+    const operation = existing ? 'employee.replace_pin' : 'employee.enroll'
+    operationName = operation
+    stageCode = 'namespace.derive'
+    const materialId = await runtimeMaterialId(authority.context)
+    stageCode = 'pin-verifier.derive'
+    const verifier = await derivePinVerifier(pin)
   const payload = existing
     ? {
-        operationId: crypto.randomUUID(),
+        operationId: createSecureUuidV4(),
         deviceId: authority.device.deviceId,
         actualPosEmployeeId: employee.id,
         expectedEnrollmentGeneration: existing.enrollmentGeneration,
@@ -2389,7 +2423,7 @@ export async function enrollOnlineEmployeeForOffline(
         ),
       }
     : {
-        operationId: crypto.randomUUID(),
+        operationId: createSecureUuidV4(),
         deviceId: authority.device.deviceId,
         actualPosEmployeeId: employee.id,
         keyEnvelopeId: authority.device.keyEnvelopeId,
@@ -2407,6 +2441,7 @@ export async function enrollOnlineEmployeeForOffline(
         ),
       }
   if (!payload.packageSha256) throw new Error('OFFLINE_KEY_MATERIAL_MISSING')
+  stageCode = 'employee.enroll.request'
   const response = await fetch('/api/pos/offline-pilot', {
     method: 'POST',
     credentials: 'include',
@@ -2415,6 +2450,11 @@ export async function enrollOnlineEmployeeForOffline(
     body: JSON.stringify({ operation, payload }),
   })
   const result = (await response.json().catch(() => null)) as JsonRecord | null
+  httpStatus = response.status
+  applicationCode =
+    typeof result?.error === 'string' && /^[A-Z][A-Z0-9_]{2,96}$/u.test(result.error)
+      ? result.error
+      : null
   if (!response.ok || result?.success !== true) {
     throw new Error(
       typeof result?.error === 'string'
@@ -2422,6 +2462,8 @@ export async function enrollOnlineEmployeeForOffline(
         : 'OFFLINE_EMPLOYEE_ENROLLMENT_FAILED'
     )
   }
+  stageCode = 'employee.roster.request'
+  operationName = 'employee.roster'
   const refreshedRoster = employeeRoster(
     await postPreparation('employee.roster', {
       deviceId: authority.device.deviceId,
@@ -2441,6 +2483,8 @@ export async function enrollOnlineEmployeeForOffline(
   }
 
   if (authority.source === 'preparation-checkpoint') {
+    stageCode = 'local-roster.persist'
+    operationName = 'employee.enrollment.resume'
     await encrypted.putEncryptedDraft(
       authority.descriptor.namespaceId,
       ROSTER_RECORD_KEY,
@@ -2464,6 +2508,8 @@ export async function enrollOnlineEmployeeForOffline(
       employeeRoster: refreshedRoster.length,
     }),
   })
+  stageCode = 'local-roster.persist'
+  operationName = 'employee.enrollment.persist'
   await encrypted.putEncryptedDraftBatch(runtime.descriptor.namespaceId, [
     {
       recordKey: ROSTER_RECORD_KEY,
@@ -2481,6 +2527,10 @@ export async function enrollOnlineEmployeeForOffline(
     namespaceId: runtime.descriptor.namespaceId,
     manifest: refreshedCompleteness,
   })
+  stageCode = 'online-bootstrap.request'
+  operationName = 'online.bootstrap'
+  httpStatus = null
+  applicationCode = null
   const actorBootstrapResponse = await fetch('/api/pos/offline-pilot', {
     method: 'POST',
     credentials: 'include',
@@ -2489,7 +2539,7 @@ export async function enrollOnlineEmployeeForOffline(
     body: JSON.stringify({
       operation: 'online.bootstrap',
       payload: {
-        operationId: crypto.randomUUID(),
+        operationId: createSecureUuidV4(),
         deviceId: runtime.device.deviceId,
         keyEnvelopeId: runtime.device.keyEnvelopeId,
         keyEnvelopeVersion: runtime.device.keyEnvelopeVersion,
@@ -2512,6 +2562,12 @@ export async function enrollOnlineEmployeeForOffline(
   const actorBootstrap = (await actorBootstrapResponse
     .json()
     .catch(() => null)) as JsonRecord | null
+  httpStatus = actorBootstrapResponse.status
+  applicationCode =
+    typeof actorBootstrap?.error === 'string' &&
+    /^[A-Z][A-Z0-9_]{2,96}$/u.test(actorBootstrap.error)
+      ? actorBootstrap.error
+      : null
   if (!actorBootstrapResponse.ok || actorBootstrap?.success !== true) {
     throw new Error(
       typeof actorBootstrap?.error === 'string'
@@ -2519,6 +2575,8 @@ export async function enrollOnlineEmployeeForOffline(
         : 'OFFLINE_ACTOR_BOOTSTRAP_FAILED'
     )
   }
+  stageCode = 'local-actor.persist'
+  operationName = 'online.bootstrap.persist'
   await encrypted.putEncryptedDraft(
     runtime.descriptor.namespaceId,
     ACTOR_RECORD_KEY,
@@ -2536,6 +2594,15 @@ export async function enrollOnlineEmployeeForOffline(
     employee: enrolledEmployee,
     preparationResumeRequired: false as const,
   })
+  } catch (error) {
+    reportEnrollmentFailure({
+      stageCode,
+      operationName,
+      httpStatus,
+      applicationCode: applicationCode ?? safeEnrollmentApplicationCode(error),
+    })
+    throw error
+  }
 }
 
 async function actorAuthority(runtime: PreparedOfflineRuntime, employeeId: string) {
@@ -2634,7 +2701,7 @@ function allocateLines(input: OfflineCheckoutInput) {
       taxable,
       tax,
       total: taxable + tax,
-      lineId: crypto.randomUUID(),
+      lineId: createSecureUuidV4(),
     }
   })
 }
@@ -2692,7 +2759,7 @@ export async function enqueueOfflineOrderCreate(input: OfflineCheckoutInput) {
   if (!binding) {
     const candidate = Object.freeze({
       submissionHash,
-      orderReference: crypto.randomUUID(),
+      orderReference: createSecureUuidV4(),
       createdAt: new Date().toISOString(),
       localCommandId: null,
       status: 'preparing' as const,

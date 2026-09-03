@@ -6,6 +6,7 @@ import {
   OFFLINE_STORES,
   OfflineKeyManager,
   OfflinePhase1Error,
+  createSecureUuidV4,
   decryptOfflineRecord,
   encryptOfflineRecord,
   offlineKeyManager,
@@ -721,7 +722,7 @@ export class Phase2DatasetRepository {
       'sourceContractVersion'
     )
     const writerId = requireIdentifier(
-      input.writerId ?? crypto.randomUUID(),
+      input.writerId ?? createSecureUuidV4(),
       'writerId'
     )
     const expectedPageCount = requirePositiveInteger(input.expectedPageCount)

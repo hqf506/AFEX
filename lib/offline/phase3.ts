@@ -6,6 +6,7 @@ import {
   OFFLINE_STORES,
   OfflineKeyManager,
   OfflinePhase1Error,
+  createSecureUuidV4,
   decryptOfflineRecord,
   encryptOfflineRecord,
   offlineKeyManager,
@@ -699,15 +700,15 @@ export async function createPhase3CommandIdentity<T extends Phase3CommandType>(
     deduplicationKey,
   })
   return Object.freeze({
-    localCommandId: `lc_${crypto.randomUUID()}`,
+    localCommandId: `lc_${createSecureUuidV4()}`,
     idempotencyKey,
     aggregateId: aggregateIdForPayload(payload),
     causationId: input.causationId
       ? requireIdentifier(input.causationId)
-      : `cause_${crypto.randomUUID()}`,
+      : `cause_${createSecureUuidV4()}`,
     correlationId: input.correlationId
       ? requireIdentifier(input.correlationId)
-      : `corr_${crypto.randomUUID()}`,
+      : `corr_${createSecureUuidV4()}`,
     payloadHash,
     deduplicationKey,
   })

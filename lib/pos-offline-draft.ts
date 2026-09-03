@@ -1,7 +1,10 @@
 import type { InvoiceLineItem } from '@/lib/invoices/items'
 import type { PosPaymentMethod } from '@/lib/invoices/payment-method'
 import type { ActivePosEmployee } from '@/lib/pos-employee-session'
-import { OFFLINE_CAPABILITIES } from '@/lib/offline/phase1'
+import {
+  OFFLINE_CAPABILITIES,
+  createSecureUuidV4,
+} from '@/lib/offline/phase1'
 
 export const POS_OFFLINE_DRAFTS_STORAGE_KEY = 'leather_fix_pos_offline_drafts'
 export const POS_OFFLINE_DRAFTS_UPDATED_EVENT =
@@ -58,32 +61,11 @@ export type PosOfflineDraftSyncState = {
 }
 
 function createLocalDraftId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-
-  return `pos-draft-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `pos-draft-${createSecureUuidV4()}`
 }
 
 export function createPosClientIdempotencyKey() {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return `pos_${crypto.randomUUID()}`
-  }
-
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.getRandomValues === 'function'
-  ) {
-    const bytes = crypto.getRandomValues(new Uint8Array(16))
-    return `pos_${Array.from(bytes, (byte) =>
-      byte.toString(16).padStart(2, '0')
-    ).join('')}`
-  }
-
-  throw new Error('Secure idempotency key generation is unavailable')
+  return `pos_${createSecureUuidV4()}`
 }
 
 function isPosOfflineInvoiceDraft(value: unknown): value is PosOfflineInvoiceDraft {

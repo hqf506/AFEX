@@ -37,6 +37,10 @@ const PIN_LOCK_ATTEMPTS = 3
 const PIN_LOCK_MS = 5000
 const PIN_CLEAR_AFTER_ERROR_MS = 500
 const INVALID_PIN_MESSAGE = POS_UX_MESSAGES.wrongPin
+const OFFLINE_PREPARATION_ERROR_MESSAGE =
+  'تم التحقق من الرمز، لكن تعذر تجهيز وضع العمل دون اتصال. حاول مرة أخرى.'
+const OFFLINE_RECOVERY_ERROR_MESSAGE =
+  'تم التحقق من الرمز، لكن تعذر استعادة بيانات نقطة البيع المحلية بأمان. حاول مرة أخرى.'
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
 function EmployeeAvatarIcon() {
@@ -113,7 +117,8 @@ function SessionInfoRow({
 
 export default function PosEmployeePinPage() {
   const router = useRouter()
-  const redirectTargetRef = useRef<'/pos/login' | '/pos' | null>(null)
+  const redirectTargetRef =
+    useRef<'/pos/login' | '/pos/offline-preparation' | '/pos' | null>(null)
   const authState = useAuthState()
   const verifyingPinRef = useRef('')
   const clearPinTimeoutRef = useRef<number | null>(null)
@@ -299,16 +304,19 @@ export default function PosEmployeePinPage() {
     verifyingPinRef.current = pinToVerify
 
     async function verifyPin() {
+      let failureStage: 'pin-verification' | 'offline-preparation' | 'offline-recovery' =
+        'pin-verification'
       try {
         setLoading(true)
         setError('')
 
-        let selectedEmployee: ActivePosEmployee
+        let selectedEmployee: ActivePosEmployee | null = null
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
           selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)
         } else {
+          let response: Response | null = null
           try {
-            const response = await fetch('/api/pos/identify-employee-by-pin', {
+            response = await fetch('/api/pos/identify-employee-by-pin', {
               method: 'POST',
               credentials: 'include',
               headers: {
@@ -318,6 +326,11 @@ export default function PosEmployeePinPage() {
                 buildScopedOnlinePinIdentification(pinToVerify, currentBranchId)
               ),
             })
+          } catch (onlineError) {
+            if (!(onlineError instanceof TypeError)) throw onlineError
+            selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)
+          }
+          if (response) {
             const result = await response.json().catch(() => null)
             const resultBody =
               result && typeof result === 'object'
@@ -334,17 +347,18 @@ export default function PosEmployeePinPage() {
               throw new Error(getClientErrorMessage(result, INVALID_PIN_MESSAGE))
             }
             selectedEmployee = result.employee as ActivePosEmployee
+            failureStage = 'offline-preparation'
             const enrollment = await enrollOnlineEmployeeForOffline(
               pinToVerify,
               selectedEmployee
             )
             if (enrollment.preparationResumeRequired) {
-              router.replace('/pos/offline-preparation')
+              if (!redirectTargetRef.current) {
+                redirectTargetRef.current = '/pos/offline-preparation'
+                router.replace('/pos/offline-preparation')
+              }
               return
             }
-          } catch (onlineError) {
-            if (!(onlineError instanceof TypeError)) throw onlineError
-            selectedEmployee = await verifyOfflineEmployeePin(pinToVerify)
           }
         }
 
@@ -354,20 +368,34 @@ export default function PosEmployeePinPage() {
           }
           throw new Error(INVALID_PIN_MESSAGE)
         }
+        const verifiedEmployee = selectedEmployee
 
+        failureStage = 'offline-recovery'
         await completePosPinOfflineRecoveryGate(() => {
           clearAllInvoiceCatalogCache()
-          writeActivePosEmployee(selectedEmployee)
+          writeActivePosEmployee(verifiedEmployee)
           clearPosLoggedOut()
         })
         setFailedAttempts(0)
-        router.replace('/pos')
+        if (!redirectTargetRef.current) {
+          redirectTargetRef.current = '/pos'
+          router.replace('/pos')
+        }
       } catch (verificationError) {
-        const nextFailedAttempts = failedAttempts + 1
-        const shouldLock = nextFailedAttempts >= PIN_LOCK_ATTEMPTS
-        setFailedAttempts(shouldLock ? 0 : nextFailedAttempts)
+        const postVerificationFailure = failureStage !== 'pin-verification'
+        const nextFailedAttempts = postVerificationFailure
+          ? failedAttempts
+          : failedAttempts + 1
+        const shouldLock = !postVerificationFailure && nextFailedAttempts >= PIN_LOCK_ATTEMPTS
+        if (!postVerificationFailure) {
+          setFailedAttempts(shouldLock ? 0 : nextFailedAttempts)
+        }
         setError(
-          shouldLock
+          failureStage === 'offline-preparation'
+            ? OFFLINE_PREPARATION_ERROR_MESSAGE
+            : failureStage === 'offline-recovery'
+              ? OFFLINE_RECOVERY_ERROR_MESSAGE
+              : shouldLock
             ? POS_UX_MESSAGES.pinRateLimit
             : verificationError instanceof TypeError
               ? POS_UX_MESSAGES.networkFailure
